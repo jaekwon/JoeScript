@@ -20,7 +20,7 @@ Context = clazz [@,'Context'], ->
   try: (cb_context) ->
     clone = @clone()
     result = cb_context(clone)
-    @commit clone if result?
+    @commit clone if result isnt null
     return result
   debug: -> console.log arguments...
 
@@ -28,13 +28,10 @@ Context = clazz [@,'Context'], ->
 In addition to the attributes defined by subclasses,
   the following attributes exist for all nodes.
 
-  node.rule = The topmost node of a rule.
+node.rule = The topmost node of a rule.
+node.rule = rule # sometimes true.
+node.name = name of the rule, if this is @rule.
 
-For the topmost node of a rule called `rule`,
-
-  rule == rule.rule # this is @rule
-
-And rule.name is the name (key) for the rule.
 ###
 Node = clazz [@,'Node'], ->
 
@@ -54,7 +51,7 @@ Node = clazz [@,'Node'], ->
 
   @$callback = (fn) -> (context) ->
     result = fn.call this, context
-    result = @cb result if result? and @cb?
+    result = @cb result if result isnt null and @cb?
     return result
 
   @$recurse = (fn) -> (context) ->
@@ -90,7 +87,7 @@ Node = clazz [@,'Node'], ->
         result = fn.call this, clone
         context.stack.pop()
         delete context.cache[stackItem.pos][@name]
-        if result? and snowball.code.pos < clone.code.pos
+        if result isnt null and snowball.code.pos < clone.code.pos
           snowball.value = result
           snowball.code = clone.code
         else
@@ -111,7 +108,7 @@ Node = clazz [@,'Node'], ->
             red(@name)+': '+blue(rule)+" "+
             black("["+context.code.peek(chars:20)+"]")
       result = fn.call this, context
-      context.debug "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{result} #{black typeof result}" if result?
+      context.debug "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{result} #{black typeof result}" if result isnt null
       return result
 
   @$wrap = (fn) ->
@@ -133,35 +130,58 @@ Node = clazz [@,'Node'], ->
   _cb: (@cb) -> @
  
 Choice = clazz [@,'Choice'], Node, ->
-  init: (@choices) -> @children = @choices
+  init: (@choices) ->
+    @children = @choices
   parse$: @$wrap (context) ->
     for choice in @choices
       result = context.try choice.parse
-      return result if result?
+      return result if result isnt null
     null
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 Sequence = clazz [@,'Sequence'], Node, ->
   init: (@sequence) -> @children = @sequence
   prepare: ->
-    @hasLabel = _.any (child.label for child in @children)
+    numCaptures = 0
+    numLabels = 0
+    for child in @children
+      numLabels += 1 if child.label
+      numCaptures += 1 if child.capture
+    @type =
+      if numLabels is 0
+        if numCaptures > 1 then 'array' else 'single'
+      else
+        'object'
+    console.log @type
   parse$: @$wrap (context) ->
-    results = null # an object or array
-    # TODO cannot say name = for expr then return
-    for child in @sequence
-      childResult = child.parse context
-      return null if not childResult?
-      if child.label is '&'
-        results = _.extend childResult, results
-      else if child.label is '@'
-        _.extend (results||={}), childResult
-      else if child.label?
-        (results||={})[child.label] = childResult
-      else if child.capture and not @hasLabel
-        (results||=[]).push childResult
-    # can happen if one of the elements is a command
-    return results[0] if not @hasLabel and results.length is 1
-    return if _.isEmpty results then null else results
+    switch @type
+      when 'array'
+        results = []
+        for child in @sequence
+          childResult = child.parse context
+          return null if childResult is null
+          results.push childResult if child.capture
+        return results
+      when 'single'
+        result = null
+        for child in @sequence
+          childResult = child.parse context
+          return null if childResult is null
+          result = childResult if child.capture
+        return result
+      when 'object'
+        results = {}
+        for child in @sequence
+          childResult = child.parse context
+          return null if childResult is null
+          if child.label is '&'
+            results = _.extend childResult, results
+          else if child.label is '@'
+            _.extend results, childResult
+          else if child.label?
+            results[child.label] = childResult
+        return results
+    null
   toString: ->
     labeledStrs = for node in @sequence
       if node.label?
@@ -173,11 +193,13 @@ Sequence = clazz [@,'Sequence'], Node, ->
 Lookahead = clazz [@,'Lookahead'], Node, ->
   capture: no
   init: ({@words, @chars}) ->
-  parse$: @$wrap (context) -> context.code.peek words:@words, chars:@chars
+  parse$: @$wrap (context) ->
+    context.code.peek words:@words, chars:@chars
   toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
 
 Exists = clazz [@,'Exists'], Node, ->
-  init: (@it) -> @children = [@it]
+  init: (@it) ->
+    @children = [@it]
   parse$: @$wrap (context) ->
     result = context.try (context) =>
       @it.parse context
@@ -208,7 +230,8 @@ Pattern = clazz [@,'Pattern'], Node, ->
 
 Not = clazz [@,'Not'], Node, ->
   capture: no
-  init: (@it) -> @children = [@it]
+  init: (@it) ->
+    @children = [@it]
   parse$: @$wrap (context) ->
     context = context.clone()
     peekResult = @it.parse context
@@ -252,7 +275,8 @@ Rank = clazz [@,'Rank'], Node, ->
   parse$: @$wrap (context) ->
     for own name, node of @rules
       result = context.try node.parse
-      return result if result?
+      return result if result isnt null
+    null
   toString: -> "#{_.keys(@rules).join ' | '}"
 
 Grammar = clazz [@,'Grammar'], Node, ->
