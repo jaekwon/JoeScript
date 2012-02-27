@@ -9,11 +9,12 @@ assert = require 'assert'
 {clazz} = require 'cardamom'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
 
-Context = clazz [@,'Context'], ->
+@Context = Context = clazz 'Context', ->
   init: (@code, @grammar, @stack=[], @cache={}, @result) ->
     # stack = [ {name, pos, snowball?:{value,endPos} }... ]
     # cache[context.code.pos][@rule.name] = {result,endPos}
-  clone: -> Context @code.clone(), @grammar, @stack, @cache, @result
+  clone: ->
+    Context @code.clone(), @grammar, @stack, @cache, @result
   commit: (clone) ->
     @code.commit clone.code
     @result = clone.result
@@ -33,7 +34,7 @@ node.rule = rule # sometimes true.
 node.name = name of the rule, if this is @rule.
 
 ###
-Node = clazz [@,'Node'], ->
+@Node = Node = clazz 'Node', ->
 
   @$contextResult = (fn) -> (context) ->
     return context.result = fn.call this, context
@@ -51,7 +52,7 @@ Node = clazz [@,'Node'], ->
 
   @$callback = (fn) -> (context) ->
     result = fn.call this, context
-    result = @cb result if result isnt null and @cb?
+    result = @cb.call context, result if result isnt null and @cb?
     return result
 
   @$recurse = (fn) -> (context) ->
@@ -101,14 +102,17 @@ Node = clazz [@,'Node'], ->
 
   @$debug = (fn) ->
     return fn # disabled
+    escape = (str) ->
+      (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n')
+      
     (context) ->
       if this isnt @rule then return fn.call this, context
       rule = context.grammar.rules[@name]
       context.debug cyan(Array(context.stack.length+1).join('|  '))+
             red(@name)+': '+blue(rule)+" "+
-            black("["+context.code.peek(chars:20)+"]")
+            black("["+(buffer=(escape (context.code.peek chars:20)))+(if buffer.length < 20 then "]" else ">"))
       result = fn.call this, context
-      context.debug "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{result} #{black typeof result}" if result isnt null
+      context.debug "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{escape result} #{black typeof result}" if result isnt null
       return result
 
   @$wrap = (fn) ->
@@ -129,7 +133,7 @@ Node = clazz [@,'Node'], ->
   toString: -> "[#{@constructor.name}]"
   _cb: (@cb) -> @
  
-Choice = clazz [@,'Choice'], Node, ->
+@Choice = Choice = clazz 'Choice', Node, ->
   init: (@choices) ->
     @children = @choices
   parse$: @$wrap (context) ->
@@ -139,7 +143,7 @@ Choice = clazz [@,'Choice'], Node, ->
     null
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
-Sequence = clazz [@,'Sequence'], Node, ->
+@Sequence = Sequence = clazz 'Sequence', Node, ->
   init: (@sequence) -> @children = @sequence
   prepare: ->
     numCaptures = 0
@@ -152,7 +156,6 @@ Sequence = clazz [@,'Sequence'], Node, ->
         if numCaptures > 1 then 'array' else 'single'
       else
         'object'
-    console.log @type
   parse$: @$wrap (context) ->
     switch @type
       when 'array'
@@ -190,23 +193,23 @@ Sequence = clazz [@,'Sequence'], Node, ->
         ''+node
     blue("(")+(labeledStrs.join ' ')+blue(")")
 
-Lookahead = clazz [@,'Lookahead'], Node, ->
+@Lookahead = Lookahead = clazz 'Lookahead', Node, ->
   capture: no
   init: ({@words, @chars}) ->
   parse$: @$wrap (context) ->
     context.code.peek words:@words, chars:@chars
   toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
 
-Exists = clazz [@,'Exists'], Node, ->
+@Exists = Exists = clazz 'Exists', Node, ->
   init: (@it) ->
     @children = [@it]
   parse$: @$wrap (context) ->
     result = context.try (context) =>
       @it.parse context
-    result or ''
+    result ? undefined # not null, so is a valid match.
   toString: -> ''+@it+blue("?")
 
-Pattern = clazz [@,'Pattern'], Node, ->
+@Pattern = Pattern = clazz 'Pattern', Node, ->
   init: ({@value, @join, @min, @max}) ->
     @children = if @join? then [@value, @join] else [@value]
   parse$: @$wrap (context) ->
@@ -220,7 +223,7 @@ Pattern = clazz [@,'Pattern'], Node, ->
             return null unless (join = @join.parse context)?
           return null unless (match = @value.parse context)?
           matches.push match
-          return 'break' if matches.length >= @max
+          return 'break' if @max? and matches.length >= @max
           return 'continue'
         )
         break if result in [null, 'break']
@@ -228,7 +231,7 @@ Pattern = clazz [@,'Pattern'], Node, ->
     return matches
   toString: -> ''+@value+blue("*{")+(@join||'')+blue(";")+(@min||'')+blue(",")+(@max||'')+blue("}")
 
-Not = clazz [@,'Not'], Node, ->
+@Not = Not = clazz 'Not', Node, ->
   capture: no
   init: (@it) ->
     @children = [@it]
@@ -238,7 +241,7 @@ Not = clazz [@,'Not'], Node, ->
     return if peekResult? then null else 'NoMatch'
   toString: -> "#{yellow '!'}#{@it}"
 
-Ref = clazz [@,'Ref'], Node, ->
+@Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
   parse$: @$wrap (context) ->
     if @key is '$'
@@ -249,12 +252,12 @@ Ref = clazz [@,'Ref'], Node, ->
       node.parse context
   toString: -> red(@key)
 
-String = clazz [@,'String'], Node, ->
+@String = String = clazz 'String', Node, ->
   init: (@str) ->
   parse$: @$wrap (context) -> context.code.match string: @str
   toString: -> green("'#{@str.replace('\\', '\\\\').replace("'", "\\'")}'")
 
-Regex = clazz [@,'Regex'], Node, ->
+@Regex = Regex = clazz 'Regex', Node, ->
   init: (@reStr) ->
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
@@ -262,12 +265,24 @@ Regex = clazz [@,'Regex'], Node, ->
   parse$: @$wrap (context) -> context.code.match(regex: @re)
   toString: -> magenta(''+@re)
 
-Rank = clazz [@,'Rank'], Node, ->
-  init: (@rules) ->
+@Nodeling = Nodeling = clazz 'Nodeling', ->
+  init: ({@rule, @cb}) ->
+  parse: -> (GRAMMAR.parse @rule).result._cb @cb
+
+@Rank = Rank = clazz 'Rank', Node, ->
+  init: (rules) ->
+    @rules = _.clone rules
+    @deps = null
     @children = []
     for name, rule of @rules
-      if rule not instanceof Node
+      if rule instanceof Nodeling
+        rule = @rules[name] = rule.parse()
+      else if rule not instanceof Node
         rule = @rules[name] = Rank rule
+      if name.length is 0 or name[0] is ' '
+        delete @rules[name]
+        name = name.trim()
+        (@deps||={})[name] = rule
       rule.name = name
       rule.index = @children.length
       rule.rule = rule
@@ -279,8 +294,11 @@ Rank = clazz [@,'Rank'], Node, ->
     null
   toString: -> "#{_.keys(@rules).join ' | '}"
 
-Grammar = clazz [@,'Grammar'], Node, ->
+@Grammar = Grammar = clazz 'Grammar', Node, ->
+  macros =
+    o: (rule, cb) -> Nodeling rule: rule, cb: cb
   init: (rules) ->
+    rules = rules macros if typeof rules is 'function'
     @rank = Rank rules
     @rules = {}
     # initial setup
@@ -295,6 +313,7 @@ Grammar = clazz [@,'Grammar'], Node, ->
         # dereference all rules
         if node instanceof Rank
           _.extend @rules, node.rules
+          _.extend @rules, node.deps if node.deps?
         # setup $/$$
         else if node instanceof Ref and node.key in ['$', '$$']
           rank = node.rule.parent
@@ -304,9 +323,12 @@ Grammar = clazz [@,'Grammar'], Node, ->
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
-  parse$: (context, start='START') ->
-    context.grammar = @
+  parse$: (code, start='START') ->
+    code = CodeStream code if code not instanceof CodeStream
+    context = Context code, this
     Ref(start).parse context
+    throw Error "incomplete parse: [#{context.code.peek chars:10}]" if context.code.pos isnt context.code.text.length
+    return context
 
 C  = -> Choice (x for x in arguments) # TODO ugh
 E  = -> Exists arguments...
@@ -319,49 +341,49 @@ Re = -> Regex arguments...
 S  = -> Sequence (x for x in arguments)
 St = -> String arguments...
 
-UNTIL = (nGen) -> P(S(N(nGen()),
-                      C(S(St('\\'),
-                          L('&',R('.'))),
-                        R('.'))))
-
-GRAMMAR = Grammar
+@GRAMMAR = GRAMMAR = Grammar
   START:                R('EXPR')
   EXPR:
-    EXPR_:              S(L('&',R('$')), R('_'))._cb                              ($1) -> $1
-    CHOICE:             P(R('$'), S(R('_'), St('|')), 2)._cb                      ($1) -> Choice $1
-    SEQUENCE:           P(R('$'), null, 2)._cb                                    ($1) -> Sequence $1
+    EXPR_:              S(L('&',R('$')), R('_'))
+    CHOICE:             P(R('$'), S(R('_'), St('|')), 2)._cb Choice
+    SEQUENCE:           P(R('$'), null, 2)._cb Sequence
     UNIT:
       _UNIT:            S(R('_'), L('&',R('$')))
       COMMAND:
-        LA_CHAR:        S(St('<chars:'), L('chars',R('INT')), St('>'))._cb        ($1) -> Lookahead $1
-        LA_WORD:        S(St('<words:'), L('words',R('INT')), St('>'))._cb        ($1) -> Lookahead $1
+        LA_CHAR:        S(St('<chars:'), L('chars',R('INT')), St('>'))._cb Lookahead
+        LA_WORD:        S(St('<words:'), L('words',R('INT')), St('>'))._cb Lookahead
       LABELED:          S(L('@', E(S(L('label',R('LABEL')), St(':')))),
                           L('&',R('$')))
       DECORATED:
-        EXISTS:         S(L('&',R('PRIMARY')), St('?'))._cb                       ($1) -> Exists $1
+        EXISTS:         S(L('&',R('PRIMARY')), St('?'))._cb Exists
         PATTERN:        S(L('value',R('PRIMARY')), St('*'),
                           L('@', E(S(St('{'),
                               L('join',E(R('EXPR'))), St(';'),
                               R('_'), L('min', E(R('INT'))), R('_'), St(','),
-                              R('_'), L('max', E(R('INT'))), R('_'), St('}')))))._cb ($1) -> Pattern $1
-        NOT:            S(St('!'), L('&',R('PRIMARY')))._cb                       ($1) -> Not $1
+                              R('_'), L('max', E(R('INT'))), R('_'), St('}')))))._cb Pattern
+        NOT:            S(St('!'), L('&',R('PRIMARY')))._cb Not
       PRIMARY:
-        REF:            C(St('$$'), St('$'), R('WORD'))._cb                       ($1) -> Ref $1
+        REF:            C(St('$$'), St('$'), R('WORD'))._cb Ref
         PAREN:          S(St('('), L('&',R('EXPR')), St(')'))
-        STRING:         S(St("'"), L('&', UNTIL(->St("'"))), St("'"))._cb         ($1) -> String $1.join ''
-        REGEX:          S(St("/"), L('&', UNTIL(->St("/"))), St("/"))._cb         ($1) -> Regex $1.join ''
-  NUMERIC:
-    INT:                S(La(words:1), Re('[0-9]+'))._cb                          ($1) -> Number $1
-  OTHER:
-    LABEL:              C(St('&'), St('@'), R('WORD'))
-    WORD:               S(La(words:1), Re('[a-zA-Z\\._]+'))
-    '.':                C(R('TERM'), S(La(chars:1), Re('.')))
-    _:                  P(C(R('WHITESPACE'), R('TERM')))
-    TERM:               St("\n")
-    WHITESPACE:         S(La(words:1), Re(' +'))
-
-@parseGrammar = ({code}) ->
-  code = CodeStream code if code not instanceof CodeStream
-  context = Context code
-  GRAMMAR.parse context
-  context
+        STRING:         S(St("'"),
+                          L('&',P(S(N(St("'")),
+                                    C(R('ESC1'), R('.'))))),
+                          St("'"))._cb (it) -> String it.join ''
+        REGEX:          S(St('/'),
+                          L('&',P(S(N(St('/')),
+                                    C(R('ESC2'), R('.'))))),
+                          St('/'))._cb (it) -> Regex it.join ''
+        '':
+          ESC1:         S(St('\\'), L('&',R('.')))
+          ESC2:         S(St('\\'), R('.'))._cb (it) -> it.join ''
+  '':
+    NUMERIC:
+      INT:              S(La(words:1), Re('[0-9]+'))._cb Number
+    OTHER:
+      LABEL:            C(St('&'), St('@'), R('WORD'))
+      WORD:             S(La(words:1), Re('[a-zA-Z\\._][a-zA-Z\\._0-9]*'))
+      '.':              S(La(chars:1), Re('[\\s\\S]'))
+      ESC_CHAR:         S(La(chars:2), Re('\\\\[\\s\\S]'))
+      _:                P(C(R('WHITESPACE'), R('TERM')))
+      TERM:             St("\n")
+      WHITESPACE:       S(La(words:1), Re(' +'))
