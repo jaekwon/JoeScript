@@ -45,8 +45,9 @@ node.name = name of the rule, if this is @rule.
     if cacheKey? and (cached=context.cache[origPos=context.code.pos]?[cacheKey])?
       context.code.commit cached.code
       return cached.result
+    context.storeCache = yes
     result = fn.call this, context
-    if cacheKey?
+    if cacheKey? and context.storeCache
       (context.cache[origPos]||={})[cacheKey] = result:result, code:context.code.clone()
     return result
 
@@ -100,8 +101,17 @@ node.name = name of the rule, if this is @rule.
       context.code.commit stackItem.snowball.code
       return stackItem.snowball.value
 
+  @$ruleLabel = (fn) -> (context) ->
+    if this isnt @rule then return fn.call this, context
+    result = fn.call this, context
+    if @label? and @label not in ['@','&']
+      result_ = {}
+      result_[@label] = result
+      result = result_
+    return result
+
   @$debug = (fn) ->
-    return fn # disabled
+    #return fn # disabled
     escape = (str) ->
       (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n')
       
@@ -116,7 +126,7 @@ node.name = name of the rule, if this is @rule.
       return result
 
   @$wrap = (fn) ->
-    @$contextResult @$cache @$debug @$recurse @$callback fn
+    @$contextResult @$cache @$debug @$recurse @$callback @$ruleLabel fn
 
   capture: yes
   walk: ({pre, post}, parent=undefined) ->
