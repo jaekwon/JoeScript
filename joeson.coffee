@@ -9,6 +9,9 @@ assert = require 'assert'
 {clazz} = require 'cardamom'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
 
+escape = (str) ->
+  (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
+
 @Context = Context = clazz 'Context', ->
   init: (@code, @grammar, @stack=[], @cache={}, @result) ->
     # stack = [ {name, pos, snowball?:{value,endPos} }... ]
@@ -111,10 +114,7 @@ node.name = name of the rule, if this is @rule.
     return result
 
   @$debug = (fn) ->
-    #return fn # disabled
-    escape = (str) ->
-      (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n')
-      
+    # return fn # disabled 
     (context) ->
       if this isnt @rule then return fn.call this, context
       rule = context.grammar.rules[@name]
@@ -265,7 +265,7 @@ node.name = name of the rule, if this is @rule.
 @String = String = clazz 'String', Node, ->
   init: (@str) ->
   parse$: @$wrap (context) -> context.code.match string: @str
-  toString: -> green("'#{@str.replace('\\', '\\\\').replace("'", "\\'")}'")
+  toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', Node, ->
   init: (@reStr) ->
