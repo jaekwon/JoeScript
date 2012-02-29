@@ -13,6 +13,9 @@ Loop = clazz 'Loop', Node, ->
   init: (@block) ->
   toString: ->
     "loop {#{@block}}"
+Operation = clazz 'Operation', Node, ->
+  init: ({@left, @op, @right}) ->
+  toString: -> "(#{@left or ''}#{@op}#{@right or ''})"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> '{'+@args+'}'
@@ -45,19 +48,19 @@ GRAMMAR = Grammar ({o}) ->
   __INIT__:             o "''", -> # init
   THINGS:               o "things:THING*{NEWLINE;,}", Block
   THING:
-    POSTCTRL:           o "expr:(POSTCTRL|$) __ type:('if'|'for') cond:EXPR"
+    POSTCTRL:           o "expr:$$ __ type:('if'|'for') cond:EXPR"
     STMT:               o "__ type:('return'|'throw') expr:$?"
     EXPR:
       INVOC:            o "func:INVOCABLE __ params:(INVOC|PARAMS)"
       ' PARAMS':
           PARAMS0:      o "__ '(' __ &:PARAMS1 __ ')'"
           PARAMS1:      o "EXPR*{__ ',';1,}"
-      ASSIGN:           o "target:INVOCABLE __ '=' source:(ASSIGN|$)"
+      ASSIGN:           o "target:INVOCABLE __ '=' source:$$"
       #COMPLEX:          o "CLASS | SWITCH | IF | LOOP"
-      OP0:              o "$*{__ ('=='|'!='|'<'|'<='|'>'|'>=');2,}", Dummy
-      OP1:              o "$*{__ ('+'|'-');2,}", Dummy
-      OP2:              o "$*{__ ('*'|'/'|'%');2,}", Dummy
-      OP3:              o "$ ('--'|'++') | ('--'|'++') $", Dummy
+      OP0:              o "left:$$ __ op:('=='|'!='|'<'|'<='|'>'|'>=') right:$", Operation
+      OP1:              o "left:$$ __ op:('+'|'-')                     right:$", Operation
+      OP2:              o "left:$$ __ op:('*'|'/'|'%')                 right:$", Operation
+      OP3:              o "left:$ op:('--'|'++') | op:('--'|'++') right:$", Operation
       INVOCABLE:
         SIMPLE:         o "__ <words:1> &:/[a-zA-Z]+/"
   _BLOCKS:
@@ -72,5 +75,5 @@ GRAMMAR = Grammar ({o}) ->
                         # optional whitespaces
     __:                 o "<words:1> /[ ]*/"
 
-context = GRAMMAR.parse """foo + foo"""
+context = GRAMMAR.parse """a * b++ + c / d * f + foo + foo"""
 console.log ''+context.result

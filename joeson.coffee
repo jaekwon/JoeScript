@@ -254,7 +254,7 @@ node.name = name of the rule, if this is @rule.
 @Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
   parse$: @$wrap (context) ->
-    if @key is '$'
+    if @key in ['$', '$$']
       @choices.parse context
     else
       node = context.grammar.rules[@key]
@@ -329,7 +329,8 @@ node.name = name of the rule, if this is @rule.
           rank = node.rule.parent
           # construct implicit choices
           node.choices = Choice rank.children.filter (rule) -> rule.index > node.rule.index
-          node.rule.recursive = yes if node.key is '$$'
+          node.choices.children.unshift Ref node.rule.name if node.key is '$$'
+          
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
