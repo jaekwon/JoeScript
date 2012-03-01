@@ -1,6 +1,6 @@
 # This will parse the grammar below
 
-{GRAMMAR, Grammar, Nodeling, Choice, Sequence, Lookahead, Exists, Pattern, Not, Ref, String, Regex} = require './joeson'
+{GRAMMAR, MACROS, Grammar, Nodeling, Choice, Sequence, Lookahead, Exists, Pattern, Not, Ref, String, Regex} = require './joeson'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
 
 pad = ({left,right}, str) ->
@@ -10,7 +10,7 @@ pad = ({left,right}, str) ->
     return str+Array(left-str.length+1).join(' ')
   return str
 
-o = (rule, cb) -> Nodeling rule: rule, cb: cb
+{o, t} = MACROS
 QUOTE = "'\\''"
 FSLSH = "'/'"
 SLASH = "'\\\\'"

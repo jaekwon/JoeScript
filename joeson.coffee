@@ -13,11 +13,11 @@ escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
 
 @Context = Context = clazz 'Context', ->
-  init: (@code, @grammar, @stack=[], @cache={}, @result) ->
+  init: (@code, @grammar, @stack=[], @cache={}, @result, @debug) ->
     # stack = [ {name, pos, snowball?:{value,endPos} }... ]
     # cache[context.code.pos][@rule.name] = {result,endPos}
   clone: ->
-    Context @code.clone(), @grammar, @stack, @cache, @result
+    Context @code.clone(), @grammar, @stack, @cache, @result, @debug
   commit: (clone) ->
     @code.commit clone.code
     @result = clone.result
@@ -26,7 +26,7 @@ escape = (str) ->
     result = cb_context(clone)
     @commit clone if result isnt null
     return result
-  debug: -> console.log arguments...
+  log: -> if @debug then console.log arguments...
 
 ###
 In addition to the attributes defined by subclasses,
@@ -114,15 +114,15 @@ node.name = name of the rule, if this is @rule.
     return result
 
   @$debug = (fn) ->
-    # return fn # disabled 
     (context) ->
+      if not context.debug then return fn.call this, context
       if this isnt @rule then return fn.call this, context
       rule = context.grammar.rules[@name]
-      context.debug cyan(Array(context.stack.length+1).join('|  '))+
+      context.log cyan(Array(context.stack.length+1).join('|  '))+
             red(@name)+': '+blue(rule)+" "+
             black("["+(buffer=(escape (context.code.peek chars:20)))+(if buffer.length < 20 then "]" else ">"))
       result = fn.call this, context
-      context.debug "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{escape result} #{black typeof result}" if result isnt null
+      context.log "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{escape result} #{black typeof result}" if result isnt null
       return result
 
   @$wrap = (fn) ->
@@ -281,21 +281,33 @@ node.name = name of the rule, if this is @rule.
 
 @Rank = Rank = clazz 'Rank', Node, ->
   init: (rules) ->
-    @rules = _.clone rules
-    @deps = null
-    @children = []
-    for name, rule of @rules
+    [@rules, @includes, @children] = [[],[],[]]
+    @addRules rules, @rules
+  addRules: (rules, target) ->
+    for name, rule of rules
+      thisTarget = target
+      # convenience for dict of includes
+      if name.trim().length is 0
+        assert.ok typeof rule is 'object'
+        @addRules rule, @includes
+        break
+
       if rule instanceof Nodeling
-        rule = @rules[name] = rule.parse()
+        rule = rule.parse()
       else if rule not instanceof Node
-        rule = @rules[name] = Rank rule
-      if name.length is 0 or name[0] is ' '
-        delete @rules[name]
+        if rule instanceof Object
+          rule = Rank rule
+        else
+          throw new Error "Unknown type (#{typeof rule}) for rule: #{rule}"
+
+      if name[0] is ' '
+        thisTarget = @includes
         name = name.trim()
-        (@deps||={})[name] = rule
+
       rule.name = name
       rule.index = @children.length
       rule.rule = rule
+      thisTarget[name] = rule
       @children.push rule
   parse$: @$wrap (context) ->
     for own name, node of @rules
@@ -305,10 +317,8 @@ node.name = name of the rule, if this is @rule.
   toString: -> "#{_.keys(@rules).join ' | '}"
 
 @Grammar = Grammar = clazz 'Grammar', Node, ->
-  macros =
-    o: (rule, cb) -> Nodeling rule: rule, cb: cb
   init: (rules) ->
-    rules = rules macros if typeof rules is 'function'
+    rules = rules(MACROS) if typeof rules is 'function'
     @rank = Rank rules
     @rules = {}
     # initial setup
@@ -322,8 +332,11 @@ node.name = name of the rule, if this is @rule.
         node.rule ||= parent?.rule
         # dereference all rules
         if node instanceof Rank
+          assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.rules)).length, 0, "Duplicate key(s): #{inter.join ','}"
           _.extend @rules, node.rules
-          _.extend @rules, node.deps if node.deps?
+          if node.includes?
+            assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.includes)).length, 0, "Duplicate key(s): #{inter.join ','}"
+            _.extend @rules, node.includes
         # setup $/$$
         else if node instanceof Ref and node.key in ['$', '$$']
           rank = node.rule.parent
@@ -334,9 +347,10 @@ node.name = name of the rule, if this is @rule.
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
-  parse$: (code, start='START') ->
+  parse$: (code, start='START', debug=false) ->
     code = CodeStream code if code not instanceof CodeStream
     context = Context code, this
+    context.debug = debug
     Ref(start).parse context
     throw Error "incomplete parse: [#{context.code.peek chars:10}]" if context.code.pos isnt context.code.text.length
     return context
@@ -398,3 +412,12 @@ St = -> String arguments...
       _:                P(C(R('WHITESPACE'), R('TERM')))
       TERM:             St("\n")
       WHITESPACE:       S(La(words:1), Re(' +'))
+
+@MACROS = MACROS =
+  o: (rule, cb) -> Nodeling rule:rule, cb:cb
+  t: (tokens...) ->
+    cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
+    rank = {}
+    for token in tokens
+      rank[token.toUpperCase()] = Nodeling rule:"__ &:'#{token}'", cb:cb
+    rank

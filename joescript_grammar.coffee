@@ -5,10 +5,10 @@ assert = require 'assert'
 
 Node = clazz 'Node'
 Block = clazz 'Block', Node, ->
-  init: ({thing, things}) ->
-    @things = things or [thing]
+  init: (lines) ->
+    @lines = if lines instanceof Array then lines else [lines]
   toString: ->
-    @things.map((x)->''+x).join('; ')
+    @lines.map((x)->''+x).join('; ')
 Loop = clazz 'Loop', Node, ->
   init: (@block) ->
   toString: ->
@@ -18,7 +18,14 @@ Operation = clazz 'Operation', Node, ->
   toString: -> "(#{@left or ''}#{@op}#{@right or ''})"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
-  toString: -> '{'+@args+'}'
+  toString: -> "{#{@args}}"
+Statement = clazz 'Statement', Node, ->
+  init: ({@type, @expr}) ->
+  toString: -> "#{@type}(#{@expr});"
+If = clazz 'If', Node, ->
+  init: ({@cond, @block}) ->
+    @block = Block @block if @block not instanceof Block
+  toString: -> "if(#{@cond}){#{@block}}"
 
 checkIndent = (ws) ->
   [block, _, indent] = @stack[@stack.length-3..@stack.length-1]
@@ -43,37 +50,52 @@ checkNewline = (ws) ->
     return ws
   null
 
-GRAMMAR = Grammar ({o}) ->
-  START:                o "__INIT__ &:THINGS"
+GRAMMAR = Grammar ({o, t}) ->
+  START:                o "__INIT__ &:LINES __"
   __INIT__:             o "''", -> # init
-  THINGS:               o "things:THING*{NEWLINE;,}", Block
-  THING:
-    POSTCTRL:           o "expr:$$ __ type:('if'|'for') cond:EXPR"
-    STMT:               o "__ type:('return'|'throw') expr:$?"
+  LINES:                o "LINE*{NEWLINE;,}", Block
+  LINE:
+    POSTCTRL:
+      POSTIF:           o "block:$$ IF cond:EXPR", If
+      #POSTFOR:          o "block:$$ FOR cond:EXPR"
+    STMT:               o "type:(RETURN|THROW) expr:$?", Statement
     EXPR:
       INVOC:            o "func:INVOCABLE __ params:(INVOC|PARAMS)"
       ' PARAMS':
           PARAMS0:      o "__ '(' __ &:PARAMS1 __ ')'"
           PARAMS1:      o "EXPR*{__ ',';1,}"
       ASSIGN:           o "target:INVOCABLE __ '=' source:$$"
-      #COMPLEX:          o "CLASS | SWITCH | IF | LOOP"
+      COMPLEX:
+        IF_:            o "IF cond:EXPR block:BLOCK", If
       OP0:              o "left:$$ __ op:('=='|'!='|'<'|'<='|'>'|'>=') right:$", Operation
       OP1:              o "left:$$ __ op:('+'|'-')                     right:$", Operation
       OP2:              o "left:$$ __ op:('*'|'/'|'%')                 right:$", Operation
-      OP3:              o "left:$ op:('--'|'++') | op:('--'|'++') right:$", Operation
+      OP3:              o "left:$  op:('--'|'++')   |   op:('--'|'++') right:$", Operation
       INVOCABLE:
         SIMPLE:         o "__ <words:1> &:/[a-zA-Z]+/"
   _BLOCKS:
     BLOCK:
-      _INLINE:          o "__ THEN thing:THING", Block
-      _INDENTED:        o "INDENT things:THING*{NEWLINE;1,}", Block
+      _INLINE:          o "THEN &:LINE", Block
+      _INDENTED:        o "INDENT &:LINE*{NEWLINE;1,}", Block
     INDENT:             o "TERM &:__", checkIndent
     NEWLINE:            o "TERM &:__", checkNewline
     TERM:               o "__ &:('\r\n'|'\n')"
-    THEN:               o "'then'"
+  _TOKENS:              t 'if', 'loop', 'return', 'throw', 'then'
   _WHITESPACES:
                         # optional whitespaces
     __:                 o "<words:1> /[ ]*/"
 
-context = GRAMMAR.parse """a * b++ + c / d * f + foo + foo"""
-console.log ''+context.result
+counter = 0
+assertParse = (code, expected) ->
+  try
+    console.log "t#{counter++}"
+    context = GRAMMAR.parse code
+    assert.equal ''+context.result, expected
+  catch error
+    GRAMMAR.parse code, 'START', true # show debug trace
+    console.log "failed to parse code [#{code}], expected [#{expected}]"
+
+assertParse "a * b++ / c + d", "(((a*(b++))/c)+d)"
+assertParse " a * b++ / c + d ", "(((a*(b++))/c)+d)"
+assertParse "return foo", 'return(foo);'
+assertParse "foo if bar if baz", ""
