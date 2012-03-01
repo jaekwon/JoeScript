@@ -9,6 +9,14 @@ Block = clazz 'Block', Node, ->
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
     @lines.map((x)->''+x).join('; ')
+If = clazz 'If', Node, ->
+  init: ({@cond, @block, @elseBlock}) ->
+    @block = Block @block if @block not instanceof Block
+  toString: ->
+    if @elseBlock?
+      "if(#{@cond}){#{@block}}else{#{@elseBlock}}"
+    else
+      "if(#{@cond}){#{@block}}"
 Loop = clazz 'Loop', Node, ->
   init: (@block) ->
   toString: ->
@@ -16,16 +24,15 @@ Loop = clazz 'Loop', Node, ->
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @op, @right}) ->
   toString: -> "(#{@left or ''}#{@op}#{@right or ''})"
-Dummy = clazz 'Dummy', Node, ->
-  init: (@args) ->
-  toString: -> "{#{@args}}"
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr});"
-If = clazz 'If', Node, ->
-  init: ({@cond, @block}) ->
-    @block = Block @block if @block not instanceof Block
-  toString: -> "if(#{@cond}){#{@block}}"
+Invocation = clazz 'Invocation', Node, ->
+  init: ({@func, @params}) ->
+  toString: -> "#{@func}(#{@params})"
+Dummy = clazz 'Dummy', Node, ->
+  init: (@args) ->
+  toString: -> "{#{@args}}"
 
 checkIndent = (ws) ->
   [block, _, indent] = @stack[@stack.length-3..@stack.length-1]
@@ -43,10 +50,15 @@ checkIndent = (ws) ->
 
 checkNewline = (ws) ->
   @storeCache = no
-  [block, _, newline] = @stack[@stack.length-3..@stack.length-1]
-  assert.ok block.name in ['START', 'BLOCK']
+  newline = @stack[@stack.length-1]
   assert.equal newline.name, 'NEWLINE'
-  if ws is (block.indent ? '')
+  # find the current INDENT on the stack
+  currentIndent = ''
+  for i in [@stack.length-4..0] by -1
+    if @stack[i].name in ['START', 'BLOCK']
+      currentIndent = @stack[i].indent ? ''
+      break
+  if ws is currentIndent
     return ws
   null
 
@@ -59,13 +71,13 @@ GRAMMAR = Grammar ({o, t}) ->
     #POSTFOR:           o "block:$$ FOR cond:EXPR"
     STMT:               o "type:(RETURN|THROW) expr:$?", Statement
     EXPR:
-      INVOC:            o "func:INVOCABLE __ params:(INVOC|PARAMS)"
+      INVOC:            o "func:INVOCABLE __ params:(INVOC|PARAMS)", Invocation
       ' PARAMS':
           PARAMS0:      o "__ '(' __ &:PARAMS1 __ ')'"
           PARAMS1:      o "EXPR*{__ ',';1,}"
       ASSIGN:           o "target:INVOCABLE __ '=' source:$$"
       COMPLEX:
-        IF_:            o "IF cond:EXPR block:BLOCK", If
+        IF_:            o "IF cond:EXPR block:BLOCK @:(NEWLINE? ELSE elseBlock:BLOCK)?", If
       OP0:              o "left:$$ __ op:('=='|'!='|'<'|'<='|'>'|'>=') right:$", Operation
       OP1:              o "left:$$ __ op:('+'|'-')                     right:$", Operation
       OP2:              o "left:$$ __ op:('*'|'/'|'%')                 right:$", Operation
@@ -80,7 +92,7 @@ GRAMMAR = Grammar ({o, t}) ->
     NEWLINE:            o "TERM &:__", checkNewline
     TERM:               o "__ &:('\r\n'|'\n')"
   _TOKENS:
-    KEYWORD:            t 'if', 'loop', 'return', 'throw', 'then'
+    KEYWORD:            t 'if', 'else', 'loop', 'return', 'throw', 'then'
   _WHITESPACES:
                         # optional whitespaces
     __:                 o "<words:1> /[ ]*/"
@@ -99,3 +111,8 @@ assertParse "a * b++ / c + d", "(((a*(b++))/c)+d)"
 assertParse " a * b++ / c + d ", "(((a*(b++))/c)+d)"
 assertParse "return foo", 'return(foo);'
 assertParse "foo if bar if baz", "if(baz){if(bar){foo}}"
+assertParse """if condition
+              func true
+            else
+              func false
+            """, "if(condition){func(true)}else{func(false)}"
