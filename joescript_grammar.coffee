@@ -55,9 +55,8 @@ GRAMMAR = Grammar ({o, t}) ->
   __INIT__:             o "''", -> # init
   LINES:                o "LINE*{NEWLINE;,}", Block
   LINE:
-    POSTCTRL:
-      POSTIF:           o "block:$$ IF cond:EXPR", If
-      #POSTFOR:          o "block:$$ FOR cond:EXPR"
+    POSTIF:             o "block:$$ IF cond:EXPR", If
+    #POSTFOR:           o "block:$$ FOR cond:EXPR"
     STMT:               o "type:(RETURN|THROW) expr:$?", Statement
     EXPR:
       INVOC:            o "func:INVOCABLE __ params:(INVOC|PARAMS)"
@@ -72,7 +71,7 @@ GRAMMAR = Grammar ({o, t}) ->
       OP2:              o "left:$$ __ op:('*'|'/'|'%')                 right:$", Operation
       OP3:              o "left:$  op:('--'|'++')   |   op:('--'|'++') right:$", Operation
       INVOCABLE:
-        SIMPLE:         o "__ <words:1> &:/[a-zA-Z]+/"
+        SIMPLE:         o "!KEYWORD __ <words:1> &:/[a-zA-Z]+/"
   _BLOCKS:
     BLOCK:
       _INLINE:          o "THEN &:LINE", Block
@@ -80,7 +79,8 @@ GRAMMAR = Grammar ({o, t}) ->
     INDENT:             o "TERM &:__", checkIndent
     NEWLINE:            o "TERM &:__", checkNewline
     TERM:               o "__ &:('\r\n'|'\n')"
-  _TOKENS:              t 'if', 'loop', 'return', 'throw', 'then'
+  _TOKENS:
+    KEYWORD:            t 'if', 'loop', 'return', 'throw', 'then'
   _WHITESPACES:
                         # optional whitespaces
     __:                 o "<words:1> /[ ]*/"
@@ -88,14 +88,14 @@ GRAMMAR = Grammar ({o, t}) ->
 counter = 0
 assertParse = (code, expected) ->
   try
-    console.log "t#{counter++}"
     context = GRAMMAR.parse code
     assert.equal ''+context.result, expected
+    console.log "t#{counter++} OK\t#{code}"
   catch error
     GRAMMAR.parse code, 'START', true # show debug trace
-    console.log "failed to parse code [#{code}], expected [#{expected}]"
+    console.log "failed to parse code '#{code}', expected '#{expected}'"
 
 assertParse "a * b++ / c + d", "(((a*(b++))/c)+d)"
 assertParse " a * b++ / c + d ", "(((a*(b++))/c)+d)"
 assertParse "return foo", 'return(foo);'
-assertParse "foo if bar if baz", ""
+assertParse "foo if bar if baz", "if(baz){if(bar){foo}}"
