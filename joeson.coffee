@@ -233,14 +233,18 @@ node.name = name of the rule, if this is @rule.
  
 @Choice = Choice = clazz 'Choice', Node, ->
   init: (@choices) ->
+    @super.init()
     @children = @choices
   parse: ($) ->
     for choice in @choices
       return if $.try(choice.parse).result isnt null
+    $
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', Node, ->
-  init: (@sequence) -> @children = @sequence
+  init: (@sequence) ->
+    @super.init()
+    @children = @sequence
   prepare: ->
     numCaptures = 0
     numLabels = 0
@@ -277,6 +281,7 @@ node.name = name of the rule, if this is @rule.
           else if child.label?
             results[child.label] = $.result
         return results
+    $
   toString: ->
     labeledStrs = for node in @sequence
       if node.label?
@@ -288,22 +293,24 @@ node.name = name of the rule, if this is @rule.
 @Lookahead = Lookahead = clazz 'Lookahead', Node, ->
   capture: no
   init: ({@words, @chars}) ->
-  parse: ($) ->
-    $.result = $.code.peek words:@words, chars:@chars
+    @super.init()
+  parse: ($) -> $.code.peek words:@words, chars:@chars
   toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
 
 @Exists = Exists = clazz 'Exists', Node, ->
   init: (@it) ->
+    @super.init()
     @children = [@it]
-  parse: @$wrap ($) ->
+  parse: ($) ->
     $.try @it.parse
     $.result ?= undefined
   toString: -> ''+@it+blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', Node, ->
   init: ({@value, @join, @min, @max}) ->
+    @super.init()
     @children = if @join? then [@value, @join] else [@value]
-  parse: @$wrap ($) ->
+  parse: ($) ->
     matches = []
     $.try =>
       @value.parse $
@@ -315,7 +322,7 @@ node.name = name of the rule, if this is @rule.
             @join.parse $
             return 'break' if $.result is null
           @value.parse $
-          return 'break' $.result is null
+          return 'break' if $.result is null
           matches.push $.result
           return 'break' if @max? and matches.length >= @max
         break if action is 'break'
@@ -326,39 +333,43 @@ node.name = name of the rule, if this is @rule.
 @Not = Not = clazz 'Not', Node, ->
   capture: no
   init: (@it) ->
+    @super.init()
     @children = [@it]
   parse: ($) ->
     pos = @code.pos
     @it.parse $
     @code.pos = pos
     return null if $.result isnt null
-    return undefined
+    $.result = undefined
+    $
   toString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
+    @super.init()
   parse: ($) ->
     if @key in ['$', '$$']
-      @choices.parse context
+      @choices.parse $
     else
-      node = context.grammar.rules[@key]
+      node = $.grammar.rules[@key]
       throw Error "Unknown reference #{@key}" if not node?
-      node.parse context
+      node.parse $
+    $
   toString: -> red(@key)
 
 @String = String = clazz 'String', Node, ->
   init: (@str) ->
-  parse: @$wrap (context) ->
-    context.log "String match #{@str} for #{context.code.peek chars:5}"
-    context.code.match string:@str
+    @super.init()
+  parse: ($) -> $.code.match string:@str
   toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', Node, ->
   init: (@reStr) ->
+    @super.init()
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
-  parse: @$wrap (context) -> context.code.match regex:@re
+  parse: ($) -> $.code.match regex:@re
   toString: -> magenta(''+@re)
 
 @Nodeling = Nodeling = clazz 'Nodeling', ->
@@ -367,6 +378,7 @@ node.name = name of the rule, if this is @rule.
 
 @Rank = Rank = clazz 'Rank', Node, ->
   init: (rules) ->
+    @super.init()
     [@rules, @includes, @children] = [[],[],[]]
     @addRules rules, @rules
   addRules: (rules, target) ->
@@ -395,15 +407,17 @@ node.name = name of the rule, if this is @rule.
       rule.rule = rule
       thisTarget[name] = rule
       @children.push rule
-  parse: @$wrap (context) ->
+  parse: ($) ->
+    $.result = null
     for own name, node of @rules
-      result = context.try node.parse
-      return result if result isnt null
-    null
+      $.try node.parse
+      return if $.result isnt null
+    $
   toString: -> "#{_.keys(@rules).join ' | '}"
 
 @Grammar = Grammar = clazz 'Grammar', Node, ->
   init: (rules) ->
+    @super.init()
     rules = rules(MACROS) if typeof rules is 'function'
     @rank = Rank rules
     @rules = {}
