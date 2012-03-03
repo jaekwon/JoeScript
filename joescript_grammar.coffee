@@ -30,6 +30,14 @@ Statement = clazz 'Statement', Node, ->
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
   toString: -> "#{@func}(#{@params})"
+Index = clazz 'Index', Node, ->
+  init: ({@obj, @attr, @attrStr}) ->
+    console.log 'Index.init', ''+this
+  toString: ->
+    if @attr?
+      "(#{@obj})[#{@attr}]"
+    else
+      "(#{@obj}).#{@attrStr}"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
@@ -83,7 +91,13 @@ GRAMMAR = Grammar ({o, t}) ->
       OP2:              o "left:$$ __ op:('*'|'/'|'%')                 right:$", Operation
       OP3:              o "left:$  op:('--'|'++')   |   op:('--'|'++') right:$", Operation
       INVOCABLE:
-        SIMPLE:         o "!KEYWORD __ <words:1> &:/[a-zA-Z]+/"
+        #OBJECT:         o ""
+        #ARRAY:          o ""
+        ASSIGNABLE:
+          INDEXABLE:
+            INDEX:      o "obj:ASSIGNABLE '[' attr:EXPR __ ']'", Index
+            ACCESS:     o "obj:ASSIGNABLE '.' attrStr:SIMPLE", Index
+          SIMPLE:       o "!KEYWORD __ <words:1> &:/[a-zA-Z]+/"
   _BLOCKS:
     BLOCK:
       _INLINE:          o "THEN &:LINE", Block
@@ -104,15 +118,27 @@ assertParse = (code, expected) ->
     assert.equal ''+context.result, expected
     console.log "t#{counter++} OK\t#{code}"
   catch error
-    GRAMMAR.parse code, 'START', true # show debug trace
+    try
+      GRAMMAR.parse code, 'START', true # show debug trace
+    catch error
+      # pass
     console.log "failed to parse code '#{code}', expected '#{expected}'"
+    console.log "result: #{context.result}" if context?
+    throw error
 
 assertParse "a * b++ / c + d", "(((a*(b++))/c)+d)"
 assertParse " a * b++ / c + d ", "(((a*(b++))/c)+d)"
 assertParse "return foo", 'return(foo);'
 assertParse "foo if bar if baz", "if(baz){if(bar){foo}}"
-assertParse """if condition
+assertParse """
+            if condition
+              func true
+            """, "if(condition){func(true)}"
+assertParse """
+            if condition
               func true
             else
               func false
             """, "if(condition){func(true)}else{func(false)}"
+assertParse "foo[bar]", "(foo)[bar]"
+assertParse "foo[bar][baz]", "((foo)[bar])[baz]"

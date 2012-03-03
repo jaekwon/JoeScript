@@ -16,17 +16,19 @@ escape = (str) ->
   init: (@code, @grammar, @stack=[], @cache={}, @result, @debug) ->
     # stack = [ {name, pos, snowball?:{value,endPos} }... ]
     # cache[context.code.pos][@rule.name] = {result,endPos}
-  clone: ->
-    Context @code.clone(), @grammar, @stack, @cache, @result, @debug
-  commit: (clone) ->
-    @code.commit clone.code
-    @result = clone.result
-  try: (cb_context) ->
-    clone = @clone()
-    result = cb_context(clone)
-    @commit clone if result isnt null
-    return result
-  log: -> if @debug then console.log arguments...
+
+  # A block of code, must set @result to nonnull
+  # for @code.pos to change. 
+  try: (fn) ->
+    @result = null
+    pos = @code.pos
+    passthru = fn.call this
+    @code.pos = pos if @result isnt null
+    passthru
+
+  log: (args...) ->
+    if @debug
+      console.log "#{cyan Array(@stack.length+1).join '|  '} #{args.join ''}"
 
 ###
 In addition to the attributes defined by subclasses,
@@ -39,13 +41,12 @@ node.name = name of the rule, if this is @rule.
 ###
 @Node = Node = clazz 'Node', ->
 
-  @$contextResult = (fn) -> (context) ->
-    return context.result = fn.call this, context
-
   @$cache = (fn) -> (context) ->
     if this isnt @rule then return context.result = fn.call this, context
+    context.log "[C] rule #{@name}"
     cacheKey = @name
     if cacheKey? and (cached=context.cache[origPos=context.code.pos]?[cacheKey])?
+      context.log "[C] Cache hit at context.cache[origPos=#{context.code.pos}][#{cacheKey}]"
       context.code.commit cached.code
       return cached.result
     context.storeCache = yes
@@ -62,6 +63,57 @@ node.name = name of the rule, if this is @rule.
   @$recurse = (fn) -> (context) ->
     if this isnt @rule then return fn.call this, context
 
+    ###
+      @pos X
+      FOO:          "master"
+        BAR:        "master"
+          FOO:      "slave"
+    ###
+    
+    # Get stackItem from the master, which proves recursive entry
+    masterStackItem = null
+    for i in [context.stack.length-1..0] by -1
+      item = context.stack[i]
+      break if item.pos < context.code.pos
+      if item.name is @name
+        masterStackItem = item
+        break
+
+    # If masterStackItem is null, this is the master.
+    if not masterStackItem?
+      origContext = context.clone()
+      masterStackItem = name:@name, pos:context.code.pos, recursed:false
+      context.stack.push masterStackItem
+      result = fn.call this, context
+      context.stack.pop()
+      
+      # If a self-recursion was encountered
+      if result isnt null and masterStackItem.recursed
+        loop
+          # save state, this might be the answer
+          lastGoodResult = result
+          lastGoodContext = context.clone()
+          # revert to original context, try again
+          context.commit origContext
+          masterStackItem.puppet = result
+          context.stack.push masterStackItem
+          result = fn.call this, context
+          context.stack.pop()
+          # return saved state
+          if result is null
+            context.commit lastGoodContext
+            # before returning, reset CACHE...
+            return lastGoodResult
+      else
+        # before returning, reset CACHE...
+        return result
+
+    else
+      masterStackItem.recursed=true
+
+    return
+    ### DONE ###
+
     # Get stackItem from the same code position, which proves recursive entry
     stackItem = null
     for i in [context.stack.length-1..0] by -1
@@ -75,33 +127,57 @@ node.name = name of the rule, if this is @rule.
     # Nonrecursive + recursive-entrant case
     if not stackItem?
       stackItem = name:@name, pos:context.code.pos
+      ###
       context.stack.push stackItem
       result = fn.call this, context
       context.stack.pop()
       return result if not stackItem.snowball? # nonrecursive
-      context.code.commit stackItem.snowball.code
-      return stackItem.snowball.value # recursive, final value
+      if result isnt null and stackItem.snowball.code.pos < context.code.pos
+        context.log "[R] NOT Recalling snowball = {pos:#{stackItem.snowball.code.pos}, value:#{stackItem.snowball.value}}"
+        context.log "[R] NOT StackItem = {pos:#{stackItem.pos}}, context.code = {pos:#{context.code.pos}}, result=#{result}"
+        return result
+      else
+        context.log "[R] Recalling snowball = {pos:#{stackItem.snowball.code.pos}, value:#{stackItem.snowball.value}}"
+        context.log "[R] StackItem = {pos:#{stackItem.pos}}, context.code = {pos:#{context.code.pos}}, result=#{result}"
+        context.code.commit stackItem.snowball.code
+        context.log "[R] Final value..."
+        return stackItem.snowball.value # recursive, final value
+    ###
 
     # Beginning of recursive call.
     # Grow the snowball iteratively.
     if not stackItem.snowball?
+      context.log "   [R] Re-entrant case"
       stackItem.snowball = snowball = value:null, code:context.code.clone()
+      context.log "   [R] v-- probing... "
       loop
         clone = context.clone()
-        context.stack.push {name:@name,pos:-stackItem.pos-1} #TAG_NEGATIVE_POS
+        context.log "   [R] clone.code.pos #{clone.code.pos}, snowball.code.pos: #{snowball.code.pos}"
+        clone.stack.push {name:@name,pos:-stackItem.pos-1} #TAG_NEGATIVE_POS
         result = fn.call this, clone
-        context.stack.pop()
+        clone.stack.pop()
+        context.log "   [R] result isnt null: #{result isnt null} snowball.code.pos: #{snowball.code.pos} clone.code.pos #{clone.code.pos}"
+        context.log "   [R] deleting context.cache[#{stackItem.pos}][#{@name}]"
         delete context.cache[stackItem.pos][@name]
         if result isnt null and snowball.code.pos < clone.code.pos
           snowball.value = result
           snowball.code = clone.code
+          context.log "   [R] ^-- got #{result}, #{snowball.code.pos}"
         else
           # done, final snowball.
+          context.log "   [R] BBB"
+          context.code.commit stackItem.snowball.code
+          #if snowball.value is null
+          #  context.log "deleteing"
+          #delete stackItem.snowball if snowball.value is null
+          context.log "   [R] ^-- return final snowball (again??)"
           return snowball.value
 
     # Just pass the snowball value, don't recurse.
     else
+      context.log "[R] AAA"
       context.code.commit stackItem.snowball.code
+      context.log "[R] ama puppet "
       return stackItem.snowball.value
 
   @$ruleLabel = (fn) -> (context) ->
@@ -118,17 +194,30 @@ node.name = name of the rule, if this is @rule.
       if not context.debug then return fn.call this, context
       if this isnt @rule then return fn.call this, context
       rule = context.grammar.rules[@name]
-      context.log cyan(Array(context.stack.length+1).join('|  '))+
-            red(@name)+': '+blue(rule)+" "+
-            black("["+(buffer=(escape (context.code.peek chars:20)))+(if buffer.length < 20 then "]" else ">"))
+      bufferStr = escape context.code.peek chars:20
+      bufferStr = "[#{bufferStr}#{if bufferStr.length < 20 then ']' else '>'}"
+      context.log "#{red @name}: #{blue rule} #{black bufferStr}"
       result = fn.call this, context
-      context.log "#{cyan Array(context.stack.length+1).join('|  ')+"^--"} #{escape result} #{black typeof result}" if result isnt null
+      context.log "^-- #{escape result} #{black typeof result}" if result isnt null
       return result
 
   @$wrap = (fn) ->
     @$contextResult @$cache @$debug @$recurse @$callback @$ruleLabel fn
 
   capture: yes
+  init: ->
+    # Bind all parse methods to this, and make the 
+    # function always return $.
+    # If the original @parse returns a value that is not $,
+    # then the return value gets set to $.return.
+    # (unless it's undefined)
+    origParse = @parse
+    assert.ok origParse, "Parse function is missing on node"
+    @parse = ($) =>
+      result = origParse.call this, $
+      $.result = result if result isnt $ and result isnt undefined
+      return $
+      
   walk: ({pre, post}, parent=undefined) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
     pre parent, @ if pre?
@@ -139,18 +228,15 @@ node.name = name of the rule, if this is @rule.
         child.walk {pre: pre, post:post}, @
     post parent, @ if post?
   prepare: -> # implement if needed
-  parse$: @$wrap (context) -> throw Error 'NotImplemented'
   toString: -> "[#{@constructor.name}]"
   _cb: (@cb) -> @
  
 @Choice = Choice = clazz 'Choice', Node, ->
   init: (@choices) ->
     @children = @choices
-  parse$: @$wrap (context) ->
+  parse: ($) ->
     for choice in @choices
-      result = context.try choice.parse
-      return result if result isnt null
-    null
+      return if $.try(choice.parse).result isnt null
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', Node, ->
@@ -166,35 +252,31 @@ node.name = name of the rule, if this is @rule.
         if numCaptures > 1 then 'array' else 'single'
       else
         'object'
-  parse$: @$wrap (context) ->
+  parse: ($) ->
     switch @type
       when 'array'
         results = []
         for child in @sequence
-          childResult = child.parse context
-          return null if childResult is null
-          results.push childResult if child.capture
+          return if child.parse($).result is null
+          results.push $.result if child.capture
         return results
       when 'single'
         result = null
         for child in @sequence
-          childResult = child.parse context
-          return null if childResult is null
-          result = childResult if child.capture
+          return if child.parse($).result is null
+          result = $.result if child.capture
         return result
       when 'object'
         results = {}
         for child in @sequence
-          childResult = child.parse context
-          return null if childResult is null
+          return if child.parse($).result is null
           if child.label is '&'
-            results = _.extend childResult, results
+            results = _.extend $.result, results
           else if child.label is '@'
-            _.extend results, childResult
+            _.extend results, $.result
           else if child.label?
-            results[child.label] = childResult
+            results[child.label] = $.result
         return results
-    null
   toString: ->
     labeledStrs = for node in @sequence
       if node.label?
@@ -206,37 +288,37 @@ node.name = name of the rule, if this is @rule.
 @Lookahead = Lookahead = clazz 'Lookahead', Node, ->
   capture: no
   init: ({@words, @chars}) ->
-  parse$: @$wrap (context) ->
-    context.code.peek words:@words, chars:@chars
+  parse: ($) ->
+    $.result = $.code.peek words:@words, chars:@chars
   toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
 
 @Exists = Exists = clazz 'Exists', Node, ->
   init: (@it) ->
     @children = [@it]
-  parse$: @$wrap (context) ->
-    result = context.try (context) =>
-      @it.parse context
-    result ? undefined # not null, so is a valid match.
+  parse: @$wrap ($) ->
+    $.try @it.parse
+    $.result ?= undefined
   toString: -> ''+@it+blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', Node, ->
   init: ({@value, @join, @min, @max}) ->
     @children = if @join? then [@value, @join] else [@value]
-  parse$: @$wrap (context) ->
+  parse: @$wrap ($) ->
     matches = []
-    context.try (context) =>
-      return null unless (match = @value.parse context)?
-      matches.push match
+    $.try =>
+      @value.parse $
+      return if $.result is null
+      matches.push $.result
       loop
-        result = (context.try (context) =>
+        action = $.try =>
           if @join?
-            return null unless (join = @join.parse context)?
-          return null unless (match = @value.parse context)?
-          matches.push match
+            @join.parse $
+            return 'break' if $.result is null
+          @value.parse $
+          return 'break' $.result is null
+          matches.push $.result
           return 'break' if @max? and matches.length >= @max
-          return 'continue'
-        )
-        break if result in [null, 'break']
+        break if action is 'break'
     return null if @min? and @min > matches.length
     return matches
   toString: -> ''+@value+blue("*{")+(@join||'')+blue(";")+(@min||'')+blue(",")+(@max||'')+blue("}")
@@ -245,15 +327,17 @@ node.name = name of the rule, if this is @rule.
   capture: no
   init: (@it) ->
     @children = [@it]
-  parse$: @$wrap (context) ->
-    context = context.clone()
-    peekResult = @it.parse context
-    return if peekResult? then null else 'NoMatch'
+  parse: ($) ->
+    pos = @code.pos
+    @it.parse $
+    @code.pos = pos
+    return null if $.result isnt null
+    return undefined
   toString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
-  parse$: @$wrap (context) ->
+  parse: ($) ->
     if @key in ['$', '$$']
       @choices.parse context
     else
@@ -264,7 +348,9 @@ node.name = name of the rule, if this is @rule.
 
 @String = String = clazz 'String', Node, ->
   init: (@str) ->
-  parse$: @$wrap (context) -> context.code.match string: @str
+  parse: @$wrap (context) ->
+    context.log "String match #{@str} for #{context.code.peek chars:5}"
+    context.code.match string:@str
   toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', Node, ->
@@ -272,7 +358,7 @@ node.name = name of the rule, if this is @rule.
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
-  parse$: @$wrap (context) -> context.code.match(regex: @re)
+  parse: @$wrap (context) -> context.code.match regex:@re
   toString: -> magenta(''+@re)
 
 @Nodeling = Nodeling = clazz 'Nodeling', ->
@@ -309,7 +395,7 @@ node.name = name of the rule, if this is @rule.
       rule.rule = rule
       thisTarget[name] = rule
       @children.push rule
-  parse$: @$wrap (context) ->
+  parse: @$wrap (context) ->
     for own name, node of @rules
       result = context.try node.parse
       return result if result isnt null
@@ -347,7 +433,7 @@ node.name = name of the rule, if this is @rule.
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
-  parse$: (code, start='START', debug=false) ->
+  parse: (code, start='START', debug=false) ->
     code = CodeStream code if code not instanceof CodeStream
     context = Context code, this
     context.debug = debug
