@@ -5,13 +5,15 @@
 @CodeStream = CodeStream = clazz 'CodeStream', ->
   init: (@text, @pos=0, @buffer=null) ->
 
-  # Set the position
-  # TODO getter syntax
-  setPos: (newPos) ->
-    if @pos isnt newPos
-      @buffer = null
-      @pos = newPos
-    @pos
+  pos$:
+    enum: true
+    conf: true
+    get: -> (@_pos)
+    set: (newPos) ->
+      if @_pos isnt newPos
+        @buffer = null
+        @_pos = newPos
+      @_pos
 
   # Get until the string `end` is encountered.
   # Change @pos accordingly, including the `end`.
@@ -24,7 +26,7 @@
         throw new EOFError
     else
       index += end.length
-    return @text[@pos...@setPos(index)]
+    return @text[@pos...(@pos=index)]
 
   # Returns a string of up to chars chars or words words,
   # words:
@@ -38,9 +40,9 @@
       origPos = @pos
       while words > 0
         words -= 1 unless @getUntil(' ') is ' '
-      @setPos(@pos-1) if @pos > origPos and @text[@pos] is ' '
+      @pos -= 1 if @pos > origPos and @text[@pos] is ' '
       result = @text[origPos...@pos]
-      @setPos(origPos)
+      @pos = origPos
       return @buffer = result
     else
       return @buffer = @text[@pos]
@@ -54,14 +56,14 @@
     if string?
       peek = @peek chars: string.length
       return null if peek isnt string
-      @setPos(@pos+string.length)
+      @pos += string.length
       string
     else if regex?
       if not @buffer?
         throw new Error 'Buffer was null during regex match. Forget to peek?'
       matched = @buffer.match regex
       return null if matched is null
-      @setPos(@pos+matched[0].length)
+      @pos += matched[0].length
       matched[0]
 
   # a new CodeStream at the current position.

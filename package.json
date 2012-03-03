@@ -1,0 +1,16 @@
+{
+  "name": "joeson",
+  "description": "Joeson Parser",
+  "version": "0.0.0",
+  "author": "Jae Kwon <jkwon.work@gmail.com>",
+  "repository": {"type": "git", "url": "git://github.com/jaekwon/joeson.git"},
+  "dependencies": {
+      "underscore": ">= 1.2.3",
+      "cardamom": ">= 0.0.7"
+    },
+  "keywords": [],
+  "main": "",
+  "engines": {"node": ">= 0.4.6"},
+  "contributors": [
+  ]
+}
