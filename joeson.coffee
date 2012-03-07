@@ -17,12 +17,12 @@ escape = (str) ->
 
   # stack = [ {name, pos, snowball?:{value,endPos} }... ]
   # cache["#{@rule.name}@#{$.code.pos}"] = {result,endPos}
-  # recurse["#{@rule.name}@#{$.code.pos}"] = {stage,puppet}
+  # recurse["#{@rule.name}@#{$.code.pos}"] = {stage,puppet,endPos}
   # recurse[$.code.pos] = 'nocache' || undefined
   init: (@code, @grammar, @debug=false) ->
     @stack = []   # [ {name,pos}... ]
     @cache = {}   # { "#{rulename}@#{pos}":{result,endPos}... }
-    @recurse = {} # { "#{rulename}@#{pos}":{stage,puppet}... | "#{pos}":"nocache"? }
+    @recurse = {} # { "#{rulename}@#{pos}":{stage,puppet,endPos}... | "#{pos}":"nocache"? }
     @storeCache = true # rule callbacks can override this
 
   # code.pos will be reverted if result is null
@@ -70,14 +70,16 @@ escape = (str) ->
     cacheKey = @name
     pos = $.code.pos
     if cacheKey? and (cached=$.cache["#{cacheKey}@#{pos}"])?
-      $.log "[C] Cache hit @ $.cache[\"#{cacheKey}@#{pos}\"]"
+      # $.log "[C] Cache hit @ $.cache[\"#{cacheKey}@#{pos}\"]"
       $.code.pos = cached.endPos
       return cached.result
     $.storeCache = yes
     result = fn.call this, $
     if cacheKey? and $.storeCache and $.recurse[pos] isnt 'nocache'
-      $.log "[C] Cache store @ $.cache[\"#{cacheKey}@#{pos}\"]"
+      # $.log "[C] Cache store @ $.cache[\"#{cacheKey}@#{pos}\"]"
       $.cache["#{cacheKey}@#{pos}"] ||= result:result, endPos:$.code.pos
+    else
+      # $.log "nostore", $.storeCache, $.recurse[pos]
     return result
 
   @$loopify = (fn) -> ($) ->
@@ -93,32 +95,43 @@ escape = (str) ->
         result = fn.call this, $
         switch item.stage
           when 1 # non-recursive (done)
+            delete $.recurse[key]
             return result
           when 2 # recursion detected
             if result is null
-              delete $.recurse[$.code.pos]
+              # $.log "delete $.recurse[#{startPos}]"
+              delete $.recurse[startPos]
+              # $.log "loopify returning #{result} (A)"
               return result
             else
               item.stage = 3
               while result isnt null
+                # $.log "looping...", @name
                 goodResult = item.puppet = result
-                goodPos = $.code.pos
+                goodPos = item.endPos = $.code.pos
                 $.code.pos = startPos # reset
+                delete $.recurse[startPos]
                 result = fn.call this, $
                 assert.equal item.stage, 3, 'this shouldnt change'
+                break unless $.code.pos > goodPos
               $.code.pos = goodPos
-              delete $.recurse[$.code.pos]
+              delete $.recurse[startPos]
+              # $.log "loopify returning #{result} (B)"
               return goodResult
           else
-            throw new Error 'this should not happen foo'
-      when 1 # recursion detected
+            throw new Error "Unexpected stage #{item.stage} (A)"
+      when 1,2 # recursion detected
         item.stage = 2
         $.recurse[$.code.pos] = 'nocache'
+        # $.log "loopify returning null"
         return null
       when 3 # loopified case
+        $.recurse[$.code.pos] = 'nocache'
+        # $.log "loopify returning #{item.puppet} (P)"
+        $.code.pos = item.endPos
         return item.puppet
       else
-        throw new Error 'this should not happen bar'
+        throw new Error "Unexpected stage #{item.stage} (B)"
 
   @$ruleCallback = (fn) -> ($) ->
     result = fn.call this, $
@@ -215,7 +228,8 @@ escape = (str) ->
 @Lookahead = Lookahead = clazz 'Lookahead', Node, ->
   capture: no
   init: ({@words, @chars}) ->
-  parse$: @$wrap ($) -> $.code.peek words:@words, chars:@chars
+  parse$: @$wrap ($) ->
+    $.code.peek words:@words, chars:@chars
   toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
 
 @Exists = Exists = clazz 'Exists', Node, ->

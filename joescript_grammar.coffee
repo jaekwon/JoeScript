@@ -114,12 +114,12 @@ GRAMMAR = Grammar ({o, t}) ->
 counter = 0
 assertParse = (code, expected) ->
   try
-    context = GRAMMAR.parse code
+    context = GRAMMAR.parse code, debug:no
     assert.equal ''+context.result, expected
     console.log "t#{counter++} OK\t#{code}"
   catch error
     try
-      GRAMMAR.parse code, 'START', true # show debug trace
+      GRAMMAR.parse code, debug:yes
     catch error
       # pass
     console.log "failed to parse code '#{code}', expected '#{expected}'"
