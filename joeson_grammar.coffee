@@ -57,7 +57,7 @@ PARSED_GRAMMAR = Grammar RAW_GRAMMAR
 testGrammar = (rank, indent=0) ->
   for own key, value of rank
     if typeof value.rule is 'string'
-      {result, code} = PARSED_GRAMMAR.parse value.rule
+      {result, code} = PARSED_GRAMMAR.parse value.rule, debug:no
       console.log "#{Array(indent*2+1).join ' '}#{red pad left:(20-indent*2), key+':'}"+
                   "#{if result? then yellow result else red result} #{white code.peek chars:10}"
     else

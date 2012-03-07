@@ -19,71 +19,72 @@ escape = (str) ->
   # cache["#{@rule.name}@#{$.code.pos}"] = {result,endPos}
   # recurse["#{@rule.name}@#{$.code.pos}"] = {stage,puppet}
   # recurse[$.code.pos] = 'nocache' || undefined
-  init: (@code, @grammar, @stack=[], @cache={}, @recurse={}, @debug) ->
-    @storeCache = true
+  init: (@code, @grammar, @debug=false) ->
+    @stack = []   # [ {name,pos}... ]
+    @cache = {}   # { "#{rulename}@#{pos}":{result,endPos}... }
+    @recurse = {} # { "#{rulename}@#{pos}":{stage,puppet}... | "#{pos}":"nocache"? }
+    @storeCache = true # rule callbacks can override this
 
-  # A block of code, result must be non-null
-  # Otherwise code.pos will be reverted.
+  # code.pos will be reverted if result is null
   try: (fn) ->
     pos = @code.pos
-    result = fn.call this
-    @code.pos = pos if result isnt null
+    result = fn(this)
+    @code.pos = pos if result is null
     result
 
   log: (args...) ->
     if @debug
-      console.log "#{cyan Array(@stack.length+1).join '|  '} #{args.join ''}"
+      console.log "#{cyan Array(@stack.length-1).join '|  '}#{args.join ''}"
     
 
 ###
-In addition to the attributes defined by subclasses,
-  the following attributes exist for all nodes.
-
-node.rule = The topmost node of a rule.
-node.rule = rule # sometimes true.
-node.name = name of the rule, if this is @rule.
-
+  In addition to the attributes defined by subclasses,
+    the following attributes exist for all nodes.
+  node.rule = The topmost node of a rule.
+  node.rule = rule # sometimes true.
+  node.name = name of the rule, if this is @rule.
 ###
 @Node = Node = clazz 'Node', ->
 
   @$stack = (fn) -> ($) ->
-    stackItem = name:@name, pos:startPos
-    @stack.push stackItem
+    if this isnt @rule then return fn.call this, $
+    stackItem = name:@name, pos:$.code.pos
+    $.stack.push stackItem
     result = fn.call this, $
-    @stack.pop()
+    popped = $.stack.pop()
+    assert.ok stackItem is popped
     return result
 
-  @$debug = (fn) ->
-    ($) ->
-      if not $.debug then return fn.call this, $
-      if this isnt @rule then return fn.call this, $
-      rule = $.grammar.rules[@name]
-      bufferStr = escape $.code.peek chars:20
-      bufferStr = "[#{bufferStr}#{if bufferStr.length < 20 then ']' else '>'}"
-      $.log "#{red @name}: #{blue rule} #{black bufferStr}"
-      result = fn.call this, $
-      $.log "^-- #{escape result} #{black typeof result}" if result isnt null
-      return result
+  @$debug = (fn) -> ($) ->
+    if not $.debug or this isnt @rule then return fn.call this, $
+    rule = $.grammar.rules[@name]
+    bufferStr = escape $.code.peek chars:20
+    bufferStr = if bufferStr.len < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
+    $.log "#{red @name}: #{blue rule} #{black bufferStr}"
+    result = fn.call this, $
+    $.log "^-- #{escape result} #{black typeof result}" if result isnt null
+    return result
 
   @$cache = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
-    $.log "[C] rule #{@name}"
     cacheKey = @name
-    if cacheKey? and (cached=$.cache["#{cacheKey}@#{origPos=$.code.pos}"])?
-      $.log "[C] Cache hit at $.cache[\"#{cacheKey}@#{origPos}\"]"
+    pos = $.code.pos
+    if cacheKey? and (cached=$.cache["#{cacheKey}@#{pos}"])?
+      $.log "[C] Cache hit @ $.cache[\"#{cacheKey}@#{pos}\"]"
       $.code.pos = cached.endPos
       return cached.result
     $.storeCache = yes
     result = fn.call this, $
-    if cacheKey? and $.storeCache and $.recurse[origPos] isnt 'nocache'
-      $.cache["#{cacheKey}@#{origPos}"] ||= result:result, endPos:$.code.pos
+    if cacheKey? and $.storeCache and $.recurse[pos] isnt 'nocache'
+      $.log "[C] Cache store @ $.cache[\"#{cacheKey}@#{pos}\"]"
+      $.cache["#{cacheKey}@#{pos}"] ||= result:result, endPos:$.code.pos
     return result
 
   @$loopify = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
 
     key = "#{@name}@#{$.code.pos}"
-    item = @recurse[key] ||= stage:0
+    item = $.recurse[key] ||= stage:0
 
     switch item.stage
       when 0 # non-recursive (so far)
@@ -91,29 +92,28 @@ node.name = name of the rule, if this is @rule.
         startPos = $.code.pos
         result = fn.call this, $
         switch item.stage
-          when 1
+          when 1 # non-recursive (done)
             return result
-          when 2
+          when 2 # recursion detected
             if result is null
-              delete @recurse[$.code.pos]
+              delete $.recurse[$.code.pos]
               return result
             else
               item.stage = 3
               while result isnt null
-                goodResult = result
+                goodResult = item.puppet = result
                 goodPos = $.code.pos
-                item.puppet = loopResult
-                $.code.pos = startPos
+                $.code.pos = startPos # reset
                 result = fn.call this, $
                 assert.equal item.stage, 3, 'this shouldnt change'
               $.code.pos = goodPos
-              delete @recurse[$.code.pos]
+              delete $.recurse[$.code.pos]
               return goodResult
           else
             throw new Error 'this should not happen foo'
       when 1 # recursion detected
         item.stage = 2
-        @recurse[$.code.pos] = 'nocache'
+        $.recurse[$.code.pos] = 'nocache'
         return null
       when 3 # loopified case
         return item.puppet
@@ -154,7 +154,7 @@ node.name = name of the rule, if this is @rule.
 @Choice = Choice = clazz 'Choice', Node, ->
   init: (@choices) ->
     @children = @choices
-  parse: ($) ->
+  parse$: @$wrap ($) ->
     for choice in @choices
       result = $.try choice.parse
       return result if result isnt null
@@ -175,7 +175,7 @@ node.name = name of the rule, if this is @rule.
         if numCaptures > 1 then 'array' else 'single'
       else
         'object'
-  parse: ($) ->
+  parse$: @$wrap ($) ->
     switch @type
       when 'array'
         results = []
@@ -215,13 +215,13 @@ node.name = name of the rule, if this is @rule.
 @Lookahead = Lookahead = clazz 'Lookahead', Node, ->
   capture: no
   init: ({@words, @chars}) ->
-  parse: ($) -> $.code.peek words:@words, chars:@chars
+  parse$: @$wrap ($) -> $.code.peek words:@words, chars:@chars
   toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
 
 @Exists = Exists = clazz 'Exists', Node, ->
   init: (@it) ->
     @children = [@it]
-  parse: ($) ->
+  parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
   toString: -> ''+@it+blue("?")
@@ -229,11 +229,13 @@ node.name = name of the rule, if this is @rule.
 @Pattern = Pattern = clazz 'Pattern', Node, ->
   init: ({@value, @join, @min, @max}) ->
     @children = if @join? then [@value, @join] else [@value]
-  parse: ($) ->
+  parse$: @$wrap ($) ->
     matches = []
-    $.try =>
+    result = $.try =>
       resV = @value.parse $
-      return if resV is null
+      if resV is null
+        return null if @min? and @min > 0
+        return []
       matches.push resV
       loop
         action = $.try =>
@@ -247,38 +249,39 @@ node.name = name of the rule, if this is @rule.
           matches.push resV
           return 'break' if @max? and matches.length >= @max
         break if action in ['break', null]
-    return null if @min? and @min > matches.length
-    return matches
+      return null if @min? and @min > matches.length
+      return matches
+    return result
   toString: -> ''+@value+blue("*{")+(@join||'')+blue(";")+(@min||'')+blue(",")+(@max||'')+blue("}")
 
 @Not = Not = clazz 'Not', Node, ->
   capture: no
   init: (@it) ->
     @children = [@it]
-  parse: ($) ->
-    pos = @code.pos
+  parse$: @$wrap ($) ->
+    pos = $.code.pos
     res = @it.parse $
-    @code.pos = pos
-    return
-      if res isnt null then null
-      else undefined
+    $.code.pos = pos
+    if res isnt null
+      return null
+    else
+      return undefined
   toString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
-  parse: ($) ->
-    return
-      if @key in ['$', '$$']
-        @choices.parse $
-      else
-        node = $.grammar.rules[@key]
-        throw Error "Unknown reference #{@key}" if not node?
-        node.parse $
+  parse$: @$wrap ($) ->
+    if @key in ['$', '$$']
+      return @choices.parse $
+    else
+      node = $.grammar.rules[@key]
+      throw Error "Unknown reference #{@key}" if not node?
+      return node.parse $
   toString: -> red(@key)
 
 @String = String = clazz 'String', Node, ->
   init: (@str) ->
-  parse: ($) -> $.code.match string:@str
+  parse$: @$wrap ($) -> $.code.match string:@str
   toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', Node, ->
@@ -286,12 +289,12 @@ node.name = name of the rule, if this is @rule.
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
-  parse: ($) -> $.code.match regex:@re
+  parse$: @$wrap ($) -> $.code.match regex:@re
   toString: -> magenta(''+@re)
 
 @Nodeling = Nodeling = clazz 'Nodeling', ->
   init: ({@rule, @cb}) ->
-  parse: -> GRAMMAR.parse(@rule)._cb @cb
+  parse$: -> GRAMMAR.parse(@rule).result._cb @cb
 
 @Rank = Rank = clazz 'Rank', Node, ->
   init: (rules) ->
@@ -323,7 +326,7 @@ node.name = name of the rule, if this is @rule.
       rule.rule = rule
       thisTarget[name] = rule
       @children.push rule
-  parse: ($) ->
+  parse$: @$wrap ($) ->
     result = null
     for own name, node of @rules
       result = $.try node.parse
@@ -362,13 +365,14 @@ node.name = name of the rule, if this is @rule.
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
-  parse: (code, start='START', debug=false) ->
+  parse$: (code, {start, debug}={}) ->
+    start ?= 'START'
+    debug ?= no
     code = CodeStream code if code not instanceof CodeStream
-    $ = Context code, this
-    $.debug = debug
-    result = Ref(start).parse $
+    $ = Context code, this, debug
+    $.result = Ref(start).parse $
     throw Error "incomplete parse: [#{$.code.peek chars:10}]" if $.code.pos isnt $.code.text.length
-    return result
+    return $
 
 C  = -> Choice (x for x in arguments) # TODO ugh
 E  = -> Exists arguments...
