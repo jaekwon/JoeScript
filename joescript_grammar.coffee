@@ -46,6 +46,8 @@ Index = clazz 'Index', Node, ->
 Obj = clazz 'Obj', Node, ->
   init: (@items) ->
   toString: -> "{#{@items.join ','}}"
+Arr = clazz 'Arr', Obj, ->
+  toString: -> "[#{@items.join ','}]"
 Item = clazz 'Item', Node, ->
   init: ({@this, @key, @value}) ->
   toString: -> "#{if @this then '@' else ''}#{@key}:(#{@value})"
@@ -107,8 +109,8 @@ GRAMMAR = Grammar ({o, t}) ->
       OP1:                o "left:$$ _ op:('+'|'-')                             right:$", Operation
       OP2:                o "left:$$ _ op:('*'|'/'|'%')                         right:$", Operation
       OP3:                o "left:$  op:('--'|'++')       |      op:('--'|'++') right:$", Operation
-      #ARRAY:              o ""
       ASSIGNABLE:
+        ARRAY:            o "_ '[' &:EXPR*{COMMA;,} _']'", Arr
         OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{COMMA;,} _ '}'", Obj
         NUMBER:           o "_ !KEYWORD <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
         INDEX:            o "obj:$$ &:(IDX_BR|IDX_DT)", Index
@@ -190,3 +192,5 @@ assertParse "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
 assertParse "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
 assertParse "aString = 'foo'", "aString=('foo')"
 assertParse "'foo'.length", "('foo').length"
+assertParse "[1, 2, 3]", "[1,2,3]"
+assertParse "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"

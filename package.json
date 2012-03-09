@@ -6,7 +6,7 @@
   "repository": {"type": "git", "url": "git://github.com/jaekwon/joeson.git"},
   "dependencies": {
       "underscore": ">= 1.2.3",
-      "cardamom": ">= 0.0.7"
+      "cardamom": ">= 0.0.7b"
     },
   "keywords": [],
   "main": "",
