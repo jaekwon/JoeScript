@@ -4,6 +4,9 @@
 assert = require 'assert'
 
 Node = clazz 'Node'
+Symbol = clazz 'Symbol', Node, ->
+  init: (@sym) ->
+  toString: -> @sym
 Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
@@ -30,14 +33,25 @@ Statement = clazz 'Statement', Node, ->
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
   toString: -> "#{@func}(#{@params})"
+Assign = clazz 'Assign', Node, ->
+  init: ({@target, @value}) ->
+  toString: -> "#{@target}=(#{@value})"
 Index = clazz 'Index', Node, ->
   init: ({@obj, @attr, @attrStr}) ->
-    console.log 'Index.init', ''+this
   toString: ->
     if @attr?
       "(#{@obj})[#{@attr}]"
     else
       "(#{@obj}).#{@attrStr}"
+Obj = clazz 'Obj', Node, ->
+  init: (@items) ->
+  toString: -> "{#{@items.join ','}}"
+Item = clazz 'Item', Node, ->
+  init: ({@this, @key, @value}) ->
+  toString: -> "#{if @this then '@' else ''}#{@key}:(#{@value})"
+Str = clazz 'Str', Node, ->
+  init: (@chars) ->
+  toString: -> "'#{@chars.join('').replace /'/g, "\\'"}'"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
@@ -71,60 +85,83 @@ checkNewline = (ws) ->
   null
 
 GRAMMAR = Grammar ({o, t}) ->
-  START:                o "__INIT__ &:LINES __"
-  __INIT__:             o "''", -> # init
-  LINES:                o "LINE*{NEWLINE;,}", Block
+  START:                  o "__INIT__ &:LINES _"
+  __INIT__:               o "''", -> # init
+  LINES:                  o "LINE*{NEWLINE;,}", Block
   LINE:
-    POSTIF:             o "block:$$ IF cond:EXPR", If
-    #POSTFOR:           o "block:$$ FOR cond:EXPR"
-    STMT:               o "type:(RETURN|THROW) expr:$?", Statement
+    POSTIF:               o "block:$$ IF cond:EXPR", If
+    #POSTFOR:             o "block:$$ FOR cond:EXPR"
+    STMT:                 o "type:(RETURN|THROW) expr:$?", Statement
     EXPR:
-      INVOC:            o "func:INVOCABLE __ params:(INVOC|PARAMS)", Invocation
+      # RECURSIVE
+      INVOC:              o "func:ASSIGNABLE params:PARAMS", Invocation
       ' PARAMS':
-          PARAMS0:      o "__ '(' __ &:PARAMS1 __ ')'"
-          PARAMS1:      o "EXPR*{__ ',';1,}"
-      ASSIGN:           o "target:INVOCABLE __ '=' source:$$"
+          PARAMS0:        o "_ '(' _ &:PARAMS1 _ ')'"
+          PARAMS1:        o "EXPR*{_ ',';1,}"
+      OBJ_IMPL:           o "___?  &:ITEM_IMPL*{COMMA;1,}", Obj
+      ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
       COMPLEX:
-        IF_:            o "IF cond:EXPR block:BLOCK @:(NEWLINE? ELSE elseBlock:BLOCK)?", If
-      OP0:              o "left:$$ __ op:('=='|'!='|'<'|'<='|'>'|'>=') right:$", Operation
-      OP1:              o "left:$$ __ op:('+'|'-')                     right:$", Operation
-      OP2:              o "left:$$ __ op:('*'|'/'|'%')                 right:$", Operation
-      OP3:              o "left:$  op:('--'|'++')   |   op:('--'|'++') right:$", Operation
-      INVOCABLE:
-        #OBJECT:         o ""
-        #ARRAY:          o ""
-        ASSIGNABLE:
-          INDEXABLE:
-            INDEX:      o "obj:ASSIGNABLE '[' attr:EXPR __ ']'", Index
-            ACCESS:     o "obj:ASSIGNABLE '.' attrStr:SIMPLE", Index
-          SIMPLE:       o "!KEYWORD __ <words:1> &:/[a-zA-Z]+/"
+        IF_:              o "IF cond:EXPR block:BLOCK @:(NEWLINE? ELSE elseBlock:BLOCK)?", If
+      # ORDERED
+      OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|IS|ISNT) right:$", Operation
+      OP1:                o "left:$$ _ op:('+'|'-')                             right:$", Operation
+      OP2:                o "left:$$ _ op:('*'|'/'|'%')                         right:$", Operation
+      OP3:                o "left:$  op:('--'|'++')       |      op:('--'|'++') right:$", Operation
+      #ARRAY:              o ""
+      ASSIGNABLE:
+        OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{COMMA;,} _ '}'", Obj
+        NUMBER:           o "_ !KEYWORD <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
+        INDEX:            o "obj:$$ &:(IDX_BR|IDX_DT)", Index
+        ' IDX_BR':        o "'[' attr:EXPR _ ']'"
+        ' IDX_DT':        o "'.' attrStr:SYMBOL"
+        PAREN:            o "_ '(' &:EXPR _ ')'"
+        STRING:
+          STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC | .))* QUOTE",  Str
+          STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC | .))* DQUOTE", Str
+          ' ESC':         o "SLASH &:.", (chr) -> '\\'+chr
+        SYMBOL:           o "_ !KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
+  _OBJECTS:
+    ITEM_EXPL:            o "this:THISAT? key:SYMBOL value:(COLON &:EXPR)?", Item
+    ITEM_IMPL:            o "key:SYMBOL COLON value:EXPR", Item
   _BLOCKS:
     BLOCK:
-      _INLINE:          o "THEN &:LINE", Block
-      _INDENTED:        o "INDENT &:LINE*{NEWLINE;1,}", Block
-    INDENT:             o "TERM &:__", checkIndent
-    NEWLINE:            o "TERM &:__", checkNewline
-    TERM:               o "__ &:('\r\n'|'\n')"
+      _INLINE:            o "THEN &:LINE", Block
+      _INDENTED:          o "INDENT &:LINE*{NEWLINE;1,}", Block
+    INDENT:               o "TERM &:_", checkIndent
+    NEWLINE:              o "TERM &:_", checkNewline
+    TERM:                 o "_ &:('\r\n'|'\n')"
   _TOKENS:
-    KEYWORD:            t 'if', 'else', 'loop', 'return', 'throw', 'then'
+    KEYWORD:              t(prefix:'_')('if', 'else', 'loop', 'return', 'throw', 'then', 'is', 'isnt')
+    COMMA:                o "_ ','"
+    COLON:                o "_ ':'"
+    THISAT:               o "_ '@'"
+    QUOTE:                o "'\\''"
+    DQUOTE:               o "'\"'"
+    FSLSH:                o "'/'"
+    SLASH:                o "'\\\\'"
   _WHITESPACES:
-                        # optional whitespaces
-    __:                 o "<words:1> /[ ]*/"
+    _:                    o "<words:1> /[ ]*/"
+    __:                   o "<words:1> /[ ]+/"
+    ___:                  o "<words:1> /[ ]+/" # TODO also capture comments, etc.
+  _OTHER:
+    '.':                  o "<chars:1> /[\\s\\S]/"
+
 
 counter = 0
 assertParse = (code, expected) ->
   try
     context = GRAMMAR.parse code, debug:no
     assert.equal ''+context.result, expected
-    console.log "t#{counter++} OK\t#{code}"
   catch error
-    try
-      GRAMMAR.parse code, debug:yes
-    catch error
-      # pass
-    console.log "failed to parse code '#{code}', expected '#{expected}'"
-    console.log "result: #{context.result}" if context?
-    throw error
+    if expected isnt null
+      try
+        GRAMMAR.parse code, debug:yes
+      catch error
+        # pass
+      console.log "failed to parse code '#{code}', expected '#{expected}'"
+      console.log "result: #{context.result}" if context?
+      throw error
+  console.log "t#{counter++} OK\t#{code}"
 
 assertParse "a * b++ / c + d", "(((a*(b++))/c)+d)"
 assertParse " a * b++ / c + d ", "(((a*(b++))/c)+d)"
@@ -142,3 +179,14 @@ assertParse """
             """, "if(condition){func(true)}else{func(false)}"
 assertParse "foo[bar]", "(foo)[bar]"
 assertParse "foo[bar][baz]", "((foo)[bar])[baz]"
+assertParse "123", "123"
+assertParse "123.456", "123.456"
+assertParse "123.456.789", null
+assertParse "123.456 + foo.bar", "(123.456+(foo).bar)"
+assertParse "{foo: 1}", "{foo:(1)}"
+assertParse "{foo: bar: 1}", "{foo:({bar:(1)})}"
+assertParse "foo: bar: 1", "{foo:({bar:(1)})}"
+assertParse "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
+assertParse "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
+assertParse "aString = 'foo'", "aString=('foo')"
+assertParse "'foo'.length", "('foo').length"

@@ -59,7 +59,7 @@ escape = (str) ->
     if not $.debug or this isnt @rule then return fn.call this, $
     rule = $.grammar.rules[@name]
     bufferStr = escape $.code.peek chars:20
-    bufferStr = if bufferStr.len < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
+    bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
     $.log "#{red @name}: #{blue rule} #{black bufferStr}"
     result = fn.call this, $
     $.log "^-- #{escape result} #{black typeof result}" if result isnt null
@@ -448,9 +448,11 @@ St = -> String arguments...
 
 @MACROS = MACROS =
   o: (rule, cb) -> Nodeling rule:rule, cb:cb
-  t: (tokens...) ->
-    cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-    rank = {}
-    for token in tokens
-      rank[token.toUpperCase()] = Nodeling rule:"__ &:'#{token}'", cb:cb
-    rank
+  t: ({prefix}) ->
+    prefix ?= '_'
+    (tokens...) ->
+      cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
+      rank = {}
+      for token in tokens
+        rank[token.toUpperCase()] = Nodeling rule:"#{prefix} &:'#{token}'", cb:cb
+      rank
