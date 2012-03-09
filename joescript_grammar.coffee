@@ -150,7 +150,7 @@ GRAMMAR = Grammar ({o, t}) ->
 
 
 counter = 0
-assertParse = (code, expected) ->
+test  = (code, expected) ->
   try
     context = GRAMMAR.parse code, debug:no
     assert.equal ''+context.result, expected
@@ -165,32 +165,32 @@ assertParse = (code, expected) ->
       throw error
   console.log "t#{counter++} OK\t#{code}"
 
-assertParse "a * b++ / c + d", "(((a*(b++))/c)+d)"
-assertParse " a * b++ / c + d ", "(((a*(b++))/c)+d)"
-assertParse "return foo", 'return(foo);'
-assertParse "foo if bar if baz", "if(baz){if(bar){foo}}"
-assertParse """
-            if condition
-              func true
-            """, "if(condition){func(true)}"
-assertParse """
-            if condition
-              func true
-            else
-              func false
-            """, "if(condition){func(true)}else{func(false)}"
-assertParse "foo[bar]", "(foo)[bar]"
-assertParse "foo[bar][baz]", "((foo)[bar])[baz]"
-assertParse "123", "123"
-assertParse "123.456", "123.456"
-assertParse "123.456.789", null
-assertParse "123.456 + foo.bar", "(123.456+(foo).bar)"
-assertParse "{foo: 1}", "{foo:(1)}"
-assertParse "{foo: bar: 1}", "{foo:({bar:(1)})}"
-assertParse "foo: bar: 1", "{foo:({bar:(1)})}"
-assertParse "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
-assertParse "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
-assertParse "aString = 'foo'", "aString=('foo')"
-assertParse "'foo'.length", "('foo').length"
-assertParse "[1, 2, 3]", "[1,2,3]"
-assertParse "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
+test  "a * b++ / c + d", "(((a*(b++))/c)+d)"
+test  " a * b++ / c + d ", "(((a*(b++))/c)+d)"
+test  "return foo", 'return(foo);'
+test  "foo if bar if baz", "if(baz){if(bar){foo}}"
+test  """
+      if condition
+        func true
+      """, "if(condition){func(true)}"
+test  """
+      if condition
+        func true
+      else
+        func false
+      """, "if(condition){func(true)}else{func(false)}"
+test  "foo[bar]", "(foo)[bar]"
+test  "foo[bar][baz]", "((foo)[bar])[baz]"
+test  "123", "123"
+test  "123.456", "123.456"
+test  "123.456.789", null
+test  "123.456 + foo.bar", "(123.456+(foo).bar)"
+test  "{foo: 1}", "{foo:(1)}"
+test  "{foo: bar: 1}", "{foo:({bar:(1)})}"
+test  "foo: bar: 1", "{foo:({bar:(1)})}"
+test  "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
+test  "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
+test  "aString = 'foo'", "aString=('foo')"
+test  "'foo'.length", "('foo').length"
+test  "[1, 2, 3]", "[1,2,3]"
+test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
