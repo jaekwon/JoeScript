@@ -11,7 +11,9 @@ Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
-    @lines.map((x)->''+x).join('; ')
+    (''+line for line in @lines).join '\n'
+  toStringWithIndent: ->
+    '\n  '+((''+line).replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
 If = clazz 'If', Node, ->
   init: ({@cond, @block, @elseBlock}) ->
     @block = Block @block if @block not instanceof Block
@@ -20,10 +22,12 @@ If = clazz 'If', Node, ->
       "if(#{@cond}){#{@block}}else{#{@elseBlock}}"
     else
       "if(#{@cond}){#{@block}}"
+For = clazz 'For', Node, ->
+  init: ({@block, @keys, @type, @obj}) ->
+  toString: -> "for #{@keys.join ','} in #{@obj}{#{@block}}"
 Loop = clazz 'Loop', Node, ->
   init: (@block) ->
-  toString: ->
-    "loop {#{@block}}"
+  toString: -> "loop{#{@block}}"
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @op, @right}) ->
   toString: -> "(#{@left or ''}#{@op}#{@right or ''})"
@@ -102,10 +106,9 @@ GRAMMAR = Grammar ({o, t}) ->
   LINES:                  o "LINE*{NEWLINE;,}", Block
   LINE:
     POSTIF:               o "block:$$ IF cond:EXPR", If
-    #POSTFOR:             o "block:$$ FOR cond:EXPR"
+    POSTFOR:              o "block:$$ FOR keys:SYMBOL*{_ ',';1,2} type:(IN|OF) obj:EXPR", For
     STMT:                 o "type:(RETURN|THROW) expr:$?", Statement
     EXPR:
-      # RECURSIVE
       INVOC:              o "func:ASSIGNABLE params:PARAMS", Invocation
       ' PARAMS':
           PARAMS0:        o "_ '(' _ &:PARAMS1 _ ')'"
@@ -114,7 +117,8 @@ GRAMMAR = Grammar ({o, t}) ->
       ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
       COMPLEX:
         IF_:              o "IF cond:EXPR block:BLOCK @:(NEWLINE? ELSE elseBlock:BLOCK)?", If
-      # ORDERED
+        FOR_:             o "FOR keys:SYMBOL*{_ ',';1,2} type:(IN|OF) obj:EXPR block:BLOCK", For
+        LOOP_:            o "LOOP &:BLOCK", Loop
       OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|IS|ISNT) right:$", Operation
       OP1:                o "left:$$ _ op:('+'|'-')                             right:$", Operation
       OP2:                o "left:$$ _ op:('*'|'/'|'%')                         right:$", Operation
@@ -148,7 +152,7 @@ GRAMMAR = Grammar ({o, t}) ->
     NEWLINE:              o "TERM &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
   _TOKENS:
-    KEYWORD:              t(prefix:'_')('if', 'else', 'loop', 'return', 'throw', 'then', 'is', 'isnt')
+    KEYWORD:              t(prefix:'_')('if', 'else', 'for', 'in', 'loop', 'return', 'throw', 'then', 'is', 'isnt')
     COMMA:                o "_ ','"
     COLON:                o "_ ':'"
     THISAT:               o "_ '@'"
@@ -211,3 +215,11 @@ test  "[1, 2, 3]", "[1,2,3]"
 test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
 test  "foo?.bar['baz']::", "((((foo)?).bar)['baz']).prototype"
 test  "@foo == @bar.baz", "((@).foo==((@).bar).baz)"
+test  "x for x in [1,2,3]", "for x in [1,2,3]{x}"
+test  """
+      for x in [1,2,3]
+        x+1
+      """, "for x in [1,2,3]{(x+1)}"
+test  "for x in [1,2,3] then x + 1", "for x in [1,2,3]{(x+1)}"
+test  "for x in [1,2,3] then x + 1 for y in [1,2,3]", "for x in [1,2,3]{for y in [1,2,3]{(x+1)}}"
+test  "for x in [1,2,3] then x + 1 for y in [1,2,3] if true", "for x in [1,2,3]{if(true){for y in [1,2,3]{(x+1)}}}"
