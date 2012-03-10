@@ -131,7 +131,7 @@ GRAMMAR = Grammar ({o, t}) ->
         OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{COMMA;,} _ '}'", Obj
         PAREN:            o "_ '(' &:EXPR _ ')'"
         PROPERTY:         o "obj:THIS attrStr:SYMBOL", Index
-        THIS:             o "_ '@'", This
+        THIS:             o "THISAT", This
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC | .))* QUOTE",  Str
           STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC | .))* DQUOTE", Str
