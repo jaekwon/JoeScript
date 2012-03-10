@@ -37,15 +37,25 @@ Assign = clazz 'Assign', Node, ->
   init: ({@target, @value}) ->
   toString: -> "#{@target}=(#{@value})"
 Index = clazz 'Index', Node, ->
-  init: ({@obj, @attr, @attrStr}) ->
+  init: ({@obj, @attr, @attrStr, protoAttrStr, soak}) ->
+    if protoAttrStr?
+      @obj = Index obj:@obj, attrStr:'prototype'
+    if soak?
+      @_newOverride = Soak obj:@obj
   toString: ->
     if @attr?
       "(#{@obj})[#{@attr}]"
     else
       "(#{@obj}).#{@attrStr}"
+Soak = clazz 'Soak', Node, ->
+  init: ({@obj}) ->
+  toString: -> "(#{@obj})?"
 Obj = clazz 'Obj', Node, ->
   init: (@items) ->
   toString: -> "{#{@items.join ','}}"
+This = clazz 'This', Node, ->
+  init: ->
+  toString: -> "@"
 Arr = clazz 'Arr', Obj, ->
   toString: -> "[#{@items.join ','}]"
 Item = clazz 'Item', Node, ->
@@ -99,7 +109,7 @@ GRAMMAR = Grammar ({o, t}) ->
       INVOC:              o "func:ASSIGNABLE params:PARAMS", Invocation
       ' PARAMS':
           PARAMS0:        o "_ '(' _ &:PARAMS1 _ ')'"
-          PARAMS1:        o "EXPR*{_ ',';1,}"
+          PARAMS1:        o "__ &:EXPR*{_ ',';1,}"
       OBJ_IMPL:           o "___?  &:ITEM_IMPL*{COMMA;1,}", Obj
       ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
       COMPLEX:
@@ -110,13 +120,18 @@ GRAMMAR = Grammar ({o, t}) ->
       OP2:                o "left:$$ _ op:('*'|'/'|'%')                         right:$", Operation
       OP3:                o "left:$  op:('--'|'++')       |      op:('--'|'++') right:$", Operation
       ASSIGNABLE:
+        NUMBER:           o "_ <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
+        PROTO:            o "&:$ '::'", (obj) -> Index obj:obj, attrStr:'prototype'
+        INDEX:            o "obj:$$ &:(IDX_BR|IDX_DT|IDX_PR|SOAK)", Index
+        ' IDX_BR':        o "'['  attr:EXPR _ ']'"
+        ' IDX_DT':        o "'.'  attrStr:SYMBOL"
+        ' IDX_PR':        o "'::' protoAttrStr:SYMBOL"
+        ' SOAK':          o "soak:'?'"
         ARRAY:            o "_ '[' &:EXPR*{COMMA;,} _']'", Arr
         OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{COMMA;,} _ '}'", Obj
-        NUMBER:           o "_ !KEYWORD <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
-        INDEX:            o "obj:$$ &:(IDX_BR|IDX_DT)", Index
-        ' IDX_BR':        o "'[' attr:EXPR _ ']'"
-        ' IDX_DT':        o "'.' attrStr:SYMBOL"
         PAREN:            o "_ '(' &:EXPR _ ')'"
+        PROPERTY:         o "obj:THIS attrStr:SYMBOL", Index
+        THIS:             o "_ '@'", This
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC | .))* QUOTE",  Str
           STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC | .))* DQUOTE", Str
@@ -194,3 +209,5 @@ test  "aString = 'foo'", "aString=('foo')"
 test  "'foo'.length", "('foo').length"
 test  "[1, 2, 3]", "[1,2,3]"
 test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
+test  "foo?.bar['baz']::", "((((foo)?).bar)['baz']).prototype"
+test  "@foo == @bar.baz", "((@).foo==((@).bar).baz)"

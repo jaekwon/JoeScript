@@ -141,7 +141,7 @@ escape = (str) ->
   @$ruleLabel = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
     result = fn.call this, $
-    if @label? and @label not in ['@','&']
+    if result isnt null and @label? and @label not in ['@','&']
       result_ = {}
       result_[@label] = result
       result = result_
@@ -312,7 +312,7 @@ escape = (str) ->
 
 @Rank = Rank = clazz 'Rank', Node, ->
   init: (rules) ->
-    [@rules, @includes, @children] = [[],[],[]]
+    [@rules, @includes, @children] = [{},[],[]]
     @addRules rules, @rules
   addRules: (rules, target) ->
     for name, rule of rules
@@ -373,7 +373,7 @@ escape = (str) ->
         else if node instanceof Ref and node.key in ['$', '$$']
           rank = node.rule.parent
           # construct implicit choices
-          node.choices = Choice rank.children.filter (rule) -> rule.index > node.rule.index
+          node.choices = Choice (rule for name, rule of rank.rules when rule.index > node.rule.index)
           node.choices.children.unshift Ref node.rule.name if node.key is '$$'
           
       post: (parent, node) =>
