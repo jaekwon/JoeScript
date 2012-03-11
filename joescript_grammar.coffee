@@ -167,7 +167,7 @@ GRAMMAR = Grammar ({o, t}) ->
     NEWLINE:              o "TERM &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
   __TOKENS:
-    _KEYWORD:             t(prefix:'_')('if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt')
+    _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt'
     _COMMA:               o "_ ','"
     _COLON:               o "_ ':'"
     _THISAT:              o "_ '@'"
@@ -246,3 +246,7 @@ test  """
         else
           "incorrect"
       """, "x=(1)\nswitch(x){when 1{'correct'}//else{'incorrect'}}"
+
+test  """
+      {inspect, CodeStream} = require './codestream'
+      """, "{inspect:(undefined),CodeStream:(undefined)}=(require('./codestream'))"

@@ -448,11 +448,9 @@ St = -> String arguments...
 
 @MACROS = MACROS =
   o: (rule, cb) -> Nodeling rule:rule, cb:cb
-  t: ({prefix}) ->
-    prefix ?= '_'
-    (tokens...) ->
-      cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-      rank = {}
-      for token in tokens
-        rank[prefix+token.toUpperCase()] = Nodeling rule:"#{prefix} &:'#{token}'", cb:cb
-      rank
+  t: (tokens...) ->
+    cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
+    rank = {}
+    for token in tokens
+      rank['_'+token.toUpperCase()] = Nodeling rule:"_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/", cb:cb
+    rank
