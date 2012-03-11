@@ -47,18 +47,24 @@ Assign = clazz 'Assign', Node, ->
   init: ({@target, @value}) ->
   toString: -> "#{@target}=(#{@value})"
 Index = clazz 'Index', Node, ->
-  init: ({@obj, @attr, @attrStr, protoAttrStr, soak}) ->
-    if protoAttrStr?
-      @obj = Index obj:@obj, attrStr:'prototype'
-    if soak?
-      @_newOverride = Soak obj:@obj
+  init: ({obj, attr, type}) ->
+    type ?= '.'
+    if type is '::'
+      if attr?
+        obj = Index obj:obj, attr:'prototype', type:'.'
+      else
+        attr = 'prototype'
+      type = '.'
+    else if type is '.'
+      attr = attr.sym
+    @obj = obj
+    @attr = attr
+    @type = type
   toString: ->
-    if @attr?
-      "(#{@obj})[#{@attr}]"
-    else
-      "(#{@obj}).#{@attrStr}"
+    close = if @type is '[' then ']' else ''
+    "(#{@obj})#{@type}#{@attr}#{close}"
 Soak = clazz 'Soak', Node, ->
-  init: ({@obj}) ->
+  init: (@obj) ->
   toString: -> "(#{@obj})?"
 Obj = clazz 'Obj', Node, ->
   init: (@items) ->
@@ -121,10 +127,7 @@ GRAMMAR = Grammar ({o, t}) ->
     POSTFOR:              o "block:$$ _FOR keys:SYMBOL*{_COMMA;1,2} type:(_IN|_OF) obj:EXPR", For
     STMT:                 o "type:(_RETURN|_THROW) expr:$?", Statement
     EXPR:
-      INVOC:              o "func:ASSIGNABLE params:PARAMS", Invocation
-      ' PARAMS':
-          PARAMS0:        o "_ '(' _ &:PARAMS1 _ ')'"
-          PARAMS1:        o "__ &:EXPR*{_COMMA;1,}"
+      INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*{_COMMA;1,}", Invocation
       OBJ_IMPL:           o "___?  &:ITEM_IMPL*{_COMMA;1,}", Obj
       ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
       COMPLEX:
@@ -134,27 +137,29 @@ GRAMMAR = Grammar ({o, t}) ->
         SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*{NEWLINE;,} default:DEFAULT?", Switch
         ' CASE':          o "_WHEN matches:EXPR*{_COMMA;1,} block:BLOCK", Case
         ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
+      # ordered
       OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|_IS|_ISNT) right:$", Operation
       OP1:                o "left:$$ _ op:('+'|'-')                               right:$", Operation
       OP2:                o "left:$$ _ op:('*'|'/'|'%')                           right:$", Operation
       OP3:                o "left:$  op:('--'|'++')        |       op:('--'|'++') right:$", Operation
       ASSIGNABLE:
-        NUMBER:           o "_ <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
-        PROTO:            o "&:$ '::'", (obj) -> Index obj:obj, attrStr:'prototype'
-        INDEX:            o "obj:$$ &:(IDX_BR|IDX_DT|IDX_PR|SOAK)", Index
-        ' IDX_BR':        o "'['  attr:EXPR _ ']'"
-        ' IDX_DT':        o "'.'  attrStr:SYMBOL"
-        ' IDX_PR':        o "'::' protoAttrStr:SYMBOL"
-        ' SOAK':          o "soak:'?'"
+        # left recursive
+        INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
+        INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
+        INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
+        INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*{_COMMA;0,} _ ')'", Invocation
+        SOAK:             o "&:ASSIGNABLE '?'", Soak
+        # rest 
         ARRAY:            o "_ '[' &:EXPR*{_COMMA;,} _']'", Arr
         OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{_COMMA;,} _ '}'", Obj
         PAREN:            o "_ '(' &:EXPR _ ')'"
-        PROPERTY:         o "obj:THIS attrStr:SYMBOL", Index
+        PROPERTY:         o "obj:THIS attr:SYMBOL", Index
         THIS:             o "_THISAT", This
+        REGEX:            o "_ FSLASH &:(!FSLASH (ESC | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC | .))* QUOTE",  Str
           STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC | .))* DQUOTE", Str
-          ' ESC':         o "SLASH &:.", (chr) -> '\\'+chr
+        NUMBER:           o "_ <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
         SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
   __OBJECTS:
     ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
@@ -173,7 +178,7 @@ GRAMMAR = Grammar ({o, t}) ->
     _THISAT:              o "_ '@'"
     QUOTE:                o "'\\''"
     DQUOTE:               o "'\"'"
-    FSLSH:                o "'/'"
+    FSLASH:               o "'/'"
     SLASH:                o "'\\\\'"
   __WHITESPACES:
     _:                    o "<words:1> /[ ]*/"
@@ -181,10 +186,13 @@ GRAMMAR = Grammar ({o, t}) ->
     ___:                  o "<words:1> /[ ]+/" # TODO also capture comments, etc.
   __OTHER:
     '.':                  o "<chars:1> /[\\s\\S]/"
+    'ESC':                o "SLASH &:.", (chr) -> '\\'+chr
 
 
 counter = 0
 test  = (code, expected) ->
+  # hack to make tests easier to write.
+  code = code.replace(/\\/g, '\\\\').replace(/\r/g, '\\r')
   try
     context = GRAMMAR.parse code, debug:no
     assert.equal ''+context.result, expected
@@ -194,8 +202,7 @@ test  = (code, expected) ->
         GRAMMAR.parse code, debug:yes
       catch error
         # pass
-      console.log "failed to parse code '#{code}', expected '#{expected}'"
-      console.log "result: #{context.result}" if context?
+      console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"
       throw error
   console.log "t#{counter++} OK\t#{code}"
 
@@ -246,7 +253,13 @@ test  """
         else
           "incorrect"
       """, "x=(1)\nswitch(x){when 1{'correct'}//else{'incorrect'}}"
-
+test  "foo.replace(bar).replace(baz)", "((foo).replace(bar)).replace(baz)"
+test  "foo.replace(/\\/g, 'bar')", "(foo).replace('\\\\','bar')"
 test  """
-      {inspect, CodeStream} = require './codestream'
-      """, "{inspect:(undefined),CodeStream:(undefined)}=(require('./codestream'))"
+_ = require 'underscore'
+assert = require 'assert'
+{inspect, CodeStream} = require './codestream'
+{clazz} = require 'cardamom'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
+escape = (str) - (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
+      """, "-scratchpad-"

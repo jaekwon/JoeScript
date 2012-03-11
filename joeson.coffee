@@ -24,6 +24,7 @@ escape = (str) ->
     @cache = {}   # { "#{rulename}@#{pos}":{result,endPos}... }
     @recurse = {} # { "#{rulename}@#{pos}":{stage,puppet,endPos}... | "#{pos}":"nocache"? }
     @storeCache = true # rule callbacks can override this
+    @_ctr = 0
 
   # code.pos will be reverted if result is null
   try: (fn) ->
@@ -34,7 +35,7 @@ escape = (str) ->
 
   log: (args...) ->
     if @debug
-      console.log "#{cyan Array(@stack.length-1).join '|  '}#{args.join ''}"
+      console.log "#{@_ctr++}\t#{cyan Array(@stack.length-1).join '|  '}#{args.join ''}"
     
 
 ###
@@ -105,14 +106,17 @@ escape = (str) ->
               return result
             else
               item.stage = 3
+              # $.log "loopify loop start #{@name} (initial result was #{result})"
               while result isnt null
                 # $.log "looping...", @name
                 goodResult = item.puppet = result
                 goodPos = item.endPos = $.code.pos
+                # $.log "loopify #{@name} goodPos = ", goodPos
                 $.code.pos = startPos # reset
                 delete $.recurse[startPos]
                 result = fn.call this, $
                 assert.equal item.stage, 3, 'this shouldnt change'
+                # $.log "loopify #{@name} break: ", $.code.pos, " > ", goodPos
                 break unless $.code.pos > goodPos
               $.code.pos = goodPos
               delete $.recurse[startPos]
