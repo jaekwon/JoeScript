@@ -28,6 +28,12 @@ For = clazz 'For', Node, ->
 Loop = clazz 'Loop', Node, ->
   init: (@block) ->
   toString: -> "loop{#{@block}}"
+Switch = clazz 'Switch', Node, ->
+  init: ({@obj, @cases, @default}) ->
+  toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
+Case = clazz 'Case', Node, ->
+  init: ({@matches, @block}) ->
+  toString: -> "when #{@matches.join ','}{#{@block}}"
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @op, @right}) ->
   toString: -> "(#{@left or ''}#{@op}#{@right or ''})"
@@ -73,15 +79,21 @@ Dummy = clazz 'Dummy', Node, ->
   toString: -> "{#{@args}}"
 
 checkIndent = (ws) ->
-  [block, _, indent] = @stack[@stack.length-3..@stack.length-1]
-  assert.ok block.name is 'BLOCK'
+  if @stack[@stack.length-2].name is 'SWITCH'
+    blockIndex = @stack.length-2
+    [block, indent] = @stack[blockIndex..@stack.length-1]
+  else
+    blockIndex = @stack.length-3
+    [block, _, indent] = @stack[blockIndex..@stack.length-1]
+  assert.ok block.name in ['BLOCK', 'SWITCH']
   assert.equal indent.name, 'INDENT'
   # find the last INDENT on the stack
   lastIndent = ''
-  for i in [@stack.length-4..0] by -1
-    if @stack[i].name in ['START', 'BLOCK']
+  for i in [blockIndex-1..0] by -1
+    if @stack[i].name in ['START', 'BLOCK', 'SWITCH']
       lastIndent = @stack[i].indent ? ''
       break
+  # if ws starts with lastIndent
   if ws.length > lastIndent and ws.indexOf(lastIndent) is 0
     return block.indent=ws
   null
@@ -92,8 +104,8 @@ checkNewline = (ws) ->
   assert.equal newline.name, 'NEWLINE'
   # find the current INDENT on the stack
   currentIndent = ''
-  for i in [@stack.length-4..0] by -1
-    if @stack[i].name in ['START', 'BLOCK']
+  for i in [@stack.length-2..0] by -1
+    if @stack[i].name in ['START', 'BLOCK', 'SWITCH']
       currentIndent = @stack[i].indent ? ''
       break
   if ws is currentIndent
@@ -105,24 +117,27 @@ GRAMMAR = Grammar ({o, t}) ->
   __INIT__:               o "''", -> # init
   LINES:                  o "LINE*{NEWLINE;,}", Block
   LINE:
-    POSTIF:               o "block:$$ IF cond:EXPR", If
-    POSTFOR:              o "block:$$ FOR keys:SYMBOL*{_ ',';1,2} type:(IN|OF) obj:EXPR", For
-    STMT:                 o "type:(RETURN|THROW) expr:$?", Statement
+    POSTIF:               o "block:$$ _IF cond:EXPR", If
+    POSTFOR:              o "block:$$ _FOR keys:SYMBOL*{_COMMA;1,2} type:(_IN|_OF) obj:EXPR", For
+    STMT:                 o "type:(_RETURN|_THROW) expr:$?", Statement
     EXPR:
       INVOC:              o "func:ASSIGNABLE params:PARAMS", Invocation
       ' PARAMS':
           PARAMS0:        o "_ '(' _ &:PARAMS1 _ ')'"
-          PARAMS1:        o "__ &:EXPR*{_ ',';1,}"
-      OBJ_IMPL:           o "___?  &:ITEM_IMPL*{COMMA;1,}", Obj
+          PARAMS1:        o "__ &:EXPR*{_COMMA;1,}"
+      OBJ_IMPL:           o "___?  &:ITEM_IMPL*{_COMMA;1,}", Obj
       ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
       COMPLEX:
-        IF_:              o "IF cond:EXPR block:BLOCK @:(NEWLINE? ELSE elseBlock:BLOCK)?", If
-        FOR_:             o "FOR keys:SYMBOL*{_ ',';1,2} type:(IN|OF) obj:EXPR block:BLOCK", For
-        LOOP_:            o "LOOP &:BLOCK", Loop
-      OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|IS|ISNT) right:$", Operation
-      OP1:                o "left:$$ _ op:('+'|'-')                             right:$", Operation
-      OP2:                o "left:$$ _ op:('*'|'/'|'%')                         right:$", Operation
-      OP3:                o "left:$  op:('--'|'++')       |      op:('--'|'++') right:$", Operation
+        IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
+        FOR:              o "_FOR keys:SYMBOL*{_COMMA;1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
+        LOOP:             o "_LOOP &:BLOCK", Loop
+        SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*{NEWLINE;,} default:DEFAULT?", Switch
+        ' CASE':          o "_WHEN matches:EXPR*{_COMMA;1,} block:BLOCK", Case
+        ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
+      OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|_IS|_ISNT) right:$", Operation
+      OP1:                o "left:$$ _ op:('+'|'-')                               right:$", Operation
+      OP2:                o "left:$$ _ op:('*'|'/'|'%')                           right:$", Operation
+      OP3:                o "left:$  op:('--'|'++')        |       op:('--'|'++') right:$", Operation
       ASSIGNABLE:
         NUMBER:           o "_ <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
         PROTO:            o "&:$ '::'", (obj) -> Index obj:obj, attrStr:'prototype'
@@ -131,40 +146,40 @@ GRAMMAR = Grammar ({o, t}) ->
         ' IDX_DT':        o "'.'  attrStr:SYMBOL"
         ' IDX_PR':        o "'::' protoAttrStr:SYMBOL"
         ' SOAK':          o "soak:'?'"
-        ARRAY:            o "_ '[' &:EXPR*{COMMA;,} _']'", Arr
-        OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{COMMA;,} _ '}'", Obj
+        ARRAY:            o "_ '[' &:EXPR*{_COMMA;,} _']'", Arr
+        OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{_COMMA;,} _ '}'", Obj
         PAREN:            o "_ '(' &:EXPR _ ')'"
         PROPERTY:         o "obj:THIS attrStr:SYMBOL", Index
-        THIS:             o "THISAT", This
+        THIS:             o "_THISAT", This
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC | .))* QUOTE",  Str
           STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC | .))* DQUOTE", Str
           ' ESC':         o "SLASH &:.", (chr) -> '\\'+chr
-        SYMBOL:           o "_ !KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
-  _OBJECTS:
-    ITEM_EXPL:            o "this:THISAT? key:SYMBOL value:(COLON &:EXPR)?", Item
-    ITEM_IMPL:            o "key:SYMBOL COLON value:EXPR", Item
-  _BLOCKS:
+        SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
+  __OBJECTS:
+    ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
+    ITEM_IMPL:            o "key:SYMBOL _COLON value:EXPR", Item
+  __BLOCKS:
     BLOCK:
-      _INLINE:            o "THEN &:LINE", Block
-      _INDENTED:          o "INDENT &:LINE*{NEWLINE;1,}", Block
+      __INLINE:           o "_THEN &:LINE", Block
+      __INDENTED:         o "INDENT &:LINE*{NEWLINE;1,}", Block
     INDENT:               o "TERM &:_", checkIndent
     NEWLINE:              o "TERM &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
-  _TOKENS:
-    KEYWORD:              t(prefix:'_')('if', 'else', 'for', 'in', 'loop', 'return', 'throw', 'then', 'is', 'isnt')
-    COMMA:                o "_ ','"
-    COLON:                o "_ ':'"
-    THISAT:               o "_ '@'"
+  __TOKENS:
+    _KEYWORD:             t(prefix:'_')('if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt')
+    _COMMA:               o "_ ','"
+    _COLON:               o "_ ':'"
+    _THISAT:              o "_ '@'"
     QUOTE:                o "'\\''"
     DQUOTE:               o "'\"'"
     FSLSH:                o "'/'"
     SLASH:                o "'\\\\'"
-  _WHITESPACES:
+  __WHITESPACES:
     _:                    o "<words:1> /[ ]*/"
     __:                   o "<words:1> /[ ]+/"
     ___:                  o "<words:1> /[ ]+/" # TODO also capture comments, etc.
-  _OTHER:
+  __OTHER:
     '.':                  o "<chars:1> /[\\s\\S]/"
 
 
@@ -223,3 +238,11 @@ test  """
 test  "for x in [1,2,3] then x + 1", "for x in [1,2,3]{(x+1)}"
 test  "for x in [1,2,3] then x + 1 for y in [1,2,3]", "for x in [1,2,3]{for y in [1,2,3]{(x+1)}}"
 test  "for x in [1,2,3] then x + 1 for y in [1,2,3] if true", "for x in [1,2,3]{if(true){for y in [1,2,3]{(x+1)}}}"
+test  """
+      x = 1
+      switch x
+        when 1
+          "correct"
+        else
+          "incorrect"
+      """, "x=(1)\nswitch(x){when 1{'correct'}//else{'incorrect'}}"

@@ -454,5 +454,5 @@ St = -> String arguments...
       cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
       rank = {}
       for token in tokens
-        rank[token.toUpperCase()] = Nodeling rule:"#{prefix} &:'#{token}'", cb:cb
+        rank[prefix+token.toUpperCase()] = Nodeling rule:"#{prefix} &:'#{token}'", cb:cb
       rank
