@@ -231,10 +231,15 @@ escape = (str) ->
 
 @Lookahead = Lookahead = clazz 'Lookahead', Node, ->
   capture: no
-  init: ({@words, @chars}) ->
+  init: ({@chars, @words, @lines}) ->
   parse$: @$wrap ($) ->
-    $.code.peek words:@words, chars:@chars
-  toString: -> yellow if @words? then "<words:#{@words}>" else "<chars:#{@chars}>"
+    $.code.peek chars:@chars, words:@words, lines:@lines
+  toString: ->
+    "<#{
+      yellow @chars? and "chars:#{@chars}" or
+             @words? and "words:#{@words}" or
+             @lines? and "lines:#{@lines}"
+    }>"
 
 @Exists = Exists = clazz 'Exists', Node, ->
   init: (@it) ->
@@ -379,7 +384,6 @@ escape = (str) ->
           # construct implicit choices
           node.choices = Choice (rule for name, rule of rank.rules when rule.index > node.rule.index)
           node.choices.children.unshift Ref node.rule.name if node.key is '$$'
-          
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
@@ -414,15 +418,18 @@ St = -> String arguments...
       COMMAND:
         LA_CHAR:        S(St('<chars:'), L('chars',R('INT')), St('>'))._cb Lookahead
         LA_WORD:        S(St('<words:'), L('words',R('INT')), St('>'))._cb Lookahead
-      LABELED:          S(L('@', E(S(L('label',R('LABEL')), St(':')))),
+        LA_LINE:        S(St('<lines:'), L('lines',R('INT')), St('>'))._cb Lookahead
+      LABELED:          S(L('@',E(S(L('label',R('LABEL')), St(':')))),
                           L('&',R('$')))
       DECORATED:
         EXISTS:         S(L('&',R('PRIMARY')), St('?'))._cb Exists
-        PATTERN:        S(L('value',R('PRIMARY')), St('*'),
-                          L('@', E(S(St('{'),
-                              L('join',E(R('EXPR'))), St(';'),
-                              R('_'), L('min', E(R('INT'))), R('_'), St(','),
-                              R('_'), L('max', E(R('INT'))), R('_'), St('}')))))._cb Pattern
+        PATTERN0:       S(L('value',R('PRIMARY')), St('*'),
+                          L('join',E(S(N(R('__')), R('PRIMARY')))),
+                          L('@',E(R('RANGE'))))._cb Pattern
+        PATTERN1:       S(L('value',R('PRIMARY')),
+                          L('@',R('RANGE')))._cb Pattern
+        ' RANGE':       S(St('{'), R('_'), L('min',E(R('INT'))), R('_'), St(','),
+                                   R('_'), L('max',E(R('INT'))), R('_'), St('}'))
         NOT:            S(St('!'), L('&',R('PRIMARY')))._cb Not
       PRIMARY:
         REF:            C(St('$$'), St('$'), R('WORD'))._cb Ref
@@ -435,20 +442,17 @@ St = -> String arguments...
                           L('&',P(S(N(St('/')),
                                     C(R('ESC2'), R('.'))))),
                           St('/'))._cb (it) -> Regex it.join ''
-        '':
-          ESC1:         S(St('\\'), L('&',R('.')))
-          ESC2:         S(St('\\'), R('.'))._cb (it) -> it.join ''
-  '':
-    NUMERIC:
-      INT:              S(La(words:1), Re('[0-9]+'))._cb Number
-    OTHER:
+  __TOKENS:
       LABEL:            C(St('&'), St('@'), R('WORD'))
       WORD:             S(La(words:1), Re('[a-zA-Z\\._][a-zA-Z\\._0-9]*'))
+      INT:              S(La(words:1), Re('[0-9]+'))._cb Number
+  __WHITESPACES:
+      _:                S(La(words:1), Re('[ \\n]*'))
+      __:               S(La(words:1), Re('[ \\n]+'))
+  __OTHER:
       '.':              S(La(chars:1), Re('[\\s\\S]'))
-      ESC_CHAR:         S(La(chars:2), Re('\\\\[\\s\\S]'))
-      _:                P(C(R('WHITESPACE'), R('TERM')))
-      TERM:             St("\n")
-      WHITESPACE:       S(La(words:1), Re(' +'))
+      ESC1:             S(St('\\'), L('&',R('.')))
+      ESC2:             S(St('\\'), L('&',R('.')))._cb (chr)->'\\'+chr
 
 @MACROS = MACROS =
   o: (rule, cb) -> Nodeling rule:rule, cb:cb

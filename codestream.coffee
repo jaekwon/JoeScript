@@ -33,7 +33,7 @@
   #  - are delimited by space(s)
   #  - include preceding space(s)
   #  - exclude trailing space(s)
-  peek: ({chars, words}) ->
+  peek: ({chars, words, lines}) ->
     if chars?
       return @buffer = @text[@pos...@pos+chars]
     else if words?
@@ -44,6 +44,8 @@
       result = @text[origPos...@pos]
       @pos = origPos
       return @buffer = result
+    else if lines?
+      throw new Error 'Not implemented yet'
     else
       return @buffer = @text[@pos]
 

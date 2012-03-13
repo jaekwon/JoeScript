@@ -121,21 +121,21 @@ checkNewline = (ws) ->
 GRAMMAR = Grammar ({o, t}) ->
   START:                  o "__INIT__ &:LINES _"
   __INIT__:               o "''", -> # init
-  LINES:                  o "LINE*{NEWLINE;,}", Block
+  LINES:                  o "LINE*NEWLINE", Block
   LINE:
     POSTIF:               o "block:$$ _IF cond:EXPR", If
-    POSTFOR:              o "block:$$ _FOR keys:SYMBOL*{_COMMA;1,2} type:(_IN|_OF) obj:EXPR", For
+    POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
     STMT:                 o "type:(_RETURN|_THROW) expr:$?", Statement
     EXPR:
-      INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*{_COMMA;1,}", Invocation
-      OBJ_IMPL:           o "___?  &:ITEM_IMPL*{_COMMA;1,}", Obj
+      INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*_COMMA{1,}", Invocation
+      OBJ_IMPL:           o "___?  &:ITEM_IMPL*_COMMA{1,}", Obj
       ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
       COMPLEX:
         IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
-        FOR:              o "_FOR keys:SYMBOL*{_COMMA;1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
+        FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
         LOOP:             o "_LOOP &:BLOCK", Loop
-        SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*{NEWLINE;,} default:DEFAULT?", Switch
-        ' CASE':          o "_WHEN matches:EXPR*{_COMMA;1,} block:BLOCK", Case
+        SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
+        ' CASE':          o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
         ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
       # ordered
       OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|_IS|_ISNT) right:$", Operation
@@ -147,11 +147,11 @@ GRAMMAR = Grammar ({o, t}) ->
         INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
         INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
         INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
-        INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*{_COMMA;0,} _ ')'", Invocation
+        INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*_COMMA{0,} _ ')'", Invocation
         SOAK:             o "&:ASSIGNABLE '?'", Soak
         # rest 
-        ARRAY:            o "_ '[' &:EXPR*{_COMMA;,} _']'", Arr
-        OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*{_COMMA;,} _ '}'", Obj
+        ARRAY:            o "_ '[' &:EXPR*_COMMA _']'", Arr
+        OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
         PAREN:            o "_ '(' &:EXPR _ ')'"
         PROPERTY:         o "obj:THIS attr:SYMBOL", Index
         THIS:             o "_THISAT", This
@@ -167,9 +167,10 @@ GRAMMAR = Grammar ({o, t}) ->
   __BLOCKS:
     BLOCK:
       __INLINE:           o "_THEN &:LINE", Block
-      __INDENTED:         o "INDENT &:LINE*{NEWLINE;1,}", Block
-    INDENT:               o "TERM &:_", checkIndent
-    NEWLINE:              o "TERM &:_", checkNewline
+      __INDENTED:         o "INDENT &:LINE*NEWLINE{1,}", Block
+    INDENT:               o "COMMENT? TERM &:_", checkIndent
+    NEWLINE:              o "COMMENT? TERM &:_", checkNewline
+    COMMENT:              o "_ '#' !'##'"
     TERM:                 o "_ &:('\r\n'|'\n')"
   __TOKENS:
     _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt'

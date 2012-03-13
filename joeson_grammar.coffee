@@ -18,8 +18,8 @@ RAW_GRAMMAR =
   START:                o "EXPR"
   EXPR:
     EXPR_:              o "&:$ _"
-    CHOICE:             o "$*{_ '|';2,}", Choice
-    SEQUENCE:           o "$*{;2,}", Sequence
+    CHOICE:             o "$*(_ '|'){2,}", Choice
+    SEQUENCE:           o "${2,}", Sequence
     UNIT:
       UNIT_:            o "_ &:$"
       COMMAND:
@@ -28,29 +28,27 @@ RAW_GRAMMAR =
       LABELED:          o "@:(label:LABEL ':')? &:$"
       DECORATED:
         EXISTS:         o "&:PRIMARY '?'", Exists
-        PATTERN:        o """value:PRIMARY '*'
-                          @:('{' join:EXPR? ';'
-                               _ min:INT? _ ','
-                               _ max:INT? _ '}')?""", Pattern
+        PATTERN0:       o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
+        PATTERN1:       o "value:PRIMARY @:RANGE", Pattern
+        ' RANGE':       o "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
         NOT:            o "'!' &:PRIMARY", Not
       PRIMARY:
         REF:            o "'$$' | '$' | WORD", Ref
         PAREN:          o "'(' &:EXPR ')'"
         STRING:         o "#{QUOTE} &:(!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> String it.join ''
         REGEX:          o "#{FSLSH} &:(!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
-        '':
-          ESC1:         o "#{SLASH} &:."
-          ESC2:         o "#{SLASH} .", (it) -> it.join ''
-  '':
-    NUMERIC:
-      INT:              o "<words:1> /[0-9]+/", Number
-    OTHER:
-      LABEL:            o "'&' | '@' | WORD"
-      WORD:             o "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
-      '.':              o "<chars:1> /[\\s\\S]/"
-      _:                o "(WHITESPACE | TERM)*"
-      TERM:             o "'\n'"
-      WHITESPACE:       o "<words:1> / +/"
+  __TOKENS:
+    LABEL:              o "'&' | '@' | WORD"
+    WORD:               o "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
+    INT:                o "<words:1> /[0-9]+/", Number
+  __WHITESPACES:
+    _:                  o "<words:1> /[ \\n]*/"
+    __:                 o "<words:1> /[ \\n]+/"
+  __OTHER:
+    '.':                o "<chars:1> /[\\s\\S]/"
+    ESC1:               o "#{SLASH} &:."
+    ESC2:               o "#{SLASH} &:.", (chr) -> '\\'+chr
+
 
 PARSED_GRAMMAR = Grammar RAW_GRAMMAR
 
@@ -72,4 +70,4 @@ if true
   console.log new Date() - start
 
 if false
-  testGrammar {FOO: {rule: "$*{_ '|';2,}"}}, 0, true
+  testGrammar {FOO: {rule: "$*(_ '|'){2,}"}}, 0, true
