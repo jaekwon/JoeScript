@@ -44,8 +44,8 @@ Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
   toString: -> "#{@func}(#{@params})"
 Assign = clazz 'Assign', Node, ->
-  init: ({@target, @value}) ->
-  toString: -> "#{@target}=(#{@value})"
+  init: ({@target, @type, @value}) ->
+  toString: -> "#{@target}#{@type}(#{@value})"
 Index = clazz 'Index', Node, ->
   init: ({obj, attr, type}) ->
     type ?= '.'
@@ -80,6 +80,9 @@ Item = clazz 'Item', Node, ->
 Str = clazz 'Str', Node, ->
   init: (@chars) ->
   toString: -> "'#{@chars.join('').replace /'/g, "\\'"}'"
+Func = clazz 'Func', Node, ->
+  init: ({@params, @type, @block}) ->
+  toString: -> "(#{if @params then @params.join ',' else ''})#{@type}{#{@block}}"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
@@ -127,9 +130,10 @@ GRAMMAR = Grammar ({o, t}) ->
     POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
     STMT:                 o "type:(_RETURN|_THROW) expr:$?", Statement
     EXPR:
+      FUNC:               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
       INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*_COMMA{1,}", Invocation
-      OBJ_IMPL:           o "___?  &:ITEM_IMPL*_COMMA{1,}", Obj
-      ASSIGN:             o "target:ASSIGNABLE _ '=' value:EXPR", Assign
+      OBJ_IMPL:           o "___ &:ITEM_IMPL*_COMMA{1,}", Obj
+      ASSIGN:             o "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?=') value:EXPR", Assign
       COMPLEX:
         IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
         FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
@@ -142,6 +146,8 @@ GRAMMAR = Grammar ({o, t}) ->
       OP1:                o "left:$$ _ op:('+'|'-')                               right:$", Operation
       OP2:                o "left:$$ _ op:('*'|'/'|'%')                           right:$", Operation
       OP3:                o "left:$  op:('--'|'++')        |       op:('--'|'++') right:$", Operation
+      ' PARAMS':          o "_ '(' &:PARAM*_COMMA _ ')'"
+      ' PARAM':           o "ASSIGN | ASSIGNABLE"
       ASSIGNABLE:
         # left recursive
         INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
@@ -155,11 +161,11 @@ GRAMMAR = Grammar ({o, t}) ->
         PAREN:            o "_ '(' &:EXPR _ ')'"
         PROPERTY:         o "obj:THIS attr:SYMBOL", Index
         THIS:             o "_THISAT", This
-        REGEX:            o "_ FSLASH &:(!FSLASH (ESC | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
+        REGEX:            o "_ FSLASH &:(!FSLASH (ESC2 | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
         STRING:
-          STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC | .))* QUOTE",  Str
-          STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC | .))* DQUOTE", Str
-        NUMBER:           o "_ <words:1> &:/[0-9]+(\\.[0-9]*)?/", Number
+          STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
+          STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC2 | .))* DQUOTE", Str
+        NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]*)?/", Number
         SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
   __OBJECTS:
     ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
@@ -168,9 +174,8 @@ GRAMMAR = Grammar ({o, t}) ->
     BLOCK:
       __INLINE:           o "_THEN &:LINE", Block
       __INDENTED:         o "INDENT &:LINE*NEWLINE{1,}", Block
-    INDENT:               o "COMMENT? TERM &:_", checkIndent
-    NEWLINE:              o "COMMENT? TERM &:_", checkNewline
-    COMMENT:              o "_ '#' !'##'"
+    INDENT:               o "BLANK*{1,} &:_", checkIndent
+    NEWLINE:              o "BLANK*{1,} &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
   __TOKENS:
     _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt'
@@ -184,10 +189,12 @@ GRAMMAR = Grammar ({o, t}) ->
   __WHITESPACES:
     _:                    o "<words:1> /[ ]*/"
     __:                   o "<words:1> /[ ]+/"
-    ___:                  o "<words:1> /[ ]+/" # TODO also capture comments, etc.
+    BLANK:                o "_ COMMENT? TERM"
+    COMMENT:              o "_ '#' !'##' (!TERM .)*"
+    ___:                  o "(__ | BLANK)*"
   __OTHER:
     '.':                  o "<chars:1> /[\\s\\S]/"
-    'ESC':                o "SLASH &:.", (chr) -> '\\'+chr
+    ESC2:                 o "SLASH &:.", (chr) -> '\\'+chr
 
 
 counter = 0
@@ -256,11 +263,22 @@ test  """
       """, "x=(1)\nswitch(x){when 1{'correct'}//else{'incorrect'}}"
 test  "foo.replace(bar).replace(baz)", "((foo).replace(bar)).replace(baz)"
 test  "foo.replace(/\\/g, 'bar')", "(foo).replace('\\\\','bar')"
+test  "a = () ->", "a=(()->{undefined})"
+test  "a = (foo) -> then foo", "a=((foo)->{foo})"
+test  "a = (foo = 2) -> then foo", "a=((foo=(2))->{foo})"
+test  "a = ({foo,bar}) -> then foo", "a=(({foo:(undefined),bar:(undefined)})->{foo})"
+test  "a += 2", "a+=(2)"
 test  """
-_ = require 'underscore'
-assert = require 'assert'
-{inspect, CodeStream} = require './codestream'
-{clazz} = require 'cardamom'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
-escape = (str) - (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
-      """, "-scratchpad-"
+# Get until the string `end` is encountered.
+# Change @pos accordingly, including the `end`.
+getUntil: (end, ignoreEOF=yes) ->
+  index = @text.indexOf end, @pos
+  if index is -1
+    if ignoreEOF
+      index = @text.length
+    else
+      throw new EOFError
+  else
+    index += end.length
+      """, "{getUntil:((end,ignoreEOF=(yes))->{index=(((@).text).indexOf(end,(@).pos))\n
+if((indexis-1)){if(ignoreEOF){index=(((@).text).length)}else{throw(new(EOFError));}}else{index+=((end).length)}})}"
