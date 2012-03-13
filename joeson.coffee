@@ -12,6 +12,9 @@ assert = require 'assert'
 escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
 
+debugLoopify = no
+debugCache   = no
+
 # aka '$'
 @Context = Context = clazz 'Context', ->
 
@@ -71,16 +74,14 @@ escape = (str) ->
     cacheKey = @name
     pos = $.code.pos
     if cacheKey? and (cached=$.cache["#{cacheKey}@#{pos}"])?
-      # $.log "[C] Cache hit @ $.cache[\"#{cacheKey}@#{pos}\"]"
+      $.log "[C] Cache hit @ $.cache[\"#{cacheKey}@#{pos}\"]" if debugCache
       $.code.pos = cached.endPos
       return cached.result
     $.storeCache = yes
     result = fn.call this, $
     if cacheKey? and $.storeCache and $.recurse[pos] isnt 'nocache'
-      # $.log "[C] Cache store @ $.cache[\"#{cacheKey}@#{pos}\"]"
+      $.log "[C] Cache store @ $.cache[\"#{cacheKey}@#{pos}\"]" if debugCache
       $.cache["#{cacheKey}@#{pos}"] ||= result:result, endPos:$.code.pos
-    else
-      # $.log "nostore", $.storeCache, $.recurse[pos]
     return result
 
   @$loopify = (fn) -> ($) ->
@@ -100,38 +101,38 @@ escape = (str) ->
             return result
           when 2 # recursion detected
             if result is null
-              # $.log "delete $.recurse[#{startPos}]"
+              $.log "[L] delete $.recurse[#{startPos}]" if debugLoopify
               delete $.recurse[startPos]
-              # $.log "loopify returning #{result} (A)"
+              $.log "[L] returning #{result} (A)" if debugLoopify
               return result
             else
               item.stage = 3
-              # $.log "loopify loop start #{@name} (initial result was #{result})"
+              $.log "[L] loop start #{@name} (initial result was #{result})" if debugLoopify
               while result isnt null
-                # $.log "looping...", @name
+                $.log "[L] looping...", @name if debugLoopify
                 goodResult = item.puppet = result
                 goodPos = item.endPos = $.code.pos
-                # $.log "loopify #{@name} goodPos = ", goodPos
+                $.log "[L] #{@name} goodPos = ", goodPos if debugLoopify
                 $.code.pos = startPos # reset
                 delete $.recurse[startPos]
                 result = fn.call this, $
                 assert.equal item.stage, 3, 'this shouldnt change'
-                # $.log "loopify #{@name} break: ", $.code.pos, " > ", goodPos
+                $.log "[L] #{@name} break unless", $.code.pos, " > ", goodPos if debugLoopify
                 break unless $.code.pos > goodPos
               $.code.pos = goodPos
               delete $.recurse[startPos]
-              # $.log "loopify returning #{result} (B)"
+              $.log "[L] returning #{result} (B)" if debugLoopify
               return goodResult
           else
             throw new Error "Unexpected stage #{item.stage} (A)"
       when 1,2 # recursion detected
         item.stage = 2
         $.recurse[$.code.pos] = 'nocache'
-        # $.log "loopify returning null"
+        $.log "[L] returning null" if debugLoopify
         return null
       when 3 # loopified case
         $.recurse[$.code.pos] = 'nocache'
-        # $.log "loopify returning #{item.puppet} (P)"
+        $.log "[L] returning #{item.puppet} (puppet)" if debugLoopify
         $.code.pos = item.endPos
         return item.puppet
       else
