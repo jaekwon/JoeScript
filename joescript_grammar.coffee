@@ -25,9 +25,9 @@ If = clazz 'If', Node, ->
 For = clazz 'For', Node, ->
   init: ({@block, @keys, @type, @obj}) ->
   toString: -> "for #{@keys.join ','} in #{@obj}{#{@block}}"
-Loop = clazz 'Loop', Node, ->
-  init: (@block) ->
-  toString: -> "loop{#{@block}}"
+While = clazz 'While', Node, ->
+  init: ({@cond, @block}) -> @cond ?= true
+  toString: -> "while(#{@cond}){#{@block}}"
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
@@ -39,7 +39,7 @@ Operation = clazz 'Operation', Node, ->
   toString: -> "(#{@left or ''} #{@op} #{@right or ''})"
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
-  toString: -> "#{@type}(#{@expr});"
+  toString: -> "#{@type}(#{@expr ? ''});"
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
   toString: -> "#{@func}(#{@params})"
@@ -83,12 +83,18 @@ Str = clazz 'Str', Node, ->
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
   toString: -> "(#{if @params then @params.join ',' else ''})#{@type}{#{@block}}"
+Range = clazz 'Range', Node, ->
+  init: ({@obj, @start, @type, @end, @by}) ->
+    @by ?= 1
+  toString: -> "Range(#{@obj?   and "obj:#{@obj},"     or ''}"+
+                     "#{@start? and "start:#{@start}," or ''}"+
+                     "#{@end?   and "end:#{@end},"     or ''}"+
+                     "type:'#{@type}', by:#{@by})"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
 
 INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL', 'INVOC_IMPL']
-
 debugIndent = yes
 
 checkIndent = (ws) ->
@@ -146,17 +152,18 @@ GRAMMAR = Grammar ({o, t}) ->
   LINE:
     POSTIF:               o "block:$$ _IF cond:EXPR", If
     POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
-    STMT:                 o "type:(_RETURN|_THROW) expr:$?", Statement
+    STMT:                 o "type:(_RETURN|_THROW) expr:$? | type:_BREAK", Statement
     EXPR:
       FUNC:               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-      INVOC_IMPL:         o "func:ASSIGNABLE params:EXPR*_COMMA{1,}", Invocation
+      INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*_COMMA{1,}", Invocation
       OBJ_IMPL:           o "| INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
                              |          ITEM_IMPL*_COMMA{1,}", Obj
       ASSIGN:             o "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?=') value:EXPR", Assign
       COMPLEX:
         IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
         FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
-        LOOP:             o "_LOOP &:BLOCK", Loop
+        LOOP:             o "_LOOP block:BLOCK", While
+        WHILE:            o "_WHILE cond:EXPR block:BLOCK", While
         SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
         ' CASE':          o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
         ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
@@ -169,12 +176,14 @@ GRAMMAR = Grammar ({o, t}) ->
       ' PARAM':           o "ASSIGN | ASSIGNABLE"
       ASSIGNABLE:
         # left recursive
+        RANGED_OBJ:       o "obj:ASSIGNABLE !__ &:RANGE"
         INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
         INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
         INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
         INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*_COMMA{0,} _ ')'", Invocation
         SOAK:             o "&:ASSIGNABLE '?'", Soak
         # rest 
+        RANGE:            o "_ '[' start:EXPR? _ type:('..'|'...') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
         ARRAY:            o "_ '[' &:EXPR*_COMMA _']'", Arr
         OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
         PAREN:            o "_ '(' &:EXPR _ ')'"
@@ -184,7 +193,8 @@ GRAMMAR = Grammar ({o, t}) ->
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
           STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC2 | .))* DQUOTE", Str
-        NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]*)?/", Number
+        BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
+        NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
         SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
   __OBJECTS:
     ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
@@ -197,7 +207,7 @@ GRAMMAR = Grammar ({o, t}) ->
     NEWLINE:              o "BLANK*{1,} &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
   __TOKENS:
-    _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt'
+    _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by'
     _COMMA:               o "TERM? _ ',' TERM?"
     _COLON:               o "_ ':'"
     _THISAT:              o "_ '@'"
@@ -289,6 +299,9 @@ test  "a = (foo) -> foo", "a=((foo)->{foo})"
 test  "a = (foo = 2) -> foo", "a=((foo=(2))->{foo})"
 test  "a = ({foo,bar}) -> foo", "a=(({foo:(undefined),bar:(undefined)})->{foo})"
 test  "a += 2", "a+=(2)"
+test  "a = [0..2]", "a=(Range(start:0,end:2,type:'..', by:1))"
+test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type:'..', by:1){(console).log(x)}"
+test  "for x in array[0..10] then console.log x", "for x in Range(obj:array,start:0,end:10,type:'..', by:1){(console).log(x)}"
 
 
 test  """
@@ -322,6 +335,7 @@ a =
 """, "
 a=({foo:(FOO),bar:(BAR)})"
 
+test "func = -> x ?= -> if true then 'hi'", "func=(()->{x?=(()->{if(true){'hi'}})})"
 
 test  """
 {clazz} = require 'cardamom'
@@ -355,3 +369,29 @@ test  """
         (@)._pos=(newPos)}
       (@)._pos})})}})))"
 
+test  """
+while foo
+  log "while foo {"
+  loop
+    log "loop {"
+    while bar
+      log "while bar {"
+      baz = 'baz'
+      log "}"
+      break
+    log "}"
+  log "}"
+log "done"
+""", """
+while(foo){
+  log('while foo {')
+  while(true){
+    log('loop {')
+    while(bar){
+      log('while bar {')
+      baz=('baz')
+      log('}')
+      break();}
+    log('}')}
+  log('}')}
+log('done')"""

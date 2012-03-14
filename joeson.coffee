@@ -175,7 +175,13 @@ debugCache   = no
   parse$: @$wrap ($) ->
     for choice in @choices
       result = $.try choice.parse
-      return result if result isnt null
+      if result isnt null
+        if choice.label?
+          result_ = {}
+          result_[choice.label] = result
+          return result_
+        else
+          return result
     return null
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
