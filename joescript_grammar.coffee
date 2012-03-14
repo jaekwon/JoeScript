@@ -78,8 +78,14 @@ Item = clazz 'Item', Node, ->
   init: ({@this, @key, @value}) ->
   toString: -> "#{if @this then '@' else ''}#{@key}:(#{@value})"
 Str = clazz 'Str', Node, ->
-  init: (@chars) ->
-  toString: -> "'#{@chars.join('').replace /'/g, "\\'"}'"
+  init: (@parts) ->
+  toString: ->
+    parts = @parts.map (x) ->
+      if x instanceof Node
+        '#{'+x+'}'
+      else
+        x.replace /"/g, "\\\""
+    '"' + parts.join('') + '"'
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
   toString: -> "(#{if @params then @params.join ',' else ''})#{@type}{#{@block}}"
@@ -90,6 +96,9 @@ Range = clazz 'Range', Node, ->
                      "#{@start? and "start:#{@start}," or ''}"+
                      "#{@end?   and "end:#{@end},"     or ''}"+
                      "type:'#{@type}', by:#{@by})"
+Heredoc = clazz 'Heredoc', Node, ->
+  init: (@text) ->
+  toString: -> "####{@text}###"
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
@@ -136,8 +145,8 @@ checkNewline = (ws) ->
   # find the current INDENT on the stack
   currentIndent = ''
   for i in [@stack.length-2..0] by -1
-    if @stack[i].name in INDENT_CONTAINERS
-      currentIndent = @stack[i].indent ? ''
+    if @stack[i].indent? and @stack[i].name in INDENT_CONTAINERS
+      currentIndent = @stack[i].indent
       @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
       break
   if ws is currentIndent
@@ -150,6 +159,7 @@ GRAMMAR = Grammar ({o, t}) ->
   __EXIT__:               o "BLANK*", -> # exit code
   LINES:                  o "LINE*NEWLINE", Block
   LINE:
+    HEREDOC:              o "_ '###' !'#' &:(!'###' .)* '###'", (it) -> Heredoc it.join ''
     POSTIF:               o "block:$$ _IF cond:EXPR", If
     POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
     STMT:                 o "type:(_RETURN|_THROW) expr:$? | type:_BREAK", Statement
@@ -183,7 +193,7 @@ GRAMMAR = Grammar ({o, t}) ->
         INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*_COMMA{0,} _ ')'", Invocation
         SOAK:             o "&:ASSIGNABLE '?'", Soak
         # rest 
-        RANGE:            o "_ '[' start:EXPR? _ type:('..'|'...') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
+        RANGE:            o "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
         ARRAY:            o "_ '[' &:EXPR*_COMMA _']'", Arr
         OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
         PAREN:            o "_ '(' &:EXPR _ ')'"
@@ -192,7 +202,8 @@ GRAMMAR = Grammar ({o, t}) ->
         REGEX:            o "_ FSLASH &:(!FSLASH (ESC2 | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
-          STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC2 | .))* DQUOTE", Str
+          STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC2 | ESCSTR | .))* DQUOTE", Str
+          ' ESCSTR':      o "'\#{' &:EXPR _ '}'"
         BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
         NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
         SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
@@ -219,7 +230,7 @@ GRAMMAR = Grammar ({o, t}) ->
     _:                    o "<words:1> /[ ]*/"
     __:                   o "<words:1> /[ ]+/"
     BLANK:                o "_ COMMENT? TERM"
-    COMMENT:              o "_ '#' !'##' (!TERM .)*"
+    COMMENT:              o "_ !HEREDOC '#' (!TERM .)*"
     #___:                  o "(__ | BLANK)*"
   __OTHER:
     '.':                  o "<chars:1> /[\\s\\S]/"
@@ -270,11 +281,11 @@ test  "{foo: bar: 1}", "{foo:({bar:(1)})}"
 test  "foo: bar: 1", "{foo:({bar:(1)})}"
 test  "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
 test  "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
-test  "aString = 'foo'", "aString=('foo')"
-test  "'foo'.length", "('foo').length"
+test  "aString = 'foo'", "aString=(\"foo\")"
+test  "'foo'.length", "(\"foo\").length"
 test  "[1, 2, 3]", "[1,2,3]"
 test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
-test  "foo?.bar['baz']::", "((((foo)?).bar)['baz']).prototype"
+test  "foo?.bar['baz']::", "((((foo)?).bar)[\"baz\"]).prototype"
 test  "@foo == @bar.baz", "((@).foo==((@).bar).baz)"
 test  "x for x in [1,2,3]", "for x in [1,2,3]{x}"
 test  """
@@ -291,9 +302,9 @@ test  """
           "correct"
         else
           "incorrect"
-      """, "x=(1)\nswitch(x){when 1{'correct'}//else{'incorrect'}}"
+      """, "x=(1)\nswitch(x){when 1{\"correct\"}//else{\"incorrect\"}}"
 test  "foo.replace(bar).replace(baz)", "((foo).replace(bar)).replace(baz)"
-test  "foo.replace(/\\/g, 'bar')", "(foo).replace('\\\\','bar')"
+test  "foo.replace(/\\/g, 'bar')", "(foo).replace(\"\\\\\",\"bar\")"
 test  "a = () ->", "a=(()->{undefined})"
 test  "a = (foo) -> foo", "a=((foo)->{foo})"
 test  "a = (foo = 2) -> foo", "a=((foo=(2))->{foo})"
@@ -302,96 +313,42 @@ test  "a += 2", "a+=(2)"
 test  "a = [0..2]", "a=(Range(start:0,end:2,type:'..', by:1))"
 test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type:'..', by:1){(console).log(x)}"
 test  "for x in array[0..10] then console.log x", "for x in Range(obj:array,start:0,end:10,type:'..', by:1){(console).log(x)}"
-
-
-test  """
-# Get until the string `end` is encountered.
-# Change @pos accordingly, including the `end`.
-getUntil: (end, ignoreEOF=yes) ->
-  index = @text.indexOf end, @pos
-  if index is -1
-    if ignoreEOF
-      index = @text.length
-    else
-      throw new EOFError
-  else
-    index += end.length
-      """, "
-{getUntil:((end,ignoreEOF=(yes))->{
-  index=(((@).text).indexOf(end,(@).pos))
-  if((indexis-1)){
-    if(ignoreEOF){
-      index=(((@).text).length)}
-    else{
-      throw(new(EOFError));}}
-  else{
-    index+=((end).length)}})}"
-
-
+test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{(user).name}\")"
+test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{(user).name}\"}\")"
 test  """
 a =
   foo: FOO
   bar: BAR
 """, "
 a=({foo:(FOO),bar:(BAR)})"
-
-test "func = -> x ?= -> if true then 'hi'", "func=(()->{x?=(()->{if(true){'hi'}})})"
-
-test  """
-{clazz} = require 'cardamom'
-
-@inspect = (x) -> require('util').inspect x, false, 100
-
-@CodeStream = CodeStream = clazz 'CodeStream', ->
-  init: (@text, @pos=0, @buffer=null) ->
-
-  pos$:
-    enum: true
-    conf: true
-    get: -> (@_pos)
-    set: (newPos) ->
-      if @_pos isnt newPos
-        @buffer = null
-        @_pos = newPos
-      @_pos
-""", "
-{clazz:(undefined)}=(require('cardamom'))
-(@).inspect=((x)->{(require('util')).inspect(x,false,100)})
-(@).CodeStream=(CodeStream=(clazz('CodeStream',()->{{
-  init:(((@).text,(@).pos=(0),(@).buffer=(null))->{undefined}),
-  pos$:({
-    enum:(true),
-    conf:(true),
-    get:(()->{(@)._pos}),
-    set:((newPos)->{
-      if(((@)._pos isnt newPos)){
-        (@).buffer=(null)
-        (@)._pos=(newPos)}
-      (@)._pos})})}})))"
-
+test  "func = -> x ?= -> if true then 'hi'", "func=(()->{x?=(()->{if(true){\"hi\"}})})"
 test  """
 while foo
-  log "while foo {"
   loop
-    log "loop {"
     while bar
-      log "while bar {"
       baz = 'baz'
-      log "}"
       break
-    log "}"
-  log "}"
-log "done"
 """, """
 while(foo){
-  log('while foo {')
   while(true){
-    log('loop {')
     while(bar){
-      log('while bar {')
-      baz=('baz')
-      log('}')
-      break();}
-    log('}')}
-  log('}')}
-log('done')"""
+      baz=(\"baz\")
+      break();}}}
+"""
+test  """
+if foo?
+  return foo
+else if bar?
+  return bar
+else
+  return undefined
+""", "if((foo)?){return(foo);}else{if((bar)?){return(bar);}else{return(undefined);}}"
+test """
+foo = ->
+  if foo
+    return 111
+  else if bar
+    return 222
+  else
+    return 333
+""", "foo=(()->{if(foo){return(111);}else{if(bar){return(222);}else{return(333);}}})"
