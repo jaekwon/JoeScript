@@ -36,7 +36,7 @@ Case = clazz 'Case', Node, ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @op, @right}) ->
-  toString: -> "(#{@left or ''}#{@op}#{@right or ''})"
+  toString: -> "(#{@left or ''} #{@op} #{@right or ''})"
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr});"
@@ -87,24 +87,40 @@ Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
 
+INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL', 'INVOC_IMPL']
+
+debugIndent = yes
+
 checkIndent = (ws) ->
-  if @stack[@stack.length-2].name is 'SWITCH'
-    blockIndex = @stack.length-2
-    [block, indent] = @stack[blockIndex..@stack.length-1]
-  else
-    blockIndex = @stack.length-3
-    [block, _, indent] = @stack[blockIndex..@stack.length-1]
-  assert.ok block.name in ['BLOCK', 'SWITCH']
+  @storeCache = no
+  @stack[0].indent ?= '' # set default lazily
+  indent = @stack[@stack.length-1]
   assert.equal indent.name, 'INDENT'
-  # find the last INDENT on the stack
-  lastIndent = ''
-  for i in [blockIndex-1..0] by -1
-    if @stack[i].name in ['START', 'BLOCK', 'SWITCH']
-      lastIndent = @stack[i].indent ? ''
+  for idx in [@stack.length-2..0] by -1
+    if @stack[idx].name in INDENT_CONTAINERS
+      containerIndex = idx
+      container = @stack[idx]
       break
-  # if ws starts with lastIndent
-  if ws.length > lastIndent and ws.indexOf(lastIndent) is 0
-    return block.indent=ws
+  assert.ok container.name in INDENT_CONTAINERS
+  @log "INDENT CONTAINER IS #{container.name}, containerIndex=#{containerIndex}" if debugIndent
+  # get the parent container's indent string
+  lastIndent = ''
+  for i in [containerIndex-1..0] by -1
+    if @stack[i].name in INDENT_CONTAINERS
+      if @stack[i].indent?
+        @log "PARENT CONTAINER's index is #{i}" if debugIndent
+        lastIndent = @stack[i].indent ? ''
+        break
+      else
+        # INDENT_CONTAINERs need not always use an INDENT.
+  # if ws starts with lastIndent... valid
+  if ws.length > lastIndent.length and ws.indexOf(lastIndent) is 0
+    container.indent = ws
+    if debugIndent
+      @log "#{ws.length} > #{lastIndent.length} and #{ws.indexOf(lastIndent) is 0}"
+      for idx in [0..@stack.length-1]
+        @log "#{idx}: #{@stack[idx].name}\t[#{@stack[idx].indent}]"
+    return container.indent
   null
 
 checkNewline = (ws) ->
@@ -114,16 +130,18 @@ checkNewline = (ws) ->
   # find the current INDENT on the stack
   currentIndent = ''
   for i in [@stack.length-2..0] by -1
-    if @stack[i].name in ['START', 'BLOCK', 'SWITCH']
+    if @stack[i].name in INDENT_CONTAINERS
       currentIndent = @stack[i].indent ? ''
+      @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
       break
   if ws is currentIndent
     return ws
   null
 
 GRAMMAR = Grammar ({o, t}) ->
-  START:                  o "__INIT__ &:LINES _"
-  __INIT__:               o "''", -> # init
+  START:                  o "__INIT__ &:LINES __EXIT__ _"
+  __INIT__:               o "BLANK*", -> # init code
+  __EXIT__:               o "BLANK*", -> # exit code
   LINES:                  o "LINE*NEWLINE", Block
   LINE:
     POSTIF:               o "block:$$ _IF cond:EXPR", If
@@ -131,8 +149,9 @@ GRAMMAR = Grammar ({o, t}) ->
     STMT:                 o "type:(_RETURN|_THROW) expr:$?", Statement
     EXPR:
       FUNC:               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-      INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*_COMMA{1,}", Invocation
-      OBJ_IMPL:           o "___ &:ITEM_IMPL*_COMMA{1,}", Obj
+      INVOC_IMPL:         o "func:ASSIGNABLE params:EXPR*_COMMA{1,}", Invocation
+      OBJ_IMPL:           o "| INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
+                             |          ITEM_IMPL*_COMMA{1,}", Obj
       ASSIGN:             o "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?=') value:EXPR", Assign
       COMPLEX:
         IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
@@ -172,14 +191,14 @@ GRAMMAR = Grammar ({o, t}) ->
     ITEM_IMPL:            o "key:SYMBOL _COLON value:EXPR", Item
   __BLOCKS:
     BLOCK:
-      __INLINE:           o "_THEN &:LINE", Block
+      __INLINE:           o "_THEN? &:LINE", Block
       __INDENTED:         o "INDENT &:LINE*NEWLINE{1,}", Block
     INDENT:               o "BLANK*{1,} &:_", checkIndent
     NEWLINE:              o "BLANK*{1,} &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
   __TOKENS:
     _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt'
-    _COMMA:               o "_ ','"
+    _COMMA:               o "TERM? _ ',' TERM?"
     _COLON:               o "_ ':'"
     _THISAT:              o "_ '@'"
     QUOTE:                o "'\\''"
@@ -191,10 +210,11 @@ GRAMMAR = Grammar ({o, t}) ->
     __:                   o "<words:1> /[ ]+/"
     BLANK:                o "_ COMMENT? TERM"
     COMMENT:              o "_ '#' !'##' (!TERM .)*"
-    ___:                  o "(__ | BLANK)*"
+    #___:                  o "(__ | BLANK)*"
   __OTHER:
     '.':                  o "<chars:1> /[\\s\\S]/"
     ESC2:                 o "SLASH &:.", (chr) -> '\\'+chr
+# ENDGRAMMAR
 
 
 counter = 0
@@ -203,7 +223,8 @@ test  = (code, expected) ->
   code = code.replace(/\\/g, '\\\\').replace(/\r/g, '\\r')
   try
     context = GRAMMAR.parse code, debug:no
-    assert.equal ''+context.result, expected
+    assert.equal (''+context.result).replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
+
   catch error
     if expected isnt null
       try
@@ -264,10 +285,12 @@ test  """
 test  "foo.replace(bar).replace(baz)", "((foo).replace(bar)).replace(baz)"
 test  "foo.replace(/\\/g, 'bar')", "(foo).replace('\\\\','bar')"
 test  "a = () ->", "a=(()->{undefined})"
-test  "a = (foo) -> then foo", "a=((foo)->{foo})"
-test  "a = (foo = 2) -> then foo", "a=((foo=(2))->{foo})"
-test  "a = ({foo,bar}) -> then foo", "a=(({foo:(undefined),bar:(undefined)})->{foo})"
+test  "a = (foo) -> foo", "a=((foo)->{foo})"
+test  "a = (foo = 2) -> foo", "a=((foo=(2))->{foo})"
+test  "a = ({foo,bar}) -> foo", "a=(({foo:(undefined),bar:(undefined)})->{foo})"
 test  "a += 2", "a+=(2)"
+
+
 test  """
 # Get until the string `end` is encountered.
 # Change @pos accordingly, including the `end`.
@@ -280,5 +303,55 @@ getUntil: (end, ignoreEOF=yes) ->
       throw new EOFError
   else
     index += end.length
-      """, "{getUntil:((end,ignoreEOF=(yes))->{index=(((@).text).indexOf(end,(@).pos))\n
-if((indexis-1)){if(ignoreEOF){index=(((@).text).length)}else{throw(new(EOFError));}}else{index+=((end).length)}})}"
+      """, "
+{getUntil:((end,ignoreEOF=(yes))->{
+  index=(((@).text).indexOf(end,(@).pos))
+  if((indexis-1)){
+    if(ignoreEOF){
+      index=(((@).text).length)}
+    else{
+      throw(new(EOFError));}}
+  else{
+    index+=((end).length)}})}"
+
+
+test  """
+a =
+  foo: FOO
+  bar: BAR
+""", "
+a=({foo:(FOO),bar:(BAR)})"
+
+
+test  """
+{clazz} = require 'cardamom'
+
+@inspect = (x) -> require('util').inspect x, false, 100
+
+@CodeStream = CodeStream = clazz 'CodeStream', ->
+  init: (@text, @pos=0, @buffer=null) ->
+
+  pos$:
+    enum: true
+    conf: true
+    get: -> (@_pos)
+    set: (newPos) ->
+      if @_pos isnt newPos
+        @buffer = null
+        @_pos = newPos
+      @_pos
+""", "
+{clazz:(undefined)}=(require('cardamom'))
+(@).inspect=((x)->{(require('util')).inspect(x,false,100)})
+(@).CodeStream=(CodeStream=(clazz('CodeStream',()->{{
+  init:(((@).text,(@).pos=(0),(@).buffer=(null))->{undefined}),
+  pos$:({
+    enum:(true),
+    conf:(true),
+    get:(()->{(@)._pos}),
+    set:((newPos)->{
+      if(((@)._pos isnt newPos)){
+        (@).buffer=(null)
+        (@)._pos=(newPos)}
+      (@)._pos})})}})))"
+

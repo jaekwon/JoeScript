@@ -412,7 +412,9 @@ St = -> String arguments...
   START:                R('EXPR')
   EXPR:
     EXPR_:              S(L('&',R('$')), R('_'))
-    CHOICE:             P(R('$'), S(R('_'), St('|')), 2)._cb Choice
+    CHOICE:             S(P(R('_PIPE')),
+                          L('&',P(R('$'), R('_PIPE'), 2)),
+                          P(R('_PIPE')))._cb Choice
     SEQUENCE:           P(R('$'), null, 2)._cb Sequence
     UNIT:
       _UNIT:            S(R('_'), L('&',R('$')))
@@ -447,6 +449,7 @@ St = -> String arguments...
       LABEL:            C(St('&'), St('@'), R('WORD'))
       WORD:             S(La(words:1), Re('[a-zA-Z\\._][a-zA-Z\\._0-9]*'))
       INT:              S(La(words:1), Re('[0-9]+'))._cb Number
+      _PIPE:            S(R('_'), St('|'))
   __WHITESPACES:
       _:                S(La(words:1), Re('[ \\n]*'))
       __:               S(La(words:1), Re('[ \\n]+'))

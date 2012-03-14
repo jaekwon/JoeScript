@@ -18,7 +18,7 @@ RAW_GRAMMAR =
   START:                o "EXPR"
   EXPR:
     EXPR_:              o "&:$ _"
-    CHOICE:             o "$*(_ '|'){2,}", Choice
+    CHOICE:             o "_PIPE* &:$*_PIPE{2,} _PIPE*", Choice
     SEQUENCE:           o "${2,}", Sequence
     UNIT:
       UNIT_:            o "_ &:$"
@@ -41,6 +41,7 @@ RAW_GRAMMAR =
     LABEL:              o "'&' | '@' | WORD"
     WORD:               o "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
     INT:                o "<words:1> /[0-9]+/", Number
+    _PIPE:              o "_ '|'"
   __WHITESPACES:
     _:                  o "<words:1> /[ \\n]*/"
     __:                 o "<words:1> /[ \\n]+/"
