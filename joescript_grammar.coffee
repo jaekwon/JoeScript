@@ -35,8 +35,8 @@ Case = clazz 'Case', Node, ->
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
 Operation = clazz 'Operation', Node, ->
-  init: ({@left, @op, @right}) ->
-  toString: -> "(#{@left or ''} #{@op} #{@right or ''})"
+  init: ({@left, @not, @op, @right}) ->
+  toString: -> "(#{@left or ''} #{@not and 'not ' or ''}#{@op} #{@right or ''})"
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr ? ''});"
@@ -75,8 +75,11 @@ This = clazz 'This', Node, ->
 Arr = clazz 'Arr', Obj, ->
   toString: -> "[#{@items.join ','}]"
 Item = clazz 'Item', Node, ->
-  init: ({@this, @key, @value}) ->
-  toString: -> "#{if @this then '@' else ''}#{@key}:(#{@value})"
+  init: ({@this, @key, @value, @default, @splat}) ->
+  toString: -> (if @this     then '@'              else '')+@key+
+               (if @value?   then ":(#{@value})"   else '')+
+               (if @default? then "=(#{@default})" else '')+
+               (if @splat    then "..."            else '')
 Str = clazz 'Str', Node, ->
   init: (@parts) ->
   toString: ->
@@ -160,7 +163,9 @@ GRAMMAR = Grammar ({o, t}) ->
   LINES:                  o "LINE*NEWLINE", Block
   LINE:
     HEREDOC:              o "_ '###' !'#' &:(!'###' .)* '###'", (it) -> Heredoc it.join ''
-    POSTIF:               o "block:$$ _IF cond:EXPR", If
+    POSTIF:               o "block:$$ &:(POSTIF1|POSTIF2)"
+    ' POSTIF1':           o "_IF cond:EXPR", If
+    ' POSTIF2':           o "_UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
     POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
     STMT:                 o "type:(_RETURN|_THROW) expr:$? | type:_BREAK", Statement
     EXPR:
@@ -168,7 +173,7 @@ GRAMMAR = Grammar ({o, t}) ->
       INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*_COMMA{1,}", Invocation
       OBJ_IMPL:           o "| INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
                              |          ITEM_IMPL*_COMMA{1,}", Obj
-      ASSIGN:             o "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?=') value:EXPR", Assign
+      ASSIGN:             o "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:EXPR", Assign
       COMPLEX:
         IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
         FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
@@ -178,12 +183,16 @@ GRAMMAR = Grammar ({o, t}) ->
         ' CASE':          o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
         ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
       # ordered
-      OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='|'>'|'>='|_IS|_ISNT) right:$", Operation
-      OP1:                o "left:$$ _ op:('+'|'-')                               right:$", Operation
-      OP2:                o "left:$$ _ op:('*'|'/'|'%')                           right:$", Operation
-      OP3:                o "left:$  op:('--'|'++')        |       op:('--'|'++') right:$", Operation
-      ' PARAMS':          o "_ '(' &:PARAM*_COMMA _ ')'"
-      ' PARAM':           o "ASSIGN | ASSIGNABLE"
+      OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='
+                                          |'>'|'>='|_IS|_ISNT)     right:$", Operation
+      OP1:                o "left:$$ _ not:_NOT?
+                                       op:(_IN|_INSTANCEOF)        right:$", Operation
+      OP2:                o "left:$$ _ op:('+'|'-'|_OR)            right:$", Operation
+      OP3:                o "left:$$ _ op:('*'|'/'|'%'
+                                          |'&'|'&&'|_AND)          right:$", Operation
+      OP4:                o "        _ op:(_NOT|'!'|'~')           right:$", Operation
+      OP5:                o "left:$    op:('--'|'++')
+                            |        _ op:('--'|'++')              right:$", Operation
       ASSIGNABLE:
         # left recursive
         RANGED_OBJ:       o "obj:ASSIGNABLE !__ &:RANGE"
@@ -203,6 +212,7 @@ GRAMMAR = Grammar ({o, t}) ->
         STRING:
           STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
           STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC2 | ESCSTR | .))* DQUOTE", Str
+          STRING3:        o "_ TQUOTE &:(!TQUOTE (ESC2 | ESCSTR | .))* TQUOTE", Str
           ' ESCSTR':      o "'\#{' &:EXPR _ '}'"
         BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
         NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
@@ -210,6 +220,16 @@ GRAMMAR = Grammar ({o, t}) ->
   __OBJECTS:
     ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
     ITEM_IMPL:            o "key:SYMBOL _COLON value:EXPR", Item
+  __PARAMS:
+    PARAMS:               o "_ '(' &:PARAM*_COMMA _ ')'"
+    PARAM:                o "| &:PARAM_KEY splat:'...'
+                             | &:(PARAM_KEY|PARAM_CONTAINER) @:(_ '=' default:EXPR)?"
+    PARAM_KEY:            o "this:_THISAT? key:SYMBOL", Item
+    PARAM_CONTAINER:      o "PARAM_OBJ | PARAM_ARRAY"
+    PARAM_OBJ:            o "_ '{' &:PARAM_OBJ_ITEM*_COMMA _ '}'", Obj
+    PARAM_OBJ_ITEM:       o "&:PARAM_KEY @:(_COLON value:PARAM_CONTAINER | _ '=' default:EXPR)?"
+    PARAM_ARRAY:          o "_ '[' &:PARAM_ARRAY_ITEM*_COMMA _ ']'", Arr
+    PARAM_ARRAY_ITEM:     o "&:PARAM_KEY @:(_ '=' default:EXPR)?"
   __BLOCKS:
     BLOCK:
       __INLINE:           o "_THEN? &:LINE", Block
@@ -218,12 +238,15 @@ GRAMMAR = Grammar ({o, t}) ->
     NEWLINE:              o "BLANK*{1,} &:_", checkNewline
     TERM:                 o "_ &:('\r\n'|'\n')"
   __TOKENS:
-    _KEYWORD:             t 'if', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by'
+    _KEYWORD:             t 'if', 'unless', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch',
+                            'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
+                            'not', 'and', 'or', 'instanceof', 'typeof'
     _COMMA:               o "TERM? _ ',' TERM?"
     _COLON:               o "_ ':'"
     _THISAT:              o "_ '@'"
     QUOTE:                o "'\\''"
     DQUOTE:               o "'\"'"
+    TQUOTE:               o "'\"\"\"'"
     FSLASH:               o "'/'"
     SLASH:                o "'\\\\'"
   __WHITESPACES:
@@ -308,7 +331,7 @@ test  "foo.replace(/\\/g, 'bar')", "(foo).replace(\"\\\\\",\"bar\")"
 test  "a = () ->", "a=(()->{undefined})"
 test  "a = (foo) -> foo", "a=((foo)->{foo})"
 test  "a = (foo = 2) -> foo", "a=((foo=(2))->{foo})"
-test  "a = ({foo,bar}) -> foo", "a=(({foo:(undefined),bar:(undefined)})->{foo})"
+test  "a = ({foo,bar}) -> foo", "a=(({foo,bar})->{foo})"
 test  "a += 2", "a+=(2)"
 test  "a = [0..2]", "a=(Range(start:0,end:2,type:'..', by:1))"
 test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type:'..', by:1){(console).log(x)}"
@@ -352,3 +375,14 @@ foo = ->
   else
     return 333
 """, "foo=(()->{if(foo){return(111);}else{if(bar){return(222);}else{return(333);}}})"
+
+console.log "TESTING FILES:"
+for filename in ['codestream.coffee', 'joeson.coffee']
+  console.log "FILE: #{filename}"
+  chars = require('fs').readFileSync filename, 'utf8'
+  try
+    context = GRAMMAR.parse chars, debug:no
+    console.log "FILE: #{filename} OK!"
+  catch error
+    console.log "ERROR: "+error
+    break

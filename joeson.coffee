@@ -400,7 +400,7 @@ debugCache   = no
     code = CodeStream code if code not instanceof CodeStream
     $ = Context code, this, debug
     $.result = Ref(start).parse $
-    throw Error "incomplete parse: [#{$.code.peek chars:10}]" if $.code.pos isnt $.code.text.length
+    throw Error "incomplete parse: [#{$.code.peek chars:50}]" if $.code.pos isnt $.code.text.length
     return $
 
 C  = -> Choice (x for x in arguments) # TODO ugh
