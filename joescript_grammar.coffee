@@ -106,7 +106,7 @@ Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
 
-INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL', 'INVOC_IMPL']
+INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL', 'COMPLEX']
 debugIndent = yes
 
 checkIndent = (ws) ->
@@ -132,7 +132,9 @@ checkIndent = (ws) ->
       else
         # INDENT_CONTAINERs need not always use an INDENT.
   # if ws starts with lastIndent... valid
+  @log "ws.length #{ws.length} > lastIndent.length #{lastIndent.length}, #{ws.indexOf(lastIndent)}=0?"
   if ws.length > lastIndent.length and ws.indexOf(lastIndent) is 0
+    @log "setting container.indent to #{ws}, index is #{idx}!!!QWE"
     container.indent = ws
     if debugIndent
       @log "#{ws.length} > #{lastIndent.length} and #{ws.indexOf(lastIndent) is 0}"
@@ -158,8 +160,8 @@ checkNewline = (ws) ->
 
 GRAMMAR = Grammar ({o, t}) ->
   START:                  o "__INIT__ &:LINES __EXIT__ _"
-  __INIT__:               o "BLANK*", -> # init code
-  __EXIT__:               o "BLANK*", -> # exit code
+  __INIT__:               o "BLANKLINE*", -> # init code
+  __EXIT__:               o "BLANKLINE*", -> # exit code
   LINES:                  o "LINE*NEWLINE", Block
   LINE:
     HEREDOC:              o "_ '###' !'#' &:(!'###' .)* '###'", (it) -> Heredoc it.join ''
@@ -169,19 +171,6 @@ GRAMMAR = Grammar ({o, t}) ->
     POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
     STMT:                 o "type:(_RETURN|_THROW) expr:$? | type:_BREAK", Statement
     EXPR:
-      FUNC:               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-      INVOC_IMPL:         o "func:ASSIGNABLE __ params:EXPR*_COMMA{1,}", Invocation
-      OBJ_IMPL:           o "| INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
-                             |          ITEM_IMPL*_COMMA{1,}", Obj
-      ASSIGN:             o "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:EXPR", Assign
-      COMPLEX:
-        IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
-        FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
-        LOOP:             o "_LOOP block:BLOCK", While
-        WHILE:            o "_WHILE cond:EXPR block:BLOCK", While
-        SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
-        ' CASE':          o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
-        ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
       # ordered
       OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='
                                           |'>'|'>='|_IS|_ISNT)     right:$", Operation
@@ -193,7 +182,25 @@ GRAMMAR = Grammar ({o, t}) ->
       OP4:                o "        _ op:(_NOT|'!'|'~')           right:$", Operation
       OP5:                o "left:$    op:('--'|'++')
                             |        _ op:('--'|'++')              right:$", Operation
+      # right recursive
+      FUNC:               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
+      INVOC_IMPL:         o "func:ASSIGNABLE __ !TERM params:EXPR*_COMMA{1,}", Invocation
+      OBJ_IMPL:           o "INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
+                            |         ITEM_IMPL*_COMMA{1,}", Obj
+      ASSIGN:             o "target:ASSIGNABLE _
+                             type:('='|'+='|'-='|'*='|'/='|'?='|'||=')
+                             value:EXPR", Assign
+      COMPLEX:
+        IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
+        FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
+        LOOP:             o "_LOOP block:BLOCK", While
+        WHILE:            o "_WHILE cond:EXPR block:BLOCK", While
+        SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
+        ' CASE':          o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
+        ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
+      #
       ASSIGNABLE:
+        #ASSIGNABLE_:      o "___ &:$"
         # left recursive
         RANGED_OBJ:       o "obj:ASSIGNABLE !__ &:RANGE"
         INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
@@ -218,6 +225,7 @@ GRAMMAR = Grammar ({o, t}) ->
         NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
         SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
   __OBJECTS:
+                          # TODO: allow strings (and thus also #{}) in keys.
     ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
     ITEM_IMPL:            o "key:SYMBOL _COLON value:EXPR", Item
   __PARAMS:
@@ -232,11 +240,10 @@ GRAMMAR = Grammar ({o, t}) ->
     PARAM_ARRAY_ITEM:     o "&:PARAM_KEY @:(_ '=' default:EXPR)?"
   __BLOCKS:
     BLOCK:
-      __INLINE:           o "_THEN? &:LINE", Block
       __INDENTED:         o "INDENT &:LINE*NEWLINE{1,}", Block
-    INDENT:               o "BLANK*{1,} &:_", checkIndent
-    NEWLINE:              o "BLANK*{1,} &:_", checkNewline
-    TERM:                 o "_ &:('\r\n'|'\n')"
+      __INLINE:           o "_THEN? &:LINE", Block
+    INDENT:               o "BLANKLINE*{1,} &:_", checkIndent
+    NEWLINE:              o "BLANKLINE*{1,} &:_", checkNewline
   __TOKENS:
     _KEYWORD:             t 'if', 'unless', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch',
                             'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
@@ -252,14 +259,16 @@ GRAMMAR = Grammar ({o, t}) ->
   __WHITESPACES:
     _:                    o "<words:1> /[ ]*/"
     __:                   o "<words:1> /[ ]+/"
-    BLANK:                o "_ COMMENT? TERM"
+    TERM:                 o "_ &:('\r\n'|'\n')"
     COMMENT:              o "_ !HEREDOC '#' (!TERM .)*"
-    #___:                  o "(__ | BLANK)*"
+    BLANKLINE:            o "_ COMMENT? TERM"
+    ___:                  o "BLANKLINE* _"
   __OTHER:
     '.':                  o "<chars:1> /[\\s\\S]/"
     ESC2:                 o "SLASH &:.", (chr) -> '\\'+chr
 # ENDGRAMMAR
 
+console.log "-=-=-"
 
 counter = 0
 test  = (code, expected) ->
@@ -268,7 +277,6 @@ test  = (code, expected) ->
   try
     context = GRAMMAR.parse code, debug:no
     assert.equal (''+context.result).replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
-
   catch error
     if expected isnt null
       try
@@ -279,6 +287,7 @@ test  = (code, expected) ->
       throw error
   console.log "t#{counter++} OK\t#{code}"
 
+test  "a * b * c", "((a*b)*c)"
 test  "a * b++ / c + d", "(((a*(b++))/c)+d)"
 test  " a * b++ / c + d ", "(((a*(b++))/c)+d)"
 test  "return foo", 'return(foo);'
@@ -375,13 +384,26 @@ foo = ->
   else
     return 333
 """, "foo=(()->{if(foo){return(111);}else{if(bar){return(222);}else{return(333);}}})"
+test """
+foo bar
+baz bak
+""", """
+foo(bar)
+baz(bak)
+"""
+test """
+"first line" if true
+"next line"
+""", """
+if(true){"first line"}"next line"
+"""
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee']
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
   try
-    context = GRAMMAR.parse chars, debug:no
+    context = GRAMMAR.parse chars, debug:yes
     console.log "FILE: #{filename} OK!"
   catch error
     console.log "ERROR: "+error

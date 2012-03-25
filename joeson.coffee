@@ -12,21 +12,17 @@ assert = require 'assert'
 escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
 
-debugLoopify = no
-debugCache   = no
+debugLoopify = debugCache = no
 
 # aka '$'
 @Context = Context = clazz 'Context', ->
 
-  # stack = [ {name, pos, snowball?:{value,endPos} }... ]
-  # cache["#{@rule.name}@#{$.code.pos}"] = {result,endPos}
-  # recurse["#{@rule.name}@#{$.code.pos}"] = {stage,puppet,endPos}
-  # recurse[$.code.pos] = 'nocache' || undefined
   init: (@code, @grammar, @debug=false) ->
-    @stack = []   # [ {name,pos}... ]
-    @cache = {}   # { "#{rulename}@#{pos}":{result,endPos}... }
-    @recurse = {} # { "#{rulename}@#{pos}":{stage,puppet,endPos}... | "#{pos}":"nocache"? }
-    @storeCache = true # rule callbacks can override this
+    @stack = []         # [ {name,pos}... ]
+    @cache = {}         # { "#{rulename}@#{pos}":{result,endPos}... }
+    @cacheStores = []   # [ "#{rulename}@#{pos}"... ]
+    @recurse = {}       # { "#{rulename}@#{pos}":{stage,base,endPos}... }
+    @storeCache = yes   # rule callbacks can override this
     @_ctr = 0
 
   # code.pos will be reverted if result is null
@@ -36,10 +32,34 @@ debugCache   = no
     @code.pos = pos if result is null
     result
 
-  log: (args...) ->
+  log: (message, count=false) ->
     if @debug
-      console.log "#{@_ctr++}\t#{cyan Array(@stack.length-1).join '|  '}#{args.join ''}"
-    
+      if count
+        console.log "#{++@_ctr}\t#{cyan Array(@stack.length-1).join '|'}#{message}"
+      else
+        console.log "#{@_ctr}\t#{cyan Array(@stack.length-1).join '|'}#{message}"
+
+  cacheSet: (key, value) ->
+    if not @cache[key]?
+      @cache[key] = value
+      @cacheStores.push key
+    else
+      throw new Error "Cache store error @ $.cache[\"#{key}\"]: existing entry"
+
+  cachePop: -> # {cacheKey,cacheValue}
+    cacheKey = @cacheStores.pop()
+    assert.ok cacheKey?, "invalid cache key from cacheStores. cacheStores empty?"
+    cacheValue = @cache[cacheKey]
+    assert.ok cacheValue?, "cacheStores[] entry should correspond with an entry in $.cache"
+    delete @cache[cacheKey]
+    return {cacheKey,cacheValue}
+
+  cacheDelete: (key) -> # key := "#{rulename}@#{pos}"
+    assert.ok @cache[key]?, "Cannot delete missing cache item at key #{key}"
+    cacheStoresIdx = @cacheStores.indexOf key
+    assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{key}"
+    delete @cache[key]
+    @cacheStores.splice cacheStoresIdx, 1
 
 ###
   In addition to the attributes defined by subclasses,
@@ -64,24 +84,31 @@ debugCache   = no
     rule = $.grammar.rules[@name]
     bufferStr = escape $.code.peek chars:20
     bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
-    $.log "#{red @name}: #{blue rule} #{black bufferStr}"
+    $.log "#{red @name}: #{blue rule} #{black bufferStr}", true
     result = fn.call this, $
-    $.log "^-- #{escape result} #{black typeof result}" if result isnt null
+    $.log "^-- #{escape result} #{black typeof result}", true if result isnt null
     return result
 
   @$cache = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
-    cacheKey = @name
     pos = $.code.pos
-    if cacheKey? and (cached=$.cache["#{cacheKey}@#{pos}"])?
-      $.log "[C] Cache hit @ $.cache[\"#{cacheKey}@#{pos}\"]" if debugCache
+    cacheKey = "#{@name}@#{pos}"
+    if (cached=$.cache[cacheKey])?
+      $.log "[C] Cache hit @ $.cache[\"#{cacheKey}\"]: #{escape cached.result}" if debugCache
       $.code.pos = cached.endPos
       return cached.result
-    $.storeCache = yes
+    # $.storeCache = yes
     result = fn.call this, $
-    if cacheKey? and $.storeCache and $.recurse[pos] isnt 'nocache'
-      $.log "[C] Cache store @ $.cache[\"#{cacheKey}@#{pos}\"]" if debugCache
-      $.cache["#{cacheKey}@#{pos}"] ||= result:result, endPos:$.code.pos
+    if $.storeCache
+      if not $.cache[cacheKey]?
+        $.log "[C] Cache store @ $.cache[\"#{cacheKey}\"]: #{escape result}" if debugCache
+        $.cacheSet cacheKey, result:result, endPos:$.code.pos
+      else
+        throw new Error "Cache store error @ $.cache[\"#{cacheKey}\"]: existing entry"
+    else
+      # reset
+      $.storeCache = yes
+      $.log "[C] Cache store skipped manually." if debugCache
     return result
 
   @$loopify = (fn) -> ($) ->
@@ -94,47 +121,73 @@ debugCache   = no
       when 0 # non-recursive (so far)
         item.stage = 1
         startPos = $.code.pos
+        startCacheLength = $.cacheStores.length
         result = fn.call this, $
+        #try
         switch item.stage
           when 1 # non-recursive (done)
             delete $.recurse[key]
             return result
           when 2 # recursion detected
             if result is null
-              $.log "[L] delete $.recurse[#{startPos}]" if debugLoopify
-              delete $.recurse[startPos]
-              $.log "[L] returning #{result} (A)" if debugLoopify
+              $.log "[L] returning #{escape result} (no result)" if debugLoopify
+              $.cacheDelete key
+              delete $.recurse[key]
               return result
             else
+              $.log "[L] --- loop start --- (#{key}) (initial result was #{escape result})" if debugLoopify
               item.stage = 3
-              $.log "[L] loop start #{@name} (initial result was #{result})" if debugLoopify
               while result isnt null
-                $.log "[L] looping...", @name if debugLoopify
-                goodResult = item.puppet = result
-                goodPos = item.endPos = $.code.pos
-                $.log "[L] #{@name} goodPos = ", goodPos if debugLoopify
-                $.code.pos = startPos # reset
-                delete $.recurse[startPos]
+                $.log "[L] --- loop iteration --- (#{key})" if debugLoopify
+
+                # Step 1: reset the cache state
+                bestCacheStash = []
+                loop # while $.cacheStores.length > 0
+                  {cacheKey,cacheValue} = $.cachePop()
+                  bestCacheStash.push {cacheKey, cacheValue}
+                  break if cacheKey is key
+                # Step 2: set the cache to the last good result
+                bestResult = item.base = result
+                bestPos = item.endPos = $.code.pos
+                $.cacheSet key, result:bestResult, endPos:bestPos
+                # Step 3: reset the code state
+                $.code.pos = startPos
+                # Step 4: get the new result with above modifications
                 result = fn.call this, $
-                assert.equal item.stage, 3, 'this shouldnt change'
-                $.log "[L] #{@name} break unless", $.code.pos, " > ", goodPos if debugLoopify
-                break unless $.code.pos > goodPos
-              $.code.pos = goodPos
-              delete $.recurse[startPos]
-              $.log "[L] returning #{result} (B)" if debugLoopify
-              return goodResult
+                # Step 5: break when we found the best result
+                $.log "[L] #{@name} break unless #{$.code.pos} > #{bestPos}" if debugLoopify
+                break unless $.code.pos > bestPos
+
+              # Tidy up state to best match
+              # Step 1: reset the cache state again
+              loop # while $.cacheStores.length > 0
+                {cacheKey,cacheValue} = $.cachePop()
+                break if cacheKey is key
+              # Step 2: revert to best cache stash
+              while bestCacheStash.length > 0
+                {cacheKey,cacheValue} = bestCacheStash.pop()
+                $.cacheSet cacheKey, cacheValue if cacheKey isnt key
+              assert.ok $.cache[key] is undefined, "Cache value for self should have been cleared"
+              # Step 3: set best code pos
+              $.code.pos = bestPos
+              $.log "[L] --- loop done --- (final result: #{escape bestResult})" if debugLoopify
+              # Step 4: return best result, which will get cached
+              delete $.recurse[key]
+              return bestResult
           else
-            throw new Error "Unexpected stage #{item.stage} (A)"
+            throw new Error "Unexpected stage #{item.stage}"
+        #finally
+        #  delete $.recurse[key]
       when 1,2 # recursion detected
         item.stage = 2
-        $.recurse[$.code.pos] = 'nocache'
+        $.log "[L] recursion detected! (#{key})" if debugLoopify
         $.log "[L] returning null" if debugLoopify
         return null
       when 3 # loopified case
-        $.recurse[$.code.pos] = 'nocache'
-        $.log "[L] returning #{item.puppet} (puppet)" if debugLoopify
-        $.code.pos = item.endPos
-        return item.puppet
+        throw new Error "This should not happen, cache should have hit (#{key})"
+        #$.log "[L] returning #{item.base} (base case)" if debugLoopify
+        #$.code.pos = item.endPos
+        #return item.base
       else
         throw new Error "Unexpected stage #{item.stage} (B)"
 
@@ -168,6 +221,28 @@ debugCache   = no
   prepare: -> # implement if needed
   toString: -> "[#{@constructor.name}]"
   _cb: (@cb) -> @
+
+  # Get all Ref keys that are dependencies for this node.
+  # table: collect rule name -> dependencies here, if present
+  # XXX not used.
+  getDependencies: ({table}) ->
+    if @children
+      dependencies = []
+      for child in @children
+        if child instanceof Ref
+          dependencies.push child.key
+        else
+          subDependencies = child.getDependencies(table:table)
+          dependencies = _.union dependencies, subDependencies if subDependencies
+        # for Ranks, the Rank keys are also pseudo-refs.
+        if child is child.rule
+          dependencies = _.union dependencies, [child.name]
+      if dependencies.length > 0
+        if this is @rule
+          assert.ok table[@name] is undefined
+          table[@name] = dependencies
+        return dependencies
+    return null
  
 @Choice = Choice = clazz 'Choice', Node, ->
   init: (@choices) ->
@@ -364,12 +439,17 @@ debugCache   = no
     null
   toString: -> "#{_.keys(@rules).join ' | '}"
 
+# Main external access.
+# I dunno if Grammar should be a Node or not. It
+# might come in handy when embedding grammars
+# in some glue language.
 @Grammar = Grammar = clazz 'Grammar', Node, ->
   init: (rules) ->
     rules = rules(MACROS) if typeof rules is 'function'
     @rank = Rank rules
     @rules = {}
-    # initial setup
+
+    # Initial setup
     @rank.walk
       pre: (parent, node) =>
         if node.parent?
@@ -394,6 +474,7 @@ debugCache   = no
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
+
   parse$: (code, {start, debug}={}) ->
     start ?= 'START'
     debug ?= no
@@ -403,7 +484,7 @@ debugCache   = no
     throw Error "incomplete parse: [#{$.code.peek chars:50}]" if $.code.pos isnt $.code.text.length
     return $
 
-C  = -> Choice (x for x in arguments) # TODO ugh
+C  = -> Choice (x for x in arguments)
 E  = -> Exists arguments...
 L  = (label, node) -> node.label = label; node
 La = -> Lookahead arguments...
