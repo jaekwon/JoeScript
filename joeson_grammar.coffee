@@ -1,6 +1,6 @@
 # This will parse the grammar below
 
-{GRAMMAR, MACROS, Grammar, Nodeling, Choice, Sequence, Lookahead, Exists, Pattern, Not, Ref, String, Regex} = require './joeson'
+{GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Exists, Pattern, Not, Ref, Str, Regex} = require './joeson'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
 
 pad = ({left,right}, str) ->
@@ -23,7 +23,7 @@ RAW_GRAMMAR = [
         o "UNIT": [
           o "_ LABELED"
           o "LABELED": [
-            o "(label:LABEL ':')? (COMMAND|DECORATED|PRIMARY)"
+            o "(label:LABEL ':')? &:(COMMAND|DECORATED|PRIMARY)"
             o "COMMAND": [
               o "'<chars:' chars:INT '>'", Lookahead
               o "'<words:' words:INT '>'", Lookahead
@@ -57,28 +57,37 @@ RAW_GRAMMAR = [
     __:                 o "<words:1> /[ \\n]+/"
     # other
     '.':                o "<chars:1> /[\\s\\S]/"
-    ESC1:               o "'\\' &:."
-    ESC2:               o "'\\' &:.", (chr) -> '\\'+chr
+    ESC1:               o "'\\\\' &:."
+    ESC2:               o "'\\\\' &:.", (chr) -> '\\'+chr
 ]
 
 PARSED_GRAMMAR = Grammar RAW_GRAMMAR
 
-testGrammar = (rank, indent=0) ->
-  for own key, value of rank
-    if typeof value.rule is 'string'
-      {result, code} = PARSED_GRAMMAR.parse value.rule, debug:no
-      console.log "#{Array(indent*2+1).join ' '}#{red pad left:(20-indent*2), key+':'}"+
-                  "#{if result? then yellow result else red result} #{white code.peek chars:10}"
-    else
-      console.log "#{Array(indent*2+1).join ' '}#{red key+':'}"
-      return if not testGrammar value, indent+1
-  yes
+testGrammar = (rule, indent=0, name=undefined) ->
+  if rule instanceof Array
+    console.log "#{Array(indent*2+1).join ' '}#{red name+":"}" if name
+    testGrammar r, indent+1 for r in rule
+  else if rule instanceof MACROS.o
+    [rule, callback] = rule.args
+    testGrammar rule, indent, name
+  else if rule instanceof MACROS.i
+    for name, value of rule.args[0]
+      testGrammar value, indent, name
+  else if typeof rule is 'string'
+    {result, code} = PARSED_GRAMMAR.parse rule, debug:no, returnContext:yes
+    #{result, code} = GRAMMAR.parse rule, debug:no, returnContext:yes
+    console.log "#{Array(indent*2+1).join ' '
+                }#{if name? then red pad(left:(10-indent*2), name+':') else ''
+                }#{if result? then yellow result else red result} #{white code.peek chars:10}"
+  else
+    for name, r of rule
+      testGrammar r, indent, name
+
+if false
+  testGrammar "FOO | BAR*MACK{3,4} (blah?) blah:blah <words:2>"
 
 if true
   start = new Date()
   for i in [0..10]
     testGrammar RAW_GRAMMAR
   console.log new Date() - start
-
-if false
-  testGrammar {FOO: {rule: "$*(_ '|'){2,}"}}, 0, true

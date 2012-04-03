@@ -81,10 +81,10 @@ debugLoopify = debugCache = no
 
   @$debug = (fn) -> ($) ->
     if not $.debug or this isnt @rule then return fn.call this, $
-    rule = $.grammar.rules[@name]
+    #rule = $.grammar.rules[@name]
     bufferStr = escape $.code.peek chars:20
     bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
-    $.log "#{red @name}: #{blue rule} #{black bufferStr}", true
+    $.log "#{red @name}: #{blue this} #{black bufferStr}", true
     result = fn.call this, $
     $.log "^-- #{escape result} #{black typeof result}", true if result isnt null
     return result
@@ -196,6 +196,7 @@ debugLoopify = debugCache = no
     result = @cb.call $, result if result isnt null and @cb?
     return result
 
+  # for non-sequence rules with a label
   @$ruleLabel = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
     result = fn.call this, $
@@ -265,6 +266,7 @@ debugLoopify = debugCache = no
   init: (@name, @choices=[], includes={}) ->
     assert.ok @name, "Ranks should have a name, or be assigned one automatically"
     @rules = {}
+    @children = []
     for choice, i in @choices
       @addChoice choice
     for name, rule of includes
@@ -277,8 +279,10 @@ debugLoopify = debugCache = no
   include: (name, rule) ->
     assert.ok name?, "Rule needs a name"
     assert.ok not @rules[name]?, "Duplicate name #{rule.name}"
-    assert.ok rule instanceof Node
+    assert.ok rule instanceof Node, "Cannot include non-rule #{rule}"
+    rule.name = name if not rule.name?
     @rules[name] = rule
+    @children.push rule
 
   toString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
 
@@ -286,16 +290,30 @@ debugLoopify = debugCache = no
   init: (@sequence) ->
     @children = @sequence
   prepare: ->
-    numCaptures = 0
-    numLabels = 0
+    numCaptures = 0 # if the result should be an array
+    numLabels = 0   # or, if the result should be an object
     for child in @children
-      numLabels += 1 if child.label
-      numCaptures += 1 if child.capture
+      # Special!
+      # Unlabeled Exists nodes get flattened out
+      if child instanceof Exists
+        if child.label?
+          numLabels += 1
+        else
+          numCaptures += child.numCaptures
+          numLabels += child.numLabels
+      # Normal
+      else
+        numCaptures += 1 if child.capture
+        numLabels += 1 if child.label?
     @type =
       if numLabels is 0
         if numCaptures > 1 then 'array' else 'single'
       else
         'object'
+    # needed for flattening
+    @numCaptures = numCaptures
+    @numLabels = numLabels
+
   parse$: @$wrap ($) ->
     switch @type
       when 'array'
@@ -306,7 +324,7 @@ debugLoopify = debugCache = no
           results.push res if child.capture
         return results
       when 'single'
-        result = null
+        result = undefined
         for child in @sequence
           res = child.parse $
           return null if res is null
@@ -348,6 +366,17 @@ debugLoopify = debugCache = no
 @Exists = Exists = clazz 'Exists', Node, ->
   init: (@it) ->
     @children = [@it]
+  prepare: ->
+    if @it.label?
+      @numLabels = 1
+    else if @it instanceof Sequence or @it instanceof Exists
+      @numLabels = @it.numLabels
+      @numCaptures = @it.numCaptures
+    else
+      @numLabels = 0
+      @numCaptures = 1 if @it.capture
+    @label = '@' if @numLabels > 0 and not @label?
+    @capture = @numCaptures > 0
   parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
@@ -356,6 +385,7 @@ debugLoopify = debugCache = no
 @Pattern = Pattern = clazz 'Pattern', Node, ->
   init: ({@value, @join, @min, @max}) ->
     @children = if @join? then [@value, @join] else [@value]
+    @capture = @value.capture
   parse$: @$wrap ($) ->
     matches = []
     result = $.try =>
@@ -379,7 +409,8 @@ debugLoopify = debugCache = no
       return null if @min? and @min > matches.length
       return matches
     return result
-  toString: -> ''+@value+blue("*{")+(@join||'')+blue(";")+(@min||'')+blue(",")+(@max||'')+blue("}")
+  toString: ->
+    "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 
 @Not = Not = clazz 'Not', Node, ->
   capture: no
@@ -397,13 +428,15 @@ debugLoopify = debugCache = no
 
 @Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
+    @capture = no if @key[0] is '_'
   parse$: @$wrap ($) ->
     node = $.grammar.rules[@key]
     throw Error "Unknown reference #{@key}" if not node?
     return node.parse $
   toString: -> red(@key)
 
-@String = String = clazz 'String', Node, ->
+@Str = Str = clazz 'Str', Node, ->
+  capture: no
   init: (@str) ->
   parse$: @$wrap ($) -> $.code.match string:@str
   toString: -> green("'#{escape @str}'")
@@ -426,12 +459,10 @@ debugLoopify = debugCache = no
     @rank = Rank.fromLines "__grammar__", rules
     @rules = {}
 
-    #console.log @rank
-
     # Initial setup
     @rank.walk
       pre: (parent, node) =>
-        if node.parent?
+        if node.parent? and node isnt node.rule
           throw Error 'Grammar tree should be a DAG, nodes should not be referenced more than once.'
         # set node.parent, the immediate parent node
         node.parent = parent
@@ -445,14 +476,17 @@ debugLoopify = debugCache = no
         # call prepare on all nodes
         node.prepare()
 
-  parse$: (code, {start, debug}={}) ->
-    start ?= 'START'
+  parse$: (code, {debug,returnContext}={}) ->
     debug ?= no
+    returnContext ?= no
     code = CodeStream code if code not instanceof CodeStream
     $ = Context code, this, debug
-    $.result = Ref(start).parse $
+    $.result = @rank.parse $
     throw Error "incomplete parse: [#{$.code.peek chars:50}]" if $.code.pos isnt $.code.text.length
-    return $
+    if returnContext
+      return $
+    else
+      return $.result
 
 Line = clazz 'Line', ->
   init: (@args...) ->
@@ -463,8 +497,12 @@ ILine = clazz 'ILine', Line, ->
       if typeof rule is 'string'
         rules[name] = rule = GRAMMAR.parse rule
         rule.name = name
+        rule.rule = rule
       else if rule instanceof OLine
         rules[name] = rule.toRule parentRule, name:name
+      else
+        rules[name] = rule
+        rule.rule = rule
     rules
         
 OLine = clazz 'OLine', Line, ->
@@ -478,10 +516,10 @@ OLine = clazz 'OLine', Line, ->
         assert.ok _.keys(rule).length is 1, "Named rule should only have one key-value pair"
         name = _.keys(rule)[0]
         rule = rule[name]
-    else if index? and parentRule?
+    else if not name? and index? and parentRule?
       name = parentRule.name + "[#{index}]"
-    else
-      name = "__grammar__"
+    else if not name?
+      throw new Error "Name undefined for 'o' line"
     if typeof rule is 'string'
       rule = GRAMMAR.parse rule
       rule.name = name
@@ -490,6 +528,7 @@ OLine = clazz 'OLine', Line, ->
     else if rule instanceof Node
       rule.name = name
     rule.parent = parentRule
+    rule.rule = rule
     rule.index = index
     rule.cb = callback if callback?
     rule
@@ -515,7 +554,7 @@ P  = (value, join, min, max) -> Pattern value:value, join:join, min:min, max:max
 R  = -> Ref arguments...
 Re = -> Regex arguments...
 S  = -> Sequence (x for x in arguments)
-St = -> String arguments...
+St = -> Str arguments...
 {o, i, t}  = MACROS
 
 @GRAMMAR = GRAMMAR = Grammar [
@@ -528,23 +567,23 @@ St = -> String arguments...
         o "UNIT": [
           o S(R("_"), R("LABELED"))
           o "LABELED": [
-            o S(E(S(L("label","LABEL"), ':')), C(R("COMMAND"),R("DECORATED"),R("PRIMARY")))
+            o S(E(S(L("label",R("LABEL")), St(':'))), L('&',C(R("COMMAND"),R("DECORATED"),R("PRIMARY"))))
             o "COMMAND": [
-              o S('<chars:', L("chars",R("INT")), '>'), Lookahead
-              o S('<words:', L("words",R("INT")), '>'), Lookahead
+              o S(St('<chars:'), L("chars",R("INT")), St('>')), Lookahead
+              o S(St('<words:'), L("words",R("INT")), St('>')), Lookahead
             ]
             o "DECORATED": [
-              o S(R("PRIMARY"), '?'), Exists
-              o S(L("value",R("PRIMARY")), '*', L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
+              o S(R("PRIMARY"), St('?')), Exists
+              o S(L("value",R("PRIMARY")), St('*'), L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
               o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern
-              o S('!', R("PRIMARY")), Not
-              i "RANGE": S('{', R("_"), L("min",E(R("INT"))), R("_"), ',', R("_"), L("min",E(R("INT"))), R("_"), '}')
+              o S(St('!'), R("PRIMARY")), Not
+              i "RANGE": o S(St('{'), R("_"), L("min",E(R("INT"))), R("_"), St(','), R("_"), L("max",E(R("INT"))), R("_"), St('}'))
             ]
             o "PRIMARY": [
               o R("WORD"), Ref
-              o S('(', R("EXPR"), ')')
-              o S("'", P(S(N("'"), C(R("ESC1"), R(".")))), "'"), (it) -> String it.join ''
-              o S("/", P(S(N("/"), C(R("ESC2"), R(".")))), "/"), (it) -> Regex it.join ''
+              o S(St('('), R("EXPR"), St(')'))
+              o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str it.join ''
+              o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex it.join ''
             ]
           ]
         ]
@@ -553,16 +592,16 @@ St = -> String arguments...
   ]
   i
     # tokens
-    LABEL:              o C('&', '@', R("WORD"))
+    LABEL:              o C(St('&'), St('@'), R("WORD"))
     WORD:               o S(La(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
-    INT:                o S(La(words:1), Re("[0-9]+/")), Number
-    _PIPE:              o S(R("_"), '|')
+    INT:                o S(La(words:1), Re("[0-9]+")), Number
+    _PIPE:              o S(R("_"), St('|'))
     # whitespaces
     _:                  o S(La(words:1), Re("[ \\n]*"))
     __:                 o S(La(words:1), Re("[ \\n]+"))
     # other
     '.':                o S(La(chars:1), Re("[\\s\\S]"))
-    ESC1:               o S('\\', R("."))
-    ESC2:               o S('\\', R(".")), (chr) -> '\\'+chr
+    ESC1:               o S(St('\\'), R("."))
+    ESC2:               o S(St('\\'), R(".")), (chr) -> '\\'+chr
 ]
 
