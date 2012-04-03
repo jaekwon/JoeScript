@@ -10,46 +10,56 @@ pad = ({left,right}, str) ->
     return str+Array(left-str.length+1).join(' ')
   return str
 
-{o, t} = MACROS
+{o, i, t} = MACROS
 QUOTE = "'\\''"
 FSLSH = "'/'"
-SLASH = "'\\\\'"
-RAW_GRAMMAR =
-  START:                o "EXPR"
-  EXPR:
-    EXPR_:              o "&:$ _"
-    CHOICE:             o "_PIPE* &:$*_PIPE{2,} _PIPE*", Choice
-    SEQUENCE:           o "${2,}", Sequence
-    UNIT:
-      UNIT_:            o "_ &:$"
-      COMMAND:
-        LA_CHAR:        o "'<chars:' chars:INT '>'", Lookahead
-        LA_WORD:        o "'<words:' words:INT '>'", Lookahead
-      LABELED:          o "@:(label:LABEL ':')? &:$"
-      DECORATED:
-        EXISTS:         o "&:PRIMARY '?'", Exists
-        PATTERN0:       o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
-        PATTERN1:       o "value:PRIMARY @:RANGE", Pattern
-        ' RANGE':       o "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
-        NOT:            o "'!' &:PRIMARY", Not
-      PRIMARY:
-        REF:            o "'$$' | '$' | WORD", Ref
-        PAREN:          o "'(' &:EXPR ')'"
-        STRING:         o "#{QUOTE} &:(!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> String it.join ''
-        REGEX:          o "#{FSLSH} &:(!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
-  __TOKENS:
+RAW_GRAMMAR = [
+  o EXPR: [
+    o "CHOICE _"
+    o "CHOICE": [
+      o "_PIPE* SEQUENCE*_PIPE{2,} _PIPE*", Choice
+      o "SEQUENCE": [
+        o "UNIT{2,}", Sequence
+        o "UNIT": [
+          o "_ LABELED"
+          o "LABELED": [
+            o "(label:LABEL ':')? (COMMAND|DECORATED|PRIMARY)"
+            o "COMMAND": [
+              o "'<chars:' chars:INT '>'", Lookahead
+              o "'<words:' words:INT '>'", Lookahead
+            ]
+            o "DECORATED": [
+              o "PRIMARY '?'", Exists
+              o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
+              o "value:PRIMARY @:RANGE", Pattern
+              o "'!' PRIMARY", Not
+              i "RANGE": "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
+            ]
+            o "PRIMARY": [
+              o "WORD", Ref
+              o "'(' &:EXPR ')'"
+              o "#{QUOTE} &:(!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> String it.join ''
+              o "#{FSLSH} &:(!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+  i
+    # tokens
     LABEL:              o "'&' | '@' | WORD"
     WORD:               o "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
     INT:                o "<words:1> /[0-9]+/", Number
     _PIPE:              o "_ '|'"
-  __WHITESPACES:
+    # whitespaces
     _:                  o "<words:1> /[ \\n]*/"
     __:                 o "<words:1> /[ \\n]+/"
-  __OTHER:
+    # other
     '.':                o "<chars:1> /[\\s\\S]/"
-    ESC1:               o "#{SLASH} &:."
-    ESC2:               o "#{SLASH} &:.", (chr) -> '\\'+chr
-
+    ESC1:               o "'\\' &:."
+    ESC2:               o "'\\' &:.", (chr) -> '\\'+chr
+]
 
 PARSED_GRAMMAR = Grammar RAW_GRAMMAR
 

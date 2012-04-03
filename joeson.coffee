@@ -220,28 +220,15 @@ debugLoopify = debugCache = no
     post parent, @ if post?
   prepare: -> # implement if needed
   toString: -> "[#{@constructor.name}]"
-  _cb: (@cb) -> @
-
-  # Get all Ref keys that are dependencies for this node.
-  # table: collect rule name -> dependencies here, if present
-  # XXX not used.
-  getDependencies: ({table}) ->
-    if @children
-      dependencies = []
-      for child in @children
-        if child instanceof Ref
-          dependencies.push child.key
-        else
-          subDependencies = child.getDependencies(table:table)
-          dependencies = _.union dependencies, subDependencies if subDependencies
-        # for Ranks, the Rank keys are also pseudo-refs.
-        if child is child.rule
-          dependencies = _.union dependencies, [child.name]
-      if dependencies.length > 0
-        if this is @rule
-          assert.ok table[@name] is undefined
-          table[@name] = dependencies
-        return dependencies
+  deref: (name, excepts={}) ->
+    assert.ok this is @rule, 'Only named nodes (rules) can dereference'
+    return this if @name is name
+    return @rules[name] if @rules?[name]?
+    excepts[name] = yes
+    for name, rule in @rules when not excepts[name]?
+      derefed = rule.deref excepts
+      return derefed if derefed?
+    return @parent.deref name, excepts if @parent?
     return null
  
 @Choice = Choice = clazz 'Choice', Node, ->
@@ -259,6 +246,41 @@ debugLoopify = debugCache = no
           return result
     return null
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
+
+@Rank = Rank = clazz 'Rank', Choice, ->
+
+  @fromLines = (name, lines) ->
+    rank = Rank name
+    for line in lines
+      if line instanceof OLine
+        choice = line.toRule rank, index:rank.choices.length
+        rank.addChoice choice
+      else if line instanceof ILine
+        for own name, rule of line.toRules()
+          rank.include name, rule
+      else
+        throw new Error "Unknown line type, expected 'o' or 'i' line"
+    rank
+
+  init: (@name, @choices=[], includes={}) ->
+    assert.ok @name, "Ranks should have a name, or be assigned one automatically"
+    @rules = {}
+    for choice, i in @choices
+      @addChoice choice
+    for name, rule of includes
+      @include name, rule
+
+  addChoice: (rule) ->
+    @include rule.name, rule
+    @choices.push rule
+
+  include: (name, rule) ->
+    assert.ok name?, "Rule needs a name"
+    assert.ok not @rules[name]?, "Duplicate name #{rule.name}"
+    assert.ok rule instanceof Node
+    @rules[name] = rule
+
+  toString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', Node, ->
   init: (@sequence) ->
@@ -376,12 +398,9 @@ debugLoopify = debugCache = no
 @Ref = Ref = clazz 'Ref', Node, ->
   init: (@key) ->
   parse$: @$wrap ($) ->
-    if @key in ['$', '$$']
-      return @choices.parse $
-    else
-      node = $.grammar.rules[@key]
-      throw Error "Unknown reference #{@key}" if not node?
-      return node.parse $
+    node = $.grammar.rules[@key]
+    throw Error "Unknown reference #{@key}" if not node?
+    return node.parse $
   toString: -> red(@key)
 
 @String = String = clazz 'String', Node, ->
@@ -397,48 +416,6 @@ debugLoopify = debugCache = no
   parse$: @$wrap ($) -> $.code.match regex:@re
   toString: -> magenta(''+@re)
 
-@Nodeling = Nodeling = clazz 'Nodeling', ->
-  init: ({@rule, @cb}) ->
-  parse$: -> GRAMMAR.parse(@rule).result._cb @cb
-
-@Rank = Rank = clazz 'Rank', Node, ->
-  init: (rules) ->
-    [@rules, @includes, @children] = [{},[],[]]
-    @addRules rules, @rules
-  addRules: (rules, target) ->
-    for name, rule of rules
-      thisTarget = target
-      # convenience for dict of includes
-      if name.trim().length is 0
-        assert.ok typeof rule is 'object'
-        @addRules rule, @includes
-        break
-
-      if rule instanceof Nodeling
-        rule = rule.parse()
-      else if rule not instanceof Node
-        if rule instanceof Object
-          rule = Rank rule
-        else
-          throw new Error "Unknown type (#{typeof rule}) for rule: #{rule}"
-
-      if name[0] is ' '
-        thisTarget = @includes
-        name = name.trim()
-
-      rule.name = name
-      rule.index = @children.length
-      rule.rule = rule
-      thisTarget[name] = rule
-      @children.push rule
-  parse$: @$wrap ($) ->
-    result = null
-    for own name, node of @rules
-      result = $.try node.parse
-      return result if result isnt null
-    null
-  toString: -> "#{_.keys(@rules).join ' | '}"
-
 # Main external access.
 # I dunno if Grammar should be a Node or not. It
 # might come in handy when embedding grammars
@@ -446,8 +423,10 @@ debugLoopify = debugCache = no
 @Grammar = Grammar = clazz 'Grammar', Node, ->
   init: (rules) ->
     rules = rules(MACROS) if typeof rules is 'function'
-    @rank = Rank rules
+    @rank = Rank.fromLines "__grammar__", rules
     @rules = {}
+
+    #console.log @rank
 
     # Initial setup
     @rank.walk
@@ -462,15 +441,6 @@ debugLoopify = debugCache = no
         if node instanceof Rank
           assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.rules)).length, 0, "Duplicate key(s): #{inter.join ','}"
           _.extend @rules, node.rules
-          if node.includes?
-            assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.includes)).length, 0, "Duplicate key(s): #{inter.join ','}"
-            _.extend @rules, node.includes
-        # setup $/$$
-        else if node instanceof Ref and node.key in ['$', '$$']
-          rank = node.rule.parent
-          # construct implicit choices
-          node.choices = Choice (rule for name, rule of rank.rules when rule.index > node.rule.index)
-          node.choices.children.unshift Ref node.rule.name if node.key is '$$'
       post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
@@ -484,6 +454,58 @@ debugLoopify = debugCache = no
     throw Error "incomplete parse: [#{$.code.peek chars:50}]" if $.code.pos isnt $.code.text.length
     return $
 
+Line = clazz 'Line', ->
+  init: (@args...) ->
+ILine = clazz 'ILine', Line, ->
+  toRules: (parentRule) ->
+    rules = {}
+    for own name, rule of @args[0]
+      if typeof rule is 'string'
+        rules[name] = rule = GRAMMAR.parse rule
+        rule.name = name
+      else if rule instanceof OLine
+        rules[name] = rule.toRule parentRule, name:name
+    rules
+        
+OLine = clazz 'OLine', Line, ->
+  toRule: (parentRule, {index,name}) ->
+    [rule, callback] = @args
+    if not name and
+      typeof rule isnt 'string' and
+      rule not instanceof Array and
+      rule not instanceof Node
+        # NAME: rule
+        assert.ok _.keys(rule).length is 1, "Named rule should only have one key-value pair"
+        name = _.keys(rule)[0]
+        rule = rule[name]
+    else if index? and parentRule?
+      name = parentRule.name + "[#{index}]"
+    else
+      name = "__grammar__"
+    if typeof rule is 'string'
+      rule = GRAMMAR.parse rule
+      rule.name = name
+    else if rule instanceof Array
+      rule = Rank.fromLines name, rule
+    else if rule instanceof Node
+      rule.name = name
+    rule.parent = parentRule
+    rule.index = index
+    rule.cb = callback if callback?
+    rule
+
+@MACROS = MACROS =
+  o: OLine
+  i: ILine
+  t: (tokens...) ->
+    ###
+    cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
+    rank = {}
+    for token in tokens
+      rank['_'+token.toUpperCase()] = Nodeling rule:"_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/", cb:cb
+    rank
+    ###
+
 C  = -> Choice (x for x in arguments)
 E  = -> Exists arguments...
 L  = (label, node) -> node.label = label; node
@@ -494,62 +516,53 @@ R  = -> Ref arguments...
 Re = -> Regex arguments...
 S  = -> Sequence (x for x in arguments)
 St = -> String arguments...
+{o, i, t}  = MACROS
 
-@GRAMMAR = GRAMMAR = Grammar
-  START:                R('EXPR')
-  EXPR:
-    EXPR_:              S(L('&',R('$')), R('_'))
-    CHOICE:             S(P(R('_PIPE')),
-                          L('&',P(R('$'), R('_PIPE'), 2)),
-                          P(R('_PIPE')))._cb Choice
-    SEQUENCE:           P(R('$'), null, 2)._cb Sequence
-    UNIT:
-      _UNIT:            S(R('_'), L('&',R('$')))
-      COMMAND:
-        LA_CHAR:        S(St('<chars:'), L('chars',R('INT')), St('>'))._cb Lookahead
-        LA_WORD:        S(St('<words:'), L('words',R('INT')), St('>'))._cb Lookahead
-        LA_LINE:        S(St('<lines:'), L('lines',R('INT')), St('>'))._cb Lookahead
-      LABELED:          S(L('@',E(S(L('label',R('LABEL')), St(':')))),
-                          L('&',R('$')))
-      DECORATED:
-        EXISTS:         S(L('&',R('PRIMARY')), St('?'))._cb Exists
-        PATTERN0:       S(L('value',R('PRIMARY')), St('*'),
-                          L('join',E(S(N(R('__')), R('PRIMARY')))),
-                          L('@',E(R('RANGE'))))._cb Pattern
-        PATTERN1:       S(L('value',R('PRIMARY')),
-                          L('@',R('RANGE')))._cb Pattern
-        ' RANGE':       S(St('{'), R('_'), L('min',E(R('INT'))), R('_'), St(','),
-                                   R('_'), L('max',E(R('INT'))), R('_'), St('}'))
-        NOT:            S(St('!'), L('&',R('PRIMARY')))._cb Not
-      PRIMARY:
-        REF:            C(St('$$'), St('$'), R('WORD'))._cb Ref
-        PAREN:          S(St('('), L('&',R('EXPR')), St(')'))
-        STRING:         S(St("'"),
-                          L('&',P(S(N(St("'")),
-                                    C(R('ESC1'), R('.'))))),
-                          St("'"))._cb (it) -> String it.join ''
-        REGEX:          S(St('/'),
-                          L('&',P(S(N(St('/')),
-                                    C(R('ESC2'), R('.'))))),
-                          St('/'))._cb (it) -> Regex it.join ''
-  __TOKENS:
-      LABEL:            C(St('&'), St('@'), R('WORD'))
-      WORD:             S(La(words:1), Re('[a-zA-Z\\._][a-zA-Z\\._0-9]*'))
-      INT:              S(La(words:1), Re('[0-9]+'))._cb Number
-      _PIPE:            S(R('_'), St('|'))
-  __WHITESPACES:
-      _:                S(La(words:1), Re('[ \\n]*'))
-      __:               S(La(words:1), Re('[ \\n]+'))
-  __OTHER:
-      '.':              S(La(chars:1), Re('[\\s\\S]'))
-      ESC1:             S(St('\\'), L('&',R('.')))
-      ESC2:             S(St('\\'), L('&',R('.')))._cb (chr)->'\\'+chr
+@GRAMMAR = GRAMMAR = Grammar [
+  o EXPR: [
+    o S(R("CHOICE"), R("_"))
+    o "CHOICE": [
+      o S(P(R("_PIPE")), P(R("SEQUENCE"),R("_PIPE"),2), P(R("_PIPE"))), Choice
+      o "SEQUENCE": [
+        o P(R("UNIT"),null,2), Sequence
+        o "UNIT": [
+          o S(R("_"), R("LABELED"))
+          o "LABELED": [
+            o S(E(S(L("label","LABEL"), ':')), C(R("COMMAND"),R("DECORATED"),R("PRIMARY")))
+            o "COMMAND": [
+              o S('<chars:', L("chars",R("INT")), '>'), Lookahead
+              o S('<words:', L("words",R("INT")), '>'), Lookahead
+            ]
+            o "DECORATED": [
+              o S(R("PRIMARY"), '?'), Exists
+              o S(L("value",R("PRIMARY")), '*', L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
+              o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern
+              o S('!', R("PRIMARY")), Not
+              i "RANGE": S('{', R("_"), L("min",E(R("INT"))), R("_"), ',', R("_"), L("min",E(R("INT"))), R("_"), '}')
+            ]
+            o "PRIMARY": [
+              o R("WORD"), Ref
+              o S('(', R("EXPR"), ')')
+              o S("'", P(S(N("'"), C(R("ESC1"), R(".")))), "'"), (it) -> String it.join ''
+              o S("/", P(S(N("/"), C(R("ESC2"), R(".")))), "/"), (it) -> Regex it.join ''
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+  i
+    # tokens
+    LABEL:              o C('&', '@', R("WORD"))
+    WORD:               o S(La(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
+    INT:                o S(La(words:1), Re("[0-9]+/")), Number
+    _PIPE:              o S(R("_"), '|')
+    # whitespaces
+    _:                  o S(La(words:1), Re("[ \\n]*"))
+    __:                 o S(La(words:1), Re("[ \\n]+"))
+    # other
+    '.':                o S(La(chars:1), Re("[\\s\\S]"))
+    ESC1:               o S('\\', R("."))
+    ESC2:               o S('\\', R(".")), (chr) -> '\\'+chr
+]
 
-@MACROS = MACROS =
-  o: (rule, cb) -> Nodeling rule:rule, cb:cb
-  t: (tokens...) ->
-    cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-    rank = {}
-    for token in tokens
-      rank['_'+token.toUpperCase()] = Nodeling rule:"_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/", cb:cb
-    rank

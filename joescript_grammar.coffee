@@ -403,7 +403,7 @@ for filename in ['codestream.coffee', 'joeson.coffee']
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
   try
-    context = GRAMMAR.parse chars, debug:yes
+    context = GRAMMAR.parse chars, debug:no
     console.log "FILE: #{filename} OK!"
   catch error
     console.log "ERROR: "+error
