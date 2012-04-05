@@ -260,7 +260,7 @@ debugLoopify = debugCache = no
         for own name, rule of line.toRules()
           rank.include name, rule
       else
-        throw new Error "Unknown line type, expected 'o' or 'i' line"
+        throw new Error "Unknown line type, expected 'o' or 'i' line, got '#{line}' (#{typeof line})"
     rank
 
   init: (@name, @choices=[], includes={}) ->
@@ -277,9 +277,9 @@ debugLoopify = debugCache = no
     @choices.push rule
 
   include: (name, rule) ->
-    assert.ok name?, "Rule needs a name"
-    assert.ok not @rules[name]?, "Duplicate name #{rule.name}"
-    assert.ok rule instanceof Node, "Cannot include non-rule #{rule}"
+    assert.ok name?, "Rule needs a name: #{rule}"
+    assert.ok not @rules[name]?, "Duplicate name #{name}"
+    assert.ok rule instanceof Node, "Invalid rule with name #{name}"
     rule.name = name if not rule.name?
     @rules[name] = rule
     @children.push rule
@@ -490,24 +490,33 @@ debugLoopify = debugCache = no
 
 Line = clazz 'Line', ->
   init: (@args...) ->
+  # name: The final and correct name for this rule
+  # rule: A rule-like object
+  # parentRule: The actual parent Rule instance
+  getRule: (name, rule, parentRule) ->
+    if typeof rule is 'string'
+      rule = GRAMMAR.parse rule
+    else if rule instanceof Array
+      rule = Rank.fromLines name, rule
+    else if rule instanceof OLine
+      rule = rule.toRule parentRule, name:name
+    assert.ok not rule.rule? or rule.rule is rule
+    rule.rule = rule
+    assert.ok not rule.name? or rule.name is name
+    rule.name = name
+    rule
+
 ILine = clazz 'ILine', Line, ->
   toRules: (parentRule) ->
     rules = {}
     for own name, rule of @args[0]
-      if typeof rule is 'string'
-        rules[name] = rule = GRAMMAR.parse rule
-        rule.name = name
-        rule.rule = rule
-      else if rule instanceof OLine
-        rules[name] = rule.toRule parentRule, name:name
-      else
-        rules[name] = rule
-        rule.rule = rule
+      rules[name] = @getRule name, rule, parentRule
     rules
-        
+
 OLine = clazz 'OLine', Line, ->
   toRule: (parentRule, {index,name}) ->
     [rule, callback] = @args
+    # figure out the name for this rule
     if not name and
       typeof rule isnt 'string' and
       rule not instanceof Array and
@@ -520,15 +529,8 @@ OLine = clazz 'OLine', Line, ->
       name = parentRule.name + "[#{index}]"
     else if not name?
       throw new Error "Name undefined for 'o' line"
-    if typeof rule is 'string'
-      rule = GRAMMAR.parse rule
-      rule.name = name
-    else if rule instanceof Array
-      rule = Rank.fromLines name, rule
-    else if rule instanceof Node
-      rule.name = name
+    rule = @getRule name, rule, parentRule
     rule.parent = parentRule
-    rule.rule = rule
     rule.index = index
     rule.cb = callback if callback?
     rule
@@ -537,13 +539,18 @@ OLine = clazz 'OLine', Line, ->
   o: OLine
   i: ILine
   t: (tokens...) ->
-    ###
+    # Create and return a special Rank that officially has no name, officially is not a 'rule'
+    # (this makes debug output much cleaner)
     cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-    rank = {}
+    rank = Rank "__tokens_temp__"
     for token in tokens
-      rank['_'+token.toUpperCase()] = Nodeling rule:"_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/", cb:cb
+      name = '_'+token.toUpperCase()
+      rule = GRAMMAR.parse "_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/"
+      rule.cb = cb if cb?
+      rank.choices.push rule
+      rank.include name, rule
+    delete rank.name
     rank
-    ###
 
 C  = -> Choice (x for x in arguments)
 E  = -> Exists arguments...

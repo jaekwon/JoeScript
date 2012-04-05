@@ -106,7 +106,7 @@ Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
 
-INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL', 'COMPLEX']
+INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL']
 debugIndent = yes
 
 checkIndent = (ws) ->
@@ -158,114 +158,139 @@ checkNewline = (ws) ->
     return ws
   null
 
-GRAMMAR = Grammar ({o, t}) ->
-  START:                  o "__INIT__ &:LINES __EXIT__ _"
-  __INIT__:               o "BLANKLINE*", -> # init code
-  __EXIT__:               o "BLANKLINE*", -> # exit code
-  LINES:                  o "LINE*NEWLINE", Block
-  LINE:
-    HEREDOC:              o "_ '###' !'#' &:(!'###' .)* '###'", (it) -> Heredoc it.join ''
-    POSTIF:               o "block:$$ &:(POSTIF1|POSTIF2)"
-    ' POSTIF1':           o "_IF cond:EXPR", If
-    ' POSTIF2':           o "_UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
-    POSTFOR:              o "block:$$ _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
-    STMT:                 o "type:(_RETURN|_THROW) expr:$? | type:_BREAK", Statement
-    EXPR:
-      # ordered
-      OP0:                o "left:$$ _ op:('=='|'!='|'<'|'<='
-                                          |'>'|'>='|_IS|_ISNT)     right:$", Operation
-      OP1:                o "left:$$ _ not:_NOT?
-                                       op:(_IN|_INSTANCEOF)        right:$", Operation
-      OP2:                o "left:$$ _ op:('+'|'-'|_OR)            right:$", Operation
-      OP3:                o "left:$$ _ op:('*'|'/'|'%'
-                                          |'&'|'&&'|_AND)          right:$", Operation
-      OP4:                o "        _ op:(_NOT|'!'|'~')           right:$", Operation
-      OP5:                o "left:$    op:('--'|'++')
-                            |        _ op:('--'|'++')              right:$", Operation
-      # right recursive
-      FUNC:               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-      INVOC_IMPL:         o "func:ASSIGNABLE __ !TERM params:EXPR*_COMMA{1,}", Invocation
-      OBJ_IMPL:           o "INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
-                            |         ITEM_IMPL*_COMMA{1,}", Obj
-      ASSIGN:             o "target:ASSIGNABLE _
-                             type:('='|'+='|'-='|'*='|'/='|'?='|'||=')
-                             value:EXPR", Assign
-      COMPLEX:
-        IF:               o "_IF cond:EXPR block:BLOCK @:(NEWLINE? _ELSE elseBlock:BLOCK)?", If
-        FOR:              o "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
-        LOOP:             o "_LOOP block:BLOCK", While
-        WHILE:            o "_WHILE cond:EXPR block:BLOCK", While
-        SWITCH:           o "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
-        ' CASE':          o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
-        ' DEFAULT':       o "NEWLINE _ELSE &:BLOCK"
-      #
-      ASSIGNABLE:
-        #ASSIGNABLE_:      o "___ &:$"
-        # left recursive
-        RANGED_OBJ:       o "obj:ASSIGNABLE !__ &:RANGE"
-        INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
-        INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
-        INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
-        INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*_COMMA{0,} _ ')'", Invocation
-        SOAK:             o "&:ASSIGNABLE '?'", Soak
-        # rest 
-        RANGE:            o "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
-        ARRAY:            o "_ '[' &:EXPR*_COMMA _']'", Arr
-        OBJ_EXPL:         o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
-        PAREN:            o "_ '(' &:EXPR _ ')'"
-        PROPERTY:         o "obj:THIS attr:SYMBOL", Index
-        THIS:             o "_THISAT", This
-        REGEX:            o "_ FSLASH &:(!FSLASH (ESC2 | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
-        STRING:
-          STRING1:        o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
-          STRING2:        o "_ DQUOTE &:(!DQUOTE (ESC2 | ESCSTR | .))* DQUOTE", Str
-          STRING3:        o "_ TQUOTE &:(!TQUOTE (ESC2 | ESCSTR | .))* TQUOTE", Str
-          ' ESCSTR':      o "'\#{' &:EXPR _ '}'"
-        BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
-        NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
-        SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
-  __OBJECTS:
-                          # TODO: allow strings (and thus also #{}) in keys.
-    ITEM_EXPL:            o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
-    ITEM_IMPL:            o "key:SYMBOL _COLON value:EXPR", Item
-  __PARAMS:
-    PARAMS:               o "_ '(' &:PARAM*_COMMA _ ')'"
-    PARAM:                o "| &:PARAM_KEY splat:'...'
-                             | &:(PARAM_KEY|PARAM_CONTAINER) @:(_ '=' default:EXPR)?"
-    PARAM_KEY:            o "this:_THISAT? key:SYMBOL", Item
-    PARAM_CONTAINER:      o "PARAM_OBJ | PARAM_ARRAY"
-    PARAM_OBJ:            o "_ '{' &:PARAM_OBJ_ITEM*_COMMA _ '}'", Obj
-    PARAM_OBJ_ITEM:       o "&:PARAM_KEY @:(_COLON value:PARAM_CONTAINER | _ '=' default:EXPR)?"
-    PARAM_ARRAY:          o "_ '[' &:PARAM_ARRAY_ITEM*_COMMA _ ']'", Arr
-    PARAM_ARRAY_ITEM:     o "&:PARAM_KEY @:(_ '=' default:EXPR)?"
-  __BLOCKS:
-    BLOCK:
-      __INDENTED:         o "INDENT &:LINE*NEWLINE{1,}", Block
-      __INLINE:           o "_THEN? &:LINE", Block
-    INDENT:               o "BLANKLINE*{1,} &:_", checkIndent
-    NEWLINE:              o "BLANKLINE*{1,} &:_", checkNewline
-  __TOKENS:
-    _KEYWORD:             t 'if', 'unless', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch',
-                            'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
-                            'not', 'and', 'or', 'instanceof', 'typeof'
-    _COMMA:               o "TERM? _ ',' TERM?"
-    _COLON:               o "_ ':'"
-    _THISAT:              o "_ '@'"
-    QUOTE:                o "'\\''"
-    DQUOTE:               o "'\"'"
-    TQUOTE:               o "'\"\"\"'"
-    FSLASH:               o "'/'"
-    SLASH:                o "'\\\\'"
-  __WHITESPACES:
-    _:                    o "<words:1> /[ ]*/"
-    __:                   o "<words:1> /[ ]+/"
-    TERM:                 o "_ &:('\r\n'|'\n')"
-    COMMENT:              o "_ !HEREDOC '#' (!TERM .)*"
-    BLANKLINE:            o "_ COMMENT? TERM"
-    ___:                  o "BLANKLINE* _"
-  __OTHER:
-    '.':                  o "<chars:1> /[\\s\\S]/"
-    ESC2:                 o "SLASH &:.", (chr) -> '\\'+chr
+GRAMMAR = Grammar ({o, i, t}) -> [
+  o "__INIT__ LINES __EXIT__ _"
+  i
+    __INIT__: o "BLANKLINE*", -> # init code
+    __EXIT__: o "BLANKLINE*", -> # exit code
+    LINES: o "LINE*NEWLINE", Block
+    LINE: [
+      o HEREDOC: "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
+      o POSTIF: "block:(POSTIF|POSTFOR) &:(POSTIF1|POSTIF2)"
+      i   POSTIF1: o "_IF cond:EXPR", If
+      i   POSTIF2: o "_UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
+      o POSTFOR: [
+        o "block:STMT _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
+        o STMT: [
+          o "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
+          o EXPR: [
+            o FUNC: [
+              o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
+              i
+                PARAMS:           o "_ '(' &:PARAM*_COMMA _ ')'"
+                PARAM:            o "&:PARAM_KEY splat:'...'
+                                   | &:(PARAM_KEY|PARAM_CONTAINER) (_ '=' default:EXPR)?"
+                PARAM_KEY:        o "this:_THISAT? key:SYMBOL", Item
+                PARAM_CONTAINER:  o "PARAM_OBJ | PARAM_ARRAY"
+                PARAM_OBJ:        o "_ '{' &:PARAM_OBJ_ITEM*_COMMA _ '}'", Obj
+                PARAM_OBJ_ITEM:   o "&:PARAM_KEY @:(_COLON value:PARAM_CONTAINER | _ '=' default:EXPR)?"
+                PARAM_ARRAY:      o "_ '[' &:PARAM_ARRAY_ITEM*_COMMA _ ']'", Arr
+                PARAM_ARRAY_ITEM: o "&:PARAM_KEY @:(_ '=' default:EXPR)?"
+            ]
+            o RIGHT_RECURSIVE: [
+              o INVOC_IMPL: "func:ASSIGNABLE __ !TERM params:EXPR*_COMMA{1,}", Invocation
+              o OBJ_IMPL:   "INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
+                           | ITEM_IMPL*_COMMA{1,}", Obj
+              i   ITEM_IMPL: o "key:SYMBOL _COLON value:EXPR", Item
+              o ASSIGN:     "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:EXPR", Assign
+            ]
+            o COMPLEX: [
+              o IF:      "_IF cond:EXPR block:BLOCK (NEWLINE? _ELSE elseBlock:BLOCK)?", If
+              o FOR:     "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
+              o LOOP:    "_LOOP block:BLOCK", While
+              o WHILE:   "_WHILE cond:EXPR block:BLOCK", While
+              o SWITCH:  "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
+              i   CASE: o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
+              i   DEFAULT: "NEWLINE _ELSE &:BLOCK"
+            ]
+            o OP00: [
+              o "left:(OP00|OP10) _ op:('=='|'!='|'<'|'<='|'>'|'>='|_IS|_ISNT) right:OP10", Operation
+              o OP10: [
+                o "left:(OP10|OP20) _ not:_NOT? op:(_IN|_INSTANCEOF) right:OP20", Operation
+                o OP20: [
+                  o "left:(OP20|OP30) _ op:('+'|'-'|_OR) right:OP30", Operation
+                  o OP30: [
+                    o "left:(OP30|OP40) _ op:('*'|'/'|'%'|'&'|'&&'|_AND) right:OP40", Operation
+                    o OP40: [
+                      o "_ op:(_NOT|'!'|'~') right:OP50", Operation
+                      o OP50: [
+                        o "left:(OP60) op:('--'|'++')", Operation
+                        o "_ op:('--'|'++') right:OP60", Operation
+                        o OP60: [
+                          o "FUNC | RIGHT_RECURSIVE | COMPLEX"
+                          o ASSIGNABLE: [
+                            # left recursive
+                            o RANGED_OBJ:       o "obj:ASSIGNABLE !__ &:RANGE"
+                            o INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
+                            o INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
+                            o INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
+                            o INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*_COMMA{0,} _ ')'", Invocation
+                            o SOAK:             o "&:ASSIGNABLE '?'", Soak
+                            # rest
+                            o RANGE:            o "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
+                            o ARRAY:            o "_ '[' &:EXPR*_COMMA _']'", Arr
+                            o OBJ_EXPL: [
+                              o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
+                              # TODO: allow strings (and thus also #{}) in keys.
+                              i ITEM_EXPL: o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
+                            ]
+                            o PAREN:            o "_ '(' &:EXPR _ ')'"
+                            o PROPERTY:         o "obj:THIS attr:SYMBOL", Index
+                            o THIS:             o "_THISAT", This
+                            o REGEX:            o "_ FSLASH &:(!FSLASH (ESC2 | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
+                            o STRING: [
+                              o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
+                              o "_ DQUOTE &:(!DQUOTE (ESC2 | ESCSTR | .))* DQUOTE", Str
+                              o "_ TQUOTE &:(!TQUOTE (ESC2 | ESCSTR | .))* TQUOTE", Str
+                              i ESCSTR: "'\#{' &:EXPR _ '}'"
+                            ]
+                            o BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
+                            o NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
+                            o SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
+                          ] # end ASSIGNABLE
+                        ] # end OP60
+                      ] # end OP50
+                    ] # end OP40
+                  ] # end OP30
+                ] # end OP20
+              ] # end OP10
+            ] # end OP00
+          ] # end EXPR
+        ] # end STMT
+      ] # end POSTFOR
+    ] # end LINE
+  i
+    # BLOCKS:
+    BLOCK: [
+      o "INDENT &:LINE*NEWLINE{1,}", Block
+      o "_THEN? &:LINE", Block
+    ]
+    INDENT:    o "BLANKLINE*{1,} &:_", checkIndent
+    NEWLINE:   o "BLANKLINE*{1,} &:_", checkNewline
+
+    # TOKENS:
+    _KEYWORD:  t 'if', 'unless', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch',
+                 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
+                 'not', 'and', 'or', 'instanceof', 'typeof'
+    _COMMA:    o "TERM? _ ',' TERM?"
+    _COLON:    o "_ ':'"
+    _THISAT:   o "_ '@'"
+    QUOTE:     o "'\\''"
+    DQUOTE:    o "'\"'"
+    TQUOTE:    o "'\"\"\"'"
+    FSLASH:    o "'/'"
+    SLASH:     o "'\\\\'"
+    '.':       o "<chars:1> /[\\s\\S]/"
+    ESC2:      o "SLASH &:.", (chr) -> '\\'+chr
+
+    # WHITESPACES:
+    _:         o "<words:1> /[ ]*/"
+    __:        o "<words:1> /[ ]+/"
+    TERM:      o "_ &:('\r\n'|'\n')"
+    COMMENT:   o "_ !HEREDOC '#' (!TERM .)*"
+    BLANKLINE: o "_ COMMENT? TERM"
+    ___:       o "BLANKLINE* _"
+]
 # ENDGRAMMAR
 
 console.log "-=-=-"
@@ -275,12 +300,12 @@ test  = (code, expected) ->
   # hack to make tests easier to write.
   code = code.replace(/\\/g, '\\\\').replace(/\r/g, '\\r')
   try
-    context = GRAMMAR.parse code, debug:no
+    context = GRAMMAR.parse code, debug:no, returnContext:yes
     assert.equal (''+context.result).replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
   catch error
     if expected isnt null
       try
-        GRAMMAR.parse code, debug:yes
+        GRAMMAR.parse code, debug:yes, returnContext:yes
       catch error
         # pass
       console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"
