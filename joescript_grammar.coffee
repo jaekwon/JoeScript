@@ -203,20 +203,28 @@ GRAMMAR = Grammar ({o, i, t}) -> [
               i   CASE: o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
               i   DEFAULT: "NEWLINE _ELSE &:BLOCK"
             ]
+            # optimization
+            o NONOP_OPT: "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
             o OP00: [
-              o "left:(OP00|OP10) _ op:('=='|'!='|'<'|'<='|'>'|'>='|_IS|_ISNT) right:OP10", Operation
+              o "left:(OP00|OP10) _ op:OP00_OP right:OP10", Operation
+              i OP00_OP: " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
               o OP10: [
-                o "left:(OP10|OP20) _ not:_NOT? op:(_IN|_INSTANCEOF) right:OP20", Operation
+                o "left:(OP10|OP20) _ @:OP10_OP right:OP20", Operation
+                i OP10_OP: "not:_NOT? op:(_IN|_INSTANCEOF)"
                 o OP20: [
-                  o "left:(OP20|OP30) _ op:('+'|'-'|_OR) right:OP30", Operation
+                  o "left:(OP20|OP30) _ op:OP20_OP right:OP30", Operation
+                  i OP20_OP: " '+' | '-' | _OR "
                   o OP30: [
-                    o "left:(OP30|OP40) _ op:('*'|'/'|'%'|'&'|'&&'|_AND) right:OP40", Operation
+                    o "left:(OP30|OP40) _ op:OP30_OP right:OP40", Operation
+                    i OP30_OP: " '*' | '/' | '%' | '&' | '&&' | _AND "
                     o OP40: [
-                      o "_ op:(_NOT|'!'|'~') right:OP50", Operation
+                      o "_ op:OP40_OP right:OP50", Operation
+                      i OP40_OP: " _NOT | '!' | '~' "
                       o OP50: [
-                        o "left:(OP60) op:('--'|'++')", Operation
-                        o "_ op:('--'|'++') right:OP60", Operation
-                        o OP60: [
+                        o "left:OPATOM op:OP50_OP", Operation
+                        o "_ op:OP50_OP right:OPATOM", Operation
+                        i OP50_OP: " '--' | '++' "
+                        o OPATOM: [
                           o "FUNC | RIGHT_RECURSIVE | COMPLEX"
                           o ASSIGNABLE: [
                             # left recursive
@@ -248,7 +256,7 @@ GRAMMAR = Grammar ({o, i, t}) -> [
                             o NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
                             o SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
                           ] # end ASSIGNABLE
-                        ] # end OP60
+                        ] # end OPATOM
                       ] # end OP50
                     ] # end OP40
                   ] # end OP30
