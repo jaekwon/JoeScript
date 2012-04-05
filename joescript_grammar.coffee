@@ -23,8 +23,8 @@ If = clazz 'If', Node, ->
     else
       "if(#{@cond}){#{@block}}"
 For = clazz 'For', Node, ->
-  init: ({@block, @keys, @type, @obj}) ->
-  toString: -> "for #{@keys.join ','} in #{@obj}{#{@block}}"
+  init: ({@block, @own, @keys, @type, @obj, @cond}) ->
+  toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
 While = clazz 'While', Node, ->
   init: ({@cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
@@ -170,7 +170,7 @@ GRAMMAR = Grammar ({o, i, t}) -> [
       i   POSTIF1: o "_IF cond:EXPR", If
       i   POSTIF2: o "_UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
       o POSTFOR: [
-        o "block:STMT _FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR", For
+        o "block:STMT _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
         o STMT: [
           o "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
           o EXPR: [
@@ -196,7 +196,7 @@ GRAMMAR = Grammar ({o, i, t}) -> [
             ]
             o COMPLEX: [
               o IF:      "_IF cond:EXPR block:BLOCK (NEWLINE? _ELSE elseBlock:BLOCK)?", If
-              o FOR:     "_FOR keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR block:BLOCK", For
+              o FOR:     "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
               o LOOP:    "_LOOP block:BLOCK", While
               o WHILE:   "_WHILE cond:EXPR block:BLOCK", While
               o SWITCH:  "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
@@ -204,7 +204,7 @@ GRAMMAR = Grammar ({o, i, t}) -> [
               i   DEFAULT: "NEWLINE _ELSE &:BLOCK"
             ]
             # optimization
-            o NONOP_OPT: "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
+            o OP_OPTIMIZATION: "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
             o OP00: [
               o "left:(OP00|OP10) _ op:OP00_OP right:OP10", Operation
               i OP00_OP: " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
@@ -277,7 +277,7 @@ GRAMMAR = Grammar ({o, i, t}) -> [
     NEWLINE:   o "BLANKLINE*{1,} &:_", checkNewline
 
     # TOKENS:
-    _KEYWORD:  t 'if', 'unless', 'else', 'for', 'in', 'loop', 'while', 'break', 'switch',
+    _KEYWORD:  t 'if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
                  'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                  'not', 'and', 'or', 'instanceof', 'typeof'
     _COMMA:    o "TERM? _ ',' TERM?"
@@ -335,6 +335,14 @@ test  """
       else
         func false
       """, "if(condition){func(true)}else{func(false)}"
+test  """
+      if condition1
+        func true
+      else if condition2
+        func false
+      else
+        func undefined
+      """, "if(condition1){func(true)}else{if(condition2){func(false)}else{func(undefined)}}"
 test  "foo[bar]", "(foo)[bar]"
 test  "foo[bar][baz]", "((foo)[bar])[baz]"
 test  "123", "123"
