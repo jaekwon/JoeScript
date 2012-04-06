@@ -4,6 +4,7 @@
 
 @CodeStream = CodeStream = clazz 'CodeStream', ->
   init: (@text, @pos=0, @buffer=null) ->
+    @maxSeen=0
 
   pos$:
     enum: true
@@ -13,6 +14,9 @@
       if @_pos isnt newPos
         @buffer = null
         @_pos = newPos
+      if newPos > @maxSeen
+        @maxSeen = newPos
+        #console.log "#{@maxSeen}/#{@text.length} #{@text[@maxSeen..@maxSeen+10]}"
       @_pos
 
   # Get until the string `end` is encountered.

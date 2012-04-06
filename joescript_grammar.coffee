@@ -42,7 +42,7 @@ Statement = clazz 'Statement', Node, ->
   toString: -> "#{@type}(#{@expr ? ''});"
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
-  toString: -> "#{@func}(#{@params})"
+  toString: -> "#{@func}(#{@params.map((p)->if p.splat then p+'...' else p)})"
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
   toString: -> "#{@target}#{@type}(#{@value})"
@@ -106,57 +106,65 @@ Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
 
-INDENT_CONTAINERS = ['START', 'BLOCK', 'SWITCH', 'OBJ_IMPL']
 debugIndent = yes
 
 checkIndent = (ws) ->
   @storeCache = no
   @stack[0].indent ?= '' # set default lazily
-  indent = @stack[@stack.length-1]
-  assert.equal indent.name, 'INDENT'
-  for idx in [@stack.length-2..0] by -1
-    if @stack[idx].name in INDENT_CONTAINERS
-      containerIndex = idx
-      container = @stack[idx]
-      break
-  assert.ok container.name in INDENT_CONTAINERS
-  @log "INDENT CONTAINER IS #{container.name}, containerIndex=#{containerIndex}" if debugIndent
+  container = @stack[@stack.length-2]
+  assert.ok container?
+  @log "INDENT CONTAINER IS #{container.name}" if debugIndent
   # get the parent container's indent string
   lastIndent = ''
-  for i in [containerIndex-1..0] by -1
-    if @stack[i].name in INDENT_CONTAINERS
-      if @stack[i].indent?
-        @log "PARENT CONTAINER's index is #{i}" if debugIndent
-        lastIndent = @stack[i].indent ? ''
-        break
-      else
-        # INDENT_CONTAINERs need not always use an INDENT.
+  for i in [@stack.length-3..0] by -1
+    if @stack[i].indent?
+      @log "PARENT CONTAINER's index is #{i}" if debugIndent
+      lastIndent = @stack[i].indent ? ''
+      break
   # if ws starts with lastIndent... valid
   @log "ws.length #{ws.length} > lastIndent.length #{lastIndent.length}, #{ws.indexOf(lastIndent)}=0?"
   if ws.length > lastIndent.length and ws.indexOf(lastIndent) is 0
-    @log "setting container.indent to #{ws}, index is #{idx}!!!QWE"
+    @log "setting container.indent to #{ws}"
     container.indent = ws
-    if debugIndent
-      @log "#{ws.length} > #{lastIndent.length} and #{ws.indexOf(lastIndent) is 0}"
-      for idx in [0..@stack.length-1]
-        @log "#{idx}: #{@stack[idx].name}\t[#{@stack[idx].indent}]"
     return container.indent
   null
 
 checkNewline = (ws) ->
   @storeCache = no
-  newline = @stack[@stack.length-1]
-  assert.equal newline.name, 'NEWLINE'
   # find the current INDENT on the stack
   currentIndent = ''
   for i in [@stack.length-2..0] by -1
-    if @stack[i].indent? and @stack[i].name in INDENT_CONTAINERS
+    if @stack[i].indent?
       currentIndent = @stack[i].indent
       @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
       break
   if ws is currentIndent
     return ws
   null
+
+# like a newline, but allows additional padding
+checkSoftline = (ws) ->
+  @storeCache = no
+  # find the current INDENT on the stack
+  currentIndent = ''
+  for i in [@stack.length-2..0] by -1
+    if @stack[i].indent?
+      currentIndent = @stack[i].indent
+      @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
+      break
+  if ws.indexOf currentIndent is 0
+    return resetIndent.call this, ws
+  null
+
+resetIndent = (ws) ->
+  @storeCache = no
+  @stack[0].indent ?= '' # set default lazily
+  # find any container
+  container = @stack[@stack.length-2]
+  assert.ok container?
+  @log "setting container.indent to #{ws}"
+  container.indent = ws
+  return container.indent
 
 GRAMMAR = Grammar ({o, i, t}) -> [
   o "__INIT__ LINES __EXIT__ _"
@@ -188,11 +196,11 @@ GRAMMAR = Grammar ({o, i, t}) -> [
                 PARAM_ARRAY_ITEM: o "&:PARAM_KEY @:(_ '=' default:EXPR)?"
             ]
             o RIGHT_RECURSIVE: [
-              o INVOC_IMPL: "func:ASSIGNABLE __ !TERM params:EXPR*_COMMA{1,}", Invocation
-              o OBJ_IMPL:   "INDENT &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
+              o INVOC_IMPL: "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)*_COMMA{1,}", Invocation
+              o OBJ_IMPL:   "INDENT? &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
                            | ITEM_IMPL*_COMMA{1,}", Obj
-              i   ITEM_IMPL: o "key:SYMBOL _COLON value:EXPR", Item
-              o ASSIGN:     "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:EXPR", Assign
+              i   ITEM_IMPL: o "key:(SYMBOL|STRING) _COLON value:EXPR", Item
+              o ASSIGN:     "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
             ]
             o COMPLEX: [
               o IF:      "_IF cond:EXPR block:BLOCK (NEWLINE? _ELSE elseBlock:BLOCK)?", If
@@ -206,24 +214,24 @@ GRAMMAR = Grammar ({o, i, t}) -> [
             # optimization
             o OP_OPTIMIZATION: "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
             o OP00: [
-              o "left:(OP00|OP10) _ op:OP00_OP right:OP10", Operation
               i OP00_OP: " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
+              o "left:(OP00|OP10) _ op:OP00_OP SOFTLINE? right:OP10", Operation
               o OP10: [
-                o "left:(OP10|OP20) _ @:OP10_OP right:OP20", Operation
                 i OP10_OP: "not:_NOT? op:(_IN|_INSTANCEOF)"
+                o "left:(OP10|OP20) _ @:OP10_OP SOFTLINE? right:OP20", Operation
                 o OP20: [
-                  o "left:(OP20|OP30) _ op:OP20_OP right:OP30", Operation
-                  i OP20_OP: " '+' | '-' | _OR "
+                  i OP20_OP: " '+' | '-' | _OR | '?' "
+                  o "left:(OP20|OP30) _ op:OP20_OP SOFTLINE? right:OP30", Operation
                   o OP30: [
-                    o "left:(OP30|OP40) _ op:OP30_OP right:OP40", Operation
                     i OP30_OP: " '*' | '/' | '%' | '&' | '&&' | _AND "
+                    o "left:(OP30|OP40) _ op:OP30_OP SOFTLINE? right:OP40", Operation
                     o OP40: [
-                      o "_ op:OP40_OP right:OP50", Operation
                       i OP40_OP: " _NOT | '!' | '~' "
+                      o "_ op:OP40_OP right:OP50", Operation
                       o OP50: [
+                        i OP50_OP: " '--' | '++' "
                         o "left:OPATOM op:OP50_OP", Operation
                         o "_ op:OP50_OP right:OPATOM", Operation
-                        i OP50_OP: " '--' | '++' "
                         o OPATOM: [
                           o "FUNC | RIGHT_RECURSIVE | COMPLEX"
                           o ASSIGNABLE: [
@@ -232,17 +240,16 @@ GRAMMAR = Grammar ({o, i, t}) -> [
                             o INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
                             o INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
                             o INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
-                            o INVOC_EXPL:       o "func:ASSIGNABLE '(' params:EXPR*_COMMA{0,} _ ')'", Invocation
+                            o INVOC_EXPL:       o "func:(ASSIGNABLE|_TYPEOF) '(' params:(&:EXPR splat:'...'?)*_COMMA{0,} _ ')'", Invocation
                             o SOAK:             o "&:ASSIGNABLE '?'", Soak
                             # rest
                             o RANGE:            o "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
-                            o ARRAY:            o "_ '[' &:EXPR*_COMMA _']'", Arr
+                            o ARRAY:            o "_ '[' ___ &:EXPR*(_COMMA|SOFTLINE) ___ ']'", Arr
                             o OBJ_EXPL: [
                               o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
-                              # TODO: allow strings (and thus also #{}) in keys.
-                              i ITEM_EXPL: o "this:_THISAT? key:SYMBOL value:(_COLON &:EXPR)?", Item
+                              i ITEM_EXPL: o "this:_THISAT? key:(SYMBOL|STRING) value:(_COLON &:EXPR)?", Item
                             ]
-                            o PAREN:            o "_ '(' &:EXPR _ ')'"
+                            o PAREN:            o "_ '(' &:POSTFOR _ ')'"
                             o PROPERTY:         o "obj:THIS attr:SYMBOL", Index
                             o THIS:             o "_THISAT", This
                             o REGEX:            o "_ FSLASH &:(!FSLASH (ESC2 | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
@@ -250,7 +257,7 @@ GRAMMAR = Grammar ({o, i, t}) -> [
                               o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
                               o "_ DQUOTE &:(!DQUOTE (ESC2 | ESCSTR | .))* DQUOTE", Str
                               o "_ TQUOTE &:(!TQUOTE (ESC2 | ESCSTR | .))* TQUOTE", Str
-                              i ESCSTR: "'\#{' &:EXPR _ '}'"
+                              i ESCSTR: "'\#{' BLANKLINE* RESETINDENT &:EXPR ___ '}'"
                             ]
                             o BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
                             o NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
@@ -267,14 +274,23 @@ GRAMMAR = Grammar ({o, i, t}) -> [
         ] # end STMT
       ] # end POSTFOR
     ] # end LINE
-  i
+
     # BLOCKS:
     BLOCK: [
-      o "INDENT &:LINE*NEWLINE{1,}", Block
-      o "_THEN? &:LINE", Block
+      o "INDENT &:LINES", Block
+      o "_THEN? &:LINE*(_ ';'){1,}", Block
     ]
-    INDENT:    o "BLANKLINE*{1,} &:_", checkIndent
-    NEWLINE:   o "BLANKLINE*{1,} &:_", checkNewline
+    BLOCKEXPR:  o "INDENT? &:EXPR"
+    INDENT:     o "BLANKLINE*{1,} &:_", checkIndent
+    NEWLINE: o [
+      o "BLANKLINE*{1,} &:_", checkNewline
+      o "_ ';'"
+      # HACK to make the NEWLINE rank always return something, so we can set @storeCache=no
+      # TODO make this process more sane
+      o "''", -> 'dummy'
+    ], (result) -> @storeCache = no; return null if result is 'dummy'; result
+    SOFTLINE:   o "BLANKLINE*{1,} &:_", checkSoftline
+    RESETINDENT:o "BLANKLINE*     &:_", resetIndent
 
     # TOKENS:
     _KEYWORD:  t 'if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
@@ -350,6 +366,7 @@ test  "123.456", "123.456"
 test  "123.456.789", null
 test  "123.456 + foo.bar", "(123.456+(foo).bar)"
 test  "{foo: 1}", "{foo:(1)}"
+test  "{'foo': 1}", "{\"foo\":(1)}"
 test  "{foo: bar: 1}", "{foo:({bar:(1)})}"
 test  "foo: bar: 1", "{foo:({bar:(1)})}"
 test  "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
@@ -388,6 +405,10 @@ test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type
 test  "for x in array[0..10] then console.log x", "for x in Range(obj:array,start:0,end:10,type:'..', by:1){(console).log(x)}"
 test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{(user).name}\")"
 test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{(user).name}\"}\")"
+test  """
+foo: FOO
+bar: BAR
+""", "{foo:(FOO),bar:(BAR)}"
 test  """
 a =
   foo: FOO
@@ -438,6 +459,15 @@ test """
 """, """
 if(true){"first line"}"next line"
 """
+test """
+func arguments...
+""", "func(arguments...)"
+test """
+[
+  o
+  o
+]""", '[o,o]'
+
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee']

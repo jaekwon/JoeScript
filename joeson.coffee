@@ -46,13 +46,17 @@ debugLoopify = debugCache = no
     else
       throw new Error "Cache store error @ $.cache[\"#{key}\"]: existing entry"
 
-  cachePop: -> # {cacheKey,cacheValue}
-    cacheKey = @cacheStores.pop()
-    assert.ok cacheKey?, "invalid cache key from cacheStores. cacheStores empty?"
-    cacheValue = @cache[cacheKey]
-    assert.ok cacheValue?, "cacheStores[] entry should correspond with an entry in $.cache"
-    delete @cache[cacheKey]
-    return {cacheKey,cacheValue}
+  cacheMask: (pos, stopKey) ->
+    stash = []
+    cachePosSuffix = "@#{pos}"
+    for i in [@cacheStores.length-1..0] by -1
+      cacheKey = @cacheStores[i]
+      continue if cacheKey[cacheKey.length-cachePosSuffix.length..] isnt cachePosSuffix
+      cacheValue = @cache[cacheKey]
+      delete @cache[cacheKey]
+      stash.push {cacheKey, cacheValue}
+      break if cacheKey is stopKey
+    stash
 
   cacheDelete: (key) -> # key := "#{rulename}@#{pos}"
     assert.ok @cache[key]?, "Cannot delete missing cache item at key #{key}"
@@ -141,11 +145,7 @@ debugLoopify = debugCache = no
                 $.log "[L] --- loop iteration --- (#{key})" if debugLoopify
 
                 # Step 1: reset the cache state
-                bestCacheStash = []
-                loop # while $.cacheStores.length > 0
-                  {cacheKey,cacheValue} = $.cachePop()
-                  bestCacheStash.push {cacheKey, cacheValue}
-                  break if cacheKey is key
+                bestCacheStash = $.cacheMask startPos, key
                 # Step 2: set the cache to the last good result
                 bestResult = item.base = result
                 bestPos = item.endPos = $.code.pos
@@ -160,9 +160,7 @@ debugLoopify = debugCache = no
 
               # Tidy up state to best match
               # Step 1: reset the cache state again
-              loop # while $.cacheStores.length > 0
-                {cacheKey,cacheValue} = $.cachePop()
-                break if cacheKey is key
+              $.cacheMask startPos, key
               # Step 2: revert to best cache stash
               while bestCacheStash.length > 0
                 {cacheKey,cacheValue} = bestCacheStash.pop()
@@ -539,8 +537,6 @@ OLine = clazz 'OLine', Line, ->
   o: OLine
   i: ILine
   t: (tokens...) ->
-    # Create and return a special Rank that officially has no name, officially is not a 'rule'
-    # (this makes debug output much cleaner)
     cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
     rank = Rank "__tokens_temp__"
     for token in tokens
@@ -550,7 +546,9 @@ OLine = clazz 'OLine', Line, ->
       rank.choices.push rule
       rank.include name, rule
     delete rank.name
-    rank
+    # TODO make sure caching is working correctly
+    # TODO try to prune debug lines
+    OLine rank
 
 C  = -> Choice (x for x in arguments)
 E  = -> Exists arguments...
