@@ -4,9 +4,9 @@
 assert = require 'assert'
 
 Node = clazz 'Node'
-Symbol = clazz 'Symbol', Node, ->
-  init: (@sym) ->
-  toString: -> @sym
+Word = clazz 'Word', Node, ->
+  init: (@word) ->
+  toString: -> @word
 Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
@@ -55,8 +55,6 @@ Index = clazz 'Index', Node, ->
       else
         attr = 'prototype'
       type = '.'
-    else if type is '.'
-      attr = attr.sym
     @obj = obj
     @attr = attr
     @type = type
@@ -169,9 +167,9 @@ resetIndent = (ws) ->
 GRAMMAR = Grammar ({o, i, t}) -> [
   o "__INIT__ LINES __EXIT__ _"
   i
-    __INIT__: o "BLANKLINE*", -> # init code
-    __EXIT__: o "BLANKLINE*", -> # exit code
-    LINES: o "LINE*NEWLINE", Block
+    __INIT__: o "_BLANKLINE*", -> # init code
+    __EXIT__: o "_BLANKLINE*", -> # exit code
+    LINES: o "LINE*_NEWLINE", Block
     LINE: [
       o HEREDOC: "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
       o POSTIF: "block:(POSTIF|POSTFOR) &:(POSTIF1|POSTIF2)"
@@ -185,46 +183,46 @@ GRAMMAR = Grammar ({o, i, t}) -> [
             o FUNC: [
               o "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
               i
-                PARAMS:           o "_ '(' &:PARAM*_COMMA _ ')'"
+                PARAMS:           o "_ '(' PARAM*_COMMA _ ')'"
                 PARAM:            o "&:PARAM_KEY splat:'...'
                                    | &:(PARAM_KEY|PARAM_CONTAINER) (_ '=' default:EXPR)?"
-                PARAM_KEY:        o "this:_THISAT? key:SYMBOL", Item
+                PARAM_KEY:        o "_ this:'@' key:(WORD|STRING) | key:SYMBOL", Item
                 PARAM_CONTAINER:  o "PARAM_OBJ | PARAM_ARRAY"
-                PARAM_OBJ:        o "_ '{' &:PARAM_OBJ_ITEM*_COMMA _ '}'", Obj
-                PARAM_OBJ_ITEM:   o "&:PARAM_KEY @:(_COLON value:PARAM_CONTAINER | _ '=' default:EXPR)?"
-                PARAM_ARRAY:      o "_ '[' &:PARAM_ARRAY_ITEM*_COMMA _ ']'", Arr
+                PARAM_OBJ:        o "_ '{' PARAM_OBJ_ITEM*_COMMA _ '}'", Obj
+                PARAM_OBJ_ITEM:   o "&:PARAM_KEY @:(_ ':' value:PARAM_CONTAINER | _ '=' default:EXPR)?"
+                PARAM_ARRAY:      o "_ '[' PARAM_ARRAY_ITEM*_COMMA _ ']'", Arr
                 PARAM_ARRAY_ITEM: o "&:PARAM_KEY @:(_ '=' default:EXPR)?"
             ]
             o RIGHT_RECURSIVE: [
               o INVOC_IMPL: "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)*_COMMA{1,}", Invocation
-              o OBJ_IMPL:   "INDENT? &:ITEM_IMPL*(_COMMA | NEWLINE){1,}
-                           | ITEM_IMPL*_COMMA{1,}", Obj
-              i   ITEM_IMPL: o "key:(SYMBOL|STRING) _COLON value:EXPR", Item
+              o OBJ_IMPL:   "_INDENT? OBJ_IMPL_ITEM*(_COMMA | _NEWLINE){1,}
+                           | OBJ_IMPL_ITEM*_COMMA{1,}", Obj
+              i   OBJ_IMPL_ITEM: o "key:(WORD|STRING) _ ':' value:EXPR", Item
               o ASSIGN:     "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
             ]
             o COMPLEX: [
-              o IF:      "_IF cond:EXPR block:BLOCK (NEWLINE? _ELSE elseBlock:BLOCK)?", If
+              o IF:      "_IF cond:EXPR block:BLOCK elseBlock:(_NEWLINE? _ELSE BLOCK)?", If
               o FOR:     "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
               o LOOP:    "_LOOP block:BLOCK", While
               o WHILE:   "_WHILE cond:EXPR block:BLOCK", While
-              o SWITCH:  "_SWITCH obj:EXPR INDENT cases:CASE*NEWLINE default:DEFAULT?", Switch
+              o SWITCH:  "_SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT?", Switch
               i   CASE: o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
-              i   DEFAULT: "NEWLINE _ELSE &:BLOCK"
+              i   DEFAULT: "_NEWLINE _ELSE BLOCK"
             ]
             # optimization
             o OP_OPTIMIZATION: "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
             o OP00: [
               i OP00_OP: " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
-              o "left:(OP00|OP10) _ op:OP00_OP SOFTLINE? right:OP10", Operation
+              o "left:(OP00|OP10) _ op:OP00_OP _SOFTLINE? right:OP10", Operation
               o OP10: [
                 i OP10_OP: "not:_NOT? op:(_IN|_INSTANCEOF)"
-                o "left:(OP10|OP20) _ @:OP10_OP SOFTLINE? right:OP20", Operation
+                o "left:(OP10|OP20) _ @:OP10_OP _SOFTLINE? right:OP20", Operation
                 o OP20: [
                   i OP20_OP: " '+' | '-' | _OR | '?' "
-                  o "left:(OP20|OP30) _ op:OP20_OP SOFTLINE? right:OP30", Operation
+                  o "left:(OP20|OP30) _ op:OP20_OP _SOFTLINE? right:OP30", Operation
                   o OP30: [
                     i OP30_OP: " '*' | '/' | '%' | '&' | '&&' | _AND "
-                    o "left:(OP30|OP40) _ op:OP30_OP SOFTLINE? right:OP40", Operation
+                    o "left:(OP30|OP40) _ op:OP30_OP _SOFTLINE? right:OP40", Operation
                     o OP40: [
                       i OP40_OP: " _NOT | '!' | '~' "
                       o "_ op:OP40_OP right:OP50", Operation
@@ -241,27 +239,30 @@ GRAMMAR = Grammar ({o, i, t}) -> [
                             o INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
                             o INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
                             o INVOC_EXPL:       o "func:(ASSIGNABLE|_TYPEOF) '(' params:(&:EXPR splat:'...'?)*_COMMA{0,} _ ')'", Invocation
-                            o SOAK:             o "&:ASSIGNABLE '?'", Soak
+                            o SOAK:             o "ASSIGNABLE '?'", Soak
                             # rest
-                            o RANGE:            o "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY &:EXPR)?", Range
-                            o ARRAY:            o "_ '[' ___ &:EXPR*(_COMMA|SOFTLINE) ___ ']'", Arr
+                            o RANGE:            o "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY EXPR)?", Range
+                            o ARRAY:            o "_ '[' ___ EXPR*(_COMMA|_SOFTLINE) ___ ']'", Arr
                             o OBJ_EXPL: [
-                              o "_ '{' &:ITEM_EXPL*_COMMA _ '}'", Obj
-                              i ITEM_EXPL: o "this:_THISAT? key:(SYMBOL|STRING) value:(_COLON &:EXPR)?", Item
+                              o "_ '{' OBJ_EXPL_ITEM*_COMMA _ '}'", Obj
+                              i OBJ_EXPL_ITEM: [
+                                o "PROPERTY", (p) -> Item key:p.attr value:p
+                                o "key:(WORD|STRING) value:(_ ':' EXPR)?", Item
+                              ]
                             ]
-                            o PAREN:            o "_ '(' &:POSTFOR _ ')'"
-                            o PROPERTY:         o "obj:THIS attr:SYMBOL", Index
-                            o THIS:             o "_THISAT", This
-                            o REGEX:            o "_ FSLASH &:(!FSLASH (ESC2 | .))* FSLASH <words:1> flags:/[a-zA-Z]*/", Str
+                            o PAREN:            o "_ '(' POSTFOR _ ')'"
+                            o PROPERTY:         o "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
+                            o THIS:             o "_ '@'", This
+                            o REGEX:            o "_ _FSLASH &:(!_FSLASH (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
                             o STRING: [
-                              o "_ QUOTE  &:(!QUOTE  (ESC2 | .))* QUOTE",  Str
-                              o "_ DQUOTE &:(!DQUOTE (ESC2 | ESCSTR | .))* DQUOTE", Str
-                              o "_ TQUOTE &:(!TQUOTE (ESC2 | ESCSTR | .))* TQUOTE", Str
-                              i ESCSTR: "'\#{' BLANKLINE* RESETINDENT &:EXPR ___ '}'"
+                              o "_ _QUOTE  (!_QUOTE  (ESC2 | .))* _QUOTE",  Str
+                              o "_ _DQUOTE (!_DQUOTE (ESC2 | ESCSTR | .))* _DQUOTE", Str
+                              o "_ _TQUOTE (!_TQUOTE (ESC2 | ESCSTR | .))* _TQUOTE", Str
+                              i ESCSTR: "'\#{' _BLANKLINE* _RESETINDENT EXPR ___ '}'"
                             ]
                             o BOOLEAN:          o "_TRUE | _FALSE", (it) -> it is 'true'
-                            o NUMBER:           o "_ <words:1> &:/-?[0-9]+(\\.[0-9]+)?/", Number
-                            o SYMBOL:           o "_ !_KEYWORD <words:1> &:/[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Symbol
+                            o NUMBER:           o "_ <words:1> /-?[0-9]+(\\.[0-9]+)?/", Number
+                            o SYMBOL:           o "_ !_KEYWORD WORD"
                           ] # end ASSIGNABLE
                         ] # end OPATOM
                       ] # end OP50
@@ -277,43 +278,42 @@ GRAMMAR = Grammar ({o, i, t}) -> [
 
     # BLOCKS:
     BLOCK: [
-      o "INDENT &:LINES", Block
-      o "_THEN? &:LINE*(_ ';'){1,}", Block
+      o "_INDENT LINES", Block
+      o "_THEN? LINE*(_ ';'){1,}", Block
     ]
-    BLOCKEXPR:  o "INDENT? &:EXPR"
-    INDENT:     o "BLANKLINE*{1,} &:_", checkIndent
-    NEWLINE: o [
-      o "BLANKLINE*{1,} &:_", checkNewline
+    BLOCKEXPR:  o "_INDENT? EXPR"
+    _INDENT: o "_BLANKLINE*{1,} &:_", checkIndent
+    _NEWLINE: o [
+      o "_BLANKLINE*{1,} &:_", checkNewline
       o "_ ';'"
       # HACK to make the NEWLINE rank always return something, so we can set @storeCache=no
       # TODO make this process more sane
       o "''", -> 'dummy'
     ], (result) -> @storeCache = no; return null if result is 'dummy'; result
-    SOFTLINE:   o "BLANKLINE*{1,} &:_", checkSoftline
-    RESETINDENT:o "BLANKLINE*     &:_", resetIndent
+    _SOFTLINE: o "_BLANKLINE*{1,} &:_", checkSoftline
+    _RESETINDENT: o "_BLANKLINE*     &:_", resetIndent
 
     # TOKENS:
     _KEYWORD:  t 'if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
                  'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                  'not', 'and', 'or', 'instanceof', 'typeof'
-    _COMMA:    o "TERM? _ ',' TERM?"
-    _COLON:    o "_ ':'"
-    _THISAT:   o "_ '@'"
-    QUOTE:     o "'\\''"
-    DQUOTE:    o "'\"'"
-    TQUOTE:    o "'\"\"\"'"
-    FSLASH:    o "'/'"
-    SLASH:     o "'\\\\'"
+    _COMMA:    o "_TERM? _ ',' _TERM?"
+    _QUOTE:    o "'\\''"
+    _DQUOTE:   o "'\"'"
+    _TQUOTE:   o "'\"\"\"'"
+    _FSLASH:   o "'/'"
+    _SLASH:    o "'\\\\'"
     '.':       o "<chars:1> /[\\s\\S]/"
-    ESC2:      o "SLASH &:.", (chr) -> '\\'+chr
+    ESC2:      o "_SLASH .", (chr) -> '\\'+chr
+    WORD:      o "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
 
     # WHITESPACES:
     _:         o "<words:1> /[ ]*/"
     __:        o "<words:1> /[ ]+/"
-    TERM:      o "_ &:('\r\n'|'\n')"
-    COMMENT:   o "_ !HEREDOC '#' (!TERM .)*"
-    BLANKLINE: o "_ COMMENT? TERM"
-    ___:       o "BLANKLINE* _"
+    _TERM:     o "_ ('\r\n'|'\n')"
+    _COMMENT:  o "_ !HEREDOC '#' (!_TERM .)*"
+    _BLANKLINE:o "_ _COMMENT? _TERM"
+    ___:       o "_BLANKLINE* _"
 ]
 # ENDGRAMMAR
 
@@ -468,9 +468,8 @@ test """
   o
 ]""", '[o,o]'
 
-
 console.log "TESTING FILES:"
-for filename in ['codestream.coffee', 'joeson.coffee']
+for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee']
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
   try
