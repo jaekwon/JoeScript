@@ -15,11 +15,11 @@ Block = clazz 'Block', Node, ->
   toStringWithIndent: ->
     '\n  '+((''+line).replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
 If = clazz 'If', Node, ->
-  init: ({@cond, @block, @elseBlock}) ->
+  init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
   toString: ->
-    if @elseBlock?
-      "if(#{@cond}){#{@block}}else{#{@elseBlock}}"
+    if @else?
+      "if(#{@cond}){#{@block}}else{#{@else}}"
     else
       "if(#{@cond}){#{@block}}"
 For = clazz 'For', Node, ->
@@ -31,6 +31,11 @@ While = clazz 'While', Node, ->
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
+Try = clazz 'Try', Node, ->
+  init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
+  toString: -> "try{#{@block}}#{
+                @doCatch and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
+                @finally and "finally{#{@finally}}" or ''}"
 Case = clazz 'Case', Node, ->
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
@@ -201,13 +206,16 @@ GRAMMAR = Grammar ({o, i, t}) -> [
               o ASSIGN:     "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
             ]
             o COMPLEX: [
-              o IF:      "_IF cond:EXPR block:BLOCK elseBlock:(_NEWLINE? _ELSE BLOCK)?", If
+              o IF:      "_IF cond:EXPR block:BLOCK else:(_NEWLINE? _ELSE BLOCK)?", If
               o FOR:     "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
               o LOOP:    "_LOOP block:BLOCK", While
               o WHILE:   "_WHILE cond:EXPR block:BLOCK", While
               o SWITCH:  "_SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT?", Switch
               i   CASE: o "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
               i   DEFAULT: "_NEWLINE _ELSE BLOCK"
+              o TRY:     "_TRY block:BLOCK
+                          (_NEWLINE? doCatch:_CATCH catchVar:EXPR? catchBlock:BLOCK?)?
+                          (_NEWLINE? _FINALLY finally:BLOCK)?", Try
             ]
             # optimization
             o OP_OPTIMIZATION: "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
@@ -236,8 +244,8 @@ GRAMMAR = Grammar ({o, i, t}) -> [
                             # left recursive
                             o RANGED_OBJ:       o "obj:ASSIGNABLE !__ &:RANGE"
                             o INDEX_BR:         o "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
-                            o INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:SYMBOL", Index
-                            o INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:SYMBOL?", Index
+                            o INDEX_DT:         o "obj:ASSIGNABLE type:'.'  attr:WORD", Index
+                            o INDEX_PR:         o "obj:ASSIGNABLE type:'::' attr:WORD?", Index
                             o INVOC_EXPL:       o "func:(ASSIGNABLE|_TYPEOF) '(' params:(&:EXPR splat:'...'?)*_COMMA{0,} _ ')'", Invocation
                             o SOAK:             o "ASSIGNABLE '?'", Soak
                             # rest
@@ -281,22 +289,22 @@ GRAMMAR = Grammar ({o, i, t}) -> [
       o "_INDENT LINES", Block
       o "_THEN? LINE*(_ ';'){1,}", Block
     ]
-    BLOCKEXPR:  o "_INDENT? EXPR"
-    _INDENT: o "_BLANKLINE*{1,} &:_", checkIndent
+    BLOCKEXPR:    o "_INDENT? EXPR"
+    _INDENT:      o "_BLANKLINE*{1,} &:_", checkIndent
     _NEWLINE: o [
-      o "_BLANKLINE*{1,} &:_", checkNewline
-      o "_ ';'"
-      # HACK to make the NEWLINE rank always return something, so we can set @storeCache=no
-      # TODO make this process more sane
-      o "''", -> 'dummy'
+                  o "_BLANKLINE*{1,} &:_", checkNewline
+                  o "_ ';'"
+                  # HACK to make the NEWLINE rank always return something, so we can set @storeCache=no
+                  # TODO make this process more sane
+                  o "''", -> 'dummy'
     ], (result) -> @storeCache = no; return null if result is 'dummy'; result
-    _SOFTLINE: o "_BLANKLINE*{1,} &:_", checkSoftline
-    _RESETINDENT: o "_BLANKLINE*     &:_", resetIndent
+    _SOFTLINE:    o "_BLANKLINE*{1,} &:_", checkSoftline
+    _RESETINDENT: o "_BLANKLINE* &:_", resetIndent
 
     # TOKENS:
     _KEYWORD:  t 'if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
                  'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
-                 'not', 'and', 'or', 'instanceof', 'typeof'
+                 'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally'
     _COMMA:    o "_TERM? _ ',' _TERM?"
     _QUOTE:    o "'\\''"
     _DQUOTE:   o "'\"'"
@@ -467,6 +475,12 @@ test """
   o
   o
 ]""", '[o,o]'
+test """
+try
+  foo bar
+catch
+  # pass
+""", 'try{foo(bar)}catch(){}'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee']
