@@ -47,7 +47,7 @@ Statement = clazz 'Statement', Node, ->
   toString: -> "#{@type}(#{@expr ? ''});"
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
-  toString: -> "#{@func}(#{@params.map((p)->if p.splat then p+'...' else p)})"
+  toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
   toString: -> "#{@target}#{@type}(#{@value})"
@@ -78,11 +78,8 @@ This = clazz 'This', Node, ->
 Arr = clazz 'Arr', Obj, ->
   toString: -> "[#{@items.join ','}]"
 Item = clazz 'Item', Node, ->
-  init: ({@this, @key, @value, @default, @splat}) ->
-  toString: -> (if @this     then '@'              else '')+@key+
-               (if @value?   then ":(#{@value})"   else '')+
-               (if @default? then "=(#{@default})" else '')+
-               (if @splat    then "..."            else '')
+  init: ({@key, @value}) ->
+  toString: -> @key+(if @value?   then ":(#{@value})"   else '')
 Str = clazz 'Str', Node, ->
   init: (@parts) ->
   toString: ->
@@ -94,7 +91,9 @@ Str = clazz 'Str', Node, ->
     '"' + parts.join('') + '"'
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
-  toString: -> "(#{if @params then @params.join ',' else ''})#{@type}{#{@block}}"
+  toString: -> "(#{if @params then @params.map(
+      (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
+    ).join ',' else ''})#{@type}{#{@block}}"
 Range = clazz 'Range', Node, ->
   init: ({@obj, @start, @type, @end, @by}) ->
     @by ?= 1
@@ -186,15 +185,11 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
         o EXPR: [
           o FUNC: [
             o                     "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-            i PARAMS:             "_ '(' PARAM*_COMMA _ ')'"
-            i PARAM:              "&:PARAM_KEY splat:'...'
-                                 | &:(PARAM_KEY|PARAM_CONTAINER) (_ '=' default:EXPR)?"
-            i PARAM_KEY:          "_ this:'@' key:(WORD|STRING) | key:SYMBOL", Item
-            i PARAM_CONTAINER:    "PARAM_OBJ | PARAM_ARRAY"
-            i PARAM_OBJ:          "_ '{' PARAM_OBJ_ITEM*_COMMA _ '}'", Obj
-            i PARAM_OBJ_ITEM:     "&:PARAM_KEY @:(_ ':' value:PARAM_CONTAINER | _ '=' default:EXPR)?"
-            i PARAM_ARRAY:        "_ '[' PARAM_ARRAY_ITEM*_COMMA _ ']'", Arr
-            i PARAM_ARRAY_ITEM:   "&:PARAM_KEY @:(_ '=' default:EXPR)?"
+            i PARAMS:             "_ '(' (&:PARAM default:(_ '=' EXPR)?)*_COMMA _ ')'"
+            i PARAM:              "&:SYMBOL splat:'...'?
+                                 | &:PROPERTY splat:'...'?
+                                 | OBJ_EXPL
+                                 | ARRAY"
           ]
           o RIGHT_RECURSIVE: [
             o INVOC_IMPL:         "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)*_COMMA{1,}", Invocation
@@ -253,17 +248,14 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
     o INDEX0:       "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
     o INDEX1:       "obj:ASSIGNABLE type:'.'  attr:WORD", Index
     o PROTO:        "obj:ASSIGNABLE type:'::' attr:WORD?", Index
-    o INVOC:        "func:(ASSIGNABLE|_TYPEOF) '(' params:(&:EXPR splat:'...'?)*_COMMA{0,} _ ')'", Invocation
+    o INVOC_EXPL:   "func:(ASSIGNABLE|_TYPEOF) '(' ___ params:(&:EXPR splat:'...'?)*_COMMA ___ ')'", Invocation
     o SOAK:         "ASSIGNABLE '?'", Soak
     # rest
     o RANGE:        "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY EXPR)?", Range
-    o ARRAY:        "_ '[' ___ EXPR*(_COMMA|_SOFTLINE) ___ ']'", Arr
+    o ARRAY:        "_ '[' ___ (&:EXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
     o OBJ_EXPL: [
       o             "_ '{' OBJ_EXPL_ITEM*_COMMA _ '}'", Obj
-      i OBJ_EXPL_ITEM: [
-        o           "PROPERTY", (p) -> Item key:p.attr value:p
-        o           "key:(WORD|STRING) value:(_ ':' EXPR)?", Item
-      ]
+      i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' EXPR)?", Item
     ]
     o PARENT:       "_ '(' POSTFOR _ ')'"
     o PROPERTY:     "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
@@ -298,7 +290,7 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
   i _KEYWORD:       tokens 'if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
                       'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                       'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally'
-  i _COMMA:         "_TERM? _ ',' _TERM?"
+  i _COMMA:         "___ ',' ___"
   i _QUOTE:         "'\\''"
   i _DQUOTE:        "'\"'"
   i _TQUOTE:        "'\"\"\"'"
@@ -398,7 +390,7 @@ test  "foo.replace(bar).replace(baz)", "((foo).replace(bar)).replace(baz)"
 test  "foo.replace(/\\/g, 'bar')", "(foo).replace(\"\\\\\",\"bar\")"
 test  "a = () ->", "a=(()->{undefined})"
 test  "a = (foo) -> foo", "a=((foo)->{foo})"
-test  "a = (foo = 2) -> foo", "a=((foo=(2))->{foo})"
+test  "a = (foo = 2) -> foo", "a=((foo=2)->{foo})"
 test  "a = ({foo,bar}) -> foo", "a=(({foo,bar})->{foo})"
 test  "a += 2", "a+=(2)"
 test  "a = [0..2]", "a=(Range(start:0,end:2,type:'..', by:1))"
@@ -474,6 +466,11 @@ try
 catch
   # pass
 """, 'try{foo(bar)}catch(){}'
+test """
+function(
+  # comment
+)
+""", 'function()'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee']
