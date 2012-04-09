@@ -31,6 +31,7 @@ RAW_GRAMMAR = [
             o "DECORATED": [
               o "PRIMARY '?'", Exists
               o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
+              o "value:PRIMARY '+' join:(!__ PRIMARY)?", ({value,join}) -> Pattern value:value, join:join, min:1
               o "value:PRIMARY @:RANGE", Pattern
               o "'!' PRIMARY", Not
               i "RANGE": "'{' _ min:INT? _ ',' _ max:INT? _ '}'"

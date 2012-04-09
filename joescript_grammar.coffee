@@ -192,9 +192,9 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
                                  | ARRAY"
           ]
           o RIGHT_RECURSIVE: [
-            o INVOC_IMPL:         "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)*_COMMA{1,}", Invocation
-            o OBJ_IMPL:           "_INDENT? OBJ_IMPL_ITEM*(_COMMA | _NEWLINE){1,}
-                                   | OBJ_IMPL_ITEM*_COMMA{1,}", Obj
+            o INVOC_IMPL:         "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)+_COMMA", Invocation
+            o OBJ_IMPL:           "_INDENT? OBJ_IMPL_ITEM+(_COMMA | _NEWLINE)
+                                   | OBJ_IMPL_ITEM+_COMMA", Obj
             o OBJ_IMPL_ITEM:      "key:(WORD|STRING) _ ':' value:EXPR", Item
             o ASSIGN:             "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
           ]
@@ -204,7 +204,7 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
             o LOOP:               "_LOOP block:BLOCK", While
             o WHILE:              "_WHILE cond:EXPR block:BLOCK", While
             o SWITCH:             "_SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT?", Switch
-            i CASE:               "_WHEN matches:EXPR*_COMMA{1,} block:BLOCK", Case
+            i CASE:               "_WHEN matches:EXPR+_COMMA block:BLOCK", Case
             i DEFAULT:            "_NEWLINE _ELSE BLOCK"
             o TRY:                "_TRY block:BLOCK
                                    (_NEWLINE? doCatch:_CATCH catchVar:EXPR? catchBlock:BLOCK?)?
@@ -275,15 +275,15 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
   # BLOCKS:
   i BLOCK: [
     o               "_INDENT LINES", Block
-    o               "_THEN? LINE*(_ ';'){1,}", Block
+    o               "_THEN? LINE+(_ ';')", Block
   ]
   i BLOCKEXPR:      "_INDENT? EXPR"
-  i _INDENT:        "_BLANKLINE*{1,} &:_", checkIndent
+  i _INDENT:        "_BLANKLINE+ &:_", checkIndent
   i _NEWLINE: [
-    o               "_BLANKLINE*{1,} &:_", checkNewline
+    o               "_BLANKLINE+ &:_", checkNewline
     o               "_ ';'"
   ], {disableCache: yes}
-  i _SOFTLINE:      "_BLANKLINE*{1,} &:_", checkSoftline
+  i _SOFTLINE:      "_BLANKLINE+ &:_", checkSoftline
   i _RESETINDENT:   "_BLANKLINE* &:_", resetIndent
 
   # TOKENS:

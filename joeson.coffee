@@ -596,6 +596,7 @@ St = -> Str arguments...
             o "DECORATED": [
               o S(R("PRIMARY"), St('?')), Exists
               o S(L("value",R("PRIMARY")), St('*'), L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
+              o S(L("value",R("PRIMARY")), St('+'), L("join",E(S(N(R("__")), R("PRIMARY"))))), ({value,join}) -> Pattern value:value, join:join, min:1
               o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern
               o S(St('!'), R("PRIMARY")), Not
               i "RANGE": o S(St('{'), R("_"), L("min",E(R("INT"))), R("_"), St(','), R("_"), L("max",E(R("INT"))), R("_"), St('}'))
