@@ -18,10 +18,10 @@ debugLoopify = debugCache = no
 @Context = Context = clazz 'Context', ->
 
   init: (@code, @grammar, @debug=false) ->
-    @stack = []         # [ {name,pos}... ]
-    @cache = {}         # { "#{rulename}@#{pos}":{result,endPos}... }
-    @cacheStores = []   # [ "#{rulename}@#{pos}"... ]
-    @recurse = {}       # { "#{rulename}@#{pos}":{stage,base,endPos}... }
+    @stack = []         # [ {name,pos,...}... ]
+    @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
+    @cacheStores = []   # [ {name,pos}... ]
+    @recurse = {}       # { pos:{ "#{name}":{stage,base,endPos}... } }
     @storeCache = yes   # rule callbacks can override this
     @_ctr = 0
 
@@ -40,30 +40,34 @@ debugLoopify = debugCache = no
         console.log "#{@_ctr}\t#{cyan Array(@stack.length-1).join '|'}#{message}"
 
   cacheSet: (key, value) ->
-    if not @cache[key]?
-      @cache[key] = value
+    if not @cache[key.pos]?[key.name]?
+      (@cache[key.pos]||={})[key.name] = value
       @cacheStores.push key
     else
-      throw new Error "Cache store error @ $.cache[\"#{key}\"]: existing entry"
+      throw new Error "Cache store error @ $.cache[#{key}]: existing entry"
 
-  cacheMask: (pos, stopKey) ->
+  cacheMask: (pos, stopName) ->
     stash = []
-    cachePosSuffix = "@#{pos}"
     for i in [@cacheStores.length-1..0] by -1
       cacheKey = @cacheStores[i]
-      continue if cacheKey[cacheKey.length-cachePosSuffix.length..] isnt cachePosSuffix
-      cacheValue = @cache[cacheKey]
-      delete @cache[cacheKey]
+      continue if cacheKey.pos isnt pos
+      cacheValue = @cache[cacheKey.pos][cacheKey.name]
+      delete @cache[cacheKey.pos][cacheKey.name]
       stash.push {cacheKey, cacheValue}
-      break if cacheKey is stopKey
+      break if cacheKey.name is stopName
     stash
 
-  # key := "#{rulename}@#{pos}"
+  # key: {name,pos}
   cacheDelete: (key) ->
-    assert.ok @cache[key]?, "Cannot delete missing cache item at key #{key}"
-    cacheStoresIdx = @cacheStores.indexOf key
+    assert.ok @cache[key.pos]?[key.name]?, "Cannot delete missing cache item at key #{key}"
+    cacheStoresIdx = undefined
+    for i in [@cacheStores.length-1..0] by -1
+      cKey = @cacheStores[i]
+      if cKey.pos is key.pos and cKey.name is key.name
+        cacheStoresIdx = i
+        break
     assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{key}"
-    delete @cache[key]
+    delete @cache[key.pos][key.name]
     @cacheStores.splice cacheStoresIdx, 1
 
 ###
@@ -96,20 +100,19 @@ debugLoopify = debugCache = no
 
   @$cache = (fn) -> ($) ->
     if this isnt @rule or @skipCache then return fn.call this, $
-    pos = $.code.pos
-    cacheKey = "#{@name}@#{pos}"
-    if (cached=$.cache[cacheKey])?
-      $.log "[C] Cache hit @ $.cache[\"#{cacheKey}\"]: #{escape cached.result}" if debugCache
+    key = name:@name, pos:$.code.pos
+    if (cached=$.cache[key.pos]?[key.name])?
+      $.log "[C] Cache hit @ $.cache[#{key}]: #{escape cached.result}" if debugCache
       $.code.pos = cached.endPos
       return cached.result
     # $.storeCache = yes
     result = fn.call this, $
     if $.storeCache
-      if not $.cache[cacheKey]?
-        $.log "[C] Cache store @ $.cache[\"#{cacheKey}\"]: #{escape result}" if debugCache
-        $.cacheSet cacheKey, result:result, endPos:$.code.pos
+      if not $.cache[key.pos]?[key.name]?
+        $.log "[C] Cache store @ $.cache[#{key}]: #{escape result}" if debugCache
+        $.cacheSet key, result:result, endPos:$.code.pos
       else
-        throw new Error "Cache store error @ $.cache[\"#{cacheKey}\"]: existing entry"
+        throw new Error "Cache store error @ $.cache[#{key}]: existing entry"
     else
       # reset
       $.storeCache = yes
@@ -118,9 +121,8 @@ debugLoopify = debugCache = no
 
   @$loopify = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
-
-    key = "#{@name}@#{$.code.pos}"
-    item = $.recurse[key] ||= stage:0
+    key = name:@name, pos:$.code.pos
+    item = ($.recurse[key.pos]||={})[key.name] ||= stage:0
 
     switch item.stage
       when 0 # non-recursive (so far)
@@ -131,13 +133,13 @@ debugLoopify = debugCache = no
         #try
         switch item.stage
           when 1 # non-recursive (done)
-            delete $.recurse[key]
+            delete $.recurse[key.pos][key.name]
             return result
           when 2 # recursion detected
             if result is null
               $.log "[L] returning #{escape result} (no result)" if debugLoopify
               $.cacheDelete key
-              delete $.recurse[key]
+              delete $.recurse[key.pos][key.name]
               return result
             else
               $.log "[L] --- loop start --- (#{key}) (initial result was #{escape result})" if debugLoopify
@@ -146,7 +148,7 @@ debugLoopify = debugCache = no
                 $.log "[L] --- loop iteration --- (#{key})" if debugLoopify
 
                 # Step 1: reset the cache state
-                bestCacheStash = $.cacheMask startPos, key
+                bestCacheStash = $.cacheMask startPos, @name
                 # Step 2: set the cache to the last good result
                 bestResult = item.base = result
                 bestPos = item.endPos = $.code.pos
@@ -161,22 +163,22 @@ debugLoopify = debugCache = no
 
               # Tidy up state to best match
               # Step 1: reset the cache state again
-              $.cacheMask startPos, key
+              $.cacheMask startPos, @name
               # Step 2: revert to best cache stash
               while bestCacheStash.length > 0
                 {cacheKey,cacheValue} = bestCacheStash.pop()
-                $.cacheSet cacheKey, cacheValue if cacheKey isnt key
-              assert.ok $.cache[key] is undefined, "Cache value for self should have been cleared"
+                $.cacheSet cacheKey, cacheValue if not (cacheKey.name is key.name and cacheKey.pos is key.pos)
+              assert.ok $.cache[key.pos]?[key.name] is undefined, "Cache value for self should have been cleared"
               # Step 3: set best code pos
               $.code.pos = bestPos
               $.log "[L] --- loop done --- (final result: #{escape bestResult})" if debugLoopify
               # Step 4: return best result, which will get cached
-              delete $.recurse[key]
+              delete $.recurse[key.pos][key.name]
               return bestResult
           else
             throw new Error "Unexpected stage #{item.stage}"
         #finally
-        #  delete $.recurse[key]
+        #  delete $.recurse[key.pos][key.name]
       when 1,2 # recursion detected
         item.stage = 2
         $.log "[L] recursion detected! (#{key})" if debugLoopify
@@ -425,13 +427,14 @@ debugLoopify = debugCache = no
   toString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', Node, ->
-  init: (@key) ->
-    @capture = no if @key[0] is '_'
+  # note: @ref because @name is reserved.
+  init: (@ref) ->
+    @capture = no if @ref[0] is '_'
   parse$: @$wrap ($) ->
-    node = $.grammar.rules[@key]
-    throw Error "Unknown reference #{@key}" if not node?
+    node = $.grammar.rules[@ref]
+    throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
-  toString: -> red(@key)
+  toString: -> red(@ref)
 
 @Str = Str = clazz 'Str', Node, ->
   capture: no
