@@ -47,19 +47,15 @@ RAW_GRAMMAR = [
       ]
     ]
   ]
-  i
-    # tokens
-    LABEL:              o "'&' | '@' | WORD"
-    WORD:               o "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
-    INT:                o "<words:1> /[0-9]+/", Number
-    _PIPE:              o "_ '|'"
-    # whitespaces
-    _:                  o "<words:1> /[ \\n]*/"
-    __:                 o "<words:1> /[ \\n]+/"
-    # other
-    '.':                o "<chars:1> /[\\s\\S]/"
-    ESC1:               o "'\\\\' &:."
-    ESC2:               o "'\\\\' &:.", (chr) -> '\\'+chr
+  i LABEL:      "'&' | '@' | WORD"
+  i WORD:       "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
+  i INT:        "<words:1> /[0-9]+/", Number
+  i _PIPE:      "_ '|'"
+  i _:          "<words:1> /[ \\n]*/"
+  i __:         "<words:1> /[ \\n]+/"
+  i '.':        "<chars:1> /[\\s\\S]/"
+  i ESC1:       "'\\\\' &:."
+  i ESC2:       "'\\\\' &:.", (chr) -> '\\'+chr
 ]
 
 PARSED_GRAMMAR = Grammar RAW_GRAMMAR

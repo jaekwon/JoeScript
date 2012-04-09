@@ -282,7 +282,7 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
   i _NEWLINE: [
     o               "_BLANKLINE+ &:_", checkNewline
     o               "_ ';'"
-  ], {disableCache: yes}
+  ], {skipCache: yes}
   i _SOFTLINE:      "_BLANKLINE+ &:_", checkSoftline
   i _RESETINDENT:   "_BLANKLINE* &:_", resetIndent
 
@@ -296,17 +296,17 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
   i _TQUOTE:        "'\"\"\"'"
   i _FSLASH:        "'/'"
   i _SLASH:         "'\\\\'"
-  i '.':            "<chars:1> /[\\s\\S]/"
-  i ESC2:           "_SLASH .", (chr) -> '\\'+chr
+  i '.':            "<chars:1> /[\\s\\S]/", {skipLog:yes}
+  i ESC2:           "_SLASH .", ((chr) -> '\\'+chr), {skipLog:yes}
   i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
 
   # WHITESPACES:
-  i _:              "<words:1> /[ ]*/"
-  i __:             "<words:1> /[ ]+/"
-  i _TERM:          "_ ('\r\n'|'\n')"
-  i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*"
-  i _BLANKLINE:     "_ _COMMENT? _TERM"
-  i ___:            "_BLANKLINE* _"
+  i _:              "<words:1> /[ ]*/", {skipLog:yes}
+  i __:             "<words:1> /[ ]+/", {skipLog:yes}
+  i _TERM:          "_ ('\r\n'|'\n')",  {skipLog:yes}
+  i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*", {skipLog:yes}
+  i _BLANKLINE:     "_ _COMMENT? _TERM", {skipLog:yes}
+  i ___:            "_BLANKLINE* _", {skipLog:yes}
 ]
 # ENDGRAMMAR
 

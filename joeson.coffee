@@ -58,7 +58,8 @@ debugLoopify = debugCache = no
       break if cacheKey is stopKey
     stash
 
-  cacheDelete: (key) -> # key := "#{rulename}@#{pos}"
+  # key := "#{rulename}@#{pos}"
+  cacheDelete: (key) ->
     assert.ok @cache[key]?, "Cannot delete missing cache item at key #{key}"
     cacheStoresIdx = @cacheStores.indexOf key
     assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{key}"
@@ -84,7 +85,7 @@ debugLoopify = debugCache = no
     return result
 
   @$debug = (fn) -> ($) ->
-    if not $.debug or this isnt @rule then return fn.call this, $
+    if not $.debug or @skipLog or this isnt @rule then return fn.call this, $
     #rule = $.grammar.rules[@name]
     bufferStr = escape $.code.peek chars:20
     bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
@@ -94,7 +95,7 @@ debugLoopify = debugCache = no
     return result
 
   @$cache = (fn) -> ($) ->
-    if this isnt @rule or @disableCache then return fn.call this, $
+    if this isnt @rule or @skipCache then return fn.call this, $
     pos = $.code.pos
     cacheKey = "#{@name}@#{pos}"
     if (cached=$.cache[cacheKey])?
@@ -262,7 +263,6 @@ debugLoopify = debugCache = no
     rank
 
   init: (@name, @choices=[], includes={}) ->
-    assert.ok @name, "Ranks should have a name, or be assigned one automatically"
     @rules = {}
     @children = []
     for choice, i in @choices
@@ -505,7 +505,7 @@ Line = clazz 'Line', ->
     rule.name = name
     _.extend rule, options if options?
     rule
-  # returns {rule:rule, options:{cb,disableCache,...}}
+  # returns {rule:rule, options:{cb,skipCache,skipLog,...}}
   getArgs: ->
     [rule, rest...] = @args
     result = rule:rule
@@ -554,16 +554,15 @@ OLine = clazz 'OLine', Line, ->
   # Helper for declaring tokens
   tokens: (tokens...) ->
     cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-    rank = Rank "__tokens_temp__"
+    rank = Rank()
     for token in tokens
       name = '_'+token.toUpperCase()
       rule = GRAMMAR.parse "_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/"
+      rule.skipLog = yes
+      rule.skipCache = yes
       rule.cb = cb if cb?
       rank.choices.push rule
       rank.include name, rule
-    delete rank.name
-    # TODO make sure caching is working correctly
-    # TODO try to prune debug lines
     OLine rank
 
 C  = -> Choice (x for x in arguments)
@@ -612,18 +611,14 @@ St = -> Str arguments...
       ]
     ]
   ]
-  i
-    # tokens
-    LABEL:              o C(St('&'), St('@'), R("WORD"))
-    WORD:               o S(La(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
-    INT:                o S(La(words:1), Re("[0-9]+")), Number
-    _PIPE:              o S(R("_"), St('|'))
-    # whitespaces
-    _:                  o S(La(words:1), Re("[ \\n]*"))
-    __:                 o S(La(words:1), Re("[ \\n]+"))
-    # other
-    '.':                o S(La(chars:1), Re("[\\s\\S]"))
-    ESC1:               o S(St('\\'), R("."))
-    ESC2:               o S(St('\\'), R(".")), (chr) -> '\\'+chr
+  i LABEL:    C(St('&'), St('@'), R("WORD"))
+  i WORD:     S(La(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
+  i INT:      S(La(words:1), Re("[0-9]+")), Number
+  i _PIPE:    S(R("_"), St('|'))
+  i _:        S(La(words:1), Re("[ \\n]*"))
+  i __:       S(La(words:1), Re("[ \\n]+"))
+  i '.':      S(La(chars:1), Re("[\\s\\S]"))
+  i ESC1:     S(St('\\'), R("."))
+  i ESC2:     S(St('\\'), R(".")), (chr) -> '\\'+chr
 ]
 
