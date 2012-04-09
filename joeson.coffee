@@ -94,7 +94,7 @@ debugLoopify = debugCache = no
     return result
 
   @$cache = (fn) -> ($) ->
-    if this isnt @rule then return fn.call this, $
+    if this isnt @rule or @disableCache then return fn.call this, $
     pos = $.code.pos
     cacheKey = "#{@name}@#{pos}"
     if (cached=$.cache[cacheKey])?
@@ -491,7 +491,8 @@ Line = clazz 'Line', ->
   # name: The final and correct name for this rule
   # rule: A rule-like object
   # parentRule: The actual parent Rule instance
-  getRule: (name, rule, parentRule) ->
+  # options: {cb,...}
+  getRule: (name, rule, parentRule, options) ->
     if typeof rule is 'string'
       rule = GRAMMAR.parse rule
     else if rule instanceof Array
@@ -502,18 +503,31 @@ Line = clazz 'Line', ->
     rule.rule = rule
     assert.ok not rule.name? or rule.name is name
     rule.name = name
+    _.extend rule, options if options?
     rule
+  # returns {rule:rule, options:{cb,disableCache,...}}
+  getArgs: ->
+    [rule, rest...] = @args
+    result = rule:rule
+    for next in rest
+      if next instanceof Function
+        (result.options||={}).cb = next
+      else
+        _.extend result.options||={}, next
+    result
 
 ILine = clazz 'ILine', Line, ->
   toRules: (parentRule) ->
+    {rule, options} = @getArgs()
     rules = {}
-    for own name, rule of @args[0]
-      rules[name] = @getRule name, rule, parentRule
+    # for an ILine, rule is an object of {"NAME":rule}
+    for own name, _rule of rule
+      rules[name] = @getRule name, _rule, parentRule, options
     rules
 
 OLine = clazz 'OLine', Line, ->
   toRule: (parentRule, {index,name}) ->
-    [rule, callback] = @args
+    {rule, options} = @getArgs()
     # figure out the name for this rule
     if not name and
       typeof rule isnt 'string' and
@@ -527,16 +541,18 @@ OLine = clazz 'OLine', Line, ->
       name = parentRule.name + "[#{index}]"
     else if not name?
       throw new Error "Name undefined for 'o' line"
-    rule = @getRule name, rule, parentRule
+    rule = @getRule name, rule, parentRule, options
     rule.parent = parentRule
     rule.index = index
-    rule.cb = callback if callback?
     rule
 
 @MACROS = MACROS =
+  # Any rule node, possibly part of a Rank node
   o: OLine
+  # Include line... Not included in the Rank order
   i: ILine
-  t: (tokens...) ->
+  # Helper for declaring tokens
+  tokens: (tokens...) ->
     cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
     rank = Rank "__tokens_temp__"
     for token in tokens
@@ -560,7 +576,7 @@ R  = -> Ref arguments...
 Re = -> Regex arguments...
 S  = -> Sequence (x for x in arguments)
 St = -> Str arguments...
-{o, i, t}  = MACROS
+{o, i, tokens}  = MACROS
 
 @GRAMMAR = GRAMMAR = Grammar [
   o EXPR: [
