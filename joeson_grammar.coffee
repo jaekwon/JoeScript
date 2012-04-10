@@ -38,9 +38,9 @@ RAW_GRAMMAR = [
             ]
             o "PRIMARY": [
               o "WORD", Ref
-              o "'(' &:EXPR ')'"
-              o "#{QUOTE} &:(!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str it.join ''
-              o "#{FSLSH} &:(!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
+              o "'(' EXPR ')'"
+              o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str it.join ''
+              o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
             ]
           ]
         ]
@@ -54,8 +54,8 @@ RAW_GRAMMAR = [
   i _:          "<words:1> /[ \\n]*/"
   i __:         "<words:1> /[ \\n]+/"
   i '.':        "<chars:1> /[\\s\\S]/"
-  i ESC1:       "'\\\\' &:."
-  i ESC2:       "'\\\\' &:.", (chr) -> '\\'+chr
+  i ESC1:       "'\\\\' ."
+  i ESC2:       "'\\\\' .", (chr) -> '\\'+chr
 ]
 
 PARSED_GRAMMAR = Grammar RAW_GRAMMAR
