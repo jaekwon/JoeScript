@@ -624,4 +624,3 @@ St = -> Str arguments...
   i ESC1:     S(St('\\'), R("."))
   i ESC2:     S(St('\\'), R(".")), (chr) -> '\\'+chr
 ]
-

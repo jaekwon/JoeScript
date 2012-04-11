@@ -1,9 +1,7 @@
-{Grammar} = require './joeson'
-
-GRAMMAR = Grammar ({o, i, tokens}) ->
-  o "__INIT__ LINES __EXIT__ _"
-  i __INIT__:                     "_BLANKLINE*", -> # init code
-  i __EXIT__:                     "_BLANKLINE*", -> # exit code
+GRAMMAR = ->
+  o "__INIT__ LINES __EXIT__"
+  i __INIT__:                     "_BLANKLINE*",   -> # init code
+  i __EXIT__:                     "_BLANKLINE* _", -> # exit code
   i LINES:                        "LINE*_NEWLINE", Block
   i LINE: ->
     o HEREDOC:                    "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
@@ -68,7 +66,7 @@ GRAMMAR = Grammar ({o, i, tokens}) ->
     # rest
     o RANGE:        "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY EXPR)?", Range
     o ARRAY:        "_ '[' ___ (&:EXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
-    o OBJ_EXPL:     "_ '{' OBJ_EXPL_ITEM*_COMMA _ '}'", Obj
+    o OBJ_EXPL:     "_ '{' ___ OBJ_EXPL_ITEM*_COMMA ___ '}'", Obj
     i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' EXPR)?", Item
     o PARENT:       "_ '(' POSTFOR _ ')'"
     o PROPERTY:     "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
