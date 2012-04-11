@@ -185,19 +185,17 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
       o STMT: [
         o                         "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
         o EXPR: [
-          o FUNC: [
-            o                     "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-            i PARAMS:             "_ '(' (&:PARAM default:(_ '=' EXPR)?)*_COMMA _ ')'"
-            i PARAM:              "&:SYMBOL splat:'...'?
-                                 | &:PROPERTY splat:'...'?
-                                 | OBJ_EXPL
-                                 | ARRAY"
-          ]
+          o FUNC:                 "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
+          i PARAMS:               "_ '(' (&:PARAM default:(_ '=' EXPR)?)*_COMMA _ ')'"
+          i PARAM:                "&:SYMBOL splat:'...'?
+                                  |&:PROPERTY splat:'...'?
+                                  |OBJ_EXPL
+                                  |ARR_EXPL"
           o RIGHT_RECURSIVE: [
             o INVOC_IMPL:         "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)+_COMMA", Invocation
-            o OBJ_IMPL:           "_INDENT? OBJ_IMPL_ITEM+(_COMMA | _NEWLINE)
+            o OBJ_IMPL:           "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)
                                    | OBJ_IMPL_ITEM+_COMMA", Obj
-            o OBJ_IMPL_ITEM:      "key:(WORD|STRING) _ ':' value:EXPR", Item
+            i OBJ_IMPL_ITEM:      "key:(WORD|STRING) _ ':' value:EXPR", Item
             o ASSIGN:             "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
           ]
           o COMPLEX: [
@@ -254,7 +252,7 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
     o SOAK:         "ASSIGNABLE '?'", Soak
     # rest
     o RANGE:        "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY EXPR)?", Range
-    o ARRAY:        "_ '[' ___ (&:EXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
+    o ARR_EXPL:     "_ '[' ___ (&:EXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
     o OBJ_EXPL: [
       o             "_ '{' OBJ_EXPL_ITEM*_COMMA _ '}'", Obj
       i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' EXPR)?", Item
@@ -475,7 +473,7 @@ function(
 """, 'function()'
 
 console.log "TESTING FILES:"
-for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee']
+for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
   try

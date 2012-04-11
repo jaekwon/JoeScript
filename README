@@ -5,3 +5,10 @@ after Midnight, it
     contains water
 
 This is a parser, inspired by CoffeeScript and PegJs.
+
+# TODO
+
+1. Make sure the syntax in joescript.joe is parseable by joescript grammar.
+2. Finish translator to translate callback code in joescript.joe into javascript.
+3. Adapt joeson.coffee to work with new grammar structure.
+4. Add AST generation to joeson.coffee to make it a parser generator.
