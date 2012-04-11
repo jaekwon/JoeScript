@@ -51,6 +51,9 @@ Invocation = clazz 'Invocation', Node, ->
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
   toString: -> "#{@target}#{@type}(#{@value})"
+Slice = clazz 'Slice', Node, ->
+  init: ({@obj, @range}) ->
+  toString: -> "#{@obj}[#{@range}]"
 Index = clazz 'Index', Node, ->
   init: ({obj, attr, type}) ->
     type ?= '.'
@@ -95,10 +98,9 @@ Func = clazz 'Func', Node, ->
       (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
     ).join ',' else ''})#{@type}{#{@block}}"
 Range = clazz 'Range', Node, ->
-  init: ({@obj, @start, @type, @end, @by}) ->
+  init: ({@start, @type, @end, @by}) ->
     @by ?= 1
-  toString: -> "Range(#{@obj?   and "obj:#{@obj},"     or ''}"+
-                     "#{@start? and "start:#{@start}," or ''}"+
+  toString: -> "Range(#{@start? and "start:#{@start}," or ''}"+
                      "#{@end?   and "end:#{@end},"     or ''}"+
                      "type:'#{@type}', by:#{@by})"
 Heredoc = clazz 'Heredoc', Node, ->
@@ -244,7 +246,7 @@ GRAMMAR = Grammar ({o, i, tokens}) -> [
 
   o ASSIGNABLE: [
     # left recursive
-    o SLICE:        "obj:ASSIGNABLE !__ &:RANGE"
+    o SLICE:        "obj:ASSIGNABLE !__ range:RANGE", Slice
     o INDEX0:       "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
     o INDEX1:       "obj:ASSIGNABLE type:'.'  attr:WORD", Index
     o PROTO:        "obj:ASSIGNABLE type:'::' attr:WORD?", Index
@@ -395,7 +397,7 @@ test  "a = ({foo,bar}) -> foo", "a=(({foo,bar})->{foo})"
 test  "a += 2", "a+=(2)"
 test  "a = [0..2]", "a=(Range(start:0,end:2,type:'..', by:1))"
 test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type:'..', by:1){(console).log(x)}"
-test  "for x in array[0..10] then console.log x", "for x in Range(obj:array,start:0,end:10,type:'..', by:1){(console).log(x)}"
+test  "for x in array[0..10] then console.log x", "for x in array[Range(start:0,end:10,type:'..', by:1)]{(console).log(x)}"
 test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{(user).name}\")"
 test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{(user).name}\"}\")"
 test  """
