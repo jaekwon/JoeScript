@@ -82,8 +82,8 @@ GRAMMAR = ->
     o SYMBOL:       "_ !_KEYWORD WORD"
 
   ### BLOCKS ###
-  i BLOCK:          "_INDENT LINES
-                   | _THEN? LINE+(_ ';')", Block
+  i BLOCK:          "_INDENT LINE*_NEWLINE
+                   | _THEN?  LINE+(_ ';')", Block
   i BLOCKEXPR:      "_INDENT? EXPR"
   i _INDENT:        "_BLANKLINE+ &:_", checkIndent
   i _NEWLINE: ->
@@ -114,3 +114,6 @@ GRAMMAR = ->
   i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*", skipLog:yes
   i _BLANKLINE:     "_ _COMMENT? _TERM",          skipLog:yes
   i ___:            "_BLANKLINE* _",              skipLog:yes
+
+{Grammar} = require './joeson'
+Grammar.fromJoefile './joescript_grammar.joe'

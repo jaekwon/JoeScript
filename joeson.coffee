@@ -455,9 +455,68 @@ debugLoopify = debugCache = no
 # might come in handy when embedding grammars
 # in some glue language.
 @Grammar = Grammar = clazz 'Grammar', Node, ->
-  init: (rules) ->
-    rules = rules(MACROS) if typeof rules is 'function'
-    @rank = Rank.fromLines "__grammar__", rules
+
+  # Temporary convenience function for loading a Joescript file with
+  # a single GRAMMAR = ... definition, for parser generation.
+  # A proper joescript environment should give access of
+  # block ASTs to the runtime, thereby making this compilation step
+  # unnecessary.
+  @fromJoefile = (filename) ->
+    js = require('./joescript_grammar')
+    chars = require('fs').readFileSync filename, 'utf8'
+    fileAST = js.GRAMMAR.parse chars
+    jsNodes = js.NODES
+    assert.ok fileAST instanceof js.NODES.Block
+
+    # Find GRAMMAR = ...
+    grammarAssign = _.find fileAST.lines, (line) ->
+      line instanceof js.NODES.Assign and
+        ''+line.target is 'GRAMMAR' and
+        line.type is '='
+    grammarAST = grammarAssign.value
+
+    # Compile an AST node
+    # Func Nodes (->) become Arrays
+    #  (unless it's a non-first parameter to an Invocation, a callback function)
+    # Str, Obj, Arr, and Invocations become interpreted directly
+    compileAST = (node) ->
+      switch node.constructor
+        when js.NODES.Func
+          assert.ok node.params is undefined, "Rank function should accept no parameters"
+          assert.ok node.type is '->', "Rank function should be ->, not #{node.type}"
+          return node.block.lines.map( (item)->compileAST item ).filter (x)->x?
+        when js.NODES.Word
+          # words *should* be function references. Pass the AST on.
+          return node
+        when js.NODES.Invocation
+          func = MACROS[''+node.func]
+          assert.ok func?, "Function #{node.func.name} not in MACROS"
+          params = node.params.map (p) ->
+            # Func nodes that are direct invocation parameters do not
+            # get interpreted, they are callback functions
+            # & joeson rules need them as ASTs for parser generation.
+            if p instanceof js.NODES.Func then p else compileAST p
+          return func.apply null, params
+        when js.NODES.Str
+          assert.ok _.all node.parts, (part) -> typeof part is 'string'
+          return node.parts.join ''
+        when js.NODES.Arr
+          return node.items.map (item) -> compileAST item
+        when js.NODES.Obj
+          obj = {}
+          for item in node.items
+            obj[''+item.key] = compileAST item.value
+          return obj
+        when js.NODES.Heredoc
+          return null
+        else
+          throw new Error "Unexpected node type #{node.constructor.name}"
+
+    return Grammar compileAST grammarAST
+
+  init: (rank) ->
+    rank = rank(MACROS) if typeof rank is 'function'
+    @rank = Rank.fromLines "__grammar__", rank if rank instanceof Array
     @rules = {}
 
     # Initial setup
@@ -483,7 +542,7 @@ debugLoopify = debugCache = no
     code = CodeStream code if code not instanceof CodeStream
     $ = Context code, this, debug
     $.result = @rank.parse $
-    throw Error "incomplete parse: [#{$.code.peek chars:50}]" if $.code.pos isnt $.code.text.length
+    throw Error "Incomplete parse: '#{escape $.code.peek chars:50}'" if $.code.pos isnt $.code.text.length
     if returnContext
       return $
     else
@@ -497,7 +556,11 @@ Line = clazz 'Line', ->
   # options: {cb,...}
   getRule: (name, rule, parentRule, options) ->
     if typeof rule is 'string'
-      rule = GRAMMAR.parse rule
+      try
+        rule = GRAMMAR.parse rule
+      catch err
+        GRAMMAR.parse rule, debug:yes
+        throw err
     else if rule instanceof Array
       rule = Rank.fromLines name, rule
     else if rule instanceof OLine
@@ -518,8 +581,11 @@ Line = clazz 'Line', ->
       else
         _.extend result.options||={}, next
     result
+  toString: ->
+    "#{@type} #{@args.join ','}"
 
 ILine = clazz 'ILine', Line, ->
+  type: 'i'
   toRules: (parentRule) ->
     {rule, options} = @getArgs()
     rules = {}
@@ -529,6 +595,7 @@ ILine = clazz 'ILine', Line, ->
     rules
 
 OLine = clazz 'OLine', Line, ->
+  type: 'o'
   toRule: (parentRule, {index,name}) ->
     {rule, options} = @getArgs()
     # figure out the name for this rule
@@ -618,8 +685,8 @@ St = -> Str arguments...
   i WORD:     S(La(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
   i INT:      S(La(words:1), Re("[0-9]+")), Number
   i _PIPE:    S(R("_"), St('|'))
-  i _:        S(La(words:1), Re("[ \\n]*"))
-  i __:       S(La(words:1), Re("[ \\n]+"))
+  i _:        P(C(St(' '), St('\n')))
+  i __:       P(C(St(' '), St('\n')), null, 1)
   i '.':      S(La(chars:1), Re("[\\s\\S]"))
   i ESC1:     S(St('\\'), R("."))
   i ESC2:     S(St('\\'), R(".")), (chr) -> '\\'+chr

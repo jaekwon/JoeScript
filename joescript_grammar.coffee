@@ -280,8 +280,8 @@ resetIndent = (ws) ->
 
   # BLOCKS:
   i BLOCK: [
-    o               "_INDENT LINES", Block
-    o               "_THEN? LINE+(_ ';')", Block
+    o               "_INDENT LINE*_NEWLINE", Block
+    o               "_THEN?  LINE+(_ ';')", Block
   ]
   i BLOCKEXPR:      "_INDENT? EXPR"
   i _INDENT:        "_BLANKLINE+ &:_", checkIndent
