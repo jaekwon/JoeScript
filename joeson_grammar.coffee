@@ -38,7 +38,7 @@ RAW_GRAMMAR = [
             ]
             o "PRIMARY": [
               o "WORD", Ref
-              o "'(' EXPR ')'"
+              o "'(' inlineLabel:(WORD ': ')? &:EXPR ')'"
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str it.join ''
               o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
             ]

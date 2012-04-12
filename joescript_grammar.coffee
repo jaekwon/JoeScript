@@ -268,10 +268,11 @@ resetIndent = (ws) ->
     o THIS:         "_ '@'", This
     o REGEX:        "_ _FSLASH &:(!_FSLASH (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
     o STRING: [
-      o             "_ _QUOTE  (!_QUOTE  (ESC2 | .))* _QUOTE",  Str
-      o             "_ _DQUOTE (!_DQUOTE (ESC2 | ESCSTR | .))* _DQUOTE", Str
-      o             "_ _TQUOTE (!_TQUOTE (ESC2 | ESCSTR | .))* _TQUOTE", Str
-      i ESCSTR:     "'\#{' _BLANKLINE* _RESETINDENT EXPR ___ '}'"
+      o             "_ _QUOTE  (!_QUOTE  (ESCSTR | .))* _QUOTE",  Str
+      o             "_ _DQUOTE (!_DQUOTE (ESCSTR | INTERP | .))* _DQUOTE", Str
+      o             "_ _TQUOTE (!_TQUOTE (ESCSTR | INTERP | .))* _TQUOTE", Str
+      i ESCSTR:     "_SLASH .", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
+      i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT EXPR ___ '}'"
     ]
     o BOOLEAN:      "_TRUE | _FALSE", (it) -> it is 'true'
     o NUMBER:       "_ <words:1> /-?[0-9]+(\\.[0-9]+)?/", Number
@@ -302,16 +303,17 @@ resetIndent = (ws) ->
   i _TQUOTE:        "'\"\"\"'"
   i _FSLASH:        "'/'"
   i _SLASH:         "'\\\\'"
-  i '.':            "<chars:1> /[\\s\\S]/", {skipLog:yes}
-  i ESC2:           "_SLASH .", ((chr) -> '\\'+chr), {skipLog:yes}
+  i '.':            "<chars:1> /[\\s\\S]/",   skipLog:yes
+  i ESC1:           "_SLASH .",               skipLog:yes
+  i ESC2:           "_SLASH .",               skipLog:yes, ((chr) -> '\\'+chr)
   i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
 
   # WHITESPACES:
-  i _:              "<words:1> /[ ]*/", {skipLog:yes}
-  i __:             "<words:1> /[ ]+/", {skipLog:yes}
-  i _TERM:          "_ ('\r\n'|'\n')",  {skipLog:yes}
-  i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*", {skipLog:yes}
-  i _BLANKLINE:     "_ _COMMENT? _TERM", {skipLog:yes}
-  i ___:            "_BLANKLINE* _", {skipLog:yes}
+  i _:              "<words:1> /[ ]*/",       skipLog:yes
+  i __:             "<words:1> /[ ]+/",       skipLog:yes
+  i _TERM:          "_ ('\r\n'|'\n')",        skipLog:yes
+  i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*", skipLog:yes
+  i _BLANKLINE:     "_ _COMMENT? _TERM",      skipLog:yes
+  i ___:            "_BLANKLINE* _",          skipLog:yes
 ]
 # ENDGRAMMAR

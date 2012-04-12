@@ -79,6 +79,8 @@ debugLoopify = debugCache = no
 ###
 @Node = Node = clazz 'Node', ->
 
+  @optionKeys = ['skipLog', 'skipCache', 'cb']
+
   @$stack = (fn) -> ($) ->
     if this isnt @rule then return fn.call this, $
     stackItem = name:@name, pos:$.code.pos
@@ -222,8 +224,16 @@ debugLoopify = debugCache = no
     post parent, @ if post?
   prepare: -> # implement if needed
   toString: -> "[#{@constructor.name}]"
+  include: (name, rule) ->
+    @rules ||= {}
+    assert.ok name?, "Rule needs a name: #{rule}"
+    assert.ok rule instanceof Node, "Invalid rule with name #{name}"
+    assert.ok not @rules[name]?, "Duplicate name #{name}"
+    rule.name = name if not rule.name?
+    @rules[name] = rule
+    @children.push rule
+  # NOT USED (YET?)
   deref: (name, excepts={}) ->
-    assert.ok this is @rule, 'Only named nodes (rules) can dereference'
     return this if @name is name
     return @rules[name] if @rules?[name]?
     excepts[name] = yes
@@ -253,13 +263,17 @@ debugLoopify = debugCache = no
 
   @fromLines = (name, lines) ->
     rank = Rank name
-    for line in lines
+    for line, idx in lines
       if line instanceof OLine
         choice = line.toRule rank, index:rank.choices.length
         rank.addChoice choice
       else if line instanceof ILine
         for own name, rule of line.toRules()
           rank.include name, rule
+      else if line instanceof Object and idx is lines.length-1
+        assert.ok (_.intersection Node.optionKeys, _.keys(line)).length > 0,
+          "Invalid options? #{inspect line}"
+        _.extend rank, line
       else
         throw new Error "Unknown line type, expected 'o' or 'i' line, got '#{line}' (#{typeof line})"
     rank
@@ -275,14 +289,6 @@ debugLoopify = debugCache = no
   addChoice: (rule) ->
     @include rule.name, rule
     @choices.push rule
-
-  include: (name, rule) ->
-    assert.ok name?, "Rule needs a name: #{rule}"
-    assert.ok not @rules[name]?, "Duplicate name #{name}"
-    assert.ok rule instanceof Node, "Invalid rule with name #{name}"
-    rule.name = name if not rule.name?
-    @rules[name] = rule
-    @children.push rule
 
   toString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
 
@@ -505,7 +511,10 @@ debugLoopify = debugCache = no
         when js.NODES.Obj
           obj = {}
           for item in node.items
-            obj[''+item.key] = compileAST item.value
+            if ''+item.key in ['cb'] # pass the AST thru.
+              obj[''+item.key] = item.value
+            else
+              obj[''+item.key] = compileAST item.value
           return obj
         when js.NODES.Heredoc
           return null
@@ -527,12 +536,17 @@ debugLoopify = debugCache = no
         # set node.parent, the immediate parent node
         node.parent = parent
         # set node.rule, the root node for this rule
-        node.rule ||= parent?.rule
+        if not node.inlineLabel?
+          node.rule ||= parent?.rule
+        else
+          # inline rules are special
+          node.rule = node
+          parent.rule.include node.inlineLabel, node
+      post: (parent, node) =>
         # dereference all rules
-        if node instanceof Rank
+        if node.rules?
           assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.rules)).length, 0, "Duplicate key(s): #{inter.join ','}"
           _.extend @rules, node.rules
-      post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
 
@@ -559,8 +573,8 @@ Line = clazz 'Line', ->
       try
         rule = GRAMMAR.parse rule
       catch err
+        console.log "Error in rule #{name}: #{rule}"
         GRAMMAR.parse rule, debug:yes
-        throw err
     else if rule instanceof Array
       rule = Rank.fromLines name, rule
     else if rule instanceof OLine
@@ -574,12 +588,16 @@ Line = clazz 'Line', ->
   # returns {rule:rule, options:{cb,skipCache,skipLog,...}}
   getArgs: ->
     [rule, rest...] = @args
-    result = rule:rule
+    result = rule:rule, options:{}
+    for own key, value of rule
+      if key in Node.optionKeys
+        result.options[key] = value
+        delete rule[key]
     for next in rest
       if next instanceof Function
-        (result.options||={}).cb = next
+        result.options.cb = next
       else
-        _.extend result.options||={}, next
+        _.extend result.options, next
     result
   toString: ->
     "#{@type} #{@args.join ','}"
@@ -672,7 +690,7 @@ St = -> Str arguments...
             ]
             o "PRIMARY": [
               o R("WORD"), Ref
-              o S(St('('), R("EXPR"), St(')'))
+              o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("&",R("EXPR")), St(')'))
               o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str it.join ''
               o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex it.join ''
             ]

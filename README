@@ -8,9 +8,9 @@ This is a parser, inspired by CoffeeScript and PegJs.
 
 # immediate roadmap
 
-1. Make sure the syntax in joescript.joe is parseable by joescript grammar.
+1. Make the syntax in joescript.joe parseable by joescript grammar. (DONE)
 2. Finish translator to translate callback code in joescript.joe into javascript.
-3. Adapt joeson.coffee to work with new grammar structure.
+3. Adapt joeson.coffee to work with new grammar structure. (DONE)
 4. Add AST generation to joeson.coffee to make it a parser generator.
 
 # TODO
