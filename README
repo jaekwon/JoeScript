@@ -4,7 +4,8 @@ The parser works, just run `coffee joescript_grammar_test` to see it parse all t
 
 ## Parser details
 
-* The parser is essentially a left-recursive packrat parser, as far as I can tell. It's like a memoized top-down recursive descent parser but with the added ability to parse non-ambiguous left-recursive grammars.
+* The parser is essentially a left-recursive packrat parser, as far as I can tell.
+* It's like a memoized top-down recursive descent parser (PEG) but with the added ability to parse non-ambiguous left-recursive grammars (like post-if statements).
 * It is not a general CFG parser. Some limitations below:
 
 ```
