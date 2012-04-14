@@ -2,6 +2,36 @@ This is a left-recursive packrat parser with familiar Regex syntax, inspired by 
 
 The parser works, just run `coffee joescript_grammar_test` to see it parse all the code in this project. If you have trouble running the code, you may need my fork of CoffeeScript (https://github.com/jaekwon/coffee-script).
 
-# Roadmap
+## Parser details
+
+* The parser is essentially a left-recursive packrat parser, as far as I can tell. It's like a memoized top-down recursive descent parser but with the added ability to parse non-ambiguous left-recursive grammars.
+* It is not a general CFG parser. Some limitations below:
+
+```
+  START:   "EXPR"
+  EXPR:
+    EXPR1: "EXPR '-' EXPR"
+    EXPR2: "NUM"
+  NUM:     "/[0-9]+/"
+
+  parses '3-2-1' right-recursively, which is unexpected.
+```
+
+```
+  START:   "EXPR"
+  EXPR:    "'x' EXPR 'x' | 'x'"
+
+  fails to parse 'xxxxx': counting problem.
+```
+  
+```
+  START: "A | B"
+  A:     "A 'a' | B | 'a'"
+  B:     "B 'b' | A | 'b'"
+
+  fails to parse 'ababa' due to greediness.
+```
+
+## Roadmap
 
 * The immediate roadmap is to modify joeson.coffee to generate optimized parser code, for performance reasons.
