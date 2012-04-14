@@ -1,19 +1,7 @@
-var code
-after Midnight, it
-  it surrounds me
-  like a container,
-    contains water
+This is a left-recursive packrat parser with familiar Regex syntax, inspired by CoffeeScript and PegJs, for the purpose of parsing CoffeeScript and other languages.
 
-This is a parser, inspired by CoffeeScript and PegJs.
+The parser works, just run `coffee joescript_grammar_test` to see it parse all the code in this project. If you have trouble running the code, you may need my fork of CoffeeScript (https://github.com/jaekwon/coffee-script).
 
-# immediate roadmap
+# Roadmap
 
-1. Make the syntax in joescript.joe parseable by joescript grammar. (DONE)
-2. Finish translator to translate callback code in joescript.joe into javascript.
-3. Adapt joeson.coffee to work with new grammar structure. (DONE)
-4. Add AST generation to joeson.coffee to make it a parser generator.
-
-# TODO
-
-* Integrate regex directly into the grammar
-* Fix regex to allow \n and multiline matching
+* The immediate roadmap is to modify joeson.coffee to generate optimized parser code, for performance reasons.
