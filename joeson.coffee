@@ -358,7 +358,9 @@ debugCache = yes
           else if child.label?
             results[child.label] = res
         return results
-    return null
+      else
+        throw new Error "Unexpected type #{@type}"
+    throw new Error
 
   compile: (result) ->
     @Trail (o) =>
@@ -373,7 +375,7 @@ debugCache = yes
                   @Statement 'break',
                   if child.capture
                     @Invocation(@Index(results, 'push'), [res])
-              o @Assign result, results
+            o @Assign result, results
         when 'single'
           @Scope (res) =>
             for child in @sequence
@@ -387,14 +389,18 @@ debugCache = yes
                     o @Assign result, results
         when 'object'
           @Scope (results, res) =>
-            #o @Assign results, @Obj(@Item(...))
+            o @Assign results, @Obj(@Item(label,@Null) for label in @labels)
             for child in @sequence
               o choice.compile res
               o @If @Operation(res, 'is', @Null),
                   @Statement 'break',
-                  if child.capture
-                    @Invocation(@Index(results, 'push'), [res])
-              o @Assign result, results
+                  if child.label is '&'
+                    @Assign results, @Invocation(@_.extend, res, results)
+                  else if child.label is '@'
+                    @Invocation @_.extend, results, res
+                  else if child.label?
+                    @Assign @Index(results,child.label), res
+            o @Assign result, results
 
   toString: ->
     labeledStrs = for node in @sequence
