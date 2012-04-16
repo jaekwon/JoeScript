@@ -13,6 +13,8 @@ pad = ({left,right}, str) ->
 {o, i, t} = MACROS
 QUOTE = "'\\''"
 FSLSH = "'/'"
+LBRAK = "'['"
+RBRAK = "']'"
 RAW_GRAMMAR = [
   o EXPR: [
     o "CHOICE _"
@@ -29,7 +31,7 @@ RAW_GRAMMAR = [
               o "'<words:' words:INT '>'", Lookahead
             ]
             o "DECORATED": [
-              o "PRIMARY '?'", Existential 
+              o "PRIMARY '?'", Existential
               o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
               o "value:PRIMARY '+' join:(!__ PRIMARY)?", ({value,join}) -> Pattern value:value, join:join, min:1
               o "value:PRIMARY @:RANGE", Pattern
@@ -39,8 +41,9 @@ RAW_GRAMMAR = [
             o "PRIMARY": [
               o "WORD", Ref
               o "'(' inlineLabel:(WORD ': ')? &:EXPR ')'"
-              o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str it.join ''
-              o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex it.join ''
+              o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str       it.join ''
+              o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex     it.join ''
+              o "#{LBRAK} (!#{RBRAK} (ESC2 | .))* #{RBRAK}", (it) -> Regex "[#{it.join ''}]"
             ]
           ]
         ]

@@ -521,10 +521,15 @@ debugCache = yes
   # A proper joescript environment should give access of
   # block ASTs to the runtime, thereby making this compilation step
   # unnecessary.
-  @fromJoefile = (filename) ->
+  @fromFile = (filename) ->
     js = require('./joescript_grammar')
     chars = require('fs').readFileSync filename, 'utf8'
-    fileAST = js.GRAMMAR.parse chars
+    try
+      fileAST = js.GRAMMAR.parse chars
+    catch error
+      console.log "Joeson couldn't parse #{filename}. Parse log..."
+      js.GRAMMAR.parse chars, debug:yes
+      throw error
     jsNodes = js.NODES
     assert.ok fileAST instanceof js.NODES.Block
 
@@ -745,8 +750,9 @@ St = -> Str arguments...
             o "PRIMARY": [
               o R("WORD"), Ref
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("&",R("EXPR")), St(')'))
-              o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str it.join ''
-              o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex it.join ''
+              o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str       it.join ''
+              o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex     it.join ''
+              o S(St("["), P(S(N(St("]")), C(R("ESC2"), R(".")))), St("]")), (it) -> Regex "[#{it.join ''}]"
             ]
           ]
         ]

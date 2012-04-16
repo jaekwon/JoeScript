@@ -287,8 +287,8 @@ resetIndent = (ws) ->
     o REGEX:        "_ _FSLASH &:(!_FSLASH (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
     o STRING: [
       o             "_ _QUOTE  (!_QUOTE  (ESCSTR | .))* _QUOTE",  Str
-      o             "_ _DQUOTE (!_DQUOTE (ESCSTR | INTERP | .))* _DQUOTE", Str
       o             "_ _TQUOTE (!_TQUOTE (ESCSTR | INTERP | .))* _TQUOTE", Str
+      o             "_ _DQUOTE (!_DQUOTE (ESCSTR | INTERP | .))* _DQUOTE", Str
       i ESCSTR:     "_SLASH .", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
       i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT EXPR ___ '}'"
     ]

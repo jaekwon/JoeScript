@@ -1,0 +1,19 @@
+console.log """[\\\]\\\[\\'".,{|}^~<>!?():;&%@`#$+/*=-]"""
+
+GRAMMAR = ->
+  o doc:        "seq loop?"
+  i loop:       "loopstart doc ('<,>' doc)?"
+  i seq:        "alt*'<;>'"
+  i alt:        "jux*'<|>'"
+  i jux:        "atom*"
+  i atom:       "'<{>' doc '<}>' | var | lit"
+  i lit:        "('\\\\' byte | !special byte)+"
+  i special:    "'<' [{},;|] '>' | var | loopstart"
+  i var:        "'$' name"
+  i loopstart:  "'<@' name '>'"
+  i name:       "(!asciipunct !space byte)+"
+  i asciipunct: """[\\\]\\\[\\'".,{|}^~<>!?():;&%@`#$+/*=-]"""
+  i space:      "[ \n\r\t]"
+
+{Grammar} = require './joeson'
+Grammar.fromFile './kragen.joe'
