@@ -121,58 +121,64 @@ debugIndent = yes
 checkIndent = (ws) ->
   @storeCache = no
   @stack[0].indent ?= '' # set default lazily
+
   container = @stack[@stack.length-2]
-  assert.ok container?
-  @log "INDENT CONTAINER IS #{container.name}" if debugIndent
+  @log "[In] container (@#{@stack.length-2}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}'" if debugIndent
   # get the parent container's indent string
-  lastIndent = ''
   for i in [@stack.length-3..0] by -1
     if @stack[i].softline? or @stack[i].indent?
-      @log "PARENT CONTAINER's index is #{i}" if debugIndent
-      lastIndent = @stack[i].softline ? @stack[i].indent ? ''
+      pContainer = @stack[i]
+      pIndent = pContainer.softline ? pContainer.indent
+      @log "[In] parent pContainer (@#{i}:#{pContainer.name}) indent:'#{pContainer.indent}', softline:'#{pContainer.softline}'" if debugIndent
       break
-  # if ws starts with lastIndent... valid
-  @log "ws.length #{ws.length} > lastIndent.length #{lastIndent.length}, #{ws.indexOf(lastIndent)}=0?"
-  if ws.length > lastIndent.length and ws.indexOf(lastIndent) is 0
-    @log "setting container.indent to #{ws}"
+  # if ws starts with pIndent... valid
+  if ws.length > pIndent.length and ws.indexOf(pIndent) is 0
+    @log "Setting container.indent to '#{ws}'"
     container.indent = ws
     return container.indent
   null
 
 checkNewline = (ws) ->
   @storeCache = no
-  # find the current INDENT on the stack
-  currentIndent = ''
+  @stack[0].indent ?= '' # set default lazily
+
+  # find the container INDENT on the stack
   for i in [@stack.length-2..0] by -1
-    if @stack[i].indent?
-      currentIndent = @stack[i].indent
-      @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
+    if @stack[i].softline? or @stack[i].indent?
+      container = @stack[i]
       break
-  if ws is currentIndent
-    return ws
+
+  containerIndent = container.softline ? container.indent
+  isNewline = ws is containerIndent
+  @log "[NL] container (@#{i}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}', isNewline:'#{isNewline}'" if debugIndent
+  return ws if isNewline
   null
 
 # like a newline, but allows additional padding
 checkSoftline = (ws) ->
   @storeCache = no
-  # find the current INDENT on the stack
-  currentIndent = ''
+  @stack[0].indent ?= '' # set default lazily
+
+  # find the applicable indent
+  container = null
   for i in [@stack.length-2..0] by -1
     if i < @stack.length-2 and @stack[i].softline?
       # a strict ancestor's container's softline acts like an indent.
       # this allows softlines to be shortened only within the same direct container.
-      currentIndent = @stack[i].softline
-      @log "currentIndent='#{currentIndent}' (softline), i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
+      container = @stack[i]
+      @log "[SL] (@#{i}:#{container.name}) indent(ignored):'#{container.indent}', **softline**:'#{container.softline}'" if debugIndent
       break
     else if @stack[i].indent?
-      currentIndent = @stack[i].indent
-      @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
+      container = @stack[i]
+      @log "[SL] (@#{i}:#{container.name}) **indent**:'#{container.indent}', softline(ignored):'#{container.softline}'" if debugIndent
       break
+  if container is null
+    throw new Error "QWE"
   # commit softline ws to container
-  if ws.indexOf(currentIndent) is 0
-    container = @stack[@stack.length-2]
-    @log "setting container(=#{container.name}).softline to '#{ws}'"
-    container.softline = ws
+  if ws.indexOf(container.softline ? container.indent) is 0
+    topContainer = @stack[@stack.length-2]
+    @log "[SL] Setting topmost container (@#{@stack.length-2}:#{topContainer.name})'s softline to '#{ws}'"
+    topContainer.softline = ws
     return ws
   null
 
@@ -190,7 +196,7 @@ resetIndent = (ws) ->
   # find any container
   container = @stack[@stack.length-2]
   assert.ok container?
-  @log "setting container(=#{container.name}).indent to #{ws}"
+  @log "setting container(=#{container.name}).indent to '#{ws}'"
   container.indent = ws
   return container.indent
 
@@ -223,7 +229,7 @@ resetIndent = (ws) ->
             o ASSIGN:             "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
           ]
           o COMPLEX: [
-            o IF:                 "_IF cond:EXPR block:BLOCK else:(_NEWLINE? _ELSE BLOCK)?", If
+            o IF:                 "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)?", If
             o FOR:                "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
             o LOOP:               "_LOOP block:BLOCK", While
             o WHILE:              "_WHILE cond:EXPR block:BLOCK", While

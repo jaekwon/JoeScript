@@ -180,6 +180,32 @@ foo bar1,
   , two
 , bar2
 """, 'foo(bar1,log(one,two),bar2)'
+test  """
+foo bar,
+  if true
+    'true'
+  else
+    'false'""", 'foo(bar,if(true){"true"}else{"false"})'
+test  """
+foo bar,
+  if true
+      'true'
+    else
+      'false'""", 'foo(bar,if(true){"true"}else{"false"})'
+test  """
+foo bar,
+  if true
+    'true'
+  else if maybe
+    'maybe'
+  else
+    'false'""", 'foo(bar,if(true){"true"}else{if(maybe){"maybe"}else{"false"}})'
+test """
+foo: ->
+  blah
+pos:
+  bar:2
+""", '{foo:(()->{blah}),pos:({bar:(2)})}'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']

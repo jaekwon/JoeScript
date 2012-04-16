@@ -253,14 +253,20 @@ debugLoopify = debugCache = no
       parent = parent.parent
  
 @Choice = Choice = clazz 'Choice', Node, ->
+
   init: (@choices) ->
     @children = @choices
+
+  prepare: ->
+    @capture = _.all @choices, (choice)->choice.capture
+
   parse$: @$wrap ($) ->
     for choice in @choices
       result = $.try choice.parse
       if result isnt null
         return result
     return null
+
   compile: (result) ->
     @Trail (o) =>
       o @Assign result, @null
@@ -271,6 +277,7 @@ debugLoopify = debugCache = no
           o @If @Operation(result, 'is', @Null),
               @Assign(@Code.pos, pos),
               @Statement 'break'
+
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 @Rank = Rank = clazz 'Rank', Choice, ->
