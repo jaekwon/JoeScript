@@ -1,6 +1,6 @@
 This is a left-recursive packrat parser with familiar Regex syntax, inspired by CoffeeScript and PegJs, for the purpose of parsing CoffeeScript and other languages.
 
-The parser works, just run `coffee joescript_grammar_test` to see it parse all the code in this project. If you have trouble running the code, you may need my fork of CoffeeScript (https://github.com/jaekwon/coffee-script).
+The parser works, just run `coffee joescript_grammar_test` to see it parse all the code in this project.
 
 ## Parser details
 
