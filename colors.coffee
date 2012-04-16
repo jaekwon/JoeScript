@@ -2,7 +2,7 @@
 
 _wrap_with = (code) ->
   return (text, bold) ->
-    return "\033[#{if bold then '1;' else ''}#{code}m#{text}\033[0m"
+    return "\x1b[#{if bold then '1;' else ''}#{code}m#{text}\x1b[0m"
 
 @black = _wrap_with('30')
 @red = _wrap_with('31')

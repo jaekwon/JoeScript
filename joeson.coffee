@@ -13,7 +13,6 @@ escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
 keystr = (key) -> "#{key.pos},#{key.name}"
 debugLoopify = debugCache = no
-debugCache = yes
 
 # aka '$'
 @Context = Context = clazz 'Context', ->

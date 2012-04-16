@@ -1,5 +1,3 @@
-console.log """[\\\]\\\[\\'".,{|}^~<>!?():;&%@`#$+/*=-]"""
-
 GRAMMAR = ->
   o doc:        "seq loop?"
   i loop:       "loopstart doc ('<,>' doc)?"
@@ -8,12 +6,41 @@ GRAMMAR = ->
   i jux:        "atom*"
   i atom:       "'<{>' doc '<}>' | var | lit"
   i lit:        "('\\\\' byte | !special byte)+"
-  i special:    "'<' [{},;|] '>' | var | loopstart"
+  i special:    "'<' <chars:1> [{},;|] '>' | var | loopstart"
   i var:        "'$' name"
   i loopstart:  "'<@' name '>'"
   i name:       "(!asciipunct !space byte)+"
-  i asciipunct: """[\\\]\\\[\\'".,{|}^~<>!?():;&%@`#$+/*=-]"""
-  i space:      "[ \n\r\t]"
+  i asciipunct: """<chars:1> [\\\]\\\[\\'".,{|}^~<>!?():;&%@`#$+/*=-]"""
+  i space:      "  <chars:1> [ \n\r\t]"
+  i byte:       "  <chars:1> [\\s\\S]"
 
 {Grammar} = require './joeson'
-Grammar.fromFile './kragen.joe'
+g = Grammar.fromFile './kragen.joe'
+console.log g.parse """
+   <!DOCTYPE html>
+   <html>
+     <head><title><{>$title - rabujogopo.com<|>RABUJOGOPO<}></title></head>
+   <body><;>
+     <h1>$title</h1><;>
+
+     <p> Hello<{>, $fullname<|>, $firstname $lastname<;><}>. <;> You
+         have arrived from a search engine seeking $searchterms. <;>
+         This article is tagged as 
+         <{><@tags><a href="/tag/$tagname">$tagname</a><,> <}>.
+         <|> This article is not tagged.<;> 
+         This article is important. <if $importance == high> <;>
+     </p>
+     <{>
+       <@sections>
+       <h2>$title</h2> <!-- the section title -->
+       <@contents>
+       <if $type == paragraph>
+         <p>$text</p>
+       <|>
+         <@subsections>
+         <h3>$title</h3>
+         <@contents>
+         <p>$p</p>
+     <}>
+   </body></html>
+""", debug:yes
