@@ -11,8 +11,9 @@ assert = require 'assert'
 
 escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
-
+keystr = (key) -> "#{key.pos},#{key.name}"
 debugLoopify = debugCache = no
+debugCache = yes
 
 # aka '$'
 @Context = Context = clazz 'Context', ->
@@ -33,7 +34,7 @@ debugLoopify = debugCache = no
     result
 
   log: (message, count=false) ->
-    if @debug
+    if @debug and not @skipLog
       if count
         console.log "#{++@_ctr}\t#{cyan Array(@stack.length-1).join '|'}#{message}"
       else
@@ -44,7 +45,7 @@ debugLoopify = debugCache = no
       (@cache[key.pos]||={})[key.name] = value
       @cacheStores.push key
     else
-      throw new Error "Cache store error @ $.cache[#{key}]: existing entry"
+      throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
 
   cacheMask: (pos, stopName) ->
     stash = []
@@ -59,14 +60,14 @@ debugLoopify = debugCache = no
 
   # key: {name,pos}
   cacheDelete: (key) ->
-    assert.ok @cache[key.pos]?[key.name]?, "Cannot delete missing cache item at key #{key}"
+    assert.ok @cache[key.pos]?[key.name]?, "Cannot delete missing cache item at key #{keystr key}"
     cacheStoresIdx = undefined
     for i in [@cacheStores.length-1..0] by -1
       cKey = @cacheStores[i]
       if cKey.pos is key.pos and cKey.name is key.name
         cacheStoresIdx = i
         break
-    assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{key}"
+    assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{keystr key}"
     delete @cache[key.pos][key.name]
     @cacheStores.splice cacheStoresIdx, 1
 
@@ -91,34 +92,34 @@ debugLoopify = debugCache = no
     return result
 
   @$debug = (fn) -> ($) ->
-    if not $.debug or @skipLog or this isnt @rule then return fn.call this, $
-    #rule = $.grammar.rules[@name]
+    if not $.debug or $.skipLog or this isnt @rule then return fn.call this, $
+    $.skipLog = yes if @skipLog
     bufferStr = escape $.code.peek chars:20
     bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
     $.log "#{red @name}: #{blue this} #{black bufferStr}", true
     result = fn.call this, $
     $.log "^-- #{escape result} #{black typeof result}", true if result isnt null
+    delete $.skipLog
     return result
 
   @$cache = (fn) -> ($) ->
     if this isnt @rule or @skipCache then return fn.call this, $
     key = name:@name, pos:$.code.pos
     if (cached=$.cache[key.pos]?[key.name])?
-      $.log "[C] Cache hit @ $.cache[#{key}]: #{escape cached.result}" if debugCache
+      $.log "[C] Cache hit @ $.cache[#{keystr key}]: #{escape cached.result}" if debugCache
       $.code.pos = cached.endPos
       return cached.result
-    # $.storeCache = yes
+    $.storeCache = yes
     result = fn.call this, $
     if $.storeCache
       if not $.cache[key.pos]?[key.name]?
-        $.log "[C] Cache store @ $.cache[#{key}]: #{escape result}" if debugCache
+        $.log "[C] Cache store @ $.cache[#{keystr key}]: #{escape result}" if debugCache
         $.cacheSet key, result:result, endPos:$.code.pos
       else
-        throw new Error "Cache store error @ $.cache[#{key}]: existing entry"
+        throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
     else
-      # reset
       $.storeCache = yes
-      $.log "[C] Cache store skipped manually." if debugCache
+      $.log "[C] Cache store (#{keystr key}) skipped manually." if debugCache
     return result
 
   @$loopify = (fn) -> ($) ->
@@ -144,10 +145,10 @@ debugLoopify = debugCache = no
               delete $.recurse[key.pos][key.name]
               return result
             else
-              $.log "[L] --- loop start --- (#{key}) (initial result was #{escape result})" if debugLoopify
+              $.log "[L] --- loop start --- (#{keystr key}) (initial result was #{escape result})" if debugLoopify
               item.stage = 3
               while result isnt null
-                $.log "[L] --- loop iteration --- (#{key})" if debugLoopify
+                $.log "[L] --- loop iteration --- (#{keystr key})" if debugLoopify
 
                 # Step 1: reset the cache state
                 bestCacheStash = $.cacheMask startPos, @name
@@ -183,11 +184,11 @@ debugLoopify = debugCache = no
         #  delete $.recurse[key.pos][key.name]
       when 1,2 # recursion detected
         item.stage = 2
-        $.log "[L] recursion detected! (#{key})" if debugLoopify
+        $.log "[L] recursion detected! (#{keystr key})" if debugLoopify
         $.log "[L] returning null" if debugLoopify
         return null
       when 3 # loopified case
-        throw new Error "This should not happen, cache should have hit (#{key})"
+        throw new Error "This should not happen, cache should have hit (#{keystr key})"
         #$.log "[L] returning #{item.base} (base case)" if debugLoopify
         #$.code.pos = item.endPos
         #return item.base
@@ -199,9 +200,12 @@ debugLoopify = debugCache = no
     result = @cb.call $, result if result isnt null and @cb?
     return result
 
-  # for non-sequence rules with a label
-  @$ruleLabel = (fn) -> ($) ->
-    if this isnt @rule then return fn.call this, $
+  # Sequence nodes handle labels for its items, but otherwise
+  # labeled nodes get casted into an object like {"#{label}": result}.
+  # Also, Existential nodes are special.
+  @$applyLabel = (fn) -> ($) ->
+    parent = @findParent (node) -> node not instanceof Existential
+    if parent instanceof Sequence then return fn.call this, $
     result = fn.call this, $
     if result isnt null and @label? and @label not in ['@','&']
       result_ = {}
@@ -210,7 +214,7 @@ debugLoopify = debugCache = no
     return result
 
   @$wrap = (fn) ->
-    @$stack @$debug @$cache @$loopify @$ruleCallback @$ruleLabel fn
+    @$stack @$debug @$cache @$loopify @$ruleCallback @$applyLabel fn
 
   capture: yes
   walk: ({pre, post}, parent=undefined) ->
@@ -242,6 +246,12 @@ debugLoopify = debugCache = no
       return derefed if derefed?
     return @parent.deref name, excepts if @parent?
     return null
+  # find a parent in the ancestry chain that satisfies condition
+  findParent: (condition) ->
+    parent = @parent
+    loop
+      return parent if condition parent
+      parent = parent.parent
  
 @Choice = Choice = clazz 'Choice', Node, ->
   init: (@choices) ->
@@ -250,13 +260,18 @@ debugLoopify = debugCache = no
     for choice in @choices
       result = $.try choice.parse
       if result isnt null
-        if choice.label?
-          result_ = {}
-          result_[choice.label] = result
-          return result_
-        else
-          return result
+        return result
     return null
+  compile: (result) ->
+    @Trail (o) =>
+      o @Assign result, @null
+      for choice in @choices
+        @Scope (pos) =>
+          o @Assign pos, @Code.pos
+          o choice.compile result
+          o @If @Operation(result, 'is', @Null),
+              @Assign(@Code.pos, pos),
+              @Statement 'break'
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 @Rank = Rank = clazz 'Rank', Choice, ->
@@ -295,30 +310,25 @@ debugLoopify = debugCache = no
 @Sequence = Sequence = clazz 'Sequence', Node, ->
   init: (@sequence) ->
     @children = @sequence
+
   prepare: ->
-    numCaptures = 0 # if the result should be an array
-    numLabels = 0   # or, if the result should be an object
+    @labels = []
+    @captures = []
     for child in @children
-      # Special!
-      # Unlabeled Exists nodes get flattened out
-      if child instanceof Exists
-        if child.label?
-          numLabels += 1
+      if child instanceof Existential
+        if child.label
+          @labels.push child.label
         else
-          numCaptures += child.numCaptures
-          numLabels += child.numLabels
-      # Normal
+          _.extend @labels, child.labels
+          @captures.push child.captures if child.capture
       else
-        numCaptures += 1 if child.capture
-        numLabels += 1 if child.label?
+        @labels.push child.label if child.label
+        @captures.push child if child.capture
     @type =
-      if numLabels is 0
-        if numCaptures > 1 then 'array' else 'single'
+      if @labels.length is 0
+        if @captures.length > 1 then 'array' else 'single'
       else
         'object'
-    # needed for flattening
-    @numCaptures = numCaptures
-    @numLabels = numLabels
 
   parse$: @$wrap ($) ->
     switch @type
@@ -349,6 +359,43 @@ debugLoopify = debugCache = no
             results[child.label] = res
         return results
     return null
+
+  compile: (result) ->
+    @Trail (o) =>
+      o @Assign result, @Undefined
+      switch @type
+        when 'array'
+          @Scope (results, res) =>
+            o @Assign results, @Arr()
+            for child in @sequence
+              o choice.compile res
+              o @If @Operation(res, 'is', @Null),
+                  @Statement 'break',
+                  if child.capture
+                    @Invocation(@Index(results, 'push'), [res])
+              o @Assign result, results
+        when 'single'
+          @Scope (res) =>
+            for child in @sequence
+              o choice.compile res
+              o @If @Operation(res, 'is', @Null),
+                  @Block (o) =>
+                    o @Assign result, @Null
+                    o @Statement 'break'
+                  ,
+                  if child.capture
+                    o @Assign result, results
+        when 'object'
+          @Scope (results, res) =>
+            #o @Assign results, @Obj(@Item(...))
+            for child in @sequence
+              o choice.compile res
+              o @If @Operation(res, 'is', @Null),
+                  @Statement 'break',
+                  if child.capture
+                    @Invocation(@Index(results, 'push'), [res])
+              o @Assign result, results
+
   toString: ->
     labeledStrs = for node in @sequence
       if node.label?
@@ -369,20 +416,21 @@ debugLoopify = debugCache = no
              @lines? and "lines:#{@lines}"
     }>"
 
-@Exists = Exists = clazz 'Exists', Node, ->
+@Existential = Existential = clazz 'Existential', Node, ->
   init: (@it) ->
     @children = [@it]
   prepare: ->
+    @labels = []
+    @captures = []
     if @it.label?
-      @numLabels = 1
-    else if @it instanceof Sequence or @it instanceof Exists
-      @numLabels = @it.numLabels
-      @numCaptures = @it.numCaptures
+      @labels.push @it.label
+    else if @it instanceof Sequence or @it instanceof Existential
+      _.extend @labels, @it.labels
+      _.extend @captures, @it.captures
     else
-      @numLabels = 0
-      @numCaptures = 1 if @it.capture
-    @label = '@' if @numLabels > 0 and not @label?
-    @capture = @numCaptures > 0
+      @captures.push this if @it.capture
+    @label = '@' if not @label? and @labels.length > 0
+    @capture = @captures.length > 0
   parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
@@ -654,7 +702,7 @@ OLine = clazz 'OLine', Line, ->
     OLine rank
 
 C  = -> Choice (x for x in arguments)
-E  = -> Exists arguments...
+E  = -> Existential arguments...
 L  = (label, node) -> node.label = label; node
 La = -> Lookahead arguments...
 N  = -> Not arguments...
@@ -681,7 +729,7 @@ St = -> Str arguments...
               o S(St('<words:'), L("words",R("INT")), St('>')), Lookahead
             ]
             o "DECORATED": [
-              o S(R("PRIMARY"), St('?')), Exists
+              o S(R("PRIMARY"), St('?')), Existential
               o S(L("value",R("PRIMARY")), St('*'), L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
               o S(L("value",R("PRIMARY")), St('+'), L("join",E(S(N(R("__")), R("PRIMARY"))))), ({value,join}) -> Pattern value:value, join:join, min:1
               o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern

@@ -127,9 +127,9 @@ checkIndent = (ws) ->
   # get the parent container's indent string
   lastIndent = ''
   for i in [@stack.length-3..0] by -1
-    if @stack[i].indent?
+    if @stack[i].softline? or @stack[i].indent?
       @log "PARENT CONTAINER's index is #{i}" if debugIndent
-      lastIndent = @stack[i].indent ? ''
+      lastIndent = @stack[i].softline ? @stack[i].indent ? ''
       break
   # if ws starts with lastIndent... valid
   @log "ws.length #{ws.length} > lastIndent.length #{lastIndent.length}, #{ws.indexOf(lastIndent)}=0?"
@@ -158,13 +158,31 @@ checkSoftline = (ws) ->
   # find the current INDENT on the stack
   currentIndent = ''
   for i in [@stack.length-2..0] by -1
-    if @stack[i].indent?
+    if i < @stack.length-2 and @stack[i].softline?
+      # a strict ancestor's container's softline acts like an indent.
+      # this allows softlines to be shortened only within the same direct container.
+      currentIndent = @stack[i].softline
+      @log "currentIndent='#{currentIndent}' (softline), i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
+      break
+    else if @stack[i].indent?
       currentIndent = @stack[i].indent
       @log "currentIndent='#{currentIndent}', i=#{i}, @stack.length=#{@stack.length}, ws='#{ws}'" if debugIndent
       break
-  if ws.indexOf currentIndent is 0
-    return resetIndent.call this, ws
+  # commit softline ws to container
+  if ws.indexOf(currentIndent) is 0
+    container = @stack[@stack.length-2]
+    @log "setting container(=#{container.name}).softline to '#{ws}'"
+    container.softline = ws
+    return ws
   null
+
+checkComma = ({beforeBlanks, beforeWS, afterBlanks, afterWS}) ->
+  @storeCache = no
+  if afterBlanks.length > 0
+    return null if checkSoftline.call(this, afterWS) is null
+  else if beforeBlanks.length > 0
+    return null if checkSoftline.call(this, beforeWS) is null
+  ','
 
 resetIndent = (ws) ->
   @storeCache = no
@@ -172,7 +190,7 @@ resetIndent = (ws) ->
   # find any container
   container = @stack[@stack.length-2]
   assert.ok container?
-  @log "setting container.indent to #{ws}"
+  @log "setting container(=#{container.name}).indent to #{ws}"
   container.indent = ws
   return container.indent
 
@@ -285,35 +303,37 @@ resetIndent = (ws) ->
     o               "_THEN?  LINE+(_ ';')", Block
   ]
   i BLOCKEXPR:      "_INDENT? EXPR"
-  i _INDENT:        "_BLANKLINE+ &:_", checkIndent
+  i _INDENT:        "_BLANKLINE+ &:_", checkIndent, skipCache:yes
+  i _RESETINDENT:   "_BLANKLINE* &:_", resetIndent, skipCache:yes
   i _NEWLINE: [
-    o               "_BLANKLINE+ &:_", checkNewline
+    o               "_BLANKLINE+ &:_", checkNewline, skipCache:yes
     o               "_ ';'"
-  ], {skipCache: yes}
-  i _SOFTLINE:      "_BLANKLINE+ &:_", checkSoftline
-  i _RESETINDENT:   "_BLANKLINE* &:_", resetIndent
+  ], skipCache:yes
+  i _SOFTLINE:      "_BLANKLINE+ &:_", checkSoftline, skipCache:yes
+  i _COMMA:         "beforeBlanks:_BLANKLINE* beforeWS:_ ','
+                      afterBlanks:_BLANKLINE*  afterWS:_", checkComma, skipCache:yes
 
   # TOKENS:
+  i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
   i _KEYWORD:       tokens 'if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
                       'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                       'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally'
-  i _COMMA:         "___ ',' ___"
   i _QUOTE:         "'\\''"
   i _DQUOTE:        "'\"'"
   i _TQUOTE:        "'\"\"\"'"
   i _FSLASH:        "'/'"
   i _SLASH:         "'\\\\'"
-  i '.':            "<chars:1> /[\\s\\S]/",   skipLog:yes
-  i ESC1:           "_SLASH .",               skipLog:yes
-  i ESC2:           "_SLASH .",               skipLog:yes, ((chr) -> '\\'+chr)
-  i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
+  i '.':            "<chars:1> /[\\s\\S]/",            skipLog:yes
+  i ESC1:           "_SLASH .",                        skipLog:yes
+  i ESC2:           "_SLASH .", ((chr) -> '\\'+chr),   skipLog:yes
 
   # WHITESPACES:
-  i _:              "<words:1> /[ ]*/",       skipLog:yes
-  i __:             "<words:1> /[ ]+/",       skipLog:yes
-  i _TERM:          "_ ('\r\n'|'\n')",        skipLog:yes
-  i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*", skipLog:yes
-  i _BLANKLINE:     "_ _COMMENT? _TERM",      skipLog:yes
-  i ___:            "_BLANKLINE* _",          skipLog:yes
+  i _:              "<words:1> /[ ]*/",                skipLog:yes
+  i __:             "<words:1> /[ ]+/",                skipLog:yes
+  i _TERM:          "_ ('\r\n'|'\n')",                 skipLog:yes
+  i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*",      skipLog:yes
+  i _BLANKLINE:     "_ _COMMENT? _TERM",               skipLog:yes
+  i ___:            "_BLANKLINE* _",                   skipLog:yes
+
 ]
 # ENDGRAMMAR

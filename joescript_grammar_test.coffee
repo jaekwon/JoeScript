@@ -169,6 +169,17 @@ test """
   baz, bak
 }
 """, "(@).stuff=({foo,bar,baz,bak})"
+test """
+loop
+  log one
+  , two
+""", 'while(true){log(one,two)}'
+test """
+foo bar1,
+  log one
+  , two
+, bar2
+""", 'foo(bar1,log(one,two),bar2)'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']
