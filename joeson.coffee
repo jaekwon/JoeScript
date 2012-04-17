@@ -14,10 +14,11 @@ escape = (str) ->
 keystr = (key) -> "#{key.pos},#{key.name}"
 debugLoopify = debugCache = no
 
-# aka '$'
-@Context = Context = clazz 'Context', ->
+# aka '$' in parse functions
+@ParseContext = ParseContext = clazz 'ParseContext', ->
 
-  init: (@code, @grammar, @debug=false) ->
+  init: ({@code, @grammar, @debug}={}) ->
+    @debug ?= false
     @stack = []         # [ {name,pos,...}... ]
     @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
     @cacheStores = []   # [ {name,pos}... ]
@@ -69,6 +70,28 @@ debugLoopify = debugCache = no
     assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{keystr key}"
     delete @cache[key.pos][key.name]
     @cacheStores.splice cacheStoresIdx, 1
+
+# aka '$' in compile functions 
+@CompileContext = CompileContext = clazz 'CompileContext', ->
+  init: ({@grammar}={}) ->
+    @vars = {}
+  makeVar: (preferredName) ->
+    idx = 0
+    while @vars["#{preferredName}#{idx}"]?
+      idx += 1
+    @vars[_var = "#{preferredName}#{idx}"] = _var
+    _var
+  destroyVar: (_var) ->
+    if not @vars[_var]?
+      console.log @vars, _var
+    assert.ok @vars[_var]?, "Unknown $.scope var #{_var}"
+    delete @vars[_var]
+  scope: (vars, fn) ->
+    vars = vars.split(/, *| +/g) if (typeof vars) is 'string'
+    vars = (@makeVar(v) for v in vars)
+    fn.apply(this, vars)
+    @destroyVar(v) for v in vars
+    null
 
 ###
   In addition to the attributes defined by subclasses,
@@ -251,7 +274,7 @@ debugLoopify = debugCache = no
     loop
       return parent if condition parent
       parent = parent.parent
- 
+
 @Choice = Choice = clazz 'Choice', Node, ->
 
   init: (@choices) ->
@@ -267,13 +290,13 @@ debugLoopify = debugCache = no
         return result
     return null
 
-  compile: (result) ->
-    @Trail (o) =>
-      o @Assign result, @null
+  compile: ($, result) ->
+    @Trail undefined, (o) =>
+      o @Assign result, @Null
       for choice in @choices
-        @Scope (pos) =>
+        $.scope 'pos', (pos) =>
           o @Assign pos, @Code.pos
-          o choice.compile result
+          o choice.compile $, result
           o @If @Operation(result, 'is', @Null),
               @Assign(@Code.pos, pos),
               @Statement 'break'
@@ -368,36 +391,36 @@ debugLoopify = debugCache = no
         throw new Error "Unexpected type #{@type}"
     throw new Error
 
-  compile: (result) ->
-    @Trail (o) =>
+  compile: ($, result) ->
+    @Trail undefined, (o) =>
       o @Assign result, @Undefined
       switch @type
         when 'array'
-          @Scope (results, res) =>
+          $.scope 'results res', (results, res) =>
             o @Assign results, @Arr()
             for child in @sequence
-              o choice.compile res
+              o .compile $, res
               o @If @Operation(res, 'is', @Null),
                   @Statement 'break',
                   if child.capture
-                    @Invocation(@Index(results, 'push'), [res])
+                    @Invocation(@Index(results,'push'), res)
             o @Assign result, results
         when 'single'
-          @Scope (res) =>
+          $.scope 'res', (res) =>
             for child in @sequence
-              o choice.compile res
+              o child.compile $, res
               o @If @Operation(res, 'is', @Null),
                   @Block (o) =>
                     o @Assign result, @Null
                     o @Statement 'break'
                   ,
                   if child.capture
-                    o @Assign result, results
+                    o @Assign result, res
         when 'object'
-          @Scope (results, res) =>
+          $.scope 'results res', (results, res) =>
             o @Assign results, @Obj(@Item(label,@Null) for label in @labels)
             for child in @sequence
-              o choice.compile res
+              o child.compile $, res
               o @If @Operation(res, 'is', @Null),
                   @Statement 'break',
                   if child.label is '&'
@@ -421,6 +444,8 @@ debugLoopify = debugCache = no
   init: ({@chars, @words, @lines}) ->
   parse$: @$wrap ($) ->
     $.code.peek chars:@chars, words:@words, lines:@lines
+  compile: ($, result)->
+    @Invocation(@Code.peek, @Obj(@Item('chars',@chars),@Item('words':@words),@Item(lines:@lines)))
   toString: ->
     "<#{
       yellow @chars? and "chars:#{@chars}" or
@@ -446,6 +471,14 @@ debugLoopify = debugCache = no
   parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
+  compile: ($, result) ->
+    @Block (o) => $.scope 'pos', (pos) =>
+      o @Assign pos, @Code.pos
+      o @it.compile $, result
+      o @If @Operation(result, 'is', @Null),
+          @Block (o) =>
+            o @Assign(@Code.pos, pos),
+            o @Assign(result, @Undefined)
   toString: -> ''+@it+blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', Node, ->
@@ -475,6 +508,45 @@ debugLoopify = debugCache = no
       return null if @min? and @min > matches.length
       return matches
     return result
+
+  compile: ($, result) ->
+    @Block (o) => $.scope 'matches pos resV', (matches, pos, resV) =>
+      o @Assign matches, @Arr()
+      o @Assign pos, @Code.pos
+      o @Trail 'outer', (o) =>
+        o @value.compile $, resV
+        o @If @Operation(resV, 'is', @Null),
+            @Block (o) =>
+              if @min? and @min > 0
+                o @Assign result, @Null
+              else
+                o @Assign result, @Arr()
+              o @Statement 'break', 'outer'
+        o @Invocation @Index(matches,'push'), resV
+        o @Loop 'inner', (o) => $.scope 'pos resJ', (pos, resJ) =>
+          o @Assign pos, @Code.pos
+          if @join?
+            o @join.compile $, resJ
+            o @If @Operation(resJ, 'is', @Null),
+                @Block (o) =>
+                  o @Assign @Code.pos, pos
+                  o @Statement 'break', 'inner'
+          o @value.compile $, resV
+          o @If @Operation(resV, 'is', @Null),
+              @Block (o) =>
+                o @Assign @Code.pos, pos
+                o @Statement 'break', 'inner'
+          o @Invocation @Index(matches,'push'), resV
+          if @max?
+            o @If @Operation(@Index(matches,'length'), '>=', @max),
+                @Statement 'break', 'inner'
+        if @min?
+          o @If @Operation(@min, '>', @Index(matches,'length')),
+              @Block (o) =>
+                o @Assign result, @Null
+                o @Assign @Code.pos, pos
+                o @Statement 'break', 'outer'
+      o @Assign result, matches
   toString: ->
     "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 
@@ -490,6 +562,14 @@ debugLoopify = debugCache = no
       return null
     else
       return undefined
+  compile: ($, result) ->
+    @Block (o) => $.scope 'pos res', (pos, res) =>
+      o @Assign pos, @Code.pos
+      o @it.compile $, res
+      o @Assign @Code.pos, pos
+      o @If @Operation(res,'isnt',@Null),
+          @Assign result, @Null
+          @Assign result, @Undefined
   toString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', Node, ->
@@ -500,12 +580,17 @@ debugLoopify = debugCache = no
     node = $.grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
+  compile: ($, result) ->
+    node = $.grammar.rules[@ref]
+    throw Error "Unknown reference #{@ref}" if not node?
+    @Assign result, @Invocation @Index($.Grammar,@ref)
   toString: -> red(@ref)
 
 @Str = Str = clazz 'Str', Node, ->
   capture: no
   init: (@str) ->
   parse$: @$wrap ($) -> $.code.match string:@str
+  compile: ($, result) -> @Invocation @Code.match, @Obj(@Item('string',@str))
   toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', Node, ->
@@ -514,6 +599,7 @@ debugLoopify = debugCache = no
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
   parse$: @$wrap ($) -> $.code.match regex:@re
+  compile: ($, result) -> @Invocation @Code.match, @Obj(@Item('regex',@re))
   toString: -> magenta(''+@re)
 
 # Main external access.
@@ -577,9 +663,9 @@ debugLoopify = debugCache = no
           obj = {}
           for item in node.items
             if ''+item.key in ['cb'] # pass the AST thru.
-              obj[''+item.key] = item.value
+              obj[compileAST item.key] = item.value
             else
-              obj[''+item.key] = compileAST item.value
+              obj[compileAST item.key] = compileAST item.value
           return obj
         when js.NODES.Heredoc
           return null
@@ -619,13 +705,65 @@ debugLoopify = debugCache = no
     debug ?= no
     returnContext ?= no
     code = CodeStream code if code not instanceof CodeStream
-    $ = Context code, this, debug
+    $ = ParseContext code:code, grammar:this, debug:debug
     $.result = @rank.parse $
     throw Error "Incomplete parse: '#{escape $.code.peek chars:50}'" if $.code.pos isnt $.code.text.length
     if returnContext
       return $
     else
       return $.result
+
+  compile: () ->
+    js = require('./joescript_grammar').NODES
+    if not Node::Code
+      @initNodeASTShortcuts()
+    $ = CompileContext grammar:this
+    code = @Block (o) => $.scope 'grammar code result', (grammar, code, result) =>
+      for name, rule of @rules
+        funcBlock = rule.compile $, result
+        funcBlock = js.Block funcBlock if funcBlock not instanceof js.Block
+        funcBlock.lines.push js.Statement 'return', result
+        o @Assign @Index(grammar,name), @Func(null,'->',funcBlock)
+      o @Assign result, @Null
+      o @rank.compile $, result
+    return code
+
+  initNodeASTShortcuts: ->
+    js = require('./joescript_grammar').NODES
+    _.extend (Node::),
+      Grammar:  js.Word('grammar0') # {"#{rulename}": <Function>}
+      Code:
+        pos:    js.Index(obj:js.Word('code0'), attr:'pos')
+        match:  js.Index(obj:js.Word('code0'), attr:'match')
+      _:
+        extend: js.Index(obj:js.Word('_'),     attr:'extend')
+      Null: js.Word 'null'
+      Undefined: js.Word 'undefined'
+      Func: (params,type,block) -> js.Func params:params,type:type,block:block
+      If: (cond,block,elseBlock) -> js.If cond:cond,block:block,elseBlock:elseBlock
+      Assign: (target,value) -> js.Assign target:target,type:'=',value:value
+      Operation: (left,op,right) -> js.Operation left:left,op:op,right:right
+      Statement: (type,expr) -> js.Statement type:type,expr:expr
+      Invocation: (func,params...) -> js.Invocation func:func,params:params
+      Index: (obj,attr) -> js.Index obj:obj,attr:attr
+      Obj:  (items...) -> js.Obj (if items.length is 1 and items[0] instanceof Array then items[0] else items)
+      Arr:  js.Arr
+      Item: js.Item
+      Word: js.Word
+      Block: (fn) ->
+        lines = []
+        o = (line) ->
+          if line instanceof js.Block
+            _.extend lines, line.lines
+          else
+            lines.push line
+        fn.call this, o
+        js.Block lines
+      Loop: (name, fn) -> js.Loop label:name,block:@Block(fn)
+      Trail: (name, fn) ->
+        block = @Block(fn)
+        block.lines.push @Statement 'break', name
+        js.Loop label:name,block:block
 
 Line = clazz 'Line', ->
   init: (@args...) ->

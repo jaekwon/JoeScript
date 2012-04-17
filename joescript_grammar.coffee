@@ -23,11 +23,13 @@ If = clazz 'If', Node, ->
     else
       "if(#{@cond}){#{@block}}"
 For = clazz 'For', Node, ->
-  init: ({@block, @own, @keys, @type, @obj, @cond}) ->
+  init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
   toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
 While = clazz 'While', Node, ->
-  init: ({@cond, @block}) -> @cond ?= true
+  init: ({@label, @cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
+Loop = clazz 'Loop', While, Node, ->
+  init: ({@label, @block}) -> @cond = true
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
@@ -74,12 +76,12 @@ Soak = clazz 'Soak', Node, ->
   toString: -> "(#{@obj})?"
 Obj = clazz 'Obj', Node, ->
   init: (@items) ->
-  toString: -> "{#{@items.join ','}}"
+  toString: -> "{#{if @items? then @items.join ',' else ''}}"
 This = clazz 'This', Node, ->
   init: ->
   toString: -> "@"
 Arr = clazz 'Arr', Obj, ->
-  toString: -> "[#{@items.join ','}]"
+  toString: -> "[#{if @items? then @items.join ',' else ''}]"
 Item = clazz 'Item', Node, ->
   init: ({@key, @value}) ->
   toString: -> @key+(if @value?   then ":(#{@value})"   else '')
@@ -111,7 +113,7 @@ Dummy = clazz 'Dummy', Node, ->
   toString: -> "{#{@args}}"
 
 @NODES = {
-  Node, Word, Block, If, For, While, Switch, Try, Case, Operation,
+  Node, Word, Block, If, For, While, Loop, Switch, Try, Case, Operation,
   Statement, Invocation, Assign, Slice, Index, Soak, Obj, This,
   Arr, Item, Str, Func, Range, Heredoc, Dummy
 }

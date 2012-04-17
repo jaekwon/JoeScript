@@ -118,4 +118,5 @@ GRAMMAR = ->
   i ___:            "_BLANKLINE* _",              skipLog:yes
 
 {Grammar} = require './joeson'
-Grammar.fromFile './joescript_grammar.joe'
+g = Grammar.fromFile './joescript_grammar.joe'
+console.log ''+g.compile()
