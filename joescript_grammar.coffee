@@ -126,14 +126,21 @@ checkIndent = (ws) ->
 
   container = @stack[@stack.length-2]
   @log "[In] container (@#{@stack.length-2}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}'" if debugIndent
-  # get the parent container's indent string
-  for i in [@stack.length-3..0] by -1
-    if @stack[i].softline? or @stack[i].indent?
-      pContainer = @stack[i]
-      pIndent = pContainer.softline ? pContainer.indent
-      @log "[In] parent pContainer (@#{i}:#{pContainer.name}) indent:'#{pContainer.indent}', softline:'#{pContainer.softline}'" if debugIndent
-      break
-  # if ws starts with pIndent... valid
+  if container.softline?
+    # {
+    #   get: -> # begins with a softline
+    #   set: ->
+    # }
+    pIndent = container.softline
+  else
+    # Get the parent container's indent string
+    for i in [@stack.length-3..0] by -1
+      if @stack[i].softline? or @stack[i].indent?
+        pContainer = @stack[i]
+        pIndent = pContainer.softline ? pContainer.indent
+        @log "[In] parent pContainer (@#{i}:#{pContainer.name}) indent:'#{pContainer.indent}', softline:'#{pContainer.softline}'" if debugIndent
+        break
+  # If ws starts with pIndent... valid
   if ws.length > pIndent.length and ws.indexOf(pIndent) is 0
     @log "Setting container.indent to '#{ws}'"
     container.indent = ws
@@ -204,92 +211,103 @@ resetIndent = (ws) ->
 
 @GRAMMAR = Grammar ({o, i, tokens}) -> [
   o "__INIT__ LINES __EXIT__ _"
-  i __INIT__:                     "_BLANKLINE*", -> # init code
-  i __EXIT__:                     "_BLANKLINE*", -> # exit code
-  i LINES:                        "LINE*_NEWLINE", Block
+  i __INIT__:                       "_BLANKLINE*", -> # init code
+  i __EXIT__:                       "_BLANKLINE*", -> # exit code
+  i LINES:                          "LINE*_NEWLINE", Block
   i LINE: [
-    o HEREDOC:                    "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
-    o POSTIF:                     "block:(POSTIF|POSTFOR) &:(POSTIF_IF|POSTIF_UNLESS)"
-    i POSTIF_IF:                  "_IF cond:EXPR", If
-    i POSTIF_UNLESS:              "_UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
-    o POSTFOR: [
-      o                           "block:STMT _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
-      o STMT: [
-        o                         "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
-        o EXPR: [
-          o FUNC:                 "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
-          i PARAMS:               "_ '(' (&:PARAM default:(_ '=' EXPR)?)*_COMMA _ ')'"
-          i PARAM:                "&:SYMBOL splat:'...'?
-                                  |&:PROPERTY splat:'...'?
-                                  |OBJ_EXPL
-                                  |ARR_EXPL"
-          o RIGHT_RECURSIVE: [
-            o INVOC_IMPL:         "func:(ASSIGNABLE|_TYPEOF) params:(&:EXPR splat:'...'?)+_COMMA", Invocation
-            o OBJ_IMPL:           "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)
-                                   | OBJ_IMPL_ITEM+_COMMA", Obj
-            i OBJ_IMPL_ITEM:      "key:(WORD|STRING) _ ':' value:EXPR", Item
-            o ASSIGN:             "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
-          ]
-          o COMPLEX: [
-            o IF:                 "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)?", If
-            o FOR:                "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
-            o LOOP:               "_LOOP block:BLOCK", While
-            o WHILE:              "_WHILE cond:EXPR block:BLOCK", While
-            o SWITCH:             "_SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT?", Switch
-            i CASE:               "_WHEN matches:EXPR+_COMMA block:BLOCK", Case
-            i DEFAULT:            "_NEWLINE _ELSE BLOCK"
-            o TRY:                "_TRY block:BLOCK
-                                   (_NEWLINE? doCatch:_CATCH catchVar:EXPR? catchBlock:BLOCK?)?
-                                   (_NEWLINE? _FINALLY finally:BLOCK)?", Try
-          ]
-          o OP_OPTIMIZATION:      "OP40 _ !(OP00_OP|OP10_OP|OP20_OP|OP30_OP)"
-          o OP00: [
-            i OP00_OP:            " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
-            o                     "left:(OP00|OP10) _ op:OP00_OP _SOFTLINE? right:OP10", Operation
+    o HEREDOC:                      "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
+    o LINEEXPR: [
+      # left recursive
+      o POSTIF:                     "block:LINEEXPR _IF cond:EXPR", If
+      o POSTUNLESS:                 "block:LINEEXPR _UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
+      o POSTFOR:                    "block:LINEEXPR _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
+      # rest
+      o STMT:                       "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
+      o EXPR: [
+        o FUNC:                     "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
+        i PARAMS:                   "_ '(' (&:PARAM default:(_ '=' LINEEXPR)?)*_COMMA _ ')'"
+        i PARAM:                    "&:SYMBOL splat:'...'?
+                                    |&:PROPERTY splat:'...'?
+                                    |OBJ_EXPL
+                                    |ARR_EXPL"
+        o RIGHT_RECURSIVE: [
+          o INVOC_IMPL:             "func:ASSIGNABLE __ params:(&:EXPR splat:'...'?)+(_COMMA|!_NEWLINE _SOFTLINE)", Invocation
+          o OBJ_IMPL:               "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)
+                                     | OBJ_IMPL_ITEM+_COMMA", Obj
+          i OBJ_IMPL_ITEM:          "key:(WORD|STRING) _ ':' value:EXPR", Item
+          o ASSIGN:                 "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
+        ]
+        o COMPLEX: [
+          o IF:                     "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)?", If
+          o FOR:                    "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
+          o LOOP:                   "_LOOP block:BLOCK", While
+          o WHILE:                  "_WHILE cond:EXPR block:BLOCK", While
+          o SWITCH:                 "_SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT?", Switch
+          i CASE:                   "_WHEN matches:EXPR+_COMMA block:BLOCK", Case
+          i DEFAULT:                "_NEWLINE _ELSE BLOCK"
+          o TRY:                    "_TRY block:BLOCK
+                                     (_NEWLINE? doCatch:_CATCH catchVar:EXPR? catchBlock:BLOCK?)?
+                                     (_NEWLINE? _FINALLY finally:BLOCK)?", Try
+        ]
+        o OP_OPTIMIZATION:          "OP40 _ !(OP00_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP)"
+        o OP00: [
+          i OP00_OP:                " '&&' | '||' | '&' | '|' | '^' | _AND | _OR "
+          o                         "left:(OP00|OP05) _ op:OP00_OP _SOFTLINE? right:OP05", Operation
+          o OP05: [
+            i OP05_OP:              " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
+            o                       "left:(OP05|OP10) _ op:OP05_OP _SOFTLINE? right:OP10", Operation
             o OP10: [
-              i OP10_OP:          "not:_NOT? op:(_IN|_INSTANCEOF)"
-              o                   "left:(OP10|OP20) _ @:OP10_OP  _SOFTLINE? right:OP20", Operation
+              i OP10_OP:            " '+' | '-' "
+              o                     "left:(OP10|OP20) _ op:OP10_OP _SOFTLINE? right:OP20", Operation
               o OP20: [
-                i OP20_OP:        " '+' | '-' | _OR | '?' "
-                o                 "left:(OP20|OP30) _ op:OP20_OP _SOFTLINE? right:OP30", Operation
+                i OP20_OP:          " '*' | '/' | '%' "
+                o                   "left:(OP20|OP30) _ op:OP20_OP _SOFTLINE? right:OP30", Operation
                 o OP30: [
-                  i OP30_OP:      " '*' | '/' | '%' | '&' | '&&' | _AND "
-                  o               "left:(OP30|OP40) _ op:OP30_OP _SOFTLINE? right:OP40", Operation
+                  i OP30_OP:        "not:_NOT? op:(_IN|_INSTANCEOF)"
+                  o                 "left:(OP30|OP40) _  @:OP30_OP _SOFTLINE? right:OP40", Operation
                   o OP40: [
-                    i OP40_OP:    " _NOT | '!' | '~' "
-                    o             "_ op:OP40_OP right:OP50", Operation
-                    o OP50: [
-                      i OP50_OP:  " '--' | '++' "
-                      o           "left:OPATOM op:OP50_OP", Operation
-                      o           "_ op:OP50_OP right:OPATOM", Operation
-                      o OPATOM:   "FUNC | RIGHT_RECURSIVE | COMPLEX | ASSIGNABLE"
-                    ] # end OP50
+                    i OP40_OP:      " _NOT | '!' | '~' "
+                    o               "_ op:OP40_OP right:OP45", Operation
+                    o OP45: [
+                      i OP45_OP:    " '?' "
+                      o             "left:(OP45|OP50) _ op:OP45_OP _SOFTLINE? right:OP50", Operation
+                      o OP50: [
+                        i OP50_OP:  " '--' | '++' "
+                        o           "left:OPATOM op:OP50_OP", Operation
+                        o           "_ op:OP50_OP right:OPATOM", Operation
+                        o OPATOM:   "FUNC | RIGHT_RECURSIVE | COMPLEX | ASSIGNABLE"
+                      ] # end OP50
+                    ] # end OP45
                   ] # end OP40
                 ] # end OP30
               ] # end OP20
             ] # end OP10
-          ] # end OP00
-        ] # end EXPR
-      ] # end STMT
-    ] # end POSTFOR
+          ] # end OP05
+        ] # end OP00
+      ] # end EXPR
+    ] # end LINEEXPR
   ] # end LINE
 
-  o ASSIGNABLE: [
+  i ASSIGNABLE: [
     # left recursive
     o SLICE:        "obj:ASSIGNABLE !__ range:RANGE", Slice
-    o INDEX0:       "obj:ASSIGNABLE type:'['  attr:EXPR _ ']'", Index
+    o INDEX0:       "obj:ASSIGNABLE type:'['  attr:LINEEXPR _ ']'", Index
     o INDEX1:       "obj:ASSIGNABLE type:'.'  attr:WORD", Index
     o PROTO:        "obj:ASSIGNABLE type:'::' attr:WORD?", Index
-    o INVOC_EXPL:   "func:(ASSIGNABLE|_TYPEOF) '(' ___ params:(&:EXPR splat:'...'?)*_COMMA ___ ')'", Invocation
+    o INVOC_EXPL:   "func:ASSIGNABLE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')'", Invocation
     o SOAK:         "ASSIGNABLE '?'", Soak
     # rest
-    o RANGE:        "_ '[' start:EXPR? _ type:('...'|'..') end:EXPR? _ ']' by:(_BY EXPR)?", Range
-    o ARR_EXPL:     "_ '[' ___ (&:EXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
-    o OBJ_EXPL: [
-      o             "_ '{' ___ OBJ_EXPL_ITEM*_COMMA ___ '}'", Obj
-      i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' EXPR)?", Item
+    o TYPEOF: [
+      o             "func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')'", Invocation
+      o             "func:_TYPEOF __ params:LINEEXPR{1,1}", Invocation
     ]
-    o PARENT:       "_ '(' POSTFOR _ ')'"
+    o RANGE:        "_ '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)?", Range
+    o ARR_EXPL:     "_ '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
+    o OBJ_EXPL: [
+      o             "_ '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}'", Obj
+      i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)?", Item
+    ]
+    o PAREN:        "_ '(' ___ LINEEXPR ___ ')'"
     o PROPERTY:     "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
     o THIS:         "_ '@'", This
     o REGEX:        "_ _FSLASH &:(!_FSLASH (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
@@ -298,7 +316,7 @@ resetIndent = (ws) ->
       o             "_ _TQUOTE (!_TQUOTE (ESCSTR | INTERP | .))* _TQUOTE", Str
       o             "_ _DQUOTE (!_DQUOTE (ESCSTR | INTERP | .))* _DQUOTE", Str
       i ESCSTR:     "_SLASH .", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
-      i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT EXPR ___ '}'"
+      i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT LINEEXPR ___ '}'"
     ]
     o BOOLEAN:      "_TRUE | _FALSE", (it) -> it is 'true'
     o NUMBER:       "_ <words:1> /-?[0-9]+(\\.[0-9]+)?/", Number

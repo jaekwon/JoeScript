@@ -36,9 +36,9 @@ debugLoopify = debugCache = no
   log: (message, count=false) ->
     if @debug and not @skipLog
       if count
-        console.log "#{++@_ctr}\t#{cyan Array(@stack.length-1).join '|'}#{message}"
+        console.log "#{++@_ctr}\t#{cyan Array(@stack.length-1).join '| '}#{message}"
       else
-        console.log "#{@_ctr}\t#{cyan Array(@stack.length-1).join '|'}#{message}"
+        console.log "#{@_ctr}\t#{cyan Array(@stack.length-1).join '| '}#{message}"
 
   cacheSet: (key, value) ->
     if not @cache[key.pos]?[key.name]?
@@ -399,7 +399,7 @@ debugLoopify = debugCache = no
           $.scope 'results res', (results, res) =>
             o @Assign results, @Arr()
             for child in @sequence
-              o .compile $, res
+              o child.compile $, res
               o @If @Operation(res, 'is', @Null),
                   @Statement 'break',
                   if child.capture

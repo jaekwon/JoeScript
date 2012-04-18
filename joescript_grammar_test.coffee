@@ -90,6 +90,9 @@ test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type
 test  "for x in array[0..10] then console.log x", "for x in array[Range(start:0,end:10,type:'..', by:1)]{(console).log(x)}"
 test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{(user).name}\")"
 test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{(user).name}\"}\")"
+test  "line instanceof Object and 'true'", '((line instanceof Object) and "true")'
+test  "lines.length-1", '((lines).length - 1)'
+test  "foo( func x for x in items )", 'foo(for x in items {func(x)})'
 test  """
 foo: FOO
 bar: BAR
@@ -206,6 +209,24 @@ foo: ->
 pos:
   bar:2
 """, '{foo:(()->{blah}),pos:({bar:(2)})}'
+test """
+if true
+  "qwe"
+else if line instanceof Object and idx is lines.length - 1
+  "Qwe"
+""", 'if(true){"qwe"}else{if(((line instanceof Object) and (idx is ((lines).length - 1)))){"Qwe"}}'
+test """
+{
+  get: -> (foo)
+  set: ->
+}
+""", '{get:(()->{foo}),set:(()->{undefined})}'
+test """
+{
+  get: ->
+  set: ->
+}
+""", '{get:(()->{undefined}),set:(()->{undefined})}'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']
