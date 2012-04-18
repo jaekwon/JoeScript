@@ -303,10 +303,8 @@ resetIndent = (ws) ->
     ]
     o RANGE:        "_ '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)?", Range
     o ARR_EXPL:     "_ '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
-    o OBJ_EXPL: [
-      o             "_ '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}'", Obj
-      i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)?", Item
-    ]
+    o OBJ_EXPL:     "_ '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}'", Obj
+    i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)?", Item
     o PAREN:        "_ '(' ___ LINEEXPR ___ ')'"
     o PROPERTY:     "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
     o THIS:         "_ '@'", This

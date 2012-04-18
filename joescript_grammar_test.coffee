@@ -227,6 +227,14 @@ test """
   set: ->
 }
 """, '{get:(()->{undefined}),set:(()->{undefined})}'
+test """
+{
+  foo: ->
+  bar: ->
+   baz: ->
+  bak: ->
+}
+""", '{foo:(()->{undefined}),bar:(()->{{baz:(()->{undefined})}}),bak:(()->{undefined})}'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']
