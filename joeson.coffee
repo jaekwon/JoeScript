@@ -100,7 +100,7 @@ debugLoopify = debugCache = no
   node.rule = rule # sometimes true.
   node.name = name of the rule, if this is @rule.
 ###
-@Node = Node = clazz 'Node', ->
+@GNode = GNode = clazz 'GNode', ->
 
   @optionKeys = ['skipLog', 'skipCache', 'cb']
 
@@ -244,16 +244,16 @@ debugLoopify = debugCache = no
     pre parent, @ if pre?
     if @children
       for child in @children
-        if child not instanceof Node
+        if child not instanceof GNode
           throw Error "Unexpected object encountered walking children: #{child}"
-        child.walk {pre: pre, post:post}, @
+        child.walk {pre:pre, post:post}, @
     post parent, @ if post?
   prepare: -> # implement if needed
   toString: -> "[#{@constructor.name}]"
   include: (name, rule) ->
     @rules ||= {}
     assert.ok name?, "Rule needs a name: #{rule}"
-    assert.ok rule instanceof Node, "Invalid rule with name #{name}"
+    assert.ok rule instanceof GNode, "Invalid rule with name #{name}"
     assert.ok not @rules[name]?, "Duplicate name #{name}"
     rule.name = name if not rule.name?
     @rules[name] = rule
@@ -275,7 +275,7 @@ debugLoopify = debugCache = no
       return parent if condition parent
       parent = parent.parent
 
-@Choice = Choice = clazz 'Choice', Node, ->
+@Choice = Choice = clazz 'Choice', GNode, ->
 
   init: (@choices) ->
     @children = @choices
@@ -315,7 +315,7 @@ debugLoopify = debugCache = no
         for own name, rule of line.toRules()
           rank.include name, rule
       else if line instanceof Object and idx is lines.length-1
-        assert.ok (_.intersection Node.optionKeys, _.keys(line)).length > 0,
+        assert.ok (_.intersection GNode.optionKeys, _.keys(line)).length > 0,
           "Invalid options? #{inspect line}"
         _.extend rank, line
       else
@@ -336,7 +336,7 @@ debugLoopify = debugCache = no
 
   toString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
 
-@Sequence = Sequence = clazz 'Sequence', Node, ->
+@Sequence = Sequence = clazz 'Sequence', GNode, ->
   init: (@sequence) ->
     @children = @sequence
 
@@ -439,7 +439,7 @@ debugLoopify = debugCache = no
         ''+node
     blue("(")+(labeledStrs.join ' ')+blue(")")
 
-@Lookahead = Lookahead = clazz 'Lookahead', Node, ->
+@Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
   capture: no
   init: ({@chars, @words, @lines}) ->
   parse$: @$wrap ($) ->
@@ -453,7 +453,7 @@ debugLoopify = debugCache = no
              @lines? and "lines:#{@lines}"
     }>"
 
-@Existential = Existential = clazz 'Existential', Node, ->
+@Existential = Existential = clazz 'Existential', GNode, ->
   init: (@it) ->
     @children = [@it]
   prepare: ->
@@ -481,7 +481,7 @@ debugLoopify = debugCache = no
             o @Assign(result, @Undefined)
   toString: -> ''+@it+blue("?")
 
-@Pattern = Pattern = clazz 'Pattern', Node, ->
+@Pattern = Pattern = clazz 'Pattern', GNode, ->
   init: ({@value, @join, @min, @max}) ->
     @children = if @join? then [@value, @join] else [@value]
     @capture = @value.capture
@@ -550,7 +550,7 @@ debugLoopify = debugCache = no
   toString: ->
     "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 
-@Not = Not = clazz 'Not', Node, ->
+@Not = Not = clazz 'Not', GNode, ->
   capture: no
   init: (@it) ->
     @children = [@it]
@@ -572,7 +572,7 @@ debugLoopify = debugCache = no
           @Assign result, @Undefined
   toString: -> "#{yellow '!'}#{@it}"
 
-@Ref = Ref = clazz 'Ref', Node, ->
+@Ref = Ref = clazz 'Ref', GNode, ->
   # note: @ref because @name is reserved.
   init: (@ref) ->
     @capture = no if @ref[0] is '_'
@@ -586,14 +586,14 @@ debugLoopify = debugCache = no
     @Assign result, @Invocation @Index($.Grammar,@ref)
   toString: -> red(@ref)
 
-@Str = Str = clazz 'Str', Node, ->
+@Str = Str = clazz 'Str', GNode, ->
   capture: no
   init: (@str) ->
   parse$: @$wrap ($) -> $.code.match string:@str
   compile: ($, result) -> @Invocation @Code.match, @Obj(@Item('string',@str))
   toString: -> green("'#{escape @str}'")
 
-@Regex = Regex = clazz 'Regex', Node, ->
+@Regex = Regex = clazz 'Regex', GNode, ->
   init: (@reStr) ->
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
@@ -603,10 +603,10 @@ debugLoopify = debugCache = no
   toString: -> magenta(''+@re)
 
 # Main external access.
-# I dunno if Grammar should be a Node or not. It
+# I dunno if Grammar should be a GNode or not. It
 # might come in handy when embedding grammars
 # in some glue language.
-@Grammar = Grammar = clazz 'Grammar', Node, ->
+@Grammar = Grammar = clazz 'Grammar', GNode, ->
 
   # Temporary convenience function for loading a Joescript file with
   # a single GRAMMAR = ... definition, for parser generation.
@@ -633,7 +633,7 @@ debugLoopify = debugCache = no
     grammarAST = grammarAssign.value
 
     # Compile an AST node
-    # Func Nodes (->) become Arrays
+    # Func GNodes (->) become Arrays
     #  (unless it's a non-first parameter to an Invocation, a callback function)
     # Str, Obj, Arr, and Invocations become interpreted directly
     compileAST = (node) ->
@@ -715,8 +715,8 @@ debugLoopify = debugCache = no
 
   compile: () ->
     js = require('./joescript_grammar').NODES
-    if not Node::Code
-      @initNodeASTShortcuts()
+    if not GNode::Code
+      @initGNodeASTShortcuts()
     $ = CompileContext grammar:this
     code = @Block (o) => $.scope 'grammar code result', (grammar, code, result) =>
       for name, rule of @rules
@@ -726,11 +726,11 @@ debugLoopify = debugCache = no
         o @Assign @Index(grammar,name), @Func(null,'->',funcBlock)
       o @Assign result, @Null
       o @rank.compile $, result
-    return code
+    require('./translators/javascript').translate code
 
-  initNodeASTShortcuts: ->
+  initGNodeASTShortcuts: ->
     js = require('./joescript_grammar').NODES
-    _.extend (Node::),
+    _.extend (GNode::),
       Grammar:  js.Word('grammar0') # {"#{rulename}": <Function>}
       Code:
         pos:    js.Index(obj:js.Word('code0'), attr:'pos')
@@ -793,12 +793,16 @@ Line = clazz 'Line', ->
     [rule, rest...] = @args
     result = rule:rule, options:{}
     for own key, value of rule
-      if key in Node.optionKeys
+      if key in GNode.optionKeys
         result.options[key] = value
         delete rule[key]
     for next in rest
       if next instanceof Function
         result.options.cb = next
+      else if next instanceof Object and next.constructor.name is 'Func'
+        result.options.cbAST = next
+      else if next instanceof Object and next.constructor.name is 'Word'
+        result.options.cbName = next
       else
         _.extend result.options, next
     result
@@ -823,7 +827,7 @@ OLine = clazz 'OLine', Line, ->
     if not name and
       typeof rule isnt 'string' and
       rule not instanceof Array and
-      rule not instanceof Node
+      rule not instanceof GNode
         # NAME: rule
         assert.ok _.keys(rule).length is 1, "Named rule should only have one key-value pair"
         name = _.keys(rule)[0]

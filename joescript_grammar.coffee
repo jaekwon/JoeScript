@@ -3,10 +3,22 @@
 {clazz} = require 'cardamom'
 assert = require 'assert'
 
-Node = clazz 'Node'
+Node = clazz 'Node', ->
+  walk: ({pre, post}, parent=undefined) ->
+    # pre, post: (parent, childNode) -> where childNode in parent.children.
+    pre parent, @ if pre?
+    for name, value of this when name is not 'parent'
+      if value instanceof Array
+        for item in value when item instanceof Node
+          item.walk {pre:pre, post:post}, @
+      else if value instanceof Node
+        value.walk {pre:pre, post:post}, @
+    post parent, @ if post?
+
 Word = clazz 'Word', Node, ->
   init: (@word) ->
   toString: -> @word
+
 Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
@@ -14,6 +26,7 @@ Block = clazz 'Block', Node, ->
     (''+line for line in @lines).join '\n'
   toStringWithIndent: ->
     '\n  '+((''+line).replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
+
 If = clazz 'If', Node, ->
   init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
@@ -22,40 +35,52 @@ If = clazz 'If', Node, ->
       "if(#{@cond}){#{@block}}else{#{@else}}"
     else
       "if(#{@cond}){#{@block}}"
+
 For = clazz 'For', Node, ->
   init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
   toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
+
 While = clazz 'While', Node, ->
   init: ({@label, @cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
+
 Loop = clazz 'Loop', While, Node, ->
   init: ({@label, @block}) -> @cond = true
+
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
+
 Try = clazz 'Try', Node, ->
   init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
   toString: -> "try{#{@block}}#{
                 @doCatch and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
                 @finally and "finally{#{@finally}}" or ''}"
+
 Case = clazz 'Case', Node, ->
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
+
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @not, @op, @right}) ->
   toString: -> "(#{@left or ''} #{@not and 'not ' or ''}#{@op} #{@right or ''})"
+
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr ? ''});"
+
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
+
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
   toString: -> "#{@target}#{@type}(#{@value})"
+
 Slice = clazz 'Slice', Node, ->
   init: ({@obj, @range}) ->
   toString: -> "#{@obj}[#{@range}]"
+
 Index = clazz 'Index', Node, ->
   init: ({obj, attr, type}) ->
     type ?= '.'
@@ -71,20 +96,26 @@ Index = clazz 'Index', Node, ->
   toString: ->
     close = if @type is '[' then ']' else ''
     "(#{@obj})#{@type}#{@attr}#{close}"
+
 Soak = clazz 'Soak', Node, ->
   init: (@obj) ->
   toString: -> "(#{@obj})?"
+
 Obj = clazz 'Obj', Node, ->
   init: (@items) ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
+
 This = clazz 'This', Node, ->
   init: ->
   toString: -> "@"
+
 Arr = clazz 'Arr', Obj, ->
   toString: -> "[#{if @items? then @items.join ',' else ''}]"
+
 Item = clazz 'Item', Node, ->
   init: ({@key, @value}) ->
   toString: -> @key+(if @value?   then ":(#{@value})"   else '')
+
 Str = clazz 'Str', Node, ->
   init: (@parts) ->
   toString: ->
@@ -94,20 +125,24 @@ Str = clazz 'Str', Node, ->
       else
         x.replace /"/g, "\\\""
     '"' + parts.join('') + '"'
+
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
   toString: -> "(#{if @params then @params.map(
       (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
     ).join ',' else ''})#{@type}{#{@block}}"
+
 Range = clazz 'Range', Node, ->
   init: ({@start, @type, @end, @by}) ->
     @by ?= 1
   toString: -> "Range(#{@start? and "start:#{@start}," or ''}"+
                      "#{@end?   and "end:#{@end},"     or ''}"+
                      "type:'#{@type}', by:#{@by})"
+
 Heredoc = clazz 'Heredoc', Node, ->
   init: (@text) ->
   toString: -> "####{@text}###"
+
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
