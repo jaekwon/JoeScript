@@ -2,18 +2,21 @@
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
 {clazz} = require 'cardamom'
 assert = require 'assert'
+_ = require 'underscore'
 
 Node = clazz 'Node', ->
-  walk: ({pre, post}, parent=undefined) ->
+  walk: ({pre, post, parent}) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
-    pre parent, @ if pre?
-    for name, value of this when name is not 'parent'
-      if value instanceof Array
-        for item in value when item instanceof Node
-          item.walk {pre:pre, post:post}, @
-      else if value instanceof Node
-        value.walk {pre:pre, post:post}, @
+    result = pre parent, @ if pre?
+    unless result? and result.recurse is no
+      for name, value of this when name[0] isnt '_'
+        if value instanceof Array
+          for item in value when item instanceof Node
+            item.walk {pre:pre, post:post, parent:@}
+        else if value instanceof Node
+          value.walk {pre:pre, post:post, parent:@}
     post parent, @ if post?
+  prepare: ->
 
 Word = clazz 'Word', Node, ->
   init: (@word) ->
@@ -22,6 +25,10 @@ Word = clazz 'Word', Node, ->
 Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
+    @vars = undefined
+  addVar: (varname) ->
+    assert.ok varname instanceof Word
+    (@vars||=[]).push varname
   toString: ->
     (''+line for line in @lines).join '\n'
   toStringWithIndent: ->
@@ -38,6 +45,8 @@ If = clazz 'If', Node, ->
 
 For = clazz 'For', Node, ->
   init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
+  prepare: ->
+    @_scope.addVar(key) for key in @keys
   toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
 
 While = clazz 'While', Node, ->
@@ -53,6 +62,8 @@ Switch = clazz 'Switch', Node, ->
 
 Try = clazz 'Try', Node, ->
   init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
+  prepare: ->
+    @catchBlock.addVar @catchVar
   toString: -> "try{#{@block}}#{
                 @doCatch and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
                 @finally and "finally{#{@finally}}" or ''}"
@@ -75,6 +86,8 @@ Invocation = clazz 'Invocation', Node, ->
 
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
+  prepare: ->
+    @_scope.addVar @target if @target instanceof Word
   toString: -> "#{@target}#{@type}(#{@value})"
 
 Slice = clazz 'Slice', Node, ->
@@ -128,6 +141,21 @@ Str = clazz 'Str', Node, ->
 
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
+  prepare: ->
+    addVar = (thing) =>
+      if thing instanceof Word
+        @block.addVar thing
+      else if thing instanceof Arr
+        addVar(item) for item in thing.items
+      else if thing instanceof Obj
+        for item in thing.items
+          if item.value
+            addVar(item.value)
+          else
+            addVar(item)
+      else if thing instanceof Index # @name
+        "pass"
+    addVar(param) for param in @params if @params?
   toString: -> "(#{if @params then @params.map(
       (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
     ).join ',' else ''})#{@type}{#{@block}}"
