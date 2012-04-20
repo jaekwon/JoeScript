@@ -9,12 +9,14 @@ Node = clazz 'Node', ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
     result = pre parent, @ if pre?
     unless result? and result.recurse is no
-      for name, value of this when name[0] isnt '_'
-        if value instanceof Array
-          for item in value when item instanceof Node
-            item.walk {pre:pre, post:post, parent:@}
-        else if value instanceof Node
-          value.walk {pre:pre, post:post, parent:@}
+      children = this.children
+      if children?
+        for child in children
+          if child instanceof Array
+            for item in child when item instanceof Node
+              item.walk {pre:pre, post:post, parent:@}
+          else if child instanceof Node
+            child.walk {pre:pre, post:post, parent:@}
     post parent, @ if post?
   prepare: ->
 
@@ -26,6 +28,7 @@ Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
     @vars = undefined
+  children$: get: -> @lines
   addVar: (varname) ->
     assert.ok varname instanceof Word
     (@vars||=[]).push varname
@@ -37,6 +40,7 @@ Block = clazz 'Block', Node, ->
 If = clazz 'If', Node, ->
   init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
+  children$: get: -> [@cond, @block, @else]
   toString: ->
     if @else?
       "if(#{@cond}){#{@block}}else{#{@else}}"
@@ -45,23 +49,28 @@ If = clazz 'If', Node, ->
 
 For = clazz 'For', Node, ->
   init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
+  children$: get: -> [@label, @block, @keys, @obj, @cond]
   prepare: ->
-    @_scope.addVar(key) for key in @keys
+    @scope.addVar(key) for key in @keys
   toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
 
 While = clazz 'While', Node, ->
   init: ({@label, @cond, @block}) -> @cond ?= true
+  children$: get: -> [@label, @cond, @block]
   toString: -> "while(#{@cond}){#{@block}}"
 
 Loop = clazz 'Loop', While, Node, ->
   init: ({@label, @block}) -> @cond = true
+  children$: get: -> [@label, @block]
 
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
+  children$: get: -> [@obj, @cases, @default]
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
 
 Try = clazz 'Try', Node, ->
   init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
+  children$: get: -> [@block, @catchVar, @catchBlock, @finally]
   prepare: ->
     @catchBlock.addVar @catchVar
   toString: -> "try{#{@block}}#{
@@ -70,28 +79,34 @@ Try = clazz 'Try', Node, ->
 
 Case = clazz 'Case', Node, ->
   init: ({@matches, @block}) ->
+  children$: get: -> [@matches, @block]
   toString: -> "when #{@matches.join ','}{#{@block}}"
 
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @not, @op, @right}) ->
+  children$: get: -> [@left, @right]
   toString: -> "(#{@left or ''} #{@not and 'not ' or ''}#{@op} #{@right or ''})"
 
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
+  children$: get: -> [@expr]
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
+  children$: get: -> [@func, @params]
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
+  children$: get: -> [@target, @value]
   prepare: ->
-    @_scope.addVar @target if @target instanceof Word
+    @scope.addVar @target if @target instanceof Word
   toString: -> "#{@target}#{@type}(#{@value})"
 
 Slice = clazz 'Slice', Node, ->
   init: ({@obj, @range}) ->
+  children$: get: -> [@obj, @range]
   toString: -> "#{@obj}[#{@range}]"
 
 Index = clazz 'Index', Node, ->
@@ -106,16 +121,19 @@ Index = clazz 'Index', Node, ->
     @obj = obj
     @attr = attr
     @type = type
+  children$: get: -> [@obj, @attr]
   toString: ->
     close = if @type is '[' then ']' else ''
     "(#{@obj})#{@type}#{@attr}#{close}"
 
 Soak = clazz 'Soak', Node, ->
   init: (@obj) ->
+  children$: get: -> [@obj]
   toString: -> "(#{@obj})?"
 
 Obj = clazz 'Obj', Node, ->
   init: (@items) ->
+  children$: get: -> @items
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 This = clazz 'This', Node, ->
@@ -123,14 +141,17 @@ This = clazz 'This', Node, ->
   toString: -> "@"
 
 Arr = clazz 'Arr', Obj, ->
+  children$: get: -> @items
   toString: -> "[#{if @items? then @items.join ',' else ''}]"
 
 Item = clazz 'Item', Node, ->
   init: ({@key, @value}) ->
+  children$: get: -> [@key, @value]
   toString: -> @key+(if @value?   then ":(#{@value})"   else '')
 
 Str = clazz 'Str', Node, ->
   init: (@parts) ->
+  children$: get: -> @parts
   toString: ->
     parts = @parts.map (x) ->
       if x instanceof Node
@@ -141,6 +162,7 @@ Str = clazz 'Str', Node, ->
 
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
+  children$: get: -> [@params, @block]
   prepare: ->
     addVar = (thing) =>
       if thing instanceof Word
@@ -163,6 +185,7 @@ Func = clazz 'Func', Node, ->
 Range = clazz 'Range', Node, ->
   init: ({@start, @type, @end, @by}) ->
     @by ?= 1
+  children$: get: -> [@start, @end, @by]
   toString: -> "Range(#{@start? and "start:#{@start}," or ''}"+
                      "#{@end?   and "end:#{@end},"     or ''}"+
                      "type:'#{@type}', by:#{@by})"
