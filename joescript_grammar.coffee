@@ -30,7 +30,7 @@ Block = clazz 'Block', Node, ->
     @vars = undefined
   children$: get: -> @lines
   addVar: (varname) ->
-    assert.ok varname instanceof Word
+    assert.ok typeof varname is 'string', "varname should be a string but got #{typeof varname}"
     (@vars||=[]).push varname
   toString: ->
     (''+line for line in @lines).join '\n'

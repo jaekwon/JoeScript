@@ -47,7 +47,7 @@ translator = (node) ->
           else
             @stack[@stack.length-1...] = nextItem
             continue
-        else if nextItem instanceof Node
+        else if nextItem instanceof js.Node
           @stack.push translateNode nextItem
           continue
         else if nextItem instanceof Object and nextItem.type?
@@ -64,8 +64,10 @@ translateNode = (node) ->
     when js.Block
       # also yield variable declarations.
       return node.lines
+    when js.Assign
+      return [translateNode(node.target), node.type, translateNode(node.value)]
     else
-      return "/* Unknown */"
+      return ["/* Unknown thing #{node.constructor.name} */", {type:'NEWLINE'}]
 
 @translate = (node) ->
   prepareAST node
