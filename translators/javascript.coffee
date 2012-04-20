@@ -21,11 +21,62 @@ prepareAST = (node) ->
   # collect all variables to the scope.
   node.walk
     pre: (parent, node) ->
-      if node instanceof js.Assign and node.target instanceof js.
+      if node instanceof js.Assign
+        if node.target instanceof js.Word or typeof node.target is 'string'
+          varname = ''+node.target
+          node.scope.addVar varname
 
+# Returns a generator... call .next() on it to get the next item.
+# Objects returned by generator are strings or {type} objects where
+#   type: 'INDENT' | 'OUTDENT' | 'NEWLINE'
+translator = (node) ->
+  iterator =
+    stack: [node]
+    next: ->
+      loop
+        return null if @stack.length is 0
+        nextItem = @stack.pop()
+        if typeof nextItem is 'string'
+          return nextItem
+        else if nextItem instanceof Array
+          if nextItem.indent
+            @stack.push type:'OUTDENT'
+            @stack[@stack.length-1...] = nextItem
+            return type:'INDENT'
+          else
+            @stack[@stack.length-1...] = nextItem
+            continue
+        else if nextItem instanceof Node
+          @stack.push translateNode nextItem
+          continue
+        else if nextItem instanceof Object and nextItem.type?
+          return nextItem
+        else
+          throw Error "Unexpected item type: #{nextItem} (#{typeof nextItem})"
+  return iterator
+
+# Helper for transgenerator
+# Translate a node into an array of strings.
+# Returned array may be nested.
 translateNode = (node) ->
-  null
+  switch node.constructor
+    when js.Block
+      # also yield variable declarations.
+      return node.lines
+    else
+      return "/* Unknown */"
 
 @translate = (node) ->
   prepareAST node
-  translateNode node
+  generator = translator node
+  indent = 0
+  result = ''
+  while item = generator.next()
+    return if item is null
+    switch item.type
+      when 'INDENT' then indent += 1
+      when 'OUTDENT' then indent -= 1
+      when 'NEWLINE' then result += '\n'+Array(indent+1).join('  ')
+      else
+        result += item
+  result

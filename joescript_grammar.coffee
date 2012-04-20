@@ -285,7 +285,7 @@ resetIndent = (ws) ->
       o POSTUNLESS:                 "block:LINEEXPR _UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
       o POSTFOR:                    "block:LINEEXPR _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
       # rest
-      o STMT:                       "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
+      o STMT:                       "type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR?", Statement
       o EXPR: [
         o FUNC:                     "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
         i PARAMS:                   "_ '(' (&:PARAM default:(_ '=' LINEEXPR)?)*_COMMA _ ')'"
@@ -402,8 +402,9 @@ resetIndent = (ws) ->
 
   # TOKENS:
   i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
-  i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
-                      'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
+  i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
+                      'loop', 'while', 'break', 'continue',
+                      'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                       'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally')
   i _QUOTE:         "'\\''"
   i _DQUOTE:        "'\"'"
