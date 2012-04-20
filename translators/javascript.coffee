@@ -23,27 +23,61 @@ prepareAST = (node) ->
   node.walk
     pre: (parent, node) ->
       if node instanceof js.Assign
-        if node.target instanceof js.Word
-          node.scope.addVar node.target
-        else if typeof node.target is 'string'
-          node.scope.addVar js.Word node.target
+        if node.target instanceof js.Word or typeof node.target is 'string'
+          varname = ''+node.target
+          node.scope.addVar varname
 
-# For each type of Joescript node, return a string or array of strings, and each array having the following property(S)
-#   indent: yes|no (default: no)      Whether the children should be indented in the final output.
+# Returns a generator... call .next() on it to get the next item.
+# Objects returned by generator are strings or {type} objects where
+#   type: 'INDENT' | 'OUTDENT' | 'NEWLINE'
+translator = (node) ->
+  iterator =
+    stack: [node]
+    next: ->
+      loop
+        return null if @stack.length is 0
+        nextItem = @stack.pop()
+        if typeof nextItem is 'string'
+          return nextItem
+        else if nextItem instanceof Array
+          if nextItem.indent
+            @stack.push type:'OUTDENT'
+            @stack[@stack.length-1...] = nextItem
+            return type:'INDENT'
+          else
+            @stack[@stack.length-1...] = nextItem
+            continue
+        else if nextItem instanceof Node
+          @stack.push translateNode nextItem
+          continue
+        else if nextItem instanceof Object and nextItem.type?
+          return nextItem
+        else
+          throw Error "Unexpected item type: #{nextItem} (#{typeof nextItem})"
+  return iterator
+
+# Helper for transgenerator
+# Translate a node into an array of strings.
+# Returned array may be nested.
 translateNode = (node) ->
-  switch node.constructor.name
-    when 'Block'
-      console.log "Block"
-    when 'If'
-      console.log "If"
-    when 'Array'
-      translateNode(child) for child in node
-    # else do nothing
-  if node.children?
-    for child in node.children when child?
-      translateNode child
-  null
+  switch node.constructor
+    when js.Block
+      # also yield variable declarations.
+      return node.lines
+    else
+      return "/* Unknown */"
 
 @translate = (node) ->
   prepareAST node
-  translateNode node
+  generator = translator node
+  indent = 0
+  result = ''
+  while item = generator.next()
+    return if item is null
+    switch item.type
+      when 'INDENT' then indent += 1
+      when 'OUTDENT' then indent -= 1
+      when 'NEWLINE' then result += '\n'+Array(indent+1).join('  ')
+      else
+        result += item
+  result
