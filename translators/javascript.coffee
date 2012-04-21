@@ -2,31 +2,6 @@ assert = require 'assert'
 _ = require 'underscore'
 js = require('../joescript_grammar').NODES
 
-prepareAST = (node) ->
-
-  # create a global scope for node if it doesn't already exist.
-  node.scope ||= if node instanceof js.Block then node else js.Block()
-
-  # connect all nodes to their parents, set scope, and prepare.
-  node.walk
-    pre: (parent, node) ->
-      assert.ok node?
-      node.parent ||= parent
-      if node instanceof js.Block and node.parent instanceof js.Func
-        node.scope ||= node
-      else
-        node.scope ||= parent.scope
-    post:(parent, node) ->
-      node.prepare()
-
-  # collect all variables to the scope.
-  node.walk
-    pre: (parent, node) ->
-      if node instanceof js.Assign
-        if node.target instanceof js.Word or typeof node.target is 'string'
-          varname = ''+node.target
-          node.scope.addVar varname
-
 INDENT  = type:'INDENT'
 OUTDENT = type:'OUTDENT'
 NEWLINE = type:'NEWLINE'
@@ -100,6 +75,13 @@ translateOnce = (node) ->
       else
         return node.type
     when js.Func
+      # pull out the params
+      topNames = if node.params? then for param in node.params
+        if param instanceof js.Word or typeof param is 'string'
+          param
+        else
+          node.block.addVar('arg')
+      console.log "topnames:", topNames
       return ["function() {", INDENT, node.block, OUTDENT, "}"]
     when String, Boolean, js.Undefined, js.Null
       return ''+node
@@ -109,7 +91,6 @@ translateOnce = (node) ->
       return ["/* Unknown thing #{node.constructor.name} #{node}*/"]
 
 @translate = (node) ->
-  prepareAST node
   generator = translator node
   indent = 0
   result = ''

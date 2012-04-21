@@ -4,6 +4,12 @@
 assert = require 'assert'
 _ = require 'underscore'
 
+Scope = clazz 'Scope', ->
+  init: (@vars) ->
+  addVar: (varname) ->
+    assert.ok typeof varname is 'string', "varname should be a string but got #{typeof varname}"
+    (@vars||=[]).push varname
+
 Node = clazz 'Node', ->
   walk: ({pre, post, parent}) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
@@ -32,11 +38,7 @@ Word = clazz 'Word', Node, ->
 Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
-    @vars = undefined
   children$: get: -> @lines
-  addVar: (varname) ->
-    assert.ok typeof varname is 'string', "varname should be a string but got #{typeof varname}"
-    (@vars||=[]).push varname
   toString: ->
     (''+line for line in @lines).join '\n'
   toStringWithIndent: ->
@@ -175,11 +177,12 @@ Str = clazz 'Str', Node, ->
 
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
+    @scope = new Scope
   children$: get: -> [@params, @block]
   prepare: ->
     addVar = (thing) =>
       if thing instanceof Word
-        @block.addVar thing
+        @scope.addVar thing
       else if thing instanceof Arr
         addVar(item) for item in thing.items
       else if thing instanceof Obj
@@ -217,6 +220,29 @@ Dummy = clazz 'Dummy', Node, ->
   Null, Undefined,
   Arr, Item, Str, Func, Range, Heredoc, Dummy
 }
+
+__init__ = (node) ->
+
+  # create a global scope for node if it doesn't already exist.
+  node.scope ||= Scope()
+
+  # connect all nodes to their parents, set scope, and prepare.
+  node.walk
+    pre: (parent, node) ->
+      assert.ok node?
+      node.parent ||= parent
+      node.scope  ||= parent.scope
+    post:(parent, node) ->
+      node.prepare()
+
+  # collect all variables to the scope.
+  node.walk
+    pre: (parent, node) ->
+      if node instanceof Assign
+        if node.target instanceof Word or typeof node.target is 'string'
+          varname = ''+node.target
+          node.scope.addVar varname
+  node
 
 debugIndent = yes
 
@@ -310,9 +336,7 @@ resetIndent = (ws) ->
   return container.indent
 
 @GRAMMAR = Grammar ({o, i, tokens}) -> [
-  o "__INIT__ LINES __EXIT__ _"
-  i __INIT__:                       "_BLANKLINE*", -> # init code
-  i __EXIT__:                       "_BLANKLINE*", -> # exit code
+  o                                 "_BLANKLINE* LINES ___", __init__
   i LINES:                          "LINE*_NEWLINE", Block
   i LINE: [
     o HEREDOC:                      "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
