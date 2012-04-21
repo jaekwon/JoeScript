@@ -583,7 +583,7 @@ debugLoopify = debugCache = no
   compile: ($, result) ->
     node = $.grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
-    @Assign result, @Invocation @Index($.Grammar,@ref)
+    @Assign result, @Invocation @Index(@Grammar,@ref)
   toString: -> red(@ref)
 
 @Str = Str = clazz 'Str', GNode, ->

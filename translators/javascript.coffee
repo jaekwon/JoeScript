@@ -52,24 +52,25 @@ translator = (node) ->
             @stack[...0] = nextItem
             continue
         else if nextItem instanceof js.Node
-          @stack.unshift translateNode nextItem
+          @stack.unshift translateOnce nextItem
           continue
         else if nextItem instanceof Object and nextItem.type?
           return nextItem
-        else
-          throw Error "Unexpected item type: #{nextItem} (#{typeof nextItem})"
+        else if nextItem?
+          @stack.unshift translateOnce nextItem
+          continue
   return iterator
 
 # Helper for transgenerator
 # Translate a node into an array of strings.
 # Returned array may be nested.
-translateNode = (node) ->
+translateOnce = (node) ->
   switch node.constructor
     when js.Block
       formattedLines = []
       if node is node.scope and node.vars?
         for varname in node.vars
-          formattedLines.push js.Assign target:varname, type:'=', value:js.Undefined
+          formattedLines.push "var #{varname} = undefined"
           formattedLines.push ENDLINE
           formattedLines.push NEWLINE
       for line, i in node.lines
@@ -78,11 +79,34 @@ translateNode = (node) ->
         formattedLines.push NEWLINE if i isnt node.lines.length-1
       return formattedLines
     when js.Index
-      return ''+node
+      return "#{node}"
     when js.Assign
-      return [translateNode(node.target), " #{node.type} ", translateNode(node.value)]
+      return [translateOnce(node.target), " #{node.type} ", translateOnce(node.value)]
+    when js.If
+      if node.else?
+        return ["if(", node.cond, ") {", INDENT, node.block, OUTDENT, "} else {", INDENT, node.else, OUTDENT, "}"]
+      else
+        return ["if(", node.cond, ") {", INDENT, node.block, OUTDENT, "}"]
+    when js.While, js.Loop
+      return ["while(", node.cond, ") {", INDENT, node.block, OUTDENT, "}"]
+    when js.Operation
+      jsOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
+      return [(if node.not then "(!(" else "("), node.left, " #{jsOp} ", node.right, (if node.not then "))" else ")")]
+    when js.Invocation
+      return [node.func, "(", node.params, ")"]
+    when js.Statement
+      if node.expr?
+        return [node.type, " ", node.expr]
+      else
+        return node.type
+    when js.Func
+      return ["function() {", INDENT, node.block, OUTDENT, "}"]
+    when String, Boolean, js.Undefined, js.Null
+      return ''+node
+    when null, undefined
+      return ''
     else
-      return ["/* Unknown thing #{node.constructor.name} */"]
+      return ["/* Unknown thing #{node.constructor.name} #{node}*/"]
 
 @translate = (node) ->
   prepareAST node
@@ -92,8 +116,8 @@ translateNode = (node) ->
   while item = generator.next()
     return if item is null
     switch item.type
-      when 'INDENT' then indent += 1
-      when 'OUTDENT' then indent -= 1
+      when 'INDENT'  then result += '\n'+Array(++indent+1).join('  ')
+      when 'OUTDENT' then result += '\n'+Array(--indent+1).join('  ')
       when 'NEWLINE' then result += '\n'+Array(indent+1).join('  ')
       when 'ENDLINE' then result += ';'
       else

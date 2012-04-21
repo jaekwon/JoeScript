@@ -64,7 +64,7 @@ While = clazz 'While', Node, ->
   children$: get: -> [@label, @cond, @block]
   toString: -> "while(#{@cond}){#{@block}}"
 
-Loop = clazz 'Loop', While, Node, ->
+Loop = clazz 'Loop', While, ->
   init: ({@label, @block}) -> @cond = true
   children$: get: -> [@label, @block]
 
