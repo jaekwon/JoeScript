@@ -27,28 +27,32 @@ prepareAST = (node) ->
           varname = ''+node.target
           node.scope.addVar varname
 
+INDENT  = type:'INDENT'
+OUTDENT = type:'OUTDENT'
+NEWLINE = type:'NEWLINE'
+ENDLINE = type:'ENDLINE'
+
 # Returns a generator... call .next() on it to get the next item.
-# Objects returned by generator are strings or {type} objects where
-#   type: 'INDENT' | 'OUTDENT' | 'NEWLINE'
+# Objects returned by generator are strings or {type} objects
 translator = (node) ->
   iterator =
     stack: [node]
     next: ->
       loop
         return null if @stack.length is 0
-        nextItem = @stack.pop()
+        nextItem = @stack.shift()
         if typeof nextItem is 'string'
           return nextItem
         else if nextItem instanceof Array
           if nextItem.indent
-            @stack.push type:'OUTDENT'
-            @stack[@stack.length-1...] = nextItem
-            return type:'INDENT'
+            @stack.unshift OUTDENT
+            @stack[...0] = nextItem
+            return INDENT
           else
-            @stack[@stack.length-1...] = nextItem
+            @stack[...0] = nextItem
             continue
         else if nextItem instanceof js.Node
-          @stack.push translateNode nextItem
+          @stack.unshift translateNode nextItem
           continue
         else if nextItem instanceof Object and nextItem.type?
           return nextItem
@@ -62,12 +66,23 @@ translator = (node) ->
 translateNode = (node) ->
   switch node.constructor
     when js.Block
-      # also yield variable declarations.
-      return node.lines
+      formattedLines = []
+      if node is node.scope and node.vars?
+        for varname in node.vars
+          formattedLines.push js.Assign target:varname, type:'=', value:js.Undefined
+          formattedLines.push ENDLINE
+          formattedLines.push NEWLINE
+      for line, i in node.lines
+        formattedLines.push line
+        formattedLines.push ENDLINE
+        formattedLines.push NEWLINE if i isnt node.lines.length-1
+      return formattedLines
+    when js.Index
+      return ''+node
     when js.Assign
-      return [translateNode(node.target), node.type, translateNode(node.value)]
+      return [translateNode(node.target), " #{node.type} ", translateNode(node.value)]
     else
-      return ["/* Unknown thing #{node.constructor.name} */", {type:'NEWLINE'}]
+      return ["/* Unknown thing #{node.constructor.name} */"]
 
 @translate = (node) ->
   prepareAST node
@@ -80,6 +95,7 @@ translateNode = (node) ->
       when 'INDENT' then indent += 1
       when 'OUTDENT' then indent -= 1
       when 'NEWLINE' then result += '\n'+Array(indent+1).join('  ')
+      when 'ENDLINE' then result += ';'
       else
         result += item
   result

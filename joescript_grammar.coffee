@@ -22,6 +22,11 @@ Node = clazz 'Node', ->
 
 Word = clazz 'Word', Node, ->
   init: (@word) ->
+    switch @word
+      when 'undefined'
+        @_newOverride = Undefined.undefined
+      when 'null'
+        @_newOverride = Null.null
   toString: -> @word
 
 Block = clazz 'Block', Node, ->
@@ -124,7 +129,7 @@ Index = clazz 'Index', Node, ->
   children$: get: -> [@obj, @attr]
   toString: ->
     close = if @type is '[' then ']' else ''
-    "(#{@obj})#{@type}#{@attr}#{close}"
+    "#{@obj}#{@type}#{@attr}#{close}"
 
 Soak = clazz 'Soak', Node, ->
   init: (@obj) ->
@@ -135,6 +140,14 @@ Obj = clazz 'Obj', Node, ->
   init: (@items) ->
   children$: get: -> @items
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
+
+Null = clazz 'Null', Node, ->
+  @null = new @()
+  toString: -> "null"
+
+Undefined = clazz 'Undefined', Node, ->
+  @undefined = new @()
+  toString: -> "undefined"
 
 This = clazz 'This', Node, ->
   init: ->
@@ -201,6 +214,7 @@ Dummy = clazz 'Dummy', Node, ->
 @NODES = {
   Node, Word, Block, If, For, While, Loop, Switch, Try, Case, Operation,
   Statement, Invocation, Assign, Slice, Index, Soak, Obj, This,
+  Null, Undefined,
   Arr, Item, Str, Func, Range, Heredoc, Dummy
 }
 
