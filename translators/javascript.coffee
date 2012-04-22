@@ -43,11 +43,10 @@ translateOnce = (node) ->
   switch node.constructor
     when js.Block
       formattedLines = []
-      if node is node.scope and node.vars?
-        for varname in node.vars
-          formattedLines.push "var #{varname} = undefined"
-          formattedLines.push ENDLINE
-          formattedLines.push NEWLINE
+      if node.ownScope? and node.scope.vars?
+        formattedLines.push "var #{node.scope.vars.join ','}"
+        formattedLines.push ENDLINE
+        formattedLines.push NEWLINE
       for line, i in node.lines
         formattedLines.push line
         formattedLines.push ENDLINE
@@ -75,14 +74,28 @@ translateOnce = (node) ->
       else
         return node.type
     when js.Func
-      # pull out the params
-      topNames = if node.params? then for param in node.params
-        if param instanceof js.Word or typeof param is 'string'
-          param
+      # Argument destructuring lines
+      destructions = []
+      # target: (Word/string, Arr, or Obj)
+      # source: source var (Word/string or Index)
+      destruct = (target, source) ->
+        if target instanceof Arr
+          destruct(item, js.Index(source,js.Str(idx))) for item, idx in target.items
+        else if target instanceof Obj
+          destruct(item.value, js.Index(source,js.Str(item.key))) for item in target.items
+        else if target instanceof Word or typeof target is 'string'
+          destructions.push js.Assign target, source
         else
-          node.block.addVar('arg')
-      console.log "topnames:", topNames
-      return ["function() {", INDENT, node.block, OUTDENT, "}"]
+          throw Error "Unexpected target type #{target.constructor.name}, expected Arr/Obj/Word"
+      # Collect top level param names and destructions
+      paramNames = []
+      if node.params? then for param in node.params
+        if param instanceof js.Word or typeof param is 'string'
+          paramNames.push param
+        else
+          paramNames.push tempName=node.scope.makeTempVar('_temparg')
+          destruct param, tempName
+      return ["function(", paramNames, ") {", INDENT, destructions, node.block, OUTDENT, "}"]
     when String, Boolean, js.Undefined, js.Null
       return ''+node
     when null, undefined

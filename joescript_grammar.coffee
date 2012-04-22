@@ -5,10 +5,30 @@ assert = require 'assert'
 _ = require 'underscore'
 
 Scope = clazz 'Scope', ->
-  init: (@vars) ->
-  addVar: (varname) ->
-    assert.ok typeof varname is 'string', "varname should be a string but got #{typeof varname}"
-    (@vars||=[]).push varname
+  @VARIABLE = 'variable'
+  @PARAMETER = 'parameter'
+  init: (@vars=[], @params=[], @children=[]) ->
+  addVar:   (name) ->
+    return if name in @params
+    @vars.push name if name not in @vars
+  addParam: (name) ->
+    @vars.push name if name not in @vars
+    @params.push name if name not in @params
+  addScope: (scope) ->
+    assert.ok scope instanceof Scope
+    @children.push scope
+    scope.parent = this
+  hasLocalVar: (name) ->
+    return true if name in @vars
+    return true if _.any @children, (child)->child.hasLocalVar(name)
+    return false
+  makeTempVar: (prefix='temp') ->
+    # create a temporary variable that is not used in the inner scope
+    idx = 0
+    loop
+      name = "#{prefix}#{idx++}"
+      break unless @hasLocalVar name
+    return name
 
 Node = clazz 'Node', ->
   walk: ({pre, post, parent}) ->
@@ -24,6 +44,8 @@ Node = clazz 'Node', ->
           else if child instanceof Node
             child.walk {pre:pre, post:post, parent:@}
     post parent, @ if post?
+  # Gets called once after parsing and all
+  # nodes/scopes are connected.
   prepare: ->
 
 Word = clazz 'Word', Node, ->
@@ -77,9 +99,13 @@ Switch = clazz 'Switch', Node, ->
 
 Try = clazz 'Try', Node, ->
   init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
+    if @catchVar? and @catchBlock?
+      @catchBlock.scope = @catchBlock.ownScope = new Scope
   children$: get: -> [@block, @catchVar, @catchBlock, @finally]
   prepare: ->
-    @catchBlock.addVar @catchVar
+    if @catchBlock? and @catchBlock.scope?
+      @parent.scope.addScope @catchBlock.scope
+      @catchBlock.scope.addVar @catchVar if @catchVar?
   toString: -> "try{#{@block}}#{
                 @doCatch and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
                 @finally and "finally{#{@finally}}" or ''}"
@@ -108,7 +134,7 @@ Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) ->
   children$: get: -> [@target, @value]
   prepare: ->
-    @scope.addVar @target if @target instanceof Word
+    @scope.addVar @target if @target instanceof Word or typeof @target is 'string'
   toString: -> "#{@target}#{@type}(#{@value})"
 
 Slice = clazz 'Slice', Node, ->
@@ -118,7 +144,7 @@ Slice = clazz 'Slice', Node, ->
 
 Index = clazz 'Index', Node, ->
   init: ({obj, attr, type}) ->
-    type ?= '.'
+    type ?= if attr instanceof Word or typeof attr is 'string' then '.' else '['
     if type is '::'
       if attr?
         obj = Index obj:obj, attr:'prototype', type:'.'
@@ -168,32 +194,36 @@ Str = clazz 'Str', Node, ->
   init: (@parts) ->
   children$: get: -> @parts
   toString: ->
-    parts = @parts.map (x) ->
-      if x instanceof Node
-        '#{'+x+'}'
-      else
-        x.replace /"/g, "\\\""
-    '"' + parts.join('') + '"'
+    if typeof @parts is 'string'
+      '"' + @parts.replace(/"/g, "\\\"") + '"'
+    else
+      parts = @parts.map (x) ->
+        if x instanceof Node
+          '#{'+x+'}'
+        else
+          x.replace /"/g, "\\\""
+      '"' + parts.join('') + '"'
 
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
-    @scope = new Scope
+    @scope = @ownScope = new Scope
   children$: get: -> [@params, @block]
   prepare: ->
-    addVar = (thing) =>
-      if thing instanceof Word
-        @scope.addVar thing
+    @parent.scope.addScope @scope
+    addParam = (thing) =>
+      if thing instanceof Word or typeof thing is 'string'
+        @scope.addParam thing
       else if thing instanceof Arr
-        addVar(item) for item in thing.items
+        addParam(item) for item in thing.items
       else if thing instanceof Obj
         for item in thing.items
           if item.value
-            addVar(item.value)
+            addParam(item.value)
           else
-            addVar(item)
+            addParam(item)
       else if thing instanceof Index # @name
         "pass"
-    addVar(param) for param in @params if @params?
+    addParam(param) for param in @params if @params?
   toString: -> "(#{if @params then @params.map(
       (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
     ).join ',' else ''})#{@type}{#{@block}}"
@@ -224,7 +254,8 @@ Dummy = clazz 'Dummy', Node, ->
 __init__ = (node) ->
 
   # create a global scope for node if it doesn't already exist.
-  node.scope ||= Scope()
+  if not node.scope?
+    node.scope = node.ownScope = Scope()
 
   # connect all nodes to their parents, set scope, and prepare.
   node.walk
@@ -242,6 +273,7 @@ __init__ = (node) ->
         if node.target instanceof Word or typeof node.target is 'string'
           varname = ''+node.target
           node.scope.addVar varname
+
   node
 
 debugIndent = yes

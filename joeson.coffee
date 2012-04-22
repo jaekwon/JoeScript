@@ -316,7 +316,7 @@ debugLoopify = debugCache = no
           rank.include name, rule
       else if line instanceof Object and idx is lines.length-1
         assert.ok (_.intersection GNode.optionKeys, _.keys(line)).length > 0,
-          "Invalid options? #{inspect line}"
+          "Invalid options? #{line.constructor.name}"
         _.extend rank, line
       else
         throw new Error "Unknown line type, expected 'o' or 'i' line, got '#{line}' (#{typeof line})"
@@ -428,7 +428,7 @@ debugLoopify = debugCache = no
                   else if child.label is '@'
                     @Invocation @_.extend, results, res
                   else if child.label?
-                    @Assign @Index(results,child.label), res
+                    @Assign @Index(results,@Str(child.label)), res
             o @Assign result, results
 
   toString: ->
@@ -583,7 +583,7 @@ debugLoopify = debugCache = no
   compile: ($, result) ->
     node = $.grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
-    @Assign result, @Invocation @Index(@Grammar,@ref)
+    @Assign result, @Invocation @Index(@Grammar,@Str(@ref))
   toString: -> red(@ref)
 
 @Str = Str = clazz 'Str', GNode, ->
@@ -655,7 +655,6 @@ debugLoopify = debugCache = no
             if p instanceof js.NODES.Func then p else compileAST p
           return func.apply null, params
         when js.NODES.Str
-          assert.ok _.all node.parts, (part) -> typeof part is 'string'
           return node.parts.join ''
         when js.NODES.Arr
           return node.items.map (item) -> compileAST item
@@ -672,7 +671,8 @@ debugLoopify = debugCache = no
         else
           throw new Error "Unexpected node type #{node.constructor.name}"
 
-    return Grammar compileAST grammarAST
+    compiledAST = compileAST grammarAST
+    return Grammar compiledAST
 
   init: (rank) ->
     rank = rank(MACROS) if typeof rank is 'function'
@@ -723,7 +723,7 @@ debugLoopify = debugCache = no
         funcBlock = rule.compile $, result
         funcBlock = js.Block funcBlock if funcBlock not instanceof js.Block
         funcBlock.lines.push js.Statement 'return', result
-        o @Assign @Index(grammar,name), @Func(null,'->',funcBlock)
+        o @Assign @Index(grammar,@Str(''+name)), @Func(null,'->',funcBlock)
       o @Assign result, @Null
       o @rank.compile $, result
     require('./translators/javascript').translate code
@@ -748,6 +748,7 @@ debugLoopify = debugCache = no
       Index: (obj,attr) -> js.Index obj:obj,attr:attr
       Obj:  (items...) -> js.Obj (if items.length is 1 and items[0] instanceof Array then items[0] else items)
       Arr:  js.Arr
+      Str:  js.Str
       Item: js.Item
       Word: js.Word
       Block: (fn) ->
