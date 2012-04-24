@@ -7,113 +7,201 @@ OUTDENT = type:'OUTDENT'
 NEWLINE = type:'NEWLINE'
 ENDLINE = type:'ENDLINE'
 
-# Returns a generator... call .next() on it to get the next item.
-# Objects returned by generator are strings or {type} objects
-translator = (node) ->
-  iterator =
-    stack: [node]
-    next: ->
-      loop
-        return null if @stack.length is 0
-        nextItem = @stack.shift()
-        if typeof nextItem is 'string'
-          return nextItem
-        else if nextItem instanceof Array
-          if nextItem.indent
-            @stack.unshift OUTDENT
-            @stack[...0] = nextItem
-            return INDENT
-          else
-            @stack[...0] = nextItem
-            continue
-        else if nextItem instanceof js.Node
-          @stack.unshift translateOnce nextItem
-          continue
-        else if nextItem instanceof Object and nextItem.type?
-          return nextItem
-        else if nextItem?
-          @stack.unshift translateOnce nextItem
-          continue
-  return iterator
+valueOf = (node, db=0) -> translateOnce node:node, target:undefined, db:db
+procedureOf = (node, db=1) ->
+  result = translateOnce(node:node, target:null, db:db)
+  (result.procedure||=[]).push result.value if result.value?
+  return result
+extend = (dest, source) -> dest[dest.length...] = source
 
-# Helper for transgenerator
 # Translate a node into an array of strings.
-# Returned array may be nested.
-translateOnce = (node) ->
+# Required parameter/return attributes marked with *
+# Parameters:
+#  *node:       The node to translate
+#   target:    * varname if we want the value assigned to a variable.
+#              * undefined if the value is wanted, but no name is defined.         
+#              * null if the value is not needed at all, only the procedure.
+# Result:
+#   procedure:  Any procedure represented by node, or any procedure needed
+#               for the final value of the node.
+#               Null or undefined if no procedure was generated.
+#   value:     * varname if 'target' varname was present.
+#              * any expression if 'target' was undefined.
+#              * appended to procedure, when target was null.
+@translateOnce = translateOnce = ({node,target,proc,db}) ->
+  result = _translateOnce node:node, target:target, proc:proc, db:db
+  if target?
+    return procedure:result.procedure
+  return result
+
+_translateOnce = ({node,target,proc,db}) ->
+  assert.ok node?, "parameter 'node' is required. node:#{node}. target:#{target}. db:#{db}"
+  value = undefined
+  proc ||= []
+
   switch node.constructor
+
     when js.Block
-      formattedLines = []
+      target = node.scope.makeTempVar() if target is undefined
+      # output scope var declarations
       if node.ownScope? and node.scope.vars?
-        formattedLines.push "var #{node.scope.vars.join ','}"
-        formattedLines.push ENDLINE
-        formattedLines.push NEWLINE
+        extend proc, ["var #{node.scope.vars.join ','}", ENDLINE, NEWLINE]
+      # output individual lines
       for line, i in node.lines
-        formattedLines.push line
-        formattedLines.push ENDLINE
-        formattedLines.push NEWLINE if i isnt node.lines.length-1
-      return formattedLines
+        if i is node.lines.length-1 and target?
+          # the last line is the target value.
+          extend proc, [(translateOnce(node:line, target:target, proc:proc, db:2)), ENDLINE]
+        else
+          extend proc, [line, ENDLINE, NEWLINE if i isnt node.lines.length-1]
+      return value:target, procedure:proc
+
     when js.Index
-      return "#{node}"
+      return procedureOf(js.Assign(target:target, value:node), 'A') if target?
+      return value:"#{node}", procedure:null
+
     when js.Assign
-      return [translateOnce(node.target), " #{node.type} ", translateOnce(node.value)]
+      return procedureOf(js.Assign(target:target, value:node), 'B') if target?
+      if target is null
+        return procedure:[valueOf(node.target, 'C'), " #{node.type} ", valueOf(node.value, 'D')]
+      else # target is undefined
+        return value:["(", valueOf(node.target, 'E'), " #{node.type} ", valueOf(node.value, 'F'), ")"]
+
     when js.If
+      target = node.scope.makeTempVar() if target is undefined
       if node.else?
-        return ["if(", node.cond, ") {", INDENT, node.block, OUTDENT, "} else {", INDENT, node.else, OUTDENT, "}"]
+        proc.push [
+          "if(", valueOf(node.cond, 'G'), ") {", INDENT, NEWLINE,
+              (translateOnce(node:node.block, target:target, db:3)), OUTDENT, NEWLINE,
+          "} else {", INDENT, NEWLINE,
+              (translateOnce(node:node.else, target:target, db:4)), OUTDENT, NEWLINE,
+          "}"
+        ]
       else
-        return ["if(", node.cond, ") {", INDENT, node.block, OUTDENT, "}"]
+        proc.push [
+          "if(", node.cond, ") {", INDENT, NEWLINE,
+              (translateOnce(node:node.block, target:target, db:5)), OUTDENT, NEWLINE,
+          "}"
+        ]
+      return value:target, procedure:proc
+
     when js.While, js.Loop
-      return ["while(", node.cond, ") {", INDENT, node.block, OUTDENT, "}"]
-    when js.Operation
-      jsOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
-      return [(if node.not then "(!(" else "("), node.left, " #{jsOp} ", node.right, (if node.not then "))" else ")")]
-    when js.Invocation
-      return [node.func, "(", node.params, ")"]
-    when js.Statement
-      if node.expr?
-        return [node.type, " ", node.expr]
+      target = node.scope.makeTempVar() if target is undefined
+      if target?
+        proc.push [
+          js.Assign(target:target, value:js.Arr()),
+          "while(", node.cond, ") {", INDENT, NEWLINE,
+              @Invocation(@Index(target,'push'), valueOf(node.block, 'H')), OUTDENT, NEWLINE,
+          "}"
+        ]
       else
-        return node.type
+        proc.push [
+          "while(", node.cond, ") {", INDENT, NEWLINE,
+              node.block, OUTDENT, NEWLINE,
+          "}"
+        ]
+      return value:target, procedure:proc
+
+    when js.Operation
+      return procedureOf(js.Assign(target:target, value:node), 'I') if target?
+      jsOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
+      return value: [(if node.not then "(!(" else "("), node.left, " #{jsOp} ", node.right, (if node.not then "))" else ")")]
+
+    when js.Invocation
+      return procedureOf(js.Assign(target:target, value:node), 'J') if target?
+      return value: [valueOf(node.func, 'K'), "(", (valueOf(param, 'L') for param in node.params), ")"]
+
+    when js.Statement
+      assert.ok target is null, "Statements can't have targets"
+      if node.expr?
+        return value: [node.type, " ", node.expr]
+      else
+        return value: node.type
+
+    when js.Obj
+      target = node.scope.makeTempVar() if not target?
+      # set static keys on target
+      res = [target, '= {', INDENT, NEWLINE]
+      for item in node.items
+        if item.key instanceof js.Word or
+           item.key instanceof js.Str and item.key.isStatic
+              extend res, [item.key, ": ", item.value, ', ']
+      res.pop() if res.length > 2 # remove the last ', '
+      res.push [OUTDENT, NEWLINE, '}', ENDLINE, NEWLINE]
+      # set dynamic keys on target
+      for item in node.items
+        if item.key instanceof js.Str and not item.key.isStatic
+          extend res, [target, '[', valueOf(item.key, 'M'), '] = ', valueOf(item.value, 'N'), ENDLINE, NEWLINE]
+      proc.push res
+      return value:target, procedure:proc
+      
     when js.Func
-      # Argument destructuring lines
-      destructions = []
+      return procedureOf(js.Assign(target:target, value:node), 'O') if target?
+      # Argument matching lines
+      destructures = []
       # target: (Word/string, Arr, or Obj)
       # source: source var (Word/string or Index)
-      destruct = (target, source) ->
+      match = (target, source) ->
         if target instanceof Arr
-          destruct(item, js.Index(source,js.Str(idx))) for item, idx in target.items
+          match(item, js.Index(source,js.Str(idx))) for item, idx in target.items
         else if target instanceof Obj
-          destruct(item.value, js.Index(source,js.Str(item.key))) for item in target.items
+          match(item.value, js.Index(source,js.Str(item.key))) for item in target.items
         else if target instanceof Word or typeof target is 'string'
-          destructions.push js.Assign target, source
+          destructures.push js.Assign target:target, value:source
         else
           throw Error "Unexpected target type #{target.constructor.name}, expected Arr/Obj/Word"
-      # Collect top level param names and destructions
+      # Collect top level param names and matches
       paramNames = []
       if node.params? then for param in node.params
         if param instanceof js.Word or typeof param is 'string'
           paramNames.push param
         else
-          paramNames.push tempName=node.scope.makeTempVar('_temparg')
-          destruct param, tempName
-      return ["function(", paramNames, ") {", INDENT, destructions, node.block, OUTDENT, "}"]
-    when String, Boolean, js.Undefined, js.Null
-      return ''+node
+          paramNames.push tempName=node.scope.makeTempVar('_temparg', isParam:yes)
+          match param, tempName
+      return value:["function(", paramNames, ") {", INDENT, NEWLINE, destructures, node.block, OUTDENT, NEWLINE, "}"]
+
+    when String, Boolean, Number, js.Undefined, js.Null
+      return procedureOf(js.Assign(target:target, value:node), 'P') if target?
+      return value:''+node
+
     when null, undefined
-      return ''
+      return value:'' # TODO consider correctness of this
+
     else
-      return ["/* Unknown thing #{node.constructor.name} #{node}*/"]
+      # TODO replace with real-time error
+      return value:["(throw new Error \"Unknown thing #{node.constructor.name} #{node}\")"]
+
+  return undefined
 
 @translate = (node) ->
-  generator = translator node
   indent = 0
-  result = ''
-  while item = generator.next()
-    return if item is null
-    switch item.type
-      when 'INDENT'  then result += '\n'+Array(++indent+1).join('  ')
-      when 'OUTDENT' then result += '\n'+Array(--indent+1).join('  ')
-      when 'NEWLINE' then result += '\n'+Array(indent+1).join('  ')
-      when 'ENDLINE' then result += ';'
-      else
-        result += item
-  result
+  serialize = (thing) ->
+    res = ''
+    if typeof thing is 'string'
+      res += thing
+    else if thing is INDENT
+      ++indent
+    else if thing is OUTDENT
+      --indent
+    else if thing is NEWLINE
+      res += '\n'+Array(indent+1).join('  ')
+    else if thing is ENDLINE
+      res += ';'
+    else if thing instanceof Array
+      i = 0
+      while i < thing.length
+        res += serialize thing[i++]
+    else if thing instanceof Function
+      res += serialize(thing())
+    else if thing instanceof js.Node
+      result = translateOnce node:thing, target:undefined, db:6
+      if result.procedure? and not result.procedure.seen
+        result.procedure.seen = yes
+        res += serialize result.procedure
+      res += serialize result.value if result.value?
+    else if thing?
+      if thing.procedure? and not thing.procedure.seen
+        thing.procedure.seen = yes
+        res += serialize thing.procedure
+      res += serialize thing.value if thing.value?
+    return res
+  serialize(node)

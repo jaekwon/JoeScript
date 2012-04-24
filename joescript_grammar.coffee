@@ -22,12 +22,13 @@ Scope = clazz 'Scope', ->
     return true if name in @vars
     return true if _.any @children, (child)->child.hasLocalVar(name)
     return false
-  makeTempVar: (prefix='temp') ->
+  makeTempVar: (prefix='temp', isParam=no) ->
     # create a temporary variable that is not used in the inner scope
     idx = 0
     loop
       name = "#{prefix}#{idx++}"
       break unless @hasLocalVar name
+    if isParam then @addParam name else @addVar name
     return name
 
 Node = clazz 'Node', ->
@@ -131,7 +132,7 @@ Invocation = clazz 'Invocation', Node, ->
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->
-  init: ({@target, @type, @value}) ->
+  init: ({@target, @type, @value}) -> @type ||= '='
   children$: get: -> [@target, @value]
   prepare: ->
     @scope.addVar @target if @target instanceof Word or typeof @target is 'string'
@@ -193,6 +194,7 @@ Item = clazz 'Item', Node, ->
 Str = clazz 'Str', Node, ->
   init: (@parts) ->
   children$: get: -> @parts
+  isStatic: get: -> _.all @parts, (part)->typeof part is 'string'
   toString: ->
     if typeof @parts is 'string'
       '"' + @parts.replace(/"/g, "\\\"") + '"'
