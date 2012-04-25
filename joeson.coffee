@@ -456,6 +456,7 @@ debugLoopify = debugCache = no
 @Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
   capture: no
   init: ({@expr}) ->
+    @children = [@expr]
   parse$: @$wrap ($) ->
     pos = $.code.pos
     result = @expr.parse $
@@ -466,7 +467,7 @@ debugLoopify = debugCache = no
       o @Assign pos, @Code.pos
       o @it.compile $, result
       o @Assign(@Code.pos, pos)
-  toString: -> "(?#{@expr})"
+  toString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
 
 @Existential = Existential = clazz 'Existential', GNode, ->
   init: (@it) ->
