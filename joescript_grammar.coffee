@@ -272,14 +272,6 @@ __init__ = (node) ->
     post:(parent, node) ->
       node.prepare()
 
-  # collect all variables to the scope.
-  node.walk
-    pre: (parent, node) ->
-      if node instanceof Assign
-        if node.target instanceof Word or typeof node.target is 'string'
-          varname = ''+node.target
-          node.scope.addVar varname
-
   node
 
 debugIndent = yes

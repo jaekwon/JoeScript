@@ -50,7 +50,7 @@ _translateOnce = ({node,target,proc,db}) ->
       for line, i in node.lines
         if i is node.lines.length-1 and target?
           # the last line is the target value.
-          extend proc, [(translateOnce(node:line, target:target, proc:proc, db:2)), ENDLINE]
+          extend proc, [(translateOnce(node:line, target:target, proc:proc, db:2)), ENDLINE, NEWLINE]
         else
           extend proc, [line, ENDLINE, NEWLINE if i isnt node.lines.length-1]
       return value:target, procedure:proc
@@ -68,17 +68,17 @@ _translateOnce = ({node,target,proc,db}) ->
 
     when js.If
       target = node.scope.makeTempVar() if target is undefined
-      if node.else?
+      if node.elseBlock?
         proc.push [
-          "if(", valueOf(node.cond, 'G'), ") {", INDENT, NEWLINE,
+          "if(", valueOf(node.cond, 'G1'), ") {", INDENT, NEWLINE,
               (translateOnce(node:node.block, target:target, db:3)), OUTDENT, NEWLINE,
           "} else {", INDENT, NEWLINE,
-              (translateOnce(node:node.else, target:target, db:4)), OUTDENT, NEWLINE,
+              (translateOnce(node:node.elseBlock, target:target, db:4)), OUTDENT, NEWLINE,
           "}"
         ]
       else
         proc.push [
-          "if(", node.cond, ") {", INDENT, NEWLINE,
+          "if(", valueOf(node.cond, 'G2'), ") {", INDENT, NEWLINE,
               (translateOnce(node:node.block, target:target, db:5)), OUTDENT, NEWLINE,
           "}"
         ]
@@ -104,11 +104,11 @@ _translateOnce = ({node,target,proc,db}) ->
     when js.Operation
       return procedureOf(js.Assign(target:target, value:node), 'I') if target?
       jsOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
-      return value: [(if node.not then "(!(" else "("), node.left, " #{jsOp} ", node.right, (if node.not then "))" else ")")]
+      return value: [(if node.not then "(!(" else "("), valueOf(node.left,'J1'), " #{jsOp} ", valueOf(node.right,'J2'), (if node.not then "))" else ")")]
 
     when js.Invocation
-      return procedureOf(js.Assign(target:target, value:node), 'J') if target?
-      return value: [valueOf(node.func, 'K'), "(", (valueOf(param, 'L') for param in node.params), ")"]
+      return procedureOf(js.Assign(target:target, value:node), 'K') if target?
+      return value: [valueOf(node.func, 'L1'), "(", (valueOf(param, 'L2') for param in node.params), ")"]
 
     when js.Statement
       assert.ok target is null, "Statements can't have targets"
@@ -159,7 +159,7 @@ _translateOnce = ({node,target,proc,db}) ->
           match param, tempName
       return value:["function(", paramNames, ") {", INDENT, NEWLINE, destructures, node.block, OUTDENT, NEWLINE, "}"]
 
-    when String, Boolean, Number, js.Undefined, js.Null
+    when String, Boolean, Number, js.Undefined, js.Null, js.Word
       return procedureOf(js.Assign(target:target, value:node), 'P') if target?
       return value:''+node
 
@@ -194,14 +194,12 @@ _translateOnce = ({node,target,proc,db}) ->
       res += serialize(thing())
     else if thing instanceof js.Node
       result = translateOnce node:thing, target:undefined, db:6
-      if result.procedure? and not result.procedure.seen
-        result.procedure.seen = yes
-        res += serialize result.procedure
-      res += serialize result.value if result.value?
+      res += serialize result
     else if thing?
       if thing.procedure? and not thing.procedure.seen
         thing.procedure.seen = yes
         res += serialize thing.procedure
+      #res += serialize [ENDLINE, NEWLINE] if thing.procedure? and thing.value?
       res += serialize thing.value if thing.value?
     return res
   serialize(node)
