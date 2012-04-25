@@ -1,6 +1,6 @@
 # This will parse the grammar below
 
-{GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require './joeson'
+{GRAMMAR, MACROS, Grammar, Choice, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require './joeson'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
 
 pad = ({left,right}, str) ->
@@ -27,8 +27,8 @@ RAW_GRAMMAR = [
           o "LABELED": [
             o "(label:LABEL ':')? &:(COMMAND|DECORATED|PRIMARY)"
             o "COMMAND": [
-              o "'<chars:' chars:INT '>'", Lookahead
-              o "'<words:' words:INT '>'", Lookahead
+              o "'<chars:' chars:INT '>'", Peek
+              o "'<words:' words:INT '>'", Peek
             ]
             o "DECORATED": [
               o "PRIMARY '?'", Existential
@@ -36,6 +36,7 @@ RAW_GRAMMAR = [
               o "value:PRIMARY '+' join:(!__ PRIMARY)?", ({value,join}) -> Pattern value:value, join:join, min:1
               o "value:PRIMARY @:RANGE", Pattern
               o "'!' PRIMARY", Not
+              o "'(?' expr:EXPR ')'", Lookahead
               i "RANGE": "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
             ]
             o "PRIMARY": [

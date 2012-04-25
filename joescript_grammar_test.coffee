@@ -44,12 +44,12 @@ test  """
       else
         func undefined
       """, "if(condition1){func(true)}else{if(condition2){func(false)}else{func(undefined)}}"
-test  "foo[bar]", "(foo)[bar]"
-test  "foo[bar][baz]", "((foo)[bar])[baz]"
+test  "foo[bar]", "foo[bar]"
+test  "foo[bar][baz]", "foo[bar][baz]"
 test  "123", "123"
 test  "123.456", "123.456"
 test  "123.456.789", null
-test  "123.456 + foo.bar", "(123.456+(foo).bar)"
+test  "123.456 + foo.bar", "(123.456+foo.bar)"
 test  "{foo: 1}", "{foo:(1)}"
 test  "{'foo': 1}", "{\"foo\":(1)}"
 test  "{foo: bar: 1}", "{foo:({bar:(1)})}"
@@ -57,11 +57,11 @@ test  "foo: bar: 1", "{foo:({bar:(1)})}"
 test  "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
 test  "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
 test  "aString = 'foo'", "aString=(\"foo\")"
-test  "'foo'.length", "(\"foo\").length"
+test  "'foo'.length", "\"foo\".length"
 test  "[1, 2, 3]", "[1,2,3]"
 test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
-test  "foo?.bar['baz']::", "((((foo)?).bar)[\"baz\"]).prototype"
-test  "@foo == @bar.baz", "((@).foo==((@).bar).baz)"
+test  "foo?.bar['baz']::", "(foo)?.bar[\"baz\"].prototype"
+test  "@foo == @bar.baz", "(@.foo==@.bar.baz)"
 test  "x for x in [1,2,3]", "for x in [1,2,3]{x}"
 test  """
       for x in [1,2,3]
@@ -78,20 +78,20 @@ test  """
         else
           "incorrect"
       """, "x=(1)\nswitch(x){when 1{\"correct\"}//else{\"incorrect\"}}"
-test  "foo.replace(bar).replace(baz)", "((foo).replace(bar)).replace(baz)"
-test  "foo.replace(/\\/g, 'bar')", "(foo).replace(\"\\\\\",\"bar\")"
+test  "foo.replace(bar).replace(baz)", "foo.replace(bar).replace(baz)"
+test  "foo.replace(/\\/g, 'bar')", "foo.replace(\"\\\\\",\"bar\")"
 test  "a = () ->", "a=(()->{undefined})"
 test  "a = (foo) -> foo", "a=((foo)->{foo})"
 test  "a = (foo = 2) -> foo", "a=((foo=2)->{foo})"
 test  "a = ({foo,bar}) -> foo", "a=(({foo,bar})->{foo})"
 test  "a += 2", "a+=(2)"
 test  "a = [0..2]", "a=(Range(start:0,end:2,type:'..', by:1))"
-test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type:'..', by:1){(console).log(x)}"
-test  "for x in array[0..10] then console.log x", "for x in array[Range(start:0,end:10,type:'..', by:1)]{(console).log(x)}"
-test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{(user).name}\")"
-test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{(user).name}\"}\")"
+test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type:'..', by:1){console.log(x)}"
+test  "for x in array[0..10] then console.log x", "for x in array[Range(start:0,end:10,type:'..', by:1)]{console.log(x)}"
+test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{user.name}\")"
+test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{user.name}\"}\")"
 test  "line instanceof Object and 'true'", '((line instanceof Object) and "true")'
-test  "lines.length-1", '((lines).length - 1)'
+test  "lines.length-1", '(lines.length - 1)'
 test  "foo( func x for x in items )", 'foo(for x in items {func(x)})'
 test  """
 foo: FOO
@@ -171,7 +171,7 @@ test """
   foo, bar,
   baz, bak
 }
-""", "(@).stuff=({foo,bar,baz,bak})"
+""", "@.stuff=({foo,bar,baz,bak})"
 test """
 loop
   log one
@@ -214,7 +214,7 @@ if true
   "qwe"
 else if line instanceof Object and idx is lines.length - 1
   "Qwe"
-""", 'if(true){"qwe"}else{if(((line instanceof Object) and (idx is ((lines).length - 1)))){"Qwe"}}'
+""", 'if(true){"qwe"}else{if(((line instanceof Object) and (idx is (lines.length - 1)))){"Qwe"}}'
 test """
 {
   get: -> (foo)
@@ -235,6 +235,11 @@ test """
   bak: ->
 }
 """, '{foo:(()->{undefined}),bar:(()->{{baz:(()->{undefined})}}),bak:(()->{undefined})}'
+test """
+console.log
+  pre: "qwe"
+  post: "qwe"
+""", 'console.log({pre:("qwe"),post:("qwe")})'
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']

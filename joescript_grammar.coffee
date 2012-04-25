@@ -68,14 +68,16 @@ Block = clazz 'Block', Node, ->
     '\n  '+((''+line).replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
 
 If = clazz 'If', Node, ->
-  init: ({@cond, @block, @else}) ->
+  init: ({@cond, @block, @elseBlock}) ->
     @block = Block @block if @block not instanceof Block
-  children$: get: -> [@cond, @block, @else]
+  children$: get: -> [@cond, @block, @elseBlock]
   toString: ->
-    if @else?
-      "if(#{@cond}){#{@block}}else{#{@else}}"
+    if @elseBlock?
+      "if(#{@cond}){#{@block}}else{#{@elseBlock}}"
     else
       "if(#{@cond}){#{@block}}"
+
+Unless = ({cond, block, elseBlock}) -> If cond:Not(cond), block:block, elseBlock:elseBlock
 
 For = clazz 'For', Node, ->
   init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
@@ -120,6 +122,8 @@ Operation = clazz 'Operation', Node, ->
   init: ({@left, @not, @op, @right}) ->
   children$: get: -> [@left, @right]
   toString: -> "(#{@left or ''} #{@not and 'not ' or ''}#{@op} #{@right or ''})"
+
+Not = (it) -> Operation op:'not', right:it
 
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
@@ -377,7 +381,7 @@ resetIndent = (ws) ->
     o LINEEXPR: [
       # left recursive
       o POSTIF:                     "block:LINEEXPR _IF cond:EXPR", If
-      o POSTUNLESS:                 "block:LINEEXPR _UNLESS cond:EXPR", ({cond}) -> If cond:Operation(op:'not', right:cond)
+      o POSTUNLESS:                 "block:LINEEXPR _UNLESS cond:EXPR", Unless
       o POSTFOR:                    "block:LINEEXPR _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
       # rest
       o STMT:                       "type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR?", Statement
@@ -389,14 +393,15 @@ resetIndent = (ws) ->
                                     |OBJ_EXPL
                                     |ARR_EXPL"
         o RIGHT_RECURSIVE: [
-          o INVOC_IMPL:             "func:ASSIGNABLE __ params:(&:EXPR splat:'...'?)+(_COMMA|!_NEWLINE _SOFTLINE)", Invocation
-          o OBJ_IMPL:               "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)
-                                     | OBJ_IMPL_ITEM+_COMMA", Obj
+          o INVOC_IMPL:             "func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|!_NEWLINE _SOFTLINE)", Invocation
+          i OBJ_IMPL_INDENTED:      "_INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
+          o OBJ_IMPL:               "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
           i OBJ_IMPL_ITEM:          "key:(WORD|STRING) _ ':' value:EXPR", Item
           o ASSIGN:                 "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
         ]
         o COMPLEX: [
-          o IF:                     "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)?", If
+          o IF:                     "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)?", If
+          o UNLESS:                 "_UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)?", Unless
           o FOR:                    "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
           o LOOP:                   "_LOOP block:BLOCK", While
           o WHILE:                  "_WHILE cond:EXPR block:BLOCK", While

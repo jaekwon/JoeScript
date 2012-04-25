@@ -439,7 +439,7 @@ debugLoopify = debugCache = no
         ''+node
     blue("(")+(labeledStrs.join ' ')+blue(")")
 
-@Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
+@Peek = Peek = clazz 'Peek', GNode, ->
   capture: no
   init: ({@chars, @words, @lines}) ->
   parse$: @$wrap ($) ->
@@ -452,6 +452,21 @@ debugLoopify = debugCache = no
              @words? and "words:#{@words}" or
              @lines? and "lines:#{@lines}"
     }>"
+
+@Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
+  capture: no
+  init: ({@expr}) ->
+  parse$: @$wrap ($) ->
+    pos = $.code.pos
+    result = @expr.parse $
+    $.code.pos = pos
+    result
+  compile: ($, result)->
+    @Block (o) => $.scope 'pos', (pos) =>
+      o @Assign pos, @Code.pos
+      o @it.compile $, result
+      o @Assign(@Code.pos, pos)
+  toString: -> "(?#{@expr})"
 
 @Existential = Existential = clazz 'Existential', GNode, ->
   init: (@it) ->
@@ -864,6 +879,7 @@ OLine = clazz 'OLine', Line, ->
 C  = -> Choice (x for x in arguments)
 E  = -> Existential arguments...
 L  = (label, node) -> node.label = label; node
+Pk = -> Peek arguments...
 La = -> Lookahead arguments...
 N  = -> Not arguments...
 P  = (value, join, min, max) -> Pattern value:value, join:join, min:min, max:max
@@ -885,8 +901,8 @@ St = -> Str arguments...
           o "LABELED": [
             o S(E(S(L("label",R("LABEL")), St(':'))), L('&',C(R("COMMAND"),R("DECORATED"),R("PRIMARY"))))
             o "COMMAND": [
-              o S(St('<chars:'), L("chars",R("INT")), St('>')), Lookahead
-              o S(St('<words:'), L("words",R("INT")), St('>')), Lookahead
+              o S(St('<chars:'), L("chars",R("INT")), St('>')), Peek
+              o S(St('<words:'), L("words",R("INT")), St('>')), Peek
             ]
             o "DECORATED": [
               o S(R("PRIMARY"), St('?')), Existential
@@ -894,6 +910,7 @@ St = -> Str arguments...
               o S(L("value",R("PRIMARY")), St('+'), L("join",E(S(N(R("__")), R("PRIMARY"))))), ({value,join}) -> Pattern value:value, join:join, min:1
               o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern
               o S(St('!'), R("PRIMARY")), Not
+              o S(St('(?'), L("expr",R("EXPR")), St(')')), Lookahead
               i "RANGE": o S(St('{'), R("_"), L("min",E(R("INT"))), R("_"), St(','), R("_"), L("max",E(R("INT"))), R("_"), St('}'))
             ]
             o "PRIMARY": [
@@ -909,12 +926,12 @@ St = -> Str arguments...
     ]
   ]
   i LABEL:    C(St('&'), St('@'), R("WORD"))
-  i WORD:     S(La(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
-  i INT:      S(La(words:1), Re("[0-9]+")), Number
+  i WORD:     S(Pk(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
+  i INT:      S(Pk(words:1), Re("[0-9]+")), Number
   i _PIPE:    S(R("_"), St('|'))
   i _:        P(C(St(' '), St('\n')))
   i __:       P(C(St(' '), St('\n')), null, 1)
-  i '.':      S(La(chars:1), Re("[\\s\\S]"))
+  i '.':      S(Pk(chars:1), Re("[\\s\\S]"))
   i ESC1:     S(St('\\'), R("."))
   i ESC2:     S(St('\\'), R(".")), (chr) -> '\\'+chr
 ]
