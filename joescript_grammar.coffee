@@ -19,10 +19,13 @@ Scope = clazz 'Scope', ->
     return true if name in @vars
     return true if _.any @children, (child)->child.isLocalVariable(name)
     return false
-  addVariable:   (name) ->
+  addVariable: (name, forceDeclaration=no) ->
     # Add if name doesn't exist in the parent scope.
     # Note that 'addVariable' gets called while walking the code lexically.
-    @vars.push name unless name in @vars or @isVariable(name)
+    if forceDeclaration
+      @vars.push name unless name in @vars
+    else
+      @vars.push name unless name in @vars or @isVariable(name)
   addParameter: (name) ->
     @vars.push name unless name in @vars
     @params.push name unless name in @params
@@ -32,7 +35,7 @@ Scope = clazz 'Scope', ->
     loop
       name = "#{prefix}#{idx++}"
       break unless @isLocalVariable name
-    if isParam then @addParameter name else @addVariable name
+    if isParam then @addParameter name else @addVariable name, yes
     return name
 
 Node = clazz 'Node', ->
@@ -50,11 +53,11 @@ Node = clazz 'Node', ->
             child.walk {pre:pre, post:post, parent:@}
     post parent, @ if post?
   # not all nodes will have their own scopes.
-  createOwnScope: ->
+  createOwnScope: (parentScope) ->
     assert.ok @scope is undefined, "Scope on node already exists!"
     @scope = @ownScope = new Scope
-    @parent.scope.children.push scope
-    @scope.parent = @parent.scope
+    (parentScope||@parent.scope).children.push @scope
+    @scope.parent = (parentScope||@parent.scope)
   # by default, nodes belong to their parent's scope.
   setScopes: -> @scope ||= @parent.scope
   parameters: null
@@ -220,7 +223,9 @@ Str = clazz 'Str', Node, ->
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
   children$: get: -> [@params, @block]
-  setScopes: -> @createOwnScope()
+  setScopes: ->
+    @createOwnScope() # paramters go here
+    @block.createOwnScope(@scope) # variables go here
   parameters$: get: ->
     parameters = []
     collect = (thing) =>
