@@ -42,9 +42,8 @@ _translateOnce = ({node,target,proc,db}) ->
   switch node.constructor
 
     when js.Block
-      target = node.scope.makeTempVar() if target is undefined
       # output scope var declarations
-      if node.ownScope? and node.scope.vars?
+      if node.ownScope?.vars?.length > 0
         extend proc, ["var #{node.scope.vars.join ','}", ENDLINE, NEWLINE]
       # output individual lines
       for line, i in node.lines
@@ -64,10 +63,10 @@ _translateOnce = ({node,target,proc,db}) ->
       if target is null
         return procedure:[valueOf(node.target, 'C'), " #{node.type} ", valueOf(node.value, 'D')]
       else # target is undefined
-        return value:["(", valueOf(node.target, 'E'), " #{node.type} ", valueOf(node.value, 'F'), ")"]
+        #return value:["(", valueOf(node.target, 'E'), " #{node.type} ", valueOf(node.value, 'F'), ")"]
+        return translateOnce(node:node.value, target:node.target, db:2.5)
 
     when js.If
-      target = node.scope.makeTempVar() if target is undefined
       if node.elseBlock?
         proc.push [
           "if(", valueOf(node.cond, 'G1'), ") {", INDENT, NEWLINE,
@@ -85,7 +84,6 @@ _translateOnce = ({node,target,proc,db}) ->
       return value:target, procedure:proc
 
     when js.While, js.Loop
-      target = node.scope.makeTempVar() if target is undefined
       if target?
         proc.push [
           js.Assign(target:target, value:js.Arr()),
@@ -111,7 +109,6 @@ _translateOnce = ({node,target,proc,db}) ->
       return value: [valueOf(node.func, 'L1'), "(", (valueOf(param, 'L2') for param in node.params), ")"]
 
     when js.Statement
-      assert.ok target is null, "Statements can't have targets"
       if node.expr?
         return value: [node.type, " ", node.expr]
       else
@@ -195,11 +192,15 @@ _translateOnce = ({node,target,proc,db}) ->
     else if thing instanceof js.Node
       result = translateOnce node:thing, target:undefined, db:6
       res += serialize result
-    else if thing?
+    else if thing instanceof Object
+      assert.ok thing.procedure? or thing.value?, "Serialize function expects objects to be {procedure,value} type"
       if thing.procedure? and not thing.procedure.seen
         thing.procedure.seen = yes
         res += serialize thing.procedure
       #res += serialize [ENDLINE, NEWLINE] if thing.procedure? and thing.value?
       res += serialize thing.value if thing.value?
+    else if thing?
+      result = translateOnce node:thing, target:undefined, db:6
+      res += serialize result
     return res
   serialize(node)
