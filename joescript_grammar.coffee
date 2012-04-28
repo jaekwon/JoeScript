@@ -4,31 +4,35 @@
 assert = require 'assert'
 _ = require 'underscore'
 
+# convenience function for letting you use native strings for development.
+isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
+
 Scope = clazz 'Scope', ->
   @VARIABLE = 'variable'
   @PARAMETER = 'parameter'
   init: (@vars=[], @params=[], @children=[]) ->
-  addVar:   (name) ->
-    return if name in @params
-    @vars.push name if name not in @vars
-  addParam: (name) ->
-    @vars.push name if name not in @vars
-    @params.push name if name not in @params
-  addScope: (scope) ->
-    assert.ok scope instanceof Scope
-    @children.push scope
-    scope.parent = this
-  hasLocalVar: (name) ->
+  isVariable: (name) ->
     return true if name in @vars
-    return true if _.any @children, (child)->child.hasLocalVar(name)
+    return true if @parent?.isVariable(name)
     return false
+  isLocalVariable: (name) ->
+    return true if name in @vars
+    return true if _.any @children, (child)->child.isLocalVariable(name)
+    return false
+  addVariable:   (name) ->
+    # Add if name doesn't exist in the parent scope.
+    # Note that 'addVariable' gets called while walking the code lexically.
+    @vars.push name unless name in @vars or @isVariable(name)
+  addParameter: (name) ->
+    @vars.push name unless name in @vars
+    @params.push name unless name in @params
   makeTempVar: (prefix='temp', isParam=no) ->
     # create a temporary variable that is not used in the inner scope
     idx = 0
     loop
       name = "#{prefix}#{idx++}"
-      break unless @hasLocalVar name
-    if isParam then @addParam name else @addVar name
+      break unless @isLocalVariable name
+    if isParam then @addParameter name else @addVariable name
     return name
 
 Node = clazz 'Node', ->
@@ -45,9 +49,16 @@ Node = clazz 'Node', ->
           else if child instanceof Node
             child.walk {pre:pre, post:post, parent:@}
     post parent, @ if post?
-  # Gets called once after parsing and all
-  # nodes/scopes are connected.
-  prepare: ->
+  # not all nodes will have their own scopes.
+  createOwnScope: ->
+    assert.ok @scope is undefined, "Scope on node already exists!"
+    @scope = @ownScope = new Scope
+    @parent.scope.children.push scope
+    @scope.parent = @parent.scope
+  # by default, nodes belong to their parent's scope.
+  setScopes: -> @scope ||= @parent.scope
+  parameters: null
+  variables: null
 
 Word = clazz 'Word', Node, ->
   init: (@word) ->
@@ -82,8 +93,7 @@ Unless = ({cond, block, elseBlock}) -> If cond:Not(cond), block:block, elseBlock
 For = clazz 'For', Node, ->
   init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
   children$: get: -> [@label, @block, @keys, @obj, @cond]
-  prepare: ->
-    @scope.addVar(key) for key in @keys
+  variables$: get: -> @keys
   toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
 
 While = clazz 'While', Node, ->
@@ -102,13 +112,11 @@ Switch = clazz 'Switch', Node, ->
 
 Try = clazz 'Try', Node, ->
   init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
-    if @catchVar? and @catchBlock?
-      @catchBlock.scope = @catchBlock.ownScope = new Scope
   children$: get: -> [@block, @catchVar, @catchBlock, @finally]
-  prepare: ->
-    if @catchBlock? and @catchBlock.scope?
-      @parent.scope.addScope @catchBlock.scope
-      @catchBlock.scope.addVar @catchVar if @catchVar?
+  setScopes: ->
+    if @catchVar? and @catchBlock?
+      @catchBlock.createOwnScope()
+      @catchBlock.parameters = [@catchVar]
   toString: -> "try{#{@block}}#{
                 @doCatch and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
                 @finally and "finally{#{@finally}}" or ''}"
@@ -138,8 +146,7 @@ Invocation = clazz 'Invocation', Node, ->
 Assign = clazz 'Assign', Node, ->
   init: ({@target, @type, @value}) -> @type ||= '='
   children$: get: -> [@target, @value]
-  prepare: ->
-    @scope.addVar @target if @target instanceof Word or typeof @target is 'string'
+  variables$: get: -> if isWord @target then [@target] else null
   toString: -> "#{@target}#{@type}(#{@value})"
 
 Slice = clazz 'Slice', Node, ->
@@ -149,7 +156,7 @@ Slice = clazz 'Slice', Node, ->
 
 Index = clazz 'Index', Node, ->
   init: ({obj, attr, type}) ->
-    type ?= if attr instanceof Word or typeof attr is 'string' then '.' else '['
+    type ?= if isWord attr then '.' else '['
     if type is '::'
       if attr?
         obj = Index obj:obj, attr:'prototype', type:'.'
@@ -212,24 +219,19 @@ Str = clazz 'Str', Node, ->
 
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
-    @scope = @ownScope = new Scope
   children$: get: -> [@params, @block]
-  prepare: ->
-    @parent.scope.addScope @scope
-    addParam = (thing) =>
-      if thing instanceof Word or typeof thing is 'string'
-        @scope.addParam thing
-      else if thing instanceof Arr
-        addParam(item) for item in thing.items
-      else if thing instanceof Obj
-        for item in thing.items
-          if item.value
-            addParam(item.value)
-          else
-            addParam(item)
-      else if thing instanceof Index # @name
-        "pass"
-    addParam(param) for param in @params if @params?
+  setScopes: -> @createOwnScope()
+  parameters$: get: ->
+    parameters = []
+    collect = (thing) =>
+      if isWord thing
+        parameters.push thing
+      else if thing instanceof Obj # Arr is a subclass of Obj
+        collect(item.value or item) for item in thing.items
+      else if thing instanceof Index
+        "pass" # nothing to do for properties
+    collect(param) for param in @params if @params?
+    return parameters
   toString: -> "(#{if @params then @params.map(
       (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
     ).join ',' else ''})#{@type}{#{@block}}"
@@ -263,16 +265,16 @@ __init__ = (node) ->
   if not node.scope?
     node.scope = node.ownScope = Scope()
 
-  # connect all nodes to their parents, set scope, and prepare.
   node.walk
     pre: (parent, node) ->
       assert.ok node?
       node.parent ||= parent
+      node.setScopes()
       node.scope  ||= parent.scope
-    post:(parent, node) ->
-      node.prepare()
+      node.scope.addParameter param for param in (node.parameters||[])
+      node.scope.addVariable _var for _var in (node.variables||[])
 
-  node
+  return node
 
 debugIndent = yes
 
