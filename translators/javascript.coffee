@@ -14,6 +14,13 @@ procedureOf = (node, db=1) ->
   return result
 extend = (dest, source) -> dest[dest.length...] = source
 
+# Step to convert the last expression into a return statement.
+addImplicitReturns = (node) ->
+  node.walk
+    pre: (parent, node) ->
+      if node instanceof js.NODES.Func
+        node.block
+
 # Translate a node into an array of strings.
 # Required parameter/return attributes marked with *
 # Parameters:
