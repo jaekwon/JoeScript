@@ -36,7 +36,7 @@ RAW_GRAMMAR = [
               o "value:PRIMARY '+' join:(!__ PRIMARY)?", ({value,join}) -> Pattern value:value, join:join, min:1
               o "value:PRIMARY @:RANGE", Pattern
               o "'!' PRIMARY", Not
-              o "'(?' expr:EXPR ')'", Lookahead
+              o "'(?' expr:EXPR ')' | '?' expr:EXPR", Lookahead
               i "RANGE": "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
             ]
             o "PRIMARY": [

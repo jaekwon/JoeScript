@@ -53,8 +53,9 @@ Node = clazz 'Node', ->
             child.walk {pre:pre, post:post, parent:@}
     post parent, @ if post?
   # not all nodes will have their own scopes.
+  # pass in parentScope if @parent is not available.
   createOwnScope: (parentScope) ->
-    assert.ok @scope is undefined, "Scope on node already exists!"
+    assert.ok parentScope or @parent?.scope, "Where is my parent scope?"
     @scope = @ownScope = new Scope
     (parentScope||@parent.scope).children.push @scope
     @scope.parent = (parentScope||@parent.scope)
@@ -79,7 +80,7 @@ Block = clazz 'Block', Node, ->
   toString: ->
     (''+line for line in @lines).join '\n'
   toStringWithIndent: ->
-    '\n  '+((''+line).replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
+    '\n  '+((''+line+';').replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
 
 If = clazz 'If', Node, ->
   init: ({@cond, @block, @elseBlock}) ->
@@ -118,7 +119,7 @@ Try = clazz 'Try', Node, ->
   children$: get: -> [@block, @catchVar, @catchBlock, @finally]
   setScopes: ->
     if @catchVar? and @catchBlock?
-      @catchBlock.createOwnScope()
+      @catchBlock.createOwnScope(@scope)
       @catchBlock.parameters = [@catchVar]
   toString: -> "try{#{@block}}#{
                 @doCatch and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
@@ -225,7 +226,8 @@ Func = clazz 'Func', Node, ->
   children$: get: -> [@params, @block]
   setScopes: ->
     @createOwnScope() # paramters go here
-    @block.createOwnScope(@scope) # variables go here
+    if @block?
+      @block.createOwnScope(@scope) # variables go here
   parameters$: get: ->
     parameters = []
     collect = (thing) =>
@@ -270,21 +272,20 @@ __init__ = (node) ->
   if not node.scope?
     node.scope = node.ownScope = Scope()
 
-  node.walk
-    pre: (parent, node) ->
-      assert.ok node?
-      node.parent ||= parent
-      node.setScopes()
-      node.scope  ||= parent.scope
-      node.scope.addParameter param for param in (node.parameters||[])
-      node.scope.addVariable _var for _var in (node.variables||[])
+  node.walk pre: (parent, node) ->
+    node.parent ||= parent
+    node.scope  ||= parent.scope
+
+  node.walk pre: (parent, node) ->
+    node.setScopes()
+    node.scope.addParameter param for param in (node.parameters||[])
+    node.scope.addVariable _var for _var in (node.variables||[])
 
   return node
 
 debugIndent = yes
 
 checkIndent = (ws) ->
-  @storeCache = no
   @stack[0].indent ?= '' # set default lazily
 
   container = @stack[@stack.length-2]
@@ -311,10 +312,9 @@ checkIndent = (ws) ->
   null
 
 checkNewline = (ws) ->
-  @storeCache = no
   @stack[0].indent ?= '' # set default lazily
 
-  # find the container INDENT on the stack
+  # find the container indent (or softline) on the stack
   for i in [@stack.length-2..0] by -1
     if @stack[i].softline? or @stack[i].indent?
       container = @stack[i]
@@ -328,7 +328,6 @@ checkNewline = (ws) ->
 
 # like a newline, but allows additional padding
 checkSoftline = (ws) ->
-  @storeCache = no
   @stack[0].indent ?= '' # set default lazily
 
   # find the applicable indent
@@ -344,8 +343,7 @@ checkSoftline = (ws) ->
       container = @stack[i]
       @log "[SL] (@#{i}:#{container.name}) **indent**:'#{container.indent}', softline(ignored):'#{container.softline}'" if debugIndent
       break
-  if container is null
-    throw new Error "QWE"
+  assert.ok container isnt null
   # commit softline ws to container
   if ws.indexOf(container.softline ? container.indent) is 0
     topContainer = @stack[@stack.length-2]
@@ -355,15 +353,30 @@ checkSoftline = (ws) ->
   null
 
 checkComma = ({beforeBlanks, beforeWS, afterBlanks, afterWS}) ->
-  @storeCache = no
+  container = @stack[@stack.length-2]
+  container.trailingComma = yes if afterBlanks?.length > 0 # hack for INVOC_IMPL, see _COMMA_NEWLINE
   if afterBlanks.length > 0
     return null if checkSoftline.call(this, afterWS) is null
   else if beforeBlanks.length > 0
     return null if checkSoftline.call(this, beforeWS) is null
   ','
 
+checkCommaNewline = (ws) ->
+  @stack[0].indent ?= '' # set default lazily
+  container = @stack[@stack.length-2]
+  return null if not container.trailingComma
+  # Get the parent container's indent string
+  for i in [@stack.length-3..0] by -1
+    if @stack[i].softline? or @stack[i].indent?
+      pContainer = @stack[i]
+      pIndent = pContainer.softline ? pContainer.indent
+      break
+  # If ws starts with pIndent... valid
+  if ws.length > pIndent.length and ws.indexOf(pIndent) is 0
+    return yes
+  null
+
 resetIndent = (ws) ->
-  @storeCache = no
   @stack[0].indent ?= '' # set default lazily
   # find any container
   container = @stack[@stack.length-2]
@@ -392,7 +405,7 @@ resetIndent = (ws) ->
                                     |OBJ_EXPL
                                     |ARR_EXPL"
         o RIGHT_RECURSIVE: [
-          o INVOC_IMPL:             "func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|!_NEWLINE _SOFTLINE)", Invocation
+          o INVOC_IMPL:             "func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE)", Invocation
           i OBJ_IMPL_INDENTED:      "_INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
           o OBJ_IMPL:               "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
           i OBJ_IMPL_ITEM:          "key:(WORD|STRING) _ ':' value:EXPR", Item
@@ -498,6 +511,7 @@ resetIndent = (ws) ->
   i _SOFTLINE:      "_BLANKLINE+ &:_", checkSoftline, skipCache:yes
   i _COMMA:         "beforeBlanks:_BLANKLINE* beforeWS:_ ','
                       afterBlanks:_BLANKLINE*  afterWS:_", checkComma, skipCache:yes
+  i _COMMA_NEWLINE: "_BLANKLINE+ &:_", checkCommaNewline, skipCache:yes
 
   # TOKENS:
   i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word

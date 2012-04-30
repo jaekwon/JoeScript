@@ -71,8 +71,3 @@
       return null if matched is null
       @pos += matched[0].length
       matched[0]
-
-  # a new CodeStream at the current position.
-  clone: -> new CodeStream @text, @pos, @buffer
-  # commit clone into this
-  commit: (clone) -> [@pos, @buffer] = [clone.pos, clone.buffer]

@@ -240,14 +240,42 @@ console.log
   pre: "qwe"
   post: "qwe"
 """, 'console.log({pre:("qwe"),post:("qwe")})'
+test """
+collect = (thing) =>
+  if func param
+    foo
+  else
+    bar
+""", 'collect=((thing)=>{if(func(param)){foo}else{bar}})'
+test """
+console.log "foo1", "foo2",
+  "bar"
+    "baz"
+  "bak"
+""", 'console.log("foo1","foo2","bar","baz","bak")'
+test """
+collect = (thing) =>
+  if func param
+    foo
+  else
+    bar
+""", 'collect=((thing)=>{if(func(param)){foo}else{bar}})'
+test """
+function foo,
+    bar
+    baz
+""", 'function(foo,bar,baz)'
+test """
+function foo,
+  bar
+baz
+""", 'function(foo,bar) baz'
+
+
 
 console.log "TESTING FILES:"
 for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
-  try
-    context = GRAMMAR.parse chars, debug:no
-    console.log "FILE: #{filename} OK!"
-  catch error
-    console.log "ERROR: "+error
-    break
+  context = GRAMMAR.parse chars, debug:no
+  console.log "FILE: #{filename} OK!"

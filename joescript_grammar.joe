@@ -1,7 +1,5 @@
 GRAMMAR = ->
-  o "__INIT__ LINES __EXIT__ _"
-  i __INIT__:                       "_BLANKLINE*", -> # init code
-  i __EXIT__:                       "_BLANKLINE*", -> # exit code
+  o                                 "_BLANKLINE* LINES ___", __init__
   i LINES:                          "LINE*_NEWLINE", Block
   i LINE: ->
     o HEREDOC:                      "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
@@ -11,7 +9,7 @@ GRAMMAR = ->
       o POSTUNLESS:                 "block:LINEEXPR _UNLESS cond:EXPR", Unless
       o POSTFOR:                    "block:LINEEXPR _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
       # rest
-      o STMT:                       "type:(_RETURN|_THROW) expr:EXPR? | type:_BREAK", Statement
+      o STMT:                       "type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR?", Statement
       o EXPR: ->
         o FUNC:                     "params:PARAMS? _ type:('->'|'=>') block:BLOCK?", Func
         i PARAMS:                   "_ '(' (&:PARAM default:(_ '=' LINEEXPR)?)*_COMMA _ ')'"
@@ -20,14 +18,14 @@ GRAMMAR = ->
                                     |OBJ_EXPL
                                     |ARR_EXPL"
         o RIGHT_RECURSIVE: ->
-          o INVOC_IMPL:             "func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|!_NEWLINE _SOFTLINE)", Invocation
+          o INVOC_IMPL:             "func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE)", Invocation
           i OBJ_IMPL_INDENTED:      "_INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
-          o OBJ_IMPL:               "OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
+          o OBJ_IMPL:               "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
           i OBJ_IMPL_ITEM:          "key:(WORD|STRING) _ ':' value:EXPR", Item
           o ASSIGN:                 "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
         o COMPLEX: ->
-          o IF:                     "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)?", If
-          o IF:                     "_UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)?", Unless
+          o IF:                     "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)?", If
+          o UNLESS:                 "_UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)?", Unless
           o FOR:                    "_FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK", For
           o LOOP:                   "_LOOP block:BLOCK", While
           o WHILE:                  "_WHILE cond:EXPR block:BLOCK", While
@@ -64,7 +62,6 @@ GRAMMAR = ->
                         o           "left:OPATOM op:OP50_OP", Operation
                         o           "_ op:OP50_OP right:OPATOM", Operation
                         o OPATOM:   "FUNC | RIGHT_RECURSIVE | COMPLEX | ASSIGNABLE"
-
   i ASSIGNABLE: ->
     # left recursive
     o SLICE:        "obj:ASSIGNABLE !__ range:RANGE", Slice
@@ -105,15 +102,17 @@ GRAMMAR = ->
   i _NEWLINE: ->
     o               "_BLANKLINE+ &:_", checkNewline, skipCache:yes
     o               "_ ';'"
-    skipCache: yes
+    skipCache:yes
   i _SOFTLINE:      "_BLANKLINE+ &:_", checkSoftline, skipCache:yes
   i _COMMA:         "beforeBlanks:_BLANKLINE* beforeWS:_ ','
                       afterBlanks:_BLANKLINE*  afterWS:_", checkComma, skipCache:yes
+  i _COMMA_NEWLINE: "_BLANKLINE+ &:_", checkCommaNewline, skipCache:yes
 
   # TOKENS:
   i WORD:           "_ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/", Word
-  i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of', 'loop', 'while', 'break', 'switch',
-                      'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
+  i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
+                      'loop', 'while', 'break', 'continue',
+                      'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                       'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally')
   i _QUOTE:         "'\\''"
   i _DQUOTE:        "'\"'"
@@ -131,6 +130,7 @@ GRAMMAR = ->
   i _COMMENT:       "_ !HEREDOC '#' (!_TERM .)*",      skipLog:yes
   i _BLANKLINE:     "_ _COMMENT? _TERM",               skipLog:yes
   i ___:            "_BLANKLINE* _",                   skipLog:yes
+
 
 {Grammar} = require './joeson'
 g = Grammar.fromFile './joescript_grammar.joe'

@@ -23,7 +23,6 @@ debugLoopify = debugCache = no
     @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
     @cacheStores = []   # [ {name,pos}... ]
     @recurse = {}       # { pos:{ "#{name}":{stage,base,endPos}... } }
-    @storeCache = yes   # rule callbacks can override this
     @_ctr = 0
 
   # code.pos will be reverted if result is null
@@ -131,17 +130,12 @@ debugLoopify = debugCache = no
       $.log "[C] Cache hit @ $.cache[#{keystr key}]: #{escape cached.result}" if debugCache
       $.code.pos = cached.endPos
       return cached.result
-    $.storeCache = yes
     result = fn.call this, $
-    if $.storeCache
-      if not $.cache[key.pos]?[key.name]?
-        $.log "[C] Cache store @ $.cache[#{keystr key}]: #{escape result}" if debugCache
-        $.cacheSet key, result:result, endPos:$.code.pos
-      else
-        throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
+    if not $.cache[key.pos]?[key.name]?
+      $.log "[C] Cache store @ $.cache[#{keystr key}]: #{escape result}" if debugCache
+      $.cacheSet key, result:result, endPos:$.code.pos
     else
-      $.storeCache = yes
-      $.log "[C] Cache store (#{keystr key}) skipped manually." if debugCache
+      throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
     return result
 
   @$loopify = (fn) -> ($) ->
@@ -911,7 +905,7 @@ St = -> Str arguments...
               o S(L("value",R("PRIMARY")), St('+'), L("join",E(S(N(R("__")), R("PRIMARY"))))), ({value,join}) -> Pattern value:value, join:join, min:1
               o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern
               o S(St('!'), R("PRIMARY")), Not
-              o S(St('(?'), L("expr",R("EXPR")), St(')')), Lookahead
+              o C(S(St('(?'), L("expr",R("EXPR")), St(')')), S(St('?'), L("expr",R("EXPR")))), Lookahead
               i "RANGE": o S(St('{'), R("_"), L("min",E(R("INT"))), R("_"), St(','), R("_"), L("max",E(R("INT"))), R("_"), St('}'))
             ]
             o "PRIMARY": [
