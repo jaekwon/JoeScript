@@ -33,3 +33,15 @@ test """(a) -> return a""", 'function(a) { return a; };'
 test """(b) -> b""", 'function(b) { return b; };'
 test """(a) -> if true then a""", 'function(a) { if(true) { return a; } };'
 test """(a) -> if true then a else b""", 'function(a) { if(true) { return a; } else { return b; } };'
+test """foo is bar""", '(foo === bar);'
+test """if foo is bar then 'foo is bar'""", 'if((foo === bar)) { \"foo is bar\"; }'
+test """
+foo = bar
+if res is null
+  break
+  results.push res
+""", 'var foo; foo = bar; if((res === null)) { break; results.push(res); }'
+test """
+loop
+  a = b
+""", 'var a; while(true) { a = b; }'

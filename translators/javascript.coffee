@@ -28,6 +28,7 @@ addImplicitReturns = (node) ->
 # Result:      * any expression if 'target' was undefined.
 @translateOnce = _t_ = translateOnce = ({node,proc,target,context}) ->
   assert.ok proc, "proc must be an Array already provided"
+  #console.log "_t_: node:#{node}, proc:#{proc}, target:#{target}, context:#{context}"
 
   valueOf = (node, options={}) ->
     _proc = options.proc||proc
@@ -116,6 +117,7 @@ addImplicitReturns = (node) ->
       return target
 
     when js.While, js.Loop
+      console.log "node: #{node}, scope: #{node.scope}"
       target ||= node.scope.makeTempVar() if (target is undefined) or context?
 
       if target? # or context?
@@ -137,14 +139,14 @@ addImplicitReturns = (node) ->
 
     when js.Operation
       jsOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
-      simple [(if node.not then "(!(" else "("), valueOf(node.left), " #{jsOp} ", valueOf(node.right), (if node.not then "))" else ")")]
+      return simple [(if node.not then "(!(" else "("), valueOf(node.left), " #{jsOp} ", valueOf(node.right), (if node.not then "))" else ")")]
 
     when js.Invocation
       params = []
       for param, i in node.params
         params.push valueOf(param)
         params.push ", " if i isnt node.params.length-1
-      simple [valueOf(node.func), "(", params, ")"]
+      return simple [valueOf(node.func), "(", params, ")"]
 
     when js.Statement
       if node.expr?
@@ -208,14 +210,14 @@ addImplicitReturns = (node) ->
     when String, Boolean, Number, js.Undefined, js.Null, js.Word
       return simple "#{node}"
 
+    when js.Str
+      return simple "#{node}" if node.isStatic
+
     when null, undefined
       return '' # ???
 
     else
-      # TODO replace with real-time error
-      return value:["(throw new Error \"Unknown thing #{node.constructor.name} #{inspect node}\")"]
-
-  return undefined
+      throw new Error "Dunno how to translate #{node} (#{node.constructor?.name})"
 
 @translate = (node) ->
   addImplicitReturns node

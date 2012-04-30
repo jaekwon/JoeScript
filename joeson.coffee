@@ -459,7 +459,7 @@ debugLoopify = debugCache = no
   compile: ($, result)->
     @Block (o) => $.scope 'pos', (pos) =>
       o @Assign pos, @Code.pos
-      o @it.compile $, result
+      o @expr.compile $, result
       o @Assign(@Code.pos, pos)
   toString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
 
