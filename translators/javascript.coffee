@@ -47,7 +47,7 @@ addImplicitReturns = (node) ->
     _context = options.context||context
     _t_ node:node, proc:_proc, target:_target, context:_context
   simple = (value) ->
-    console.log "node: #{node}, proc: #{proc}, targt: #{target}, context #{context}"
+    #console.log "simple: value:#{value}, proc:#{proc}, target:#{target}, context:#{context}"
     if context?
       if context instanceof js.Func
         extend proc, ["return ", value, ENDLINE, NEWLINE]
@@ -61,7 +61,7 @@ addImplicitReturns = (node) ->
       if target is value
         return value
       else
-        extend proc, [target, " = ", value, ENDLINE, NEWLINE]
+        extend proc, [valueOf(target), " = ", value, ENDLINE, NEWLINE]
         return null
     else if target is null
       extend proc, [value, ENDLINE, NEWLINE]
@@ -94,8 +94,8 @@ addImplicitReturns = (node) ->
         return null
       else if target is undefined or context?
         return simple ["(", valueOf(node.target), " #{node.type} ", valueOf(node.value), ")"]
-      else
-        extend proc, [valueOf(node.target), " = ", valueOf(node.value), ENDLINE, NEWLINE]
+      else # target is null
+        addProcedure node.value, target:node.target
         return null
 
     when js.If
@@ -193,16 +193,15 @@ addImplicitReturns = (node) ->
       topParams = []
       if node.params? then for param, i in node.params
         if param instanceof js.Word or typeof param is 'string'
-          topParams.push param
+          topParams.push valueOf(param)
           topParams.push ", " if i isnt node.params.length-1
         else
-          topParams.push tempName=node.scope.makeTempVar('_temparg', isParam:yes)
+          topParams.push valueOf(tempName=node.scope.makeTempVar('_temparg', isParam:yes))
           topParams.push ", " if i isnt node.params.length-1
           match param, tempName
       return simple [
         "function(", topParams, ") {", INDENT, NEWLINE,
-            destructures,
-            procedureOf(node.block, context:this, proc:destructures),
+            procedureOf(node.block, context:node, proc:destructures),
         "}"
       ]
 

@@ -32,3 +32,4 @@ foo =
 test """(a) -> return a""", 'function(a) { return a; };'
 test """(b) -> b""", 'function(b) { return b; };'
 test """(a) -> if true then a""", 'function(a) { if(true) { return a; } };'
+test """(a) -> if true then a else b""", 'function(a) { if(true) { return a; } else { return b; } };'
