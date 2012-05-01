@@ -133,5 +133,7 @@ GRAMMAR = ->
 
 
 {Grammar} = require './joeson'
+console.log "parsing grammar..."
 g = Grammar.fromFile './joescript_grammar.joe'
+console.log "compiling grammar..."
 console.log ''+g.compile()

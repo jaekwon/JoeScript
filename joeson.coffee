@@ -744,6 +744,7 @@ debugLoopify = debugCache = no
       Grammar:  js.Word('grammar0') # {"#{rulename}": <Function>}
       Code:
         pos:    js.Index(obj:js.Word('code0'), attr:'pos')
+        peek:   js.Index(obj:js.Word('code0'), attr:'peek')
         match:  js.Index(obj:js.Word('code0'), attr:'match')
       _:
         extend: js.Index(obj:js.Word('_'),     attr:'extend')

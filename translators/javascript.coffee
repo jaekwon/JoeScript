@@ -37,10 +37,14 @@ addImplicitReturns = (node) ->
     _proc = options.proc||proc
     _target = if options.hasOwnProperty('target') then options.target else null
     _t_ node:node, proc:_proc, target:_target, context:options.context
+    if _proc[_proc.length-1] isnt NEWLINE
+      extend _proc, [ENDLINE, NEWLINE]
   procedureOf = (node, options={}) ->
     _proc = options.proc||[]
     _target = if options.hasOwnProperty('target') then options.target else null
     _t_ node:node, proc:_proc, target:_target, context:options.context
+    # remove trailing newline so the parent can outdent before final newline.
+    _proc.pop() if _proc[_proc.length-1] is NEWLINE and options.keepNewline isnt yes
     return _proc
   passTo = (node, options={}) ->
     _proc = options.proc||proc
@@ -52,12 +56,14 @@ addImplicitReturns = (node) ->
     if context?
       if context instanceof js.Func
         extend proc, ["return ", value, ENDLINE, NEWLINE]
-        return null
       else if context instanceof js.Statement
         extend proc, ["#{context.type} ", value, ENDLINE, NEWLINE]
-        return null
+      else if context instanceof js.Invocation
+        assert.ok (context.params is undefined), "Invocation contexts should have no parameters"
+        extend proc, [valueOf(context.func), "(", value..., ")", ENDLINE, NEWLINE]
       else
         throw new Error "Unexpected context #{context}"
+      return null
     else if target?
       if target is value
         return value
@@ -76,7 +82,7 @@ addImplicitReturns = (node) ->
       assert.ok target isnt undefined, "Blocks can't have undefined targets"
       # output individual lines
       for line, i in node.lines
-        if i is node.lines.length-1 and target? or context?
+        if i is node.lines.length-1 and (target? or context?)
           assert.ok not target? or not context?, "You can't specify both"
           passTo line
         else
@@ -117,23 +123,21 @@ addImplicitReturns = (node) ->
       return target
 
     when js.While, js.Loop
-      console.log "node: #{node}, scope: #{node.scope}"
       target ||= node.scope.makeTempVar() if (target is undefined) or context?
 
       if target? # or context?
         addProcedure js.Assign(target:target, value:js.Arr())
         extend proc, [
           "while(", valueOf(node.cond), ") {", INDENT, NEWLINE,
-              procedureOf(node.block, proc:blockProc=[]),
-          "}"
+              procedureOf(node.block, proc:blockProc=[], context:js.Invocation(func:js.Index(obj:target, attr:'push'))), OUTDENT, NEWLINE,
+          "}", NEWLINE
         ]
-        addProcedure js.Invocation(func:js.Index(obj:target, attr:'push'), params:target), proc:blockProc
         return simple target
       else
         extend proc, [
           "while(", valueOf(node.cond), ") {", INDENT, NEWLINE,
-              procedureOf(node.block, proc:blockProc=[]),
-          "}"
+              procedureOf(node.block, proc:blockProc=[]), OUTDENT, NEWLINE,
+          "}", NEWLINE
         ]
         return null
 
@@ -161,19 +165,25 @@ addImplicitReturns = (node) ->
     when js.Obj
       target = node.scope.makeTempVar() if not target?
       # set static keys on target
-      res = [target, '= {', INDENT, NEWLINE]
-      for item in node.items
-        if item.key instanceof js.Word or
-           item.key instanceof js.Str and item.key.isStatic
-              extend res, [valueOf(item.key), ": ", valueOf(item.value), ', ', NEWLINE]
-      res.pop() if res.length > 2 # remove the last ', '
-      extend res [OUTDENT, NEWLINE, '}', ENDLINE, NEWLINE]
+      if node.items?.length > 0
+        res = [target, ' = {', INDENT, NEWLINE]
+        for item in node.items
+          if item.key instanceof js.Word or
+             item.key instanceof js.Str and item.key.isStatic
+                extend res, [valueOf(item.key), ": ", valueOf(item.value), ', ', NEWLINE]
+        res.pop() if res.length > 2 # remove the last ', '
+        extend res, [OUTDENT, NEWLINE, '}', ENDLINE, NEWLINE]
+      else
+        res = [target, ' = {}', ENDLINE, NEWLINE]
       # set dynamic keys on target
       for item in node.items
         if item.key instanceof js.Str and not item.key.isStatic
           extend res, [target, '[', valueOf(item.key), '] = ', valueOf(item.value), ENDLINE, NEWLINE]
       extend proc, res
       return simple target
+
+    when js.Arr
+      return simple ["[", _.flatten([valueOf(item), ", "] for item in node.items||[])..., "]"]
       
     when js.Func
       # Argument matching lines
@@ -186,9 +196,7 @@ addImplicitReturns = (node) ->
         else if target instanceof Obj
           match(item.value, js.Index(source,js.Str(item.key))) for item in target.items
         else if target instanceof Word or typeof target is 'string'
-          destructures.extend [
-            procedureOf(js.Assign target:target, value:source), ENDLINE, NEWLINE
-          ]
+          addProcedure js.Assign(target:target, value:source), proc:destructures
         else
           throw Error "Unexpected target type #{target.constructor.name}, expected Arr/Obj/Word"
       # Collect top level param names and matches
@@ -203,8 +211,8 @@ addImplicitReturns = (node) ->
           match param, tempName
       return simple [
         "function(", topParams, ") {", INDENT, NEWLINE,
-            procedureOf(node.block, context:node, proc:destructures),
-        "}"
+            procedureOf(node.block, context:node, proc:destructures), OUTDENT, NEWLINE,
+        "}", NEWLINE
       ]
 
     when String, Boolean, Number, js.Undefined, js.Null, js.Word
@@ -213,13 +221,11 @@ addImplicitReturns = (node) ->
     when js.Str
       return simple "#{node}" if node.isStatic
 
-    when null, undefined
-      return '' # ???
-
     else
       throw new Error "Dunno how to translate #{node} (#{node.constructor?.name})"
 
 @translate = (node) ->
+  node.prepare() if not node.prepared
   addImplicitReturns node
 
   indent = 0

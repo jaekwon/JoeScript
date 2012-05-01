@@ -63,6 +63,18 @@ Node = clazz 'Node', ->
   setScopes: -> @scope ||= @parent.scope
   parameters: null
   variables: null
+  # call on the global node to prepare the entire tree.
+  prepare: ->
+    assert.ok not @prepared, "Node is already prepared."
+    @scope = @ownScope = Scope() if not @scope?
+    @walk pre: (parent, node) ->
+      node.parent ||= parent
+      node.scope  ||= parent.scope
+      node.prepared = yes
+    @walk pre: (parent, node) ->
+      node.setScopes()
+      node.scope.addParameter param for param in (node.parameters||[])
+      node.scope.addVariable _var for _var in (node.variables||[])
 
 Word = clazz 'Word', Node, ->
   init: (@word) ->
@@ -266,23 +278,6 @@ Dummy = clazz 'Dummy', Node, ->
   Arr, Item, Str, Func, Range, Heredoc, Dummy
 }
 
-__init__ = (node) ->
-
-  # create a global scope for node if it doesn't already exist.
-  if not node.scope?
-    node.scope = node.ownScope = Scope()
-
-  node.walk pre: (parent, node) ->
-    node.parent ||= parent
-    node.scope  ||= parent.scope
-
-  node.walk pre: (parent, node) ->
-    node.setScopes()
-    node.scope.addParameter param for param in (node.parameters||[])
-    node.scope.addVariable _var for _var in (node.variables||[])
-
-  return node
-
 debugIndent = yes
 
 checkIndent = (ws) ->
@@ -386,7 +381,7 @@ resetIndent = (ws) ->
   return container.indent
 
 @GRAMMAR = Grammar ({o, i, tokens}) -> [
-  o                                 "_BLANKLINE* LINES ___", __init__
+  o                                 "_BLANKLINE* LINES ___", (node) -> node.prepare(); node
   i LINES:                          "LINE*_NEWLINE", Block
   i LINE: [
     o HEREDOC:                      "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
