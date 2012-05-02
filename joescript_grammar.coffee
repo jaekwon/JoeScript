@@ -198,11 +198,17 @@ Obj = clazz 'Obj', Node, ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 Null = clazz 'Null', Node, ->
-  @null = new @()
+  @null = new @(yes)
+  init: (construct) ->
+    if construct isnt yes
+      @_newOverride = Null.null
   toString: -> "null"
 
 Undefined = clazz 'Undefined', Node, ->
-  @undefined = new @()
+  @undefined = new @(yes)
+  init: (construct) ->
+    if construct isnt yes
+      @_newOverride = Undefined.undefined
   toString: -> "undefined"
 
 This = clazz 'This', Node, ->

@@ -26,29 +26,30 @@ addImplicitReturns = (node) ->
 #              * undefined if the value is wanted, but no name is defined.         
 #              * null if the value is not needed at all, only the procedure.
 # Result:      * any expression if 'target' was undefined.
-@translateOnce = _t_ = translateOnce = ({node,proc,target,context}) ->
+@translateOnce = _t_ = translateOnce = (node, {proc,target,context}) ->
   assert.ok proc, "proc must be an Array already provided"
   #console.log "_t_: node:#{node}, proc:#{proc}, target:#{target}, context:#{context}"
 
+  # TODO: wish i could do (node, {proc=proc}) ->
   valueOf = (node, options={}) ->
-    _proc = options.proc||proc
-    _t_ node:node, proc:_proc
+    options.proc ||= proc
+    _t_ node, options
   addProcedure = (node, options={}) ->
-    _proc = options.proc||proc
-    _target = if options.hasOwnProperty('target') then options.target else null
-    _t_ node:node, proc:_proc, target:_target, context:options.context
+    options.proc ||= proc
+    options.target ||= if options.hasOwnProperty('target') then options.target else null
+    _t_ node, options
   procedureOf = (node, options={}) ->
-    _proc = options.proc||[]
-    _target = if options.hasOwnProperty('target') then options.target else null
-    _t_ node:node, proc:_proc, target:_target, context:options.context
+    options.proc ||= []
+    options.target ||= if options.hasOwnProperty('target') then options.target else null
+    _t_ node, options
     # remove trailing newline so the parent can outdent before final newline.
-    _proc.pop() if _proc[_proc.length-1] is NEWLINE and options.keepNewline isnt yes
-    return _proc
+    options.proc.pop() if options.proc[options.proc.length-1] is NEWLINE and options.keepNewline isnt yes
+    return options.proc
   passTo = (node, options={}) ->
-    _proc = options.proc||proc
-    _target = if options.hasOwnProperty('target') then options.target else target
-    _context = options.context||context
-    _t_ node:node, proc:_proc, target:_target, context:_context
+    options.proc ||= proc
+    options.target ||= if options.hasOwnProperty('target') then options.target else null
+    options.context ||= context
+    _t_ node, options
   simple = (value) ->
     #console.log "simple: value:#{value}, proc:#{proc}, target:#{target}, context:#{context}"
     if context?
@@ -252,7 +253,7 @@ addImplicitReturns = (node) ->
       res += serialize(thing())
     else if thing?
       proc = []
-      translateOnce node:thing, target:null, proc:proc
+      translateOnce thing, target:null, proc:proc
       res += serialize proc
     return res
   serialize(node)
