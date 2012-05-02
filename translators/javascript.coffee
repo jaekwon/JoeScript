@@ -123,6 +123,9 @@ addImplicitReturns = (node) ->
     when js.While, js.Loop
       target ||= node.scope.makeTempVar() if (target is undefined) or context?
 
+      # add label
+      extend proc, ["#{node.label}:", NEWLINE] if node.label?
+
       if target? # or context?
         addProcedure js.Assign(target:target, value:js.Arr())
         extend proc, [
@@ -213,7 +216,7 @@ addImplicitReturns = (node) ->
         "}"
       ]
 
-    when String, Boolean, Number, js.Undefined, js.Null, js.Word
+    when String, Number, Boolean, js.Undefined, js.Null, js.Word
       return simple "#{node}"
 
     when js.Str
@@ -231,6 +234,8 @@ addImplicitReturns = (node) ->
     res = ''
     if typeof thing is 'string'
       res += thing
+    else if typeof thing is 'number'
+      res += "<debug:#{thing}>" # for debugging
     else if thing is INDENT
       ++indent
     else if thing is OUTDENT

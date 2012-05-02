@@ -131,9 +131,21 @@ GRAMMAR = ->
   i _BLANKLINE:     "_ _COMMENT? _TERM",               skipLog:yes
   i ___:            "_BLANKLINE* _",                   skipLog:yes
 
+prefix = """
+var CodeStream = require('./codestream').CodeStream;
+grammar0 = {};
+code0 = CodeStream("func foo, bar");
+console.log("parsing code:");
+
+"""
 
 {Grammar} = require './joeson'
-console.log "parsing grammar..."
+console.log "Parsing grammar..."
 g = Grammar.fromFile './joescript_grammar.joe'
-console.log "compiling grammar..."
-console.log ''+g.compile()
+console.log "Compiling grammar..."
+code = prefix + g.compile()
+require('fs').writeFile 'joescript_parser.js', code, (err) ->
+  if err?
+    console.log "ERROR! #{err}"
+  else
+    console.log "Wrote joescript_parser.js"

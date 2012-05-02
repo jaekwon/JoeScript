@@ -395,7 +395,7 @@ debugLoopify = debugCache = no
             for child in @sequence
               o child.compile $, res
               o @If @Operation(res, 'is', @Null),
-                  @Statement 'break',
+                  @Statement 'break'
                   if child.capture
                     @Invocation(@Index(results,'push'), res)
             o @Assign result, results
@@ -416,7 +416,7 @@ debugLoopify = debugCache = no
             for child in @sequence
               o child.compile $, res
               o @If @Operation(res, 'is', @Null),
-                  @Statement 'break',
+                  @Statement 'break'
                   if child.label is '&'
                     @Assign results, @Invocation(@_.extend, res, results)
                   else if child.label is '@'
@@ -732,7 +732,7 @@ debugLoopify = debugCache = no
       for name, rule of @rules
         funcBlock = rule.compile $, result
         funcBlock = js.Block funcBlock if funcBlock not instanceof js.Block
-        funcBlock.lines.push js.Statement 'return', result
+        funcBlock.lines.push @Statement 'return', result
         o @Assign @Index(grammar,@Str(''+name)), @Func(null,'->',funcBlock)
       o @Assign result, @Null
       o @rank.compile $, result
