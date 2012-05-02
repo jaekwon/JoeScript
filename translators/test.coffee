@@ -8,7 +8,9 @@ test = (code, expected) ->
   proc = []
   console.log "test #{counter++}: #{code}"
   translated = jsx.translate(node)
-  assert.equal translated.replace(/[\n ]+/g, ' ').trim(), expected.replace(/[\n ]+/g, ' ').trim()
+  if translated.replace(/[\n ]+/g, ' ').trim() isnt expected.replace(/[\n ]+/g, ' ').trim()
+    console.log "ERROR: expected:\n#{expected} but got\n #{translated}"
+    process.exit()
 
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1); } else { (2 + 2); }'
 test """

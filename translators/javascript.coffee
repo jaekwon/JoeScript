@@ -37,8 +37,6 @@ addImplicitReturns = (node) ->
     _proc = options.proc||proc
     _target = if options.hasOwnProperty('target') then options.target else null
     _t_ node:node, proc:_proc, target:_target, context:options.context
-    if _proc[_proc.length-1] isnt NEWLINE
-      extend _proc, [ENDLINE, NEWLINE]
   procedureOf = (node, options={}) ->
     _proc = options.proc||[]
     _target = if options.hasOwnProperty('target') then options.target else null
@@ -212,7 +210,7 @@ addImplicitReturns = (node) ->
       return simple [
         "function(", topParams, ") {", INDENT, NEWLINE,
             procedureOf(node.block, context:node, proc:destructures), OUTDENT, NEWLINE,
-        "}", NEWLINE
+        "}"
       ]
 
     when String, Boolean, Number, js.Undefined, js.Null, js.Word
