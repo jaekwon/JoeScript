@@ -1,7 +1,7 @@
 # This will parse the grammar below
 
-{GRAMMAR, MACROS, Grammar, Choice, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require './joeson'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
+{GRAMMAR, MACROS, Grammar, Choice, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require '../joeson'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
 
 pad = ({left,right}, str) ->
   if right? and right > str.length

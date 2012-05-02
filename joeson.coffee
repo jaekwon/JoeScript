@@ -3,11 +3,13 @@ JoeSon Parser
 Jae Kwon 2012
 ###
 
+# NOTE: All Node::compile functions are deprecated. See the roadmap for details.
+
 _ = require 'underscore'
 assert = require 'assert'
 {inspect, CodeStream} = require './codestream'
 {clazz} = require 'cardamom'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './lib/colors'
 
 escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
@@ -70,6 +72,7 @@ debugLoopify = debugCache = no
     delete @cache[key.pos][key.name]
     @cacheStores.splice cacheStoresIdx, 1
 
+# DEPRECATED
 # aka '$' in compile functions 
 @CompileContext = CompileContext = clazz 'CompileContext', ->
   init: ({@grammar}={}) ->

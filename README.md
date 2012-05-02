@@ -41,16 +41,21 @@ Also, npm install . for dependencies.
 
 ## Roadmap
 
-* The immediate roadmap is to modify joeson.coffee to generate optimized parser code, for performance reasons.
+* Finish the interpreter/*
+* Use the interpreter/* to statically analyze joeson.coffee
+* Use the analysis and the translator/* to compile an optimized parser.
+** Note that the Node::compile functions are deprecated, will be deleted.
 
 ## Structure
 
+TODO update with new structure and files
+
 * joeson.coffee                  This is the parser logic.
-* joeson_grammar.coffee          This parses joeson grammar against itself and does a benchmark test. Just run the file.
 * joescript_grammar.coffee       This file contains nodes/grammar for Joescript. The AST nodes defined here will be used throughout the project.
 * joescript_grammar.joe          Same as above except it contains some grammar data in code syntax in the form of a callback function.
                                  I found the syntax to be much better than using explicit arrays.
                                  Eventually both files will be merged into one, when Coffee/Joe gains runtime access to its AST.
+* joeson_grammar_test.coffee     This parses joeson grammar against itself and does a benchmark test. Just run the file.
 * joescript_grammar_test.coffee  This file tests the parsing of all the code in the project. Run the file, and fix joescript_grammar if it's broken.
 
 ## Contributing

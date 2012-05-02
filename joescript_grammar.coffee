@@ -1,5 +1,5 @@
 {Grammar} = require './joeson'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './lib/colors'
 {clazz} = require 'cardamom'
 assert = require 'assert'
 _ = require 'underscore'

@@ -1,5 +1,5 @@
-{GRAMMAR, NODES} = require './joescript_grammar'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './colors'
+{GRAMMAR, NODES} = require '../joescript_grammar'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
 assert = require 'assert'
 
 console.log "-=TEST=-"
@@ -274,7 +274,7 @@ baz
 
 
 console.log "TESTING FILES:"
-for filename in ['codestream.coffee', 'joeson.coffee', 'joeson_grammar.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe']
+for filename in ['codestream.coffee', 'joeson.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe', 'tests/joeson_grammar_test.coffee']
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
   context = GRAMMAR.parse chars, debug:no

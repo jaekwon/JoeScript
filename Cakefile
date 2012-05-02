@@ -5,8 +5,8 @@ task 'build', ->
   run 'coffee -c codestream.coffee'
 
 task 'test', ->
-  run 'coffee joeson_grammar.coffee'
-  run 'coffee joescript_grammar_test.coffee'
+  run 'coffee tests/joeson_grammar_test.coffee'
+  run 'coffee tests/joescript_grammar_test.coffee'
 
 run = (args...) ->
   for a in args
