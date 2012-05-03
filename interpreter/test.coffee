@@ -13,3 +13,4 @@ test = (code, expected) ->
 
 test """if true then 1 else 2""", 1
 test """if false then 1 else 2""", 2
+test """a = 'bar'""", 'bar'

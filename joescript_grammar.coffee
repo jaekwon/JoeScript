@@ -7,6 +7,7 @@ _ = require 'underscore'
 # convenience function for letting you use native strings for development.
 isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
 
+# Lexical scope.
 Scope = clazz 'Scope', ->
   @VARIABLE = 'variable'
   @PARAMETER = 'parameter'
@@ -38,6 +39,7 @@ Scope = clazz 'Scope', ->
     if isParam then @addParameter name else @addVariable name, yes
     return name
 
+# All AST nodes are instances of Node.
 Node = clazz 'Node', ->
   walk: ({pre, post, parent}) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
@@ -160,6 +162,7 @@ Invocation = clazz 'Invocation', Node, ->
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->
+  # type: =, +=, -=. *=, /=, ?=, ||= ...
   init: ({@target, @type, @value}) -> @type ||= '='
   children$: get: -> [@target, @value]
   variables$: get: -> if isWord @target then [@target] else null

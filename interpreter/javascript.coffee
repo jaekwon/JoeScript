@@ -29,6 +29,7 @@ isTrue = (node) ->
       'TODO:Index'
 
     when js.Assign
+      target = node.target
       'TODO:Assign'
 
     when js.If
