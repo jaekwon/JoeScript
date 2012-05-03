@@ -12,39 +12,13 @@ Also, npm install . for dependencies.
 
 * The parser is essentially a left-recursive packrat parser, as far as I can tell.
 * It's like a memoized top-down recursive descent parser (PEG) but with the added ability to parse non-ambiguous left-recursive grammars (like post-if statements).
-* It is not a general CFG parser. Some limitations below:
-
-```
-  START:   "EXPR"
-  EXPR:
-    EXPR1: "EXPR '-' EXPR"
-    EXPR2: "NUM"
-  NUM:     "/[0-9]+/"
-
-  parses '3-2-1' right-recursively, which is unexpected.
-```
-
-```
-  START:   "EXPR"
-  EXPR:    "'x' EXPR 'x' | 'x'"
-
-  fails to parse 'xxxxx': counting problem.
-```
-  
-```
-  START: "A | B"
-  A:     "A 'a' | B | 'a'"
-  B:     "B 'b' | A | 'b'"
-
-  fails to parse 'ababa' due to greediness.
-```
+* It is not a general CFG parser. Some limitations in docs/limitations.md
 
 ## Roadmap
 
-* Finish the interpreter/*
-* Use the interpreter/* to statically analyze joeson.coffee
-* Use the analysis and the translator/* to compile an optimized parser.
-** Note that the Node::compile functions are deprecated, will be deleted.
+* Finish the simple interpreter/*.
+* Use the interpreter/* to statically analyze and reduce joeson.coffee into an optimized AST. (Important here is the notion of customized hints, like frozen objects).
+* Use the translator/* to print the optimized AST.
 
 ## Structure
 

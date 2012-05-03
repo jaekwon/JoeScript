@@ -3,8 +3,6 @@ JoeSon Parser
 Jae Kwon 2012
 ###
 
-# NOTE: All Node::compile functions are deprecated. See the roadmap for details.
-
 _ = require 'underscore'
 assert = require 'assert'
 {inspect, CodeStream} = require './codestream'
@@ -71,29 +69,6 @@ debugLoopify = debugCache = no
     assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{keystr key}"
     delete @cache[key.pos][key.name]
     @cacheStores.splice cacheStoresIdx, 1
-
-# DEPRECATED
-# aka '$' in compile functions 
-@CompileContext = CompileContext = clazz 'CompileContext', ->
-  init: ({@grammar}={}) ->
-    @vars = {}
-  makeVar: (preferredName) ->
-    idx = 0
-    while @vars["#{preferredName}#{idx}"]?
-      idx += 1
-    @vars[_var = "#{preferredName}#{idx}"] = _var
-    _var
-  destroyVar: (_var) ->
-    if not @vars[_var]?
-      console.log @vars, _var
-    assert.ok @vars[_var]?, "Unknown $.scope var #{_var}"
-    delete @vars[_var]
-  scope: (vars, fn) ->
-    vars = vars.split(/, *| +/g) if (typeof vars) is 'string'
-    vars = (@makeVar(v) for v in vars)
-    fn.apply(this, vars)
-    @destroyVar(v) for v in vars
-    null
 
 ###
   In addition to the attributes defined by subclasses,
@@ -235,10 +210,6 @@ debugLoopify = debugCache = no
   @$pWrap = (fn) ->
     @$stack @$debug @$cache @$loopify @$ruleCallback @$applyLabel fn
 
-  @$cWrap = (fn) ->
-    # need to compile all of these wrapper functions
-    fn
-
   capture: yes
   walk: ({pre, post}, parent=undefined) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
@@ -290,17 +261,6 @@ debugLoopify = debugCache = no
       if result isnt null
         return result
     return null
-
-  compile: @$cWrap ($, result) ->
-    @Trail undefined, (o) =>
-      o @Assign result, @Null
-      for choice in @choices
-        $.scope 'pos', (pos) =>
-          o @Assign pos, @Code.pos
-          o choice.compile $, result
-          o @If @Operation(result, 'is', @Null),
-              @Assign(@Code.pos, pos),
-              @Statement 'break'
 
   toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
@@ -378,6 +338,7 @@ debugLoopify = debugCache = no
         return result
       when 'object'
         results = {}
+        results[label] = undefined for label in @labels
         for child in @sequence
           res = child.parse $
           return null if res is null
@@ -392,46 +353,6 @@ debugLoopify = debugCache = no
         throw new Error "Unexpected type #{@type}"
     throw new Error
 
-  compile: @$cWrap ($, result) ->
-    @Trail undefined, (o) =>
-      o @Assign result, @Undefined
-      switch @type
-        when 'array'
-          $.scope 'results, res', (results, res) =>
-            o @Assign results, @Arr()
-            for child in @sequence
-              o child.compile $, res
-              o @If @Operation(res, 'is', @Null),
-                  @Statement 'break'
-                  if child.capture
-                    @Invocation(@Index(results,'push'), res)
-            o @Assign result, results
-        when 'single'
-          $.scope 'res', (res) =>
-            for child in @sequence
-              o child.compile $, res
-              o @If @Operation(res, 'is', @Null),
-                  @Block (o) =>
-                    o @Assign result, @Null
-                    o @Statement 'break'
-                  ,
-                  if child.capture
-                    o @Assign result, res
-        when 'object'
-          $.scope 'results, res', (results, res) =>
-            o @Assign results, @Obj(@Item(label,@Null) for label in @labels)
-            for child in @sequence
-              o child.compile $, res
-              o @If @Operation(res, 'is', @Null),
-                  @Statement 'break'
-                  if child.label is '&'
-                    @Assign results, @Invocation(@_.extend, res, results)
-                  else if child.label is '@'
-                    @Invocation @_.extend, results, res
-                  else if child.label?
-                    @Assign @Index(results,@Str(child.label)), res
-            o @Assign result, results
-
   toString: ->
     labeledStrs = for node in @sequence
       if node.label?
@@ -445,8 +366,6 @@ debugLoopify = debugCache = no
   init: ({@chars, @words, @lines}) ->
   parse$: @$pWrap ($) ->
     $.code.peek chars:@chars, words:@words, lines:@lines
-  compile: @$cWrap ($, result)->
-    @Invocation(@Code.peek, @Obj(@Item('chars',@chars),@Item('words':@words),@Item(lines:@lines)))
   toString: ->
     "<#{
       yellow @chars? and "chars:#{@chars}" or
@@ -463,11 +382,6 @@ debugLoopify = debugCache = no
     result = @expr.parse $
     $.code.pos = pos
     result
-  compile: @$cWrap ($, result)->
-    @Block (o) => $.scope 'pos', (pos) =>
-      o @Assign pos, @Code.pos
-      o @expr.compile $, result
-      o @Assign(@Code.pos, pos)
   toString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
 
 @Existential = Existential = clazz 'Existential', GNode, ->
@@ -488,14 +402,6 @@ debugLoopify = debugCache = no
   parse$: @$pWrap ($) ->
     res = $.try @it.parse
     return res ? undefined
-  compile: @$cWrap ($, result) ->
-    @Block (o) => $.scope 'pos', (pos) =>
-      o @Assign pos, @Code.pos
-      o @it.compile $, result
-      o @If @Operation(result, 'is', @Null),
-          @Block (o) =>
-            o @Assign(@Code.pos, pos),
-            o @Assign(result, @Undefined)
   toString: -> ''+@it+blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
@@ -525,45 +431,6 @@ debugLoopify = debugCache = no
       return null if @min? and @min > matches.length
       return matches
     return result
-
-  compile: @$cWrap ($, result) ->
-    @Block (o) => $.scope 'matches, pos, resV', (matches, pos, resV) =>
-      o @Assign matches, @Arr()
-      o @Assign pos, @Code.pos
-      o @Trail 'outer', (o) =>
-        o @value.compile $, resV
-        o @If @Operation(resV, 'is', @Null),
-            @Block (o) =>
-              if @min? and @min > 0
-                o @Assign result, @Null
-              else
-                o @Assign result, @Arr()
-              o @Statement 'break', 'outer'
-        o @Invocation @Index(matches,'push'), resV
-        o @Loop 'inner', (o) => $.scope 'pos, resJ', (pos, resJ) =>
-          o @Assign pos, @Code.pos
-          if @join?
-            o @join.compile $, resJ
-            o @If @Operation(resJ, 'is', @Null),
-                @Block (o) =>
-                  o @Assign @Code.pos, pos
-                  o @Statement 'break', 'inner'
-          o @value.compile $, resV
-          o @If @Operation(resV, 'is', @Null),
-              @Block (o) =>
-                o @Assign @Code.pos, pos
-                o @Statement 'break', 'inner'
-          o @Invocation @Index(matches,'push'), resV
-          if @max?
-            o @If @Operation(@Index(matches,'length'), '>=', @max),
-                @Statement 'break', 'inner'
-        if @min?
-          o @If @Operation(@min, '>', @Index(matches,'length')),
-              @Block (o) =>
-                o @Assign result, @Null
-                o @Assign @Code.pos, pos
-                o @Statement 'break', 'outer'
-      o @Assign result, matches
   toString: ->
     "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 
@@ -579,14 +446,6 @@ debugLoopify = debugCache = no
       return null
     else
       return undefined
-  compile: @$cWrap ($, result) ->
-    @Block (o) => $.scope 'pos, res', (pos, res) =>
-      o @Assign pos, @Code.pos
-      o @it.compile $, res
-      o @Assign @Code.pos, pos
-      o @If @Operation(res,'isnt',@Null),
-          @Assign result, @Null
-          @Assign result, @Undefined
   toString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', GNode, ->
@@ -597,17 +456,12 @@ debugLoopify = debugCache = no
     node = $.grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
-  compile: @$cWrap ($, result) ->
-    node = $.grammar.rules[@ref]
-    throw Error "Unknown reference #{@ref}" if not node?
-    @Assign result, @Invocation @Index(@Grammar,@Str(@ref))
   toString: -> red(@ref)
 
 @Str = Str = clazz 'Str', GNode, ->
   capture: no
   init: (@str) ->
   parse$: @$pWrap ($) -> $.code.match string:@str
-  compile: @$cWrap ($, result) -> @Invocation @Code.match, @Obj(@Item('string',@str))
   toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', GNode, ->
@@ -616,7 +470,6 @@ debugLoopify = debugCache = no
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
   parse$: @$pWrap ($) -> $.code.match regex:@re
-  compile: @$cWrap ($, result) -> @Invocation @Code.match, @Obj(@Item('regex',@re))
   toString: -> magenta(''+@re)
 
 # Main external access.
@@ -733,15 +586,7 @@ debugLoopify = debugCache = no
   compile: () ->
     js = require('./joescript_grammar').NODES
     @initGNodeASTShortcuts() if not GNode::Code
-    $ = CompileContext grammar:this
-    code = @Block (o) => $.scope 'grammar, code, result', (grammar, code, result) =>
-      for name, rule of @rules
-        funcBlock = rule.compile $, result
-        funcBlock = js.Block funcBlock if funcBlock not instanceof js.Block
-        funcBlock.lines.push @Statement 'return', result
-        o @Assign @Index(grammar,@Str(''+name)), @Func(null,'->',funcBlock)
-      o @Assign result, @Null
-      o @rank.compile $, result
+    code = undefined
     require('./translators/javascript').translate code
 
   initGNodeASTShortcuts: ->
