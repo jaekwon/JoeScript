@@ -16,6 +16,7 @@ Also, npm install . for dependencies.
 ## Roadmap
 
 * Finish the simple interpreter/*.
+  1. Create a prototypical object class.
 * Use the interpreter/* to statically analyze and reduce joeson.coffee into an optimized AST. (Important here is the notion of customized hints, like frozen objects).
 * Use the translator/* to print the optimized AST.
 

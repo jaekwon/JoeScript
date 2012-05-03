@@ -30,7 +30,6 @@ addImplicitReturns = (node) ->
   assert.ok proc, "proc must be an Array already provided"
   #console.log "_t_: node:#{node}, proc:#{proc}, target:#{target}, context:#{context}"
 
-  # TODO: wish i could do (node, {proc=proc}) ->
   valueOf = (node, options={}) ->
     options.proc ||= proc
     _t_ node, options

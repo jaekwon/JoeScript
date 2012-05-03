@@ -14,13 +14,16 @@ isTrue = (node) ->
     else throw new Error "Unexpected node for isTrue: #{node} (#{node.constructor.name})"
 
 # Interpret the given node
-@interpretOnce = IO = interpretOnce = (node, options={context}={}) ->
+@interpretOnce = _i_ = interpretOnce = (node, options) ->
+  {context} = options
+
+  valueOf = (node) -> _i_ node, options
 
   switch node.constructor
 
     when js.Block
       for line, i in node.lines
-        res = IO line, options
+        res = valueOf line
         if i is node.lines.length-1
           return res
       undefined
@@ -29,24 +32,32 @@ isTrue = (node) ->
       'TODO:Index'
 
     when js.Assign
-      target = IO node.target
-      value =  IO if node.op then js.Operation left:target, op:node.op, right:node.value
-                             else node.value
-      context.assign target, value
+      value = valueOf if node.op then js.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
+      if node.target instanceof js.Word
+        context.scope[node.target] = value
+      else
+        throw new Error "Unexpected node target #{node.target}"
       return value
 
     when js.If
-      ifRes = IO node.cond, options
+      ifRes = valueOf node.cond
       if isTrue ifRes
-        IO node.block, options
+        valueOf node.block
       else if node.elseBlock?
-        IO node.elseBlock, options
+        valueOf node.elseBlock
 
     when js.While, js.Loop
       'TODO:While,Loop'
 
     when js.Operation
-      'TODO:Operation'
+      result = switch node.op
+        when '+' then valueOf(node.left) + valueOf(node.right)
+        when '-' then valueOf(node.left) - valueOf(node.right)
+        when '*' then valueOf(node.left) * valueOf(node.right)
+        when '/' then valueOf(node.left) / valueOf(node.right)
+        else throw new Error "Unexpected operation #{node.op}"
+      result = not result if node.not
+      return result
 
     when js.Invocation
       'TODO:Invocation'
@@ -67,14 +78,14 @@ isTrue = (node) ->
       return node
 
     when js.Word
-      throw new Error "Code literals are not available as an interpretation value"
+      return context.scope[node]
 
     when js.Str
-      'TODO:Str'
+      return (valueOf(part) for part in node.parts).join ''
 
     else
       throw new Error "Dunno how to interpret #{node} (#{node.constructor?.name})"
 
 @interpret = (node) ->
   node.prepare() if not node.prepared
-  interpretOnce node, context:null
+  interpretOnce node, context:{scope:{}}

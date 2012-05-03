@@ -14,3 +14,8 @@ test = (code, expected) ->
 test """if true then 1 else 2""", 1
 test """if false then 1 else 2""", 2
 test """a = 'bar'""", 'bar'
+test """a = 'foo'
+b = 'bar'
+a + b""", 'foobar'
+test """1 + 2 * 3 + 4""", 11
+test """{}""", ''
