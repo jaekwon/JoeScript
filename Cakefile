@@ -5,8 +5,8 @@ task 'build', ->
   run 'coffee -c codestream.coffee'
 
 task 'test', ->
-  run 'coffee tests/joeson_grammar_test.coffee'
-  run 'coffee tests/joescript_grammar_test.coffee'
+  run 'coffee tests/joeson_grammar_test.coffee', ->
+    run 'coffee tests/joescript_grammar_test.coffee'
 
 run = (args...) ->
   for a in args
@@ -23,4 +23,3 @@ run = (args...) ->
   cmd.stderr.on 'data', (data) -> process.stderr.write data
   process.on 'SIGHUP', -> cmd.kill()
   cmd.on 'exit', (code) -> callback() if callback? and code is 0
-

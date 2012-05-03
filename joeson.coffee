@@ -584,49 +584,9 @@ debugLoopify = debugCache = no
       return $.result
 
   compile: () ->
-    js = require('./joescript_grammar').NODES
-    @initGNodeASTShortcuts() if not GNode::Code
-    code = undefined
+    joe = require('./joescript_grammar').NODES
+    code = undefined # TODO
     require('./translators/javascript').translate code
-
-  initGNodeASTShortcuts: ->
-    js = require('./joescript_grammar').NODES
-    _.extend (GNode::),
-      Grammar:  js.Word('grammar0') # {"#{rulename}": <Function>}
-      Code:
-        pos:    js.Index(obj:js.Word('code0'), attr:'pos')
-        peek:   js.Index(obj:js.Word('code0'), attr:'peek')
-        match:  js.Index(obj:js.Word('code0'), attr:'match')
-      _:
-        extend: js.Index(obj:js.Word('_'),     attr:'extend')
-      Null: js.Word 'null'
-      Undefined: js.Word 'undefined'
-      Func: (params,type,block) -> js.Func params:params,type:type,block:block
-      If: (cond,block,elseBlock) -> js.If cond:cond,block:block,elseBlock:elseBlock
-      Assign: (target,value) -> js.Assign target:target,type:'=',value:value
-      Operation: (left,op,right) -> js.Operation left:left,op:op,right:right
-      Statement: (type,expr) -> js.Statement type:type,expr:expr
-      Invocation: (func,params...) -> js.Invocation func:func,params:params
-      Index: (obj,attr) -> js.Index obj:obj,attr:attr
-      Obj:  (items...) -> js.Obj (if items.length is 1 and items[0] instanceof Array then items[0] else items)
-      Arr:  js.Arr
-      Str:  js.Str
-      Item: js.Item
-      Word: js.Word
-      Block: (fn) ->
-        lines = []
-        o = (line) ->
-          if line instanceof js.Block
-            _.extend lines, line.lines
-          else
-            lines.push line
-        fn.call this, o
-        js.Block lines
-      Loop: (name, fn) -> js.Loop label:name,block:@Block(fn)
-      Trail: (name, fn) ->
-        block = @Block(fn)
-        block.lines.push @Statement 'break', name
-        js.Loop label:name,block:block
 
 Line = clazz 'Line', ->
   init: (@args...) ->

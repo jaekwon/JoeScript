@@ -29,8 +29,11 @@ isTrue = (node) ->
       'TODO:Index'
 
     when js.Assign
-      target = node.target
-      'TODO:Assign'
+      target = IO node.target
+      value =  IO if node.op then js.Operation left:target, op:node.op, right:node.value
+                             else node.value
+      context.assign target, value
+      return value
 
     when js.If
       ifRes = IO node.cond, options

@@ -2,7 +2,7 @@
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
 assert = require 'assert'
 
-console.log "-=TEST=-"
+console.log "-=TEST BASIC=-"
 
 counter = 0
 test  = (code, expected) ->
@@ -273,8 +273,22 @@ baz
 
 
 
-console.log "TESTING FILES:"
-for filename in ['codestream.coffee', 'joeson.coffee', 'joescript_grammar.coffee', 'joescript_grammar.joe', 'tests/joeson_grammar_test.coffee']
+console.log "-=TEST PROJECT FILES=-"
+
+fs = require 'fs'
+walkFiles = (dir, cb) ->
+  fs.readdir dir, (err, files) ->
+    throw err if err?
+    for file in files then do (file) ->
+      file = dir+'/'+file
+      fs.stat file, (err, stat) ->
+        throw err if err?
+        cb(file)
+        walkFiles file, cb if stat.isDirectory()
+
+walkFiles '.', (filename) ->
+  return if filename[filename.length-7...] isnt '.coffee'
+  return if filename.indexOf('node_modules') isnt -1
   console.log "FILE: #{filename}"
   chars = require('fs').readFileSync filename, 'utf8'
   context = GRAMMAR.parse chars, debug:no

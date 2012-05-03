@@ -163,10 +163,11 @@ Invocation = clazz 'Invocation', Node, ->
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
-  init: ({@target, @type, @value}) -> @type ||= '='
+  init: ({@target, type, @op, @value}) ->
+    @op = type[...type.length-1] if type?
   children$: get: -> [@target, @value]
   variables$: get: -> if isWord @target then [@target] else null
-  toString: -> "#{@target}#{@type}(#{@value})"
+  toString: -> "#{@target}#{@op or ''}=(#{@value})"
 
 Slice = clazz 'Slice', Node, ->
   init: ({@obj, @range}) ->
