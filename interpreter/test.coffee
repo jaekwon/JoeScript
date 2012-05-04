@@ -1,13 +1,18 @@
 assert = require 'assert'
 joe = require '../joescript_grammar'
 jsi = require './javascript'
+_ = require 'underscore'
 
 counter = 0
 test = (code, expected) ->
   node = joe.GRAMMAR.parse code
   console.log "test #{counter++}: #{code}"
   result = jsi.interpret(node)
-  if result isnt expected
+  if typeof expected is 'function'
+    if not expected(result)
+      console.log "ERROR: didnt expect to get #{result}"
+      process.exit()
+  else if result isnt expected
     console.log "ERROR: expected: #{expected} but got #{result}"
     process.exit()
 
@@ -18,4 +23,29 @@ test """a = 'foo'
 b = 'bar'
 a + b""", 'foobar'
 test """1 + 2 * 3 + 4""", 11
-test """{}""", ''
+test """{}""", (it) -> it instanceof Object and _.keys(it).length is 0
+test """{foo:1}""", (it) -> it instanceof Object and _.keys(it).length is 1
+test """a = {foo:1}
+a.foo""", 1
+test """
+foo = (bar) -> return bar + 1
+foo(1)""", 2
+test """
+outer = (foo) ->
+  inner = ->
+    return foo + 1
+func = outer(1)
+func()
+""", 2
+test """
+outer = (foo) ->
+  bar = foo
+  inner = ->
+    bar = bar + 1
+func = outer(1)
+func()
+func()
+func()
+func()
+func()
+""", 6 # TODO this fails because assignment doesn't assign to the origin scope.

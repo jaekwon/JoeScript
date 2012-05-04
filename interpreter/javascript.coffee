@@ -1,55 +1,66 @@
 assert = require 'assert'
 _ = require 'underscore'
-js = require('../joescript_grammar').NODES
+joe = require('../joescript_grammar').NODES
 {inspect} = require 'util'
+{clazz} = require 'cardamom'
 
 isTrue = (node) ->
   switch typeof node
     when 'number', 'string', 'boolean' then Boolean(node)
     when 'object'
       switch node
-        when js.Undefined.undefined, js.Null.null then false
+        when joe.Undefined.undefined, joe.Null.null then false
         else true
     when 'function' then true
     else throw new Error "Unexpected node for isTrue: #{node} (#{node.constructor.name})"
 
-# Interpret the given node
-@interpretOnce = _i_ = interpretOnce = (node, options) ->
-  {context} = options
+spawnScope = (parentScope) ->
+  fn = ->
+  fn.prototype = parentScope
+  new fn()
 
-  valueOf = (node) -> _i_ node, options
+# A function in runtime.
+@BoundFunc = BoundFunc = clazz 'BoundFunc', ->
+  init: ({@func, @context, @this}) ->
+    assert.ok @func instanceof joe.Func
+    assert.ok @context?
+
+# Interpret the given node
+@interpretOnce = _i_ = interpretOnce = (node, context) ->
+
+  valueOf = (node, _context=context) -> _i_ node, _context
 
   switch node.constructor
 
-    when js.Block
+    when joe.Block
       for line, i in node.lines
         res = valueOf line
         if i is node.lines.length-1
           return res
       undefined
 
-    when js.Index
-      'TODO:Index'
+    when joe.Index
+      return valueOf(node.obj)[valueOf(node.attr)]
 
-    when js.Assign
-      value = valueOf if node.op then js.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
-      if node.target instanceof js.Word
+    when joe.Assign
+      value = valueOf if node.op then joe.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
+      if node.target instanceof joe.Word
         context.scope[node.target] = value
       else
         throw new Error "Unexpected node target #{node.target}"
       return value
 
-    when js.If
+    when joe.If
       ifRes = valueOf node.cond
       if isTrue ifRes
         valueOf node.block
       else if node.elseBlock?
         valueOf node.elseBlock
 
-    when js.While, js.Loop
+    when joe.While, joe.Loop
       'TODO:While,Loop'
 
-    when js.Operation
+    when joe.Operation
       result = switch node.op
         when '+' then valueOf(node.left) + valueOf(node.right)
         when '-' then valueOf(node.left) - valueOf(node.right)
@@ -59,28 +70,42 @@ isTrue = (node) ->
       result = not result if node.not
       return result
 
-    when js.Invocation
-      'TODO:Invocation'
+    when joe.Invocation
+      bfunc = valueOf(node.func)
+      assert.ok bfunc instanceof BoundFunc, "Expected BoundFunc instance but got #{bfunc} (#{bfunc.constructor.name})"
+      # create context, set parameters
+      newContext = {}
+      newContext.scope = spawnScope bfunc.context.scope
+      newContext.scope[bfunc.func.scope.params[i]] = valueOf(param) for param, i in node.params
+      try
+        return valueOf(bfunc.func.block, newContext)
+      catch error
+        return error.value if error.statement is 'return'
+        throw error
 
-    when js.Statement
-      'TODO:Statement'
+    when joe.Statement
+      switch node.type
+        when 'return' then throw statement:'return', value:valueOf(node.expr)
+        else throw new Error "Unexpected statement type #{node.type}"
 
-    when js.Obj
-      'TODO:Obj'
+    when joe.Obj
+      obj = {}
+      obj[valueOf(item.key)] = valueOf(item.value) for item in node.items
+      return obj
 
-    when js.Arr
+    when joe.Arr
       'TODO:Arr'
       
-    when js.Func
-      'TODO:Func'
+    when joe.Func
+      return BoundFunc func:node, context:context
 
-    when String, Number, Boolean, js.Undefined, js.Null
+    when String, Number, Boolean, joe.Undefined, joe.Null
       return node
 
-    when js.Word
+    when joe.Word
       return context.scope[node]
 
-    when js.Str
+    when joe.Str
       return (valueOf(part) for part in node.parts).join ''
 
     else
@@ -88,4 +113,4 @@ isTrue = (node) ->
 
 @interpret = (node) ->
   node.prepare() if not node.prepared
-  interpretOnce node, context:{scope:{}}
+  interpretOnce node, (scope:{})

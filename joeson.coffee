@@ -484,20 +484,20 @@ debugLoopify = debugCache = no
   # block ASTs to the runtime, thereby making this compilation step
   # unnecessary.
   @fromFile = (filename) ->
-    js = require('./joescript_grammar')
+    joe = require('./joescript_grammar')
     chars = require('fs').readFileSync filename, 'utf8'
     try
-      fileAST = js.GRAMMAR.parse chars
+      fileAST = joe.GRAMMAR.parse chars
     catch error
       console.log "Joeson couldn't parse #{filename}. Parse log..."
-      js.GRAMMAR.parse chars, debug:yes
+      joe.GRAMMAR.parse chars, debug:yes
       throw error
-    jsNodes = js.NODES
-    assert.ok fileAST instanceof js.NODES.Block
+    joeNodes = joe.NODES
+    assert.ok fileAST instanceof joe.NODES.Block
 
     # Find GRAMMAR = ...
     grammarAssign = _.find fileAST.lines, (line) ->
-      line instanceof js.NODES.Assign and
+      line instanceof joe.NODES.Assign and
         ''+line.target is 'GRAMMAR' and
         line.type is '='
     grammarAST = grammarAssign.value
@@ -508,27 +508,27 @@ debugLoopify = debugCache = no
     # Str, Obj, Arr, and Invocations become interpreted directly
     compileAST = (node) ->
       switch node.constructor
-        when js.NODES.Func
+        when joe.NODES.Func
           assert.ok node.params is undefined, "Rank function should accept no parameters"
           assert.ok node.type is '->', "Rank function should be ->, not #{node.type}"
           return node.block.lines.map( (item)->compileAST item ).filter (x)->x?
-        when js.NODES.Word
+        when joe.NODES.Word
           # words *should* be function references. Pass the AST on.
           return node
-        when js.NODES.Invocation
+        when joe.NODES.Invocation
           func = MACROS[''+node.func]
           assert.ok func?, "Function #{node.func.name} not in MACROS"
           params = node.params.map (p) ->
             # Func nodes that are direct invocation parameters do not
             # get interpreted, they are callback functions
             # & joeson rules need them as ASTs for parser generation.
-            if p instanceof js.NODES.Func then p else compileAST p
+            if p instanceof joe.NODES.Func then p else compileAST p
           return func.apply null, params
-        when js.NODES.Str
+        when joe.NODES.Str
           return node.parts.join ''
-        when js.NODES.Arr
+        when joe.NODES.Arr
           return node.items.map (item) -> compileAST item
-        when js.NODES.Obj
+        when joe.NODES.Obj
           obj = {}
           for item in node.items
             if ''+item.key in ['cb'] # pass the AST thru.
@@ -536,7 +536,7 @@ debugLoopify = debugCache = no
             else
               obj[compileAST item.key] = compileAST item.value
           return obj
-        when js.NODES.Heredoc
+        when joe.NODES.Heredoc
           return null
         else
           throw new Error "Unexpected node type #{node.constructor.name}"
