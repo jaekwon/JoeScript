@@ -3,6 +3,7 @@ _ = require 'underscore'
 joe = require('../joescript_grammar').NODES
 {inspect} = require 'util'
 {clazz} = require 'cardamom'
+{RScope} = require './runtime'
 
 isTrue = (node) ->
   switch typeof node
@@ -14,11 +15,6 @@ isTrue = (node) ->
     when 'function' then true
     else throw new Error "Unexpected node for isTrue: #{node} (#{node.constructor.name})"
 
-spawnScope = (parentScope) ->
-  fn = ->
-  fn.prototype = parentScope
-  new fn()
-
 # A function in runtime.
 @BoundFunc = BoundFunc = clazz 'BoundFunc', ->
   init: ({@func, @context, @this}) ->
@@ -28,7 +24,9 @@ spawnScope = (parentScope) ->
 # Interpret the given node
 @interpretOnce = _i_ = interpretOnce = (node, context) ->
 
-  valueOf = (node, _context=context) -> _i_ node, _context
+  valueOf = (node, _context=context) ->
+    result = _i_ node, _context
+    return result
 
   switch node.constructor
 
@@ -45,7 +43,7 @@ spawnScope = (parentScope) ->
     when joe.Assign
       value = valueOf if node.op then joe.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
       if node.target instanceof joe.Word
-        context.scope[node.target] = value
+        context.scope.set node.target, value
       else
         throw new Error "Unexpected node target #{node.target}"
       return value
@@ -72,13 +70,14 @@ spawnScope = (parentScope) ->
 
     when joe.Invocation
       bfunc = valueOf(node.func)
+      func = bfunc.func
       assert.ok bfunc instanceof BoundFunc, "Expected BoundFunc instance but got #{bfunc} (#{bfunc.constructor.name})"
       # create context, set parameters
       newContext = {}
-      newContext.scope = spawnScope bfunc.context.scope
-      newContext.scope[bfunc.func.scope.params[i]] = valueOf(param) for param, i in node.params
+      newContext.scope = bfunc.context.scope.spawn func.block
+      newContext.scope.set(func.params[i], valueOf(param)) for param, i in node.params
       try
-        return valueOf(bfunc.func.block, newContext)
+        return valueOf(func.block, newContext)
       catch error
         return error.value if error.statement is 'return'
         throw error
@@ -103,7 +102,7 @@ spawnScope = (parentScope) ->
       return node
 
     when joe.Word
-      return context.scope[node]
+      return context.scope.get(node)
 
     when joe.Str
       return (valueOf(part) for part in node.parts).join ''
@@ -113,4 +112,4 @@ spawnScope = (parentScope) ->
 
 @interpret = (node) ->
   node.prepare() if not node.prepared
-  interpretOnce node, (scope:{})
+  interpretOnce node, {scope:new RScope(node:node)}

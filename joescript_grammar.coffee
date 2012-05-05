@@ -8,25 +8,30 @@ _ = require 'underscore'
 isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
 
 # Lexical scope.
-Scope = clazz 'Scope', ->
+LScope = clazz 'LScope', ->
   @VARIABLE = 'variable'
   @PARAMETER = 'parameter'
-  init: (@vars=[], @params=[], @children=[]) ->
-  isVariable: (name) ->
+  init: (@parent) ->
+    @vars = []; @params = []
+    @children = []
+    @parent.children.push this if @parent?
+  declares: (name) ->
+    return name in @vars
+  isDeclared: (name) ->
     return true if name in @vars
-    return true if @parent?.isVariable(name)
+    return true if @parent?.isDeclared(name)
     return false
-  isLocalVariable: (name) ->
+  willDeclare: (name) ->
     return true if name in @vars
-    return true if _.any @children, (child)->child.isLocalVariable(name)
+    return true if _.any @children, (child)->child.willDeclare(name)
     return false
   addVariable: (name, forceDeclaration=no) ->
-    # Add if name doesn't exist in the parent scope.
-    # Note that 'addVariable' gets called while walking the code lexically.
     if forceDeclaration
       @vars.push name unless name in @vars
     else
-      @vars.push name unless name in @vars or @isVariable(name)
+      # This logic decides which scope 'name' belongs to.
+      # See docs/coffeescript_lessons/lexical_scoping
+      @vars.push name unless @isDeclared(name)
   addParameter: (name) ->
     @vars.push name unless name in @vars
     @params.push name unless name in @params
@@ -35,7 +40,7 @@ Scope = clazz 'Scope', ->
     idx = 0
     loop
       name = "#{prefix}#{idx++}"
-      break unless @isLocalVariable name
+      break unless @willDeclare name
     if isParam then @addParameter name else @addVariable name, yes
     return name
 
@@ -57,10 +62,9 @@ Node = clazz 'Node', ->
   # not all nodes will have their own scopes.
   # pass in parentScope if @parent is not available.
   createOwnScope: (parentScope) ->
-    assert.ok parentScope or @parent?.scope, "Where is my parent scope?"
-    @scope = @ownScope = new Scope
-    (parentScope||@parent.scope).children.push @scope
-    @scope.parent = (parentScope||@parent.scope)
+    parentScope ||= @parent.scope
+    assert.ok parentScope, "Where is my parent scope?"
+    @scope = @ownScope = new LScope parentScope
   # by default, nodes belong to their parent's scope.
   setScopes: -> @scope ||= @parent.scope
   parameters: null
@@ -68,7 +72,7 @@ Node = clazz 'Node', ->
   # call on the global node to prepare the entire tree.
   prepare: ->
     assert.ok not @prepared, "Node is already prepared."
-    @scope = @ownScope = Scope() if not @scope?
+    @scope = @ownScope = new LScope() if not @scope?
     @walk pre: (parent, node) ->
       node.parent ||= parent
       node.scope  ||= parent.scope
@@ -247,20 +251,18 @@ Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
   children$: get: -> [@params, @block]
   setScopes: ->
-    @createOwnScope() # paramters go here
     if @block?
-      @block.createOwnScope(@scope) # variables go here
-  parameters$: get: ->
-    parameters = []
-    collect = (thing) =>
-      if isWord thing
-        parameters.push thing
-      else if thing instanceof Obj # Arr is a subclass of Obj
-        collect(item.value or item) for item in thing.items
-      else if thing instanceof Index
-        "pass" # nothing to do for properties
-    collect(param) for param in @params if @params?
-    return parameters
+      if @params?
+        @block.parameters = parameters = []
+        collect = (thing) ->
+          if isWord thing
+            parameters.push thing
+          else if thing instanceof Obj # Arr is a subclass of Obj
+            collect(item.value or item) for item in thing.items
+          else if thing instanceof Index
+            "pass" # nothing to do for properties
+        collect(param) for param in @params
+      @block.createOwnScope(@scope)
   toString: -> "(#{if @params then @params.map(
       (p)->"#{p}#{p.splat and '...' or ''}#{p.default and '='+p.default or ''}"
     ).join ',' else ''})#{@type}{#{@block}}"

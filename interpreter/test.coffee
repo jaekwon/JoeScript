@@ -2,11 +2,12 @@ assert = require 'assert'
 joe = require '../joescript_grammar'
 jsi = require './javascript'
 _ = require 'underscore'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
 
 counter = 0
 test = (code, expected) ->
   node = joe.GRAMMAR.parse code
-  console.log "test #{counter++}: #{code}"
+  console.log "#{red "test #{counter++}:"}\n#{normal code}"
   result = jsi.interpret(node)
   if typeof expected is 'function'
     if not expected(result)
@@ -48,4 +49,4 @@ func()
 func()
 func()
 func()
-""", 6 # TODO this fails because assignment doesn't assign to the origin scope.
+""", 6
