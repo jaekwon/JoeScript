@@ -75,17 +75,33 @@ toKey = (node) ->
       return result
 
     when joe.Invocation
-      bfunc = valueOf(node.func)
-      func = bfunc.func
-      assert.ok bfunc instanceof BoundFunc, "Expected BoundFunc instance but got #{bfunc} (#{bfunc.constructor.name})"
-      # create context, set parameters
-      newContext = {scope:bfunc.context.scope.spawn(func.block)}
-      newContext.scope.set(func.params[i], valueOf(param)) for param, i in node.params
-      try
-        return valueOf(func.block, newContext)
-      catch error
-        return error.value if error.statement is 'return'
-        throw error
+      if node.type is 'new'
+        assert.ok node.params.length is 1, "New only takes one parameter"
+        if node.params[0] instanceof joe.Invocation
+          constructor = valueOf(node.params[0].func)
+          params = (valueOf(param) for param in node.params[0].params)
+        else
+          constructor = valueOf(node.params[0])
+          params = null
+        
+        ctor = ->
+        ctor.prototype = constructor.prototype
+        console.log "constructor: #{constructor} (#{constructor.constructor.name})"
+        child = new ctor
+        result = constructor.apply(child, params)
+        return if typeof result is "object" then result else child
+      else
+        bfunc = valueOf(node.func)
+        func = bfunc.func
+        assert.ok bfunc instanceof BoundFunc, "Expected BoundFunc instance but got #{bfunc} (#{bfunc.constructor.name})"
+        # create context, set parameters
+        newContext = {scope:bfunc.context.scope.spawn(func.block)}
+        newContext.scope.set(func.params[i], valueOf(param)) for param, i in node.params
+        try
+          return valueOf(func.block, newContext)
+        catch error
+          return error.value if error.statement is 'return'
+          throw error
 
     when joe.Statement
       switch node.type

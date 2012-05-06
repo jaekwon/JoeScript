@@ -167,6 +167,7 @@ Statement = clazz 'Statement', Node, ->
 
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params}) ->
+    @type = if isWord(@func) and ''+@func is 'new' then 'new' else undefined
   children$: get: -> [@func, @params]
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
