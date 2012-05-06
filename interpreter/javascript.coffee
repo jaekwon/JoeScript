@@ -15,6 +15,12 @@ isTrue = (node) ->
     when 'function' then true
     else throw new Error "Unexpected node for isTrue: #{node} (#{node.constructor.name})"
 
+toKey = (node) ->
+  if node instanceof joe.Str
+    return valueOf(node)
+  else
+    return ''+node
+
 # A function in runtime.
 @BoundFunc = BoundFunc = clazz 'BoundFunc', ->
   init: ({@func, @context, @this}) ->
@@ -38,7 +44,7 @@ isTrue = (node) ->
       undefined
 
     when joe.Index
-      return valueOf(node.obj)[valueOf(node.attr)]
+      return valueOf(node.obj)[toKey(node.attr)]
 
     when joe.Assign
       value = valueOf if node.op then joe.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
@@ -73,8 +79,7 @@ isTrue = (node) ->
       func = bfunc.func
       assert.ok bfunc instanceof BoundFunc, "Expected BoundFunc instance but got #{bfunc} (#{bfunc.constructor.name})"
       # create context, set parameters
-      newContext = {}
-      newContext.scope = bfunc.context.scope.spawn func.block
+      newContext = {scope:bfunc.context.scope.spawn(func.block)}
       newContext.scope.set(func.params[i], valueOf(param)) for param, i in node.params
       try
         return valueOf(func.block, newContext)
@@ -89,7 +94,7 @@ isTrue = (node) ->
 
     when joe.Obj
       obj = {}
-      obj[valueOf(item.key)] = valueOf(item.value) for item in node.items
+      obj[toKey(item.key)] = valueOf(item.value) for item in node.items
       return obj
 
     when joe.Arr
@@ -109,6 +114,37 @@ isTrue = (node) ->
 
     when joe.Str
       return (valueOf(part) for part in node.parts).join ''
+
+    when joe.For
+      # TODO: optimize for Range
+      results = []
+      if node.type is 'of'
+        if node.own
+          for own key, value of valueOf(node.obj) when ((not node.cond?) or valueOf(node.cond))
+            context.scope.set(node.keyIndex, key) if node.keyIndex?
+            context.scope.set(node.keyValue, value) if node.keyValue?
+            results.push valueOf(node.block)
+        else
+          for key, value of valueOf(node.obj) when ((not node.cond?) or valueOf(node.cond))
+            context.scope.set(node.keyIndex, key) if node.keyIndex?
+            context.scope.set(node.keyValue, value) if node.keyValue?
+            results.push valueOf(node.block)
+      else if node.type is 'in'
+        for value, index of valueOf(node.obj) when ((not node.cond?) or valueOf(node.cond))
+          context.scope.set(node.keyIndex, key) if node.keyIndex?
+          context.scope.set(node.keyValue, value) if node.keyValue?
+          results.push valueOf(node.block)
+      else throw new Error "Unexpected For type #{node.type}"
+      return results
+
+    when joe.Range
+      results = []
+      if node.type is '..'
+        results.push x for x in [valueOf(node.start)..valueOf(node.end)] by valueOf(node.by)
+      else if node.type is '...'
+        results.push x for x in [valueOf(node.start)...valueOf(node.end)] by valueOf(node.by)
+      else throw new Error "Unexpected Range type #{node.type}"
+      return results
 
     else
       throw new Error "Dunno how to interpret #{node} (#{node.constructor?.name})"

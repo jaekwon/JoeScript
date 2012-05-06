@@ -25,7 +25,7 @@ test = (code, expected) ->
 test "null", null
 test "undefined", undefined
 test "null * undefined", NaN
-test "Array", Array
+#test "Array", (it) -> # TODO
 test """if true then 1 else 2""", 1
 test """if false then 1 else 2""", 2
 test """a = 'bar'""", 'bar'
@@ -78,3 +78,10 @@ func = outer(1)
 a = func() for i in [1..5]
 a
 """, 6
+test """
+foo = ->
+  1 + 1
+foo()""", 2
+test """
+a = ->
+new a""", (it) -> console.log it

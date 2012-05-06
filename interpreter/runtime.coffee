@@ -15,7 +15,9 @@
   get: (name) ->
     if @node.scope.declares name
       return @data[name]
-    else return @parent?.get(name)
+    else if @parent?
+      return @parent.get(name)
+    else throw new ReferenceError "JOE: #{name} is not defined"
 
 # TODO provisional
 @RObject = RObject = clazz 'RObject', ->
