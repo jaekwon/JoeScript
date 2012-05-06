@@ -19,9 +19,13 @@ test = (code, expected) ->
       console.log "ERROR: didnt expect to get #{result}"
       process.exit(1)
   else if not isEqual result, expected
-    console.log "ERROR: expected: #{expected} but got #{result}"
+    console.log "ERROR: expected: #{expected} (#{expected?.constructor?.name}) but got #{result} (#{result?.constructor?.name})"
     process.exit(1)
 
+test "null", null
+test "undefined", undefined
+test "null * undefined", NaN
+test "Array", Array
 test """if true then 1 else 2""", 1
 test """if false then 1 else 2""", 2
 test """a = 'bar'""", 'bar'

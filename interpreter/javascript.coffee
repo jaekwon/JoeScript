@@ -98,8 +98,11 @@ isTrue = (node) ->
     when joe.Func
       return BoundFunc func:node, context:context
 
-    when String, Number, Boolean, joe.Undefined, joe.Null
+    when String, Number, Boolean
       return node
+
+    when joe.Undefined, joe.Null
+      return node.value
 
     when joe.Word
       return context.scope.get(node)

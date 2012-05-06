@@ -215,6 +215,7 @@ Null = clazz 'Null', Node, ->
   init: (construct) ->
     if construct isnt yes
       @_newOverride = Null.null
+  value: null
   toString: -> "null"
 
 Undefined = clazz 'Undefined', Node, ->
@@ -222,6 +223,7 @@ Undefined = clazz 'Undefined', Node, ->
   init: (construct) ->
     if construct isnt yes
       @_newOverride = Undefined.undefined
+  value: undefined
   toString: -> "undefined"
 
 This = clazz 'This', Node, ->
