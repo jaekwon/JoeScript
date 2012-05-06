@@ -6,6 +6,7 @@ _ = require 'underscore'
 
 # convenience function for letting you use native strings for development.
 isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
+toString = (thing) -> assert.ok isWord thing; if typeof thing is 'string' then thing else thing.word
 
 # Lexical scope.
 LScope = clazz 'LScope', ->
@@ -16,16 +17,20 @@ LScope = clazz 'LScope', ->
     @children = []
     @parent.children.push this if @parent?
   declares: (name) ->
+    name = toString name
     return name in @vars
   isDeclared: (name) ->
+    name = toString name
     return true if name in @vars
     return true if @parent?.isDeclared(name)
     return false
   willDeclare: (name) ->
+    name = toString name
     return true if name in @vars
     return true if _.any @children, (child)->child.willDeclare(name)
     return false
   addVariable: (name, forceDeclaration=no) ->
+    name = toString name
     if forceDeclaration
       @vars.push name unless name in @vars
     else
@@ -33,6 +38,7 @@ LScope = clazz 'LScope', ->
       # See docs/coffeescript_lessons/lexical_scoping
       @vars.push name unless @isDeclared(name)
   addParameter: (name) ->
+    name = toString name
     @vars.push name unless name in @vars
     @params.push name unless name in @params
   makeTempVar: (prefix='temp', isParam=no) ->
@@ -75,12 +81,11 @@ Node = clazz 'Node', ->
     @scope = @ownScope = new LScope() if not @scope?
     @walk pre: (parent, node) ->
       node.parent ||= parent
-      node.scope  ||= parent.scope
-      node.prepared = yes
     @walk pre: (parent, node) ->
       node.setScopes()
       node.scope.addParameter param for param in (node.parameters||[])
       node.scope.addVariable _var for _var in (node.variables||[])
+      node.prepared = yes
 
 Word = clazz 'Word', Node, ->
   init: (@word) ->
@@ -136,6 +141,7 @@ Try = clazz 'Try', Node, ->
   init: ({@block, @doCatch, @catchVar, @catchBlock, @finally}) ->
   children$: get: -> [@block, @catchVar, @catchBlock, @finally]
   setScopes: ->
+    @scope ||= @parent.scope
     if @catchVar? and @catchBlock?
       @catchBlock.createOwnScope(@scope)
       @catchBlock.parameters = [@catchVar]
@@ -251,6 +257,7 @@ Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
   children$: get: -> [@params, @block]
   setScopes: ->
+    @scope ||= @parent.scope
     if @block?
       if @params?
         @block.parameters = parameters = []

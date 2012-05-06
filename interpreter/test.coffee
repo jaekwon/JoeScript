@@ -4,16 +4,21 @@ jsi = require './javascript'
 _ = require 'underscore'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
 
+isEqual = (a, b) ->
+  if isNaN a
+    return isNaN b
+  return a is b
+
 counter = 0
 test = (code, expected) ->
-  node = joe.GRAMMAR.parse code
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
+  node = joe.GRAMMAR.parse code
   result = jsi.interpret(node)
   if typeof expected is 'function'
     if not expected(result)
       console.log "ERROR: didnt expect to get #{result}"
       process.exit()
-  else if result isnt expected
+  else if not isEqual result, expected
     console.log "ERROR: expected: #{expected} but got #{result}"
     process.exit()
 
@@ -50,3 +55,13 @@ func()
 func()
 func()
 """, 6
+test """
+outer = (foo) ->
+  inner = ->
+    bar = bar + 1
+  bar = foo
+  return inner
+func = outer(1)
+func()
+func()
+""", NaN
