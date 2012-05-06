@@ -1,6 +1,6 @@
 assert = require 'assert'
 _ = require 'underscore'
-js = require('../joescript_grammar').NODES
+joe = require('../joescript_grammar').NODES
 {inspect} = require 'util'
 
 INDENT  = type:'__indent__'
@@ -13,7 +13,7 @@ extend = (dest, source) -> dest[dest.length...] = source
 addImplicitReturns = (node) ->
   node.walk
     pre: (parent, node) ->
-      if node instanceof js.Func and node.block.lines.length > 0
+      if node instanceof joe.Func and node.block.lines.length > 0
         lastLine = node.block.lines[node.block.lines.length-1]
         lastLine.implicitReturn = yes
 
@@ -28,7 +28,7 @@ addImplicitReturns = (node) ->
 # Result:      * any expression if 'target' was undefined.
 @translateOnce = _t_ = translateOnce = (node, {proc,target,context}) ->
   assert.ok proc, "proc must be an Array already provided"
-  #console.log "_t_: node:#{node}, proc:#{proc}, target:#{target}, context:#{context}"
+  #console.log "translateOnce: node:#{node}, proc:#{proc}, target:#{target}, context:#{context}"
 
   valueOf = (node, options={}) ->
     options.proc ||= proc
@@ -46,17 +46,17 @@ addImplicitReturns = (node) ->
     return options.proc
   passTo = (node, options={}) ->
     options.proc ||= proc
-    options.target ||= if options.hasOwnProperty('target') then options.target else null
+    options.target ||= if options.hasOwnProperty('target') then options.target else target
     options.context ||= context
     _t_ node, options
   simple = (value) ->
     #console.log "simple: value:#{value}, proc:#{proc}, target:#{target}, context:#{context}"
     if context?
-      if context instanceof js.Func
+      if context instanceof joe.Func
         extend proc, ["return ", value, ENDLINE, NEWLINE]
-      else if context instanceof js.Statement
+      else if context instanceof joe.Statement
         extend proc, ["#{context.type} ", value, ENDLINE, NEWLINE]
-      else if context instanceof js.Invocation
+      else if context instanceof joe.Invocation
         assert.ok (context.params is undefined), "Invocation contexts should have no parameters"
         extend proc, [valueOf(context.func), "(", value..., ")", ENDLINE, NEWLINE]
       else
@@ -76,7 +76,7 @@ addImplicitReturns = (node) ->
 
   switch node.constructor
 
-    when js.Block
+    when joe.Block
       assert.ok target isnt undefined, "Blocks can't have undefined targets"
       # output individual lines
       for line, i in node.lines
@@ -86,14 +86,14 @@ addImplicitReturns = (node) ->
         else
           addProcedure line
       # after all is done, prepend scope var declarations
-      if node.ownScope?.vars?.length > 0
-        proc[...0] = ["var #{node.scope.vars.join ', '}", ENDLINE, NEWLINE]
+      if node.ownScope?.variables?.length > 0
+        proc[...0] = ["var #{node.scope.variables.join ', '}", ENDLINE, NEWLINE]
       return null # blocks dont have values.
 
-    when js.Index
+    when joe.Index
       return simple "#{node}"
 
-    when js.Assign
+    when joe.Assign
       if target?
         extend proc, [target, " = ", valueOf(node.target), " #{node.type} ", valueOf(node.value), ENDLINE, NEWLINE]
         return null
@@ -103,7 +103,7 @@ addImplicitReturns = (node) ->
         addProcedure node.value, target:node.target
         return null
 
-    when js.If
+    when joe.If
       target = node.scope.makeTempVar() if target is undefined
       extend proc, [
         "if(", valueOf(node.cond), ") {", INDENT, NEWLINE,
@@ -120,17 +120,17 @@ addImplicitReturns = (node) ->
         proc.push NEWLINE
       return target
 
-    when js.While, js.Loop
+    when joe.While, joe.Loop
       target ||= node.scope.makeTempVar() if (target is undefined) or context?
 
       # add label
       extend proc, ["#{node.label}:", NEWLINE] if node.label?
 
       if target? # or context?
-        addProcedure js.Assign(target:target, value:js.Arr())
+        addProcedure joe.Assign(target:target, value:joe.Arr())
         extend proc, [
           "while(", valueOf(node.cond), ") {", INDENT, NEWLINE,
-              procedureOf(node.block, proc:blockProc=[], context:js.Invocation(func:js.Index(obj:target, attr:'push'))), OUTDENT, NEWLINE,
+              procedureOf(node.block, proc:blockProc=[], context:joe.Invocation(func:joe.Index(obj:target, attr:'push'))), OUTDENT, NEWLINE,
           "}", NEWLINE
         ]
         return simple target
@@ -142,20 +142,20 @@ addImplicitReturns = (node) ->
         ]
         return null
 
-    when js.Operation
-      jsOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
-      return simple [(if node.not then "(!(" else "("), valueOf(node.left), " #{jsOp} ", valueOf(node.right), (if node.not then "))" else ")")]
+    when joe.Operation
+      joeOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
+      return simple [(if node.not then "(!(" else "("), valueOf(node.left), " #{joeOp} ", valueOf(node.right), (if node.not then "))" else ")")]
 
-    when js.Invocation
+    when joe.Invocation
       params = []
       for param, i in node.params
         params.push valueOf(param)
         params.push ", " if i isnt node.params.length-1
       return simple [valueOf(node.func), "(", params, ")"]
 
-    when js.Statement
+    when joe.Statement
       if node.expr?
-        if node.expr.constructor in [js.If] # these nodes pass the statement in
+        if node.expr.constructor in [joe.If] # these nodes pass the statement in
           passTo node.expr, context:node
         else
           extend proc, ["#{node.type} ", valueOf(node.expr), ENDLINE, NEWLINE]
@@ -163,14 +163,14 @@ addImplicitReturns = (node) ->
         extend proc, [node.type, ENDLINE, NEWLINE]
       return null # Statements never have value
 
-    when js.Obj
+    when joe.Obj
       target = node.scope.makeTempVar() if not target?
       # set static keys on target
       if node.items?.length > 0
         res = [target, ' = {', INDENT, NEWLINE]
         for item in node.items
-          if item.key instanceof js.Word or
-             item.key instanceof js.Str and item.key.isStatic
+          if item.key instanceof joe.Word or
+             item.key instanceof joe.Str and item.key.isStatic
                 extend res, [valueOf(item.key), ": ", valueOf(item.value), ', ', NEWLINE]
         res.pop() if res.length > 2 # remove the last ', '
         extend res, [OUTDENT, NEWLINE, '}', ENDLINE, NEWLINE]
@@ -178,32 +178,32 @@ addImplicitReturns = (node) ->
         res = [target, ' = {}', ENDLINE, NEWLINE]
       # set dynamic keys on target
       for item in node.items
-        if item.key instanceof js.Str and not item.key.isStatic
+        if item.key instanceof joe.Str and not item.key.isStatic
           extend res, [target, '[', valueOf(item.key), '] = ', valueOf(item.value), ENDLINE, NEWLINE]
       extend proc, res
       return simple target
 
-    when js.Arr
+    when joe.Arr
       return simple ["[", _.flatten([valueOf(item), ", "] for item in node.items||[])..., "]"]
       
-    when js.Func
+    when joe.Func
       # Argument matching lines
       destructures = []
       # target: (Word/string, Arr, or Obj)
       # source: source var (Word/string or Index)
       match = (target, source) ->
         if target instanceof Arr
-          match(item, js.Index(source,js.Str(idx))) for item, idx in target.items
+          match(item, joe.Index(source,joe.Str(idx))) for item, idx in target.items
         else if target instanceof Obj
-          match(item.value, js.Index(source,js.Str(item.key))) for item in target.items
+          match(item.value, joe.Index(source,joe.Str(item.key))) for item in target.items
         else if target instanceof Word or typeof target is 'string'
-          addProcedure js.Assign(target:target, value:source), proc:destructures
+          addProcedure joe.Assign(target:target, value:source), proc:destructures
         else
           throw Error "Unexpected target type #{target.constructor.name}, expected Arr/Obj/Word"
       # Collect top level param names and matches
       topParams = []
       if node.params? then for param, i in node.params
-        if param instanceof js.Word or typeof param is 'string'
+        if param instanceof joe.Word or typeof param is 'string'
           topParams.push valueOf(param)
           topParams.push ", " if i isnt node.params.length-1
         else
@@ -216,10 +216,10 @@ addImplicitReturns = (node) ->
         "}"
       ]
 
-    when String, Number, Boolean, js.Undefined, js.Null, js.Word
+    when String, Number, Boolean, joe.Undefined, joe.Null, joe.Word
       return simple "#{node}"
 
-    when js.Str
+    when joe.Str
       return simple "#{node}" if node.isStatic
 
     else

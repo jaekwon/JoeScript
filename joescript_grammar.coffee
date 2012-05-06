@@ -13,34 +13,33 @@ LScope = clazz 'LScope', ->
   @VARIABLE = 'variable'
   @PARAMETER = 'parameter'
   init: (@parent) ->
-    @vars = []; @params = []
+    @variables = []; @parameters = []
     @children = []
     @parent.children.push this if @parent?
   declares: (name) ->
     name = toString name
-    return name in @vars
+    return name in @variables or name in @parameters
   isDeclared: (name) ->
     name = toString name
-    return true if name in @vars
+    return true if name in @variables or name in @parameters
     return true if @parent?.isDeclared(name)
     return false
   willDeclare: (name) ->
     name = toString name
-    return true if name in @vars
+    return true if name in @variables or name in @parameters
     return true if _.any @children, (child)->child.willDeclare(name)
     return false
   addVariable: (name, forceDeclaration=no) ->
     name = toString name
     if forceDeclaration
-      @vars.push name unless name in @vars
+      @variables.push name unless name in @variables
     else
       # This logic decides which scope 'name' belongs to.
       # See docs/coffeescript_lessons/lexical_scoping
-      @vars.push name unless @isDeclared(name)
+      @variables.push name unless @isDeclared(name)
   addParameter: (name) ->
     name = toString name
-    @vars.push name unless name in @vars
-    @params.push name unless name in @params
+    @parameters.push name unless name in @parameters
   makeTempVar: (prefix='temp', isParam=no) ->
     # create a temporary variable that is not used in the inner scope
     idx = 0

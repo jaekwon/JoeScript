@@ -6,20 +6,20 @@ console.log "-=TEST BASIC=-"
 
 counter = 0
 test  = (code, expected) ->
+  console.log "#{red "test #{counter++}:"}\n#{normal code}"
   # hack to make tests easier to write.
   code = code.replace(/\\/g, '\\\\').replace(/\r/g, '\\r')
   try
     context = GRAMMAR.parse code, debug:no, returnContext:yes
     assert.equal (''+context.result).replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
   catch error
-    if expected isnt null
-      try
-        GRAMMAR.parse code, debug:yes, returnContext:yes
-      catch error
-        # pass
-      console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"
-      throw error
-  console.log "t#{counter++} OK\t#{code}"
+    try
+      GRAMMAR.parse code, debug:yes, returnContext:yes
+    catch error
+      # pass
+    console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"
+    console.log error
+    process.exit(1)
 
 test  "a * b * c", "((a*b)*c)"
 test  "a * b++ / c + d", "(((a*(b++))/c)+d)"
@@ -48,7 +48,6 @@ test  "foo[bar]", "foo[bar]"
 test  "foo[bar][baz]", "foo[bar][baz]"
 test  "123", "123"
 test  "123.456", "123.456"
-test  "123.456.789", null
 test  "123.456 + foo.bar", "(123.456+foo.bar)"
 test  "{foo: 1}", "{foo:(1)}"
 test  "{'foo': 1}", "{\"foo\":(1)}"
@@ -279,17 +278,18 @@ fs = require 'fs'
 walkFiles = (dir, cb) ->
   fs.readdir dir, (err, files) ->
     throw err if err?
-    for file in files then do (file) ->
-      file = dir+'/'+file
-      fs.stat file, (err, stat) ->
+    for filename in files then do (filename) ->
+      filepath = dir+'/'+filename
+      fs.stat filepath, (err, stat) ->
         throw err if err?
-        cb(file)
-        walkFiles file, cb if stat.isDirectory()
+        cb(filepath, filename)
+        walkFiles filepath, cb if stat.isDirectory()
 
-walkFiles '.', (filename) ->
-  return if filename[filename.length-7...] isnt '.coffee'
-  return if filename.indexOf('node_modules') isnt -1
-  console.log "FILE: #{filename}"
-  chars = require('fs').readFileSync filename, 'utf8'
+walkFiles '.', (filepath, filename) ->
+  return if filename[0] is '.'
+  return if filepath[filepath.length-7...] isnt '.coffee'
+  return if filepath.indexOf('node_modules') isnt -1
+  console.log "FILE: #{filepath}"
+  chars = require('fs').readFileSync filepath, 'utf8'
   context = GRAMMAR.parse chars, debug:no
-  console.log "FILE: #{filename} OK!"
+  console.log "FILE: #{filepath} OK!"

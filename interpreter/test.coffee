@@ -17,10 +17,10 @@ test = (code, expected) ->
   if typeof expected is 'function'
     if not expected(result)
       console.log "ERROR: didnt expect to get #{result}"
-      process.exit()
+      process.exit(1)
   else if not isEqual result, expected
     console.log "ERROR: expected: #{expected} but got #{result}"
-    process.exit()
+    process.exit(1)
 
 test """if true then 1 else 2""", 1
 test """if false then 1 else 2""", 2

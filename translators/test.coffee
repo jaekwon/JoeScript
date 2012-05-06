@@ -1,16 +1,18 @@
 assert = require 'assert'
 joe = require '../joescript_grammar'
 jsx = require './javascript'
+_ = require 'underscore'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
 
 counter = 0
 test = (code, expected) ->
+  console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = joe.GRAMMAR.parse code
   proc = []
-  console.log "test #{counter++}: #{code}"
   translated = jsx.translate(node)
   if translated.replace(/[\n ]+/g, ' ').trim() isnt expected.replace(/[\n ]+/g, ' ').trim()
     console.log "ERROR: expected:\n#{expected} but got\n#{translated}"
-    process.exit()
+    process.exit(1)
 
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1); } else { (2 + 2); }'
 test """
