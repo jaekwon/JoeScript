@@ -69,3 +69,12 @@ func = outer(1)
 func()
 func()
 """, NaN
+test """
+outer = (foo) ->
+  bar = foo
+  inner = ->
+    bar = bar + 1
+func = outer(1)
+a = func() for i in [1..5]
+a
+""", 6
