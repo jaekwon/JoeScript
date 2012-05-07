@@ -3,7 +3,27 @@ _ = require 'underscore'
 joe = require('../joescript_grammar').NODES
 {inspect} = require 'util'
 {clazz} = require 'cardamom'
-{RScope} = require './runtime'
+
+# Create and return a new scope.
+spawnScope = (parentScope) ->
+  fn = ->
+  fn.prototype = parentScope
+  childScope = new fn()
+  childScope.__parentScope__ = parentScope
+  return childScope
+
+# Set a name/value pair on the topmost scope of the chain.
+# Error if name already exists... all updates should happen w/ updateScope.
+setScope = (scope, name, value) ->
+  #console.log "set #{name} = #{value}"
+  throw new Error "Already set on scope: #{name}" if scope.hasOwnProperty(name)
+  scope[name] = value
+
+# Find scope in prototype chain with name declared, set it there.
+updateScope = (scope, name, value) ->
+  #console.log "update #{name} = #{value}"
+  scope = scope.__parentScope__ while scope.__parentScope__? and not scope.hasOwnProperty(name)
+  scope[name] = value
 
 isTrue = (node) ->
   switch typeof node
@@ -33,8 +53,8 @@ toKey = (node) ->
     func = @func
     if func.block?
       return @function = ->
-        newContext = {scope:context.scope.spawn(func.block), this:this}
-        newContext.scope.set(func.params[i], param) for param, i in arguments
+        newContext = {scope:spawnScope(context.scope), this:this}
+        setScope newContext.scope, param, arguments[i] for param, i in func.params if func.params?
         try
           return interpretOnce(func.block, newContext)
         catch error
@@ -54,6 +74,7 @@ toKey = (node) ->
   switch node.constructor
 
     when joe.Block
+      setScope context.scope, variable, undefined for variable in node.scope.variables
       for line, i in node.lines
         res = valueOf line
         if i is node.lines.length-1
@@ -67,7 +88,7 @@ toKey = (node) ->
       value = valueOf if node.op then joe.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
       switch node.target.constructor
         when joe.Word
-          context.scope.set node.target, value
+          updateScope context.scope, node.target, value
         when joe.Index
           targetObj = valueOf(node.target.obj)
           targetAttr = toKey(node.target.attr)
@@ -139,7 +160,9 @@ toKey = (node) ->
     when joe.Word
       switch toKey(node)
         when 'this' then return context.this
-        else return context.scope.get(node)
+        else
+          return context.scope[node] if `node in context.scope`
+          throw new ReferenceError "ReferenceError (JOE): #{node} is not defined"
 
     when joe.Str
       return (valueOf(part) for part in node.parts).join ''
@@ -150,18 +173,18 @@ toKey = (node) ->
       if node.type is 'of'
         if node.own
           for own key, value of valueOf(node.obj) when ((not node.cond?) or valueOf(node.cond))
-            context.scope.set(node.keyIndex, key) if node.keyIndex?
-            context.scope.set(node.keyValue, value) if node.keyValue?
+            updateScope context.scope, node.keyIndex, key if node.keyIndex?
+            updateScope context.scope, node.keyValue, value if node.keyValue?
             results.push valueOf(node.block)
         else
           for key, value of valueOf(node.obj) when ((not node.cond?) or valueOf(node.cond))
-            context.scope.set(node.keyIndex, key) if node.keyIndex?
-            context.scope.set(node.keyValue, value) if node.keyValue?
+            updateScope context.scope, node.keyIndex, key if node.keyIndex?
+            updateScope context.scope, node.keyValue, value if node.keyValue?
             results.push valueOf(node.block)
       else if node.type is 'in'
         for value, index of valueOf(node.obj) when ((not node.cond?) or valueOf(node.cond))
-          context.scope.set(node.keyIndex, key) if node.keyIndex?
-          context.scope.set(node.keyValue, value) if node.keyValue?
+          updateScope context.scope, node.keyIndex, key if node.keyIndex?
+          updateScope context.scope, node.keyValue, value if node.keyValue?
           results.push valueOf(node.block)
       else throw new Error "Unexpected For type #{node.type}"
       return results
@@ -180,4 +203,4 @@ toKey = (node) ->
 
 @interpret = (node) ->
   node.prepare() if not node.prepared
-  interpretOnce node, {scope:new RScope(node:node)}
+  interpretOnce node, {scope:{}}

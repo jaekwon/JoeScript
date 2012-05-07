@@ -100,3 +100,10 @@ f = new Foo()""", (it) ->
   assert.ok _.keys(it).length is 2
   assert.ok it.a is 'A' and it.b is 'B'
   yes
+
+test """
+p = {key:'value'}
+Foo = ->
+Foo.prototype = p
+f = new Foo
+f.key""", 'value'

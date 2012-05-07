@@ -411,6 +411,7 @@ resetIndent = (ws) ->
       o POSTIF:                     "block:LINEEXPR _IF cond:EXPR", If
       o POSTUNLESS:                 "block:LINEEXPR _UNLESS cond:EXPR", Unless
       o POSTFOR:                    "block:LINEEXPR _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)?", For
+      o POSTWHILE:                  "block:LINEEXPR _WHILE cond:EXPR", While
       # rest
       o STMT:                       "type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR?", Statement
       o EXPR: [
