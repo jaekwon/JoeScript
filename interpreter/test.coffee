@@ -82,6 +82,21 @@ test """
 foo = ->
   1 + 1
 foo()""", 2
+
+# construction tests
 test """
 a = ->
-new a""", (it) -> console.log it
+new a""", (it) ->
+  assert.ok it instanceof Object
+  assert.ok _.keys(it).length is 0
+  yes
+
+test """
+Foo = ->
+  this.a = 'A'
+  this.b = 'B'
+f = new Foo()""", (it) ->
+  assert.ok it instanceof Object
+  assert.ok _.keys(it).length is 2
+  assert.ok it.a is 'A' and it.b is 'B'
+  yes

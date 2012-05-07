@@ -23,15 +23,32 @@ toKey = (node) ->
 
 # A function in runtime.
 @BoundFunc = BoundFunc = clazz 'BoundFunc', ->
-  init: ({@func, @context, @this}) ->
+  init: ({@func, @context}) ->
     assert.ok @func instanceof joe.Func
     assert.ok @context?
 
+  function$: get: ->
+    bfunc = this
+    context = @context
+    func = @func
+    if func.block?
+      return @function = ->
+        newContext = {scope:context.scope.spawn(func.block), this:this}
+        newContext.scope.set(func.params[i], param) for param, i in arguments
+        try
+          return interpretOnce(func.block, newContext)
+        catch error
+          # TODO leaky
+          return error.value if error.statement is 'return'
+          throw error
+    else
+      return @function = -> undefined
+
 # Interpret the given node
-@interpretOnce = _i_ = interpretOnce = (node, context) ->
+@interpretOnce = interpretOnce = (node, context) ->
 
   valueOf = (node, _context=context) ->
-    result = _i_ node, _context
+    result = interpretOnce node, _context
     return result
 
   switch node.constructor
@@ -48,10 +65,14 @@ toKey = (node) ->
 
     when joe.Assign
       value = valueOf if node.op then joe.Operation left:valueOf(node.target), op:node.op, right:node.value else node.value
-      if node.target instanceof joe.Word
-        context.scope.set node.target, value
-      else
-        throw new Error "Unexpected node target #{node.target}"
+      switch node.target.constructor
+        when joe.Word
+          context.scope.set node.target, value
+        when joe.Index
+          targetObj = valueOf(node.target.obj)
+          targetAttr = toKey(node.target.attr)
+          targetObj[targetAttr] = value
+        else throw new Error "Unexpected LHS in assignment: #{node.target}"
       return value
 
     when joe.If
@@ -86,22 +107,12 @@ toKey = (node) ->
         
         ctor = ->
         ctor.prototype = constructor.prototype
-        console.log "constructor: #{constructor} (#{constructor.constructor.name})"
         child = new ctor
         result = constructor.apply(child, params)
         return if typeof result is "object" then result else child
       else
-        bfunc = valueOf(node.func)
-        func = bfunc.func
-        assert.ok bfunc instanceof BoundFunc, "Expected BoundFunc instance but got #{bfunc} (#{bfunc.constructor.name})"
-        # create context, set parameters
-        newContext = {scope:bfunc.context.scope.spawn(func.block)}
-        newContext.scope.set(func.params[i], valueOf(param)) for param, i in node.params
-        try
-          return valueOf(func.block, newContext)
-        catch error
-          return error.value if error.statement is 'return'
-          throw error
+        params = (valueOf(param) for param, i in node.params)
+        return valueOf(node.func).apply(context.this, params)
 
     when joe.Statement
       switch node.type
@@ -117,7 +128,7 @@ toKey = (node) ->
       'TODO:Arr'
       
     when joe.Func
-      return BoundFunc func:node, context:context
+      return BoundFunc(func:node, context:context).function
 
     when String, Number, Boolean
       return node
@@ -126,7 +137,9 @@ toKey = (node) ->
       return node.value
 
     when joe.Word
-      return context.scope.get(node)
+      switch toKey(node)
+        when 'this' then return context.this
+        else return context.scope.get(node)
 
     when joe.Str
       return (valueOf(part) for part in node.parts).join ''
