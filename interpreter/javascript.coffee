@@ -198,6 +198,9 @@ toKey = (node) ->
       else throw new Error "Unexpected Range type #{node.type}"
       return results
 
+    when joe.NativeExpression
+      throw new Error "Punting this for now..."
+
     else
       throw new Error "Dunno how to interpret #{node} (#{node.constructor?.name})"
 

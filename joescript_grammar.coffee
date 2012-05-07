@@ -4,7 +4,7 @@
 assert = require 'assert'
 _ = require 'underscore'
 
-# convenience function for letting you use native strings for development.
+# Convenience function for letting you use native strings for development.
 isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
 toString = (thing) -> assert.ok isWord thing; if typeof thing is 'string' then thing else thing.word
 
@@ -284,6 +284,10 @@ Range = clazz 'Range', Node, ->
                      "#{@end?   and "end:#{@end},"     or ''}"+
                      "type:'#{@type}', by:#{@by})"
 
+NativeExpression = clazz 'NativeExpression', Node, ->
+  init: ({@exprStr}) ->
+  toString: -> "`#{@exprStr}`"
+
 Heredoc = clazz 'Heredoc', Node, ->
   init: (@text) ->
   toString: -> "####{@text}###"
@@ -508,6 +512,7 @@ resetIndent = (ws) ->
       i ESCSTR:     "_SLASH .", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
       i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT LINEEXPR ___ '}'"
     ]
+    o NATIVE:       "_ _BTICK (!_BTICK .)* _BTICK", NativeExpression
     o BOOLEAN:      "_TRUE | _FALSE", (it) -> it is 'true'
     o NUMBER:       "_ <words:1> /-?[0-9]+(\\.[0-9]+)?/", Number
     o SYMBOL:       "_ !_KEYWORD WORD"
@@ -536,6 +541,7 @@ resetIndent = (ws) ->
                       'loop', 'while', 'break', 'continue',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
                       'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally')
+  i _BTICK:         "'`'"
   i _QUOTE:         "'\\''"
   i _DQUOTE:        "'\"'"
   i _TQUOTE:        "'\"\"\"'"

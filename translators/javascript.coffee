@@ -222,6 +222,9 @@ addImplicitReturns = (node) ->
     when joe.Str
       return simple "#{node}" if node.isStatic
 
+    when joe.NativeExpression
+      return simple "(#{node.exprStr})"
+
     else
       throw new Error "Dunno how to translate #{node} (#{node.constructor?.name})"
 
