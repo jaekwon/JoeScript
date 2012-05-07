@@ -15,13 +15,10 @@ Also, npm install . for dependencies.
 
 ## Roadmap
 
-* Finish the simple interpreter/*. -= DOING =-
-* Use the interpreter/* to statically analyze and reduce joeson.coffee into an optimized AST. -= DOING =-
-    1. Assume NATIVE OBJECTS and FUNCTIONS, because i want to use Cardamom/Clazz as the native library (for now).
-    2. During RUNTIME, however, everything will be INTERPRETED by Joe.
-    3. There shall be a step to OPTIMIZE a FUNCTION STATICALLY given some binding to THIS and some STATIC OBJECTS.
-    4. The STATIC OBJECTS shall be signified as such by having a special __joe_static_fields__ = yes, which means none of the object fields can change.
-    5. optimize = (func <joe.BFunc>) -> optimized <joe.BFunc>
+* Finish the simple interpreter/*.
+* Use the interpreter/* to statically analyze and reduce joeson.coffee into an optimized AST.
+    * BoundFunc.optimize = (func &lt;BoundFunc&gt;) -> optimized &lt;BoundFunc&gt; This function will optimize a bound (runtime) function statically.
+    * The optimization relies on frozen objects being signified as such by having a special __joe_frozen__ = yes flag.
 * Use the translator/* to print the optimized AST.
 
 ## Structure
