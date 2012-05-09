@@ -25,7 +25,7 @@ test = (code, expected) ->
 test "null", null
 test "undefined", undefined
 test "null * undefined", NaN
-#test "Array", (it) -> # TODO
+test "Array", Array
 test """if true then 1 else 2""", 1
 test """if false then 1 else 2""", 2
 test """a = 'bar'""", 'bar'
@@ -107,3 +107,5 @@ Foo = ->
 Foo.prototype = p
 f = new Foo
 f.key""", 'value'
+
+test "require('underscore')", ''
