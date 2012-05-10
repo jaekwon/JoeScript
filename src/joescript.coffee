@@ -156,7 +156,9 @@ Case = clazz 'Case', Node, ->
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @not, @op, @right}) ->
   children$: get: -> [@left, @right]
-  toString: -> "(#{@left or ''} #{@not and 'not ' or ''}#{@op} #{@right or ''})"
+  toString: -> "(#{if @left  then @left+' '  else ''}#{
+                   if @not   then 'not '     else ''}#{@op}#{
+                   if @right then ' '+@right else ''})"
 
 Not = (it) -> Operation op:'not', right:it
 
@@ -406,7 +408,7 @@ resetIndent = (ws) ->
   return container.indent
 
 @GRAMMAR = Grammar ({o, i, tokens}) -> [
-  o                                 "_BLANKLINE* LINES ___", (node) -> node.prepare(); node
+  o                                 "_BLANKLINE* LINES ___", (node) -> node.prepare() unless @options?.rawNodes; node
   i LINES:                          "LINE*_NEWLINE", Block
   i LINE: [
     o HEREDOC:                      "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
@@ -463,7 +465,7 @@ resetIndent = (ws) ->
                   o                 "left:(OP30|OP40) _  @:OP30_OP _SOFTLINE? right:OP40", Operation
                   o OP40: [
                     i OP40_OP:      " _NOT | '!' | '~' "
-                    o               "_ op:OP40_OP right:OP45", Operation
+                    o               "_ op:OP40_OP right:OP40", Operation
                     o OP45: [
                       i OP45_OP:    " '?' "
                       o             "left:(OP45|OP50) _ op:OP45_OP _SOFTLINE? right:OP50", Operation

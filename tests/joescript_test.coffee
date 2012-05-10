@@ -21,6 +21,7 @@ test  = (code, expected) ->
     console.log error
     process.exit(1)
 
+test  "!!a", "(! (! a))"
 test  "a * b * c", "((a*b)*c)"
 test  "a * b++ / c + d", "(((a*(b++))/c)+d)"
 test  " a * b++ / c + d ", "(((a*(b++))/c)+d)"

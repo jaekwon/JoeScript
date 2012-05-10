@@ -17,7 +17,11 @@ debugLoopify = debugCache = no
 # aka '$' in parse functions
 @ParseContext = ParseContext = clazz 'ParseContext', ->
 
-  init: ({@code, @grammar, @debug}={}) ->
+  # code:     CodeStream instance
+  # grammar:  Grammar instance
+  # debug:    yes to print parse log
+  # options:  Parse-time options, accessible from grammar callback functions
+  init: ({@code, @grammar, @debug, @options}={}) ->
     @debug ?= false
     @stack = []         # [ {name,pos,...}... ]
     @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
@@ -571,11 +575,11 @@ debugLoopify = debugCache = no
         # call prepare on all nodes
         node.prepare()
 
-  parse$: (code, {debug,returnContext}={}) ->
+  parse$: (code, {debug,returnContext,options}={}) ->
     debug ?= no
     returnContext ?= no
     code = CodeStream code if code not instanceof CodeStream
-    $ = ParseContext code:code, grammar:this, debug:debug
+    $ = ParseContext code:code, grammar:this, debug:debug, options:options
     $.result = @rank.parse $
     throw Error "Incomplete parse: '#{escape $.code.peek chars:50}'" if $.code.pos isnt $.code.text.length
     if returnContext
