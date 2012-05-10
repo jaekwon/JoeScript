@@ -1,8 +1,10 @@
 {Grammar} = require 'joeson'
+{clazz}   = require 'cardamom'
+assert    = require 'assert'
+fs        = require 'fs'
+path      = require 'path'
+_         = require 'underscore'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
-{clazz} = require 'cardamom'
-assert = require 'assert'
-_ = require 'underscore'
 
 # Convenience function for letting you use native strings for development.
 isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
@@ -407,7 +409,7 @@ resetIndent = (ws) ->
   container.indent = ws
   return container.indent
 
-@GRAMMAR = Grammar ({o, i, tokens}) -> [
+@GRAMMAR = GRAMMAR = Grammar ({o, i, tokens}) -> [
   o                                 "_BLANKLINE* LINES ___", (node) -> node.prepare() unless @options?.rawNodes; node
   i LINES:                          "LINE*_NEWLINE", Block
   i LINE: [
@@ -565,3 +567,22 @@ resetIndent = (ws) ->
 
 ]
 # ENDGRAMMAR
+
+# Interpret the given code
+@run = (code, options = {}) ->
+  mainModule = require.main
+
+  # Set the filename.
+  mainModule.filename = process.argv[1] =
+    if options.filename then fs.realpathSync(options.filename) else '.'
+
+  # Clear the module cache.
+  mainModule.moduleCache and= {}
+
+  # Assign paths for node_modules loading
+  mainModule.paths = require('module')._nodeModulePaths path.dirname fs.realpathSync options.filename
+
+  # Interpret
+  jsi = require './interpreter/javascript'
+  node = GRAMMAR.parse code
+  return jsi.interpret(node, include:{require:require}) # TODO set require properly.

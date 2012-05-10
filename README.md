@@ -16,6 +16,7 @@ Also, npm install . for dependencies.
 ## Roadmap
 
 * Finish the simple interpreter/*.
+    * Make ./bin/joe able to run any file in the project.
 * Use the interpreter/* to statically analyze and reduce joeson.coffee into an optimized AST.
     * BoundFunc.optimize = (func &lt;BoundFunc&gt;) -> optimized &lt;BoundFunc&gt; This function will optimize a bound (runtime) function statically.
     * The optimization relies on frozen objects being signified as such by having a special __joe_frozen__ = yes flag.

@@ -1,3 +1,4 @@
+# TODO: s/coffee/joe/g
 # The `coffee` utility. Handles command-line compilation of JoeScript
 # into various forms: saved into `.js` files or printed to stdout, piped to
 # [JavaScript Lint](http://javascriptlint.com/) or recompiled every time the source is
@@ -124,7 +125,7 @@ compileScript = (file, input, base) ->
     t = task = {file, input, options}
     JoeScript.emit 'compile', task
     if o.nodes            then printLine inspect JoeScript.GRAMMAR.parse(t.input, options:{rawNodes:yes}), no, 10
-    #else if o.run         then JoeScript.run t.input, t.options
+    else if o.run         then JoeScript.run t.input, t.options
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
