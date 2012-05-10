@@ -432,7 +432,7 @@ resetIndent = (ws) ->
           i OBJ_IMPL_INDENTED:      "_INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
           o OBJ_IMPL:               "_INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE)", Obj
           i OBJ_IMPL_ITEM:          "key:(WORD|STRING) _ ':' value:EXPR", Item
-          o ASSIGN:                 "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||=') value:BLOCKEXPR", Assign
+          o ASSIGN:                 "target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR", Assign
         ]
         o COMPLEX: [
           o IF:                     "_IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)?", If
@@ -508,9 +508,10 @@ resetIndent = (ws) ->
     o THIS:         "_ '@'", This
     o REGEX:        "_ _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
     o STRING: [
-      o             "_ _QUOTE  (!_QUOTE  (ESCSTR | .))* _QUOTE",  Str
-      o             "_ _TQUOTE (!_TQUOTE (ESCSTR | INTERP | .))* _TQUOTE", Str
-      o             "_ _DQUOTE (!_DQUOTE (ESCSTR | INTERP | .))* _DQUOTE", Str
+      o             "_ _TQUOTE  (!_TQUOTE  (ESCSTR | INTERP | .))* _TQUOTE", Str
+      o             "_ _TDQUOTE (!_TDQUOTE (ESCSTR | INTERP | .))* _TDQUOTE", Str
+      o             "_ _DQUOTE  (!_DQUOTE  (ESCSTR | INTERP | .))* _DQUOTE", Str
+      o             "_ _QUOTE   (!_QUOTE   (ESCSTR | .))* _QUOTE",  Str
       i ESCSTR:     "_SLASH .", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
       i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT LINEEXPR ___ '}'"
     ]
@@ -546,7 +547,8 @@ resetIndent = (ws) ->
   i _BTICK:         "'`'"
   i _QUOTE:         "'\\''"
   i _DQUOTE:        "'\"'"
-  i _TQUOTE:        "'\"\"\"'"
+  i _TQUOTE:        "'\\'\\'\\''"
+  i _TDQUOTE:       "'\"\"\"'"
   i _FSLASH:        "'/'"
   i _SLASH:         "'\\\\'"
   i '.':            "<chars:1> /[\\s\\S]/",            skipLog:yes

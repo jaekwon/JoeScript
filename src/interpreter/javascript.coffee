@@ -77,8 +77,9 @@ _valueOf = (node) -> switch node.constructor
       result = constructor.apply(child, params)
       return if typeof result is "object" then result else child
     else
+      _this = if node.func instanceof joe.Index then @valueOf(node.func.obj) else @this
       params = (@valueOf(param) for param, i in node.params)
-      return @valueOf(node.func).apply(@this, params)
+      return @valueOf(node.func).apply(_this, params)
 
   when joe.Statement
     switch node.type
