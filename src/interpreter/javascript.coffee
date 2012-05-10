@@ -2,7 +2,7 @@
 
 assert = require 'assert'
 _ = require 'underscore'
-joe = require('../joescript_grammar').NODES
+joe = require('joeson/src/joescript').NODES
 {inspect} = require 'util'
 {clazz} = require 'cardamom'
 
@@ -149,12 +149,15 @@ _valueOf = (node) -> switch node.constructor
   else
     throw new Error "Dunno how to interpret #{node} (#{node.constructor?.name})"
 
-@interpret = (node) ->
+@interpret = (node, {scope, include}) ->
   node.prepare() if not node.prepared
-  gFn = ->
-  gFn.prototype = GLOBAL
-  global = new gFn()
-  context = new Context(scope:global, this:GLOBAL)
+  # Create a new object that wraps the GLOBAL scope in a safe way.
+  if not scope? or include?
+    scopeFn = ->
+    scopeFn.prototype = scope ? GLOBAL
+    scope = new scopeFn()
+  scope[key] = value for key, value of include if include?
+  context = new Context(scope:scope, this:GLOBAL)
   return context.valueOf node
 
 # Runtime Context
@@ -171,7 +174,7 @@ _valueOf = (node) -> switch node.constructor
     options.scope.__parentScope__ = @scope
     return new Context options
 
-  # Set a name/value pair on the topmost scope of the chain.
+  # Set a name/value pair on the topmost scope of the chain
   # Error if name already exists... all updates should happen w/ updateScope.
   setScope: (name, value) ->
     #console.log "set #{name} = #{value}"

@@ -1,6 +1,6 @@
 assert = require 'assert'
 _ = require 'underscore'
-joe = require('../joescript_grammar').NODES
+joe = require('joeson/src/joescript').NODES
 {inspect} = require 'util'
 
 INDENT  = type:'__indent__'

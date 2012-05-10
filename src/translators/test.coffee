@@ -1,8 +1,8 @@
 assert = require 'assert'
-joe = require '../joescript_grammar'
+joe = require 'joeson/src/joescript'
 jsx = require './javascript'
 _ = require 'underscore'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 counter = 0
 test = (code, expected) ->

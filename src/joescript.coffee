@@ -1,5 +1,5 @@
-{Grammar} = require './joeson'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './lib/colors'
+{Grammar} = require 'joeson'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 {clazz} = require 'cardamom'
 assert = require 'assert'
 _ = require 'underscore'
@@ -504,7 +504,7 @@ resetIndent = (ws) ->
     o PAREN:        "_ '(' ___ LINEEXPR ___ ')'"
     o PROPERTY:     "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
     o THIS:         "_ '@'", This
-    o REGEX:        "_ _FSLASH &:(!_FSLASH (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
+    o REGEX:        "_ _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
     o STRING: [
       o             "_ _QUOTE  (!_QUOTE  (ESCSTR | .))* _QUOTE",  Str
       o             "_ _TQUOTE (!_TQUOTE (ESCSTR | INTERP | .))* _TQUOTE", Str

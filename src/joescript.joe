@@ -139,9 +139,9 @@ console.log("parsing code:");
 
 """
 
-{Grammar} = require './joeson'
+{Grammar} = require 'joeson'
 console.log "Parsing grammar..."
-g = Grammar.fromFile './joescript_grammar.joe'
+g = Grammar.fromFile './joescript.joe'
 console.log "Compiling grammar..."
 code = prefix + g.compile()
 require('fs').writeFile 'joescript_parser.js', code, (err) ->

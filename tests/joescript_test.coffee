@@ -1,5 +1,5 @@
-{GRAMMAR, NODES} = require '../joescript_grammar'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
+{GRAMMAR, NODES} = require 'joeson/src/joescript'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 assert = require 'assert'
 
 console.log "-=TEST BASIC=-"
@@ -270,8 +270,6 @@ function foo,
 baz
 """, 'function(foo,bar) baz'
 
-
-
 console.log "-=TEST PROJECT FILES=-"
 
 fs = require 'fs'
@@ -280,10 +278,10 @@ walkFiles = (dir, cb) ->
     throw err if err?
     for filename in files then do (filename) ->
       filepath = dir+'/'+filename
-      fs.stat filepath, (err, stat) ->
+      fs.lstat filepath, (err, stat) ->
         throw err if err?
         cb(filepath, filename)
-        walkFiles filepath, cb if stat.isDirectory()
+        walkFiles filepath, cb if stat.isDirectory() and not stat.isSymbolicLink()
 
 walkFiles '.', (filepath, filename) ->
   return if filename[0] is '.'

@@ -2,13 +2,13 @@
 log = console.log
 
 task 'build', ->
-  run 'coffee -c codestream.coffee'
+  run 'coffee -c src/codestream.coffee'
 
 task 'test', ->
-  #run 'coffee tests/joeson_grammar_test.coffee', ->
-  run 'coffee tests/joescript_grammar_test.coffee', ->
-    run 'coffee translators/test.coffee', ->
-      run 'coffee interpreter/test.coffee', ->
+  #run 'coffee tests/joeson_test.coffee', ->
+  run 'coffee tests/joescript_test.coffee', ->
+    run 'coffee src/translators/test.coffee', ->
+      run 'coffee src/interpreter/test.coffee', ->
         console.log "All tests OK"
 
 run = (args...) ->

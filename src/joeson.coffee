@@ -7,7 +7,7 @@ _ = require 'underscore'
 assert = require 'assert'
 {inspect, CodeStream} = require './codestream'
 {clazz} = require 'cardamom'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require './lib/colors'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 escape = (str) ->
   (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
@@ -484,7 +484,7 @@ debugLoopify = debugCache = no
   # block ASTs to the runtime, thereby making this compilation step
   # unnecessary.
   @fromFile = (filename) ->
-    joe = require('./joescript_grammar')
+    joe = require('joeson/src/joescript')
     chars = require('fs').readFileSync filename, 'utf8'
     try
       fileAST = joe.GRAMMAR.parse chars
@@ -584,7 +584,7 @@ debugLoopify = debugCache = no
       return $.result
 
   compile: () ->
-    joe = require('./joescript_grammar').NODES
+    joe = require('joeson/src/joescript').NODES
     code = undefined # TODO
     require('./translators/javascript').translate code
 

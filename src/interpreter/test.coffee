@@ -1,8 +1,8 @@
 assert = require 'assert'
-joe = require '../joescript_grammar'
+joe = require 'joeson/src/joescript'
 jsi = require './javascript'
 _ = require 'underscore'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require '../lib/colors'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 isEqual = (a, b) ->
   if isNaN a
@@ -13,7 +13,7 @@ counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = joe.GRAMMAR.parse code
-  result = jsi.interpret(node)
+  result = jsi.interpret(node, include:{require:require})
   if typeof expected is 'function'
     if not expected(result)
       console.log "ERROR: didnt expect to get #{result}"
@@ -108,4 +108,6 @@ Foo.prototype = p
 f = new Foo
 f.key""", 'value'
 
-test "require('underscore')", ''
+test """
+_ = require('underscore')
+_.keys(foo:1, bar:2, baz:3).join(',')""", 'foo,bar,baz'

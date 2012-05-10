@@ -23,19 +23,24 @@ Also, npm install . for dependencies.
 
 ## Structure
 
-```
-* joeson.coffee                    This is the parser logic.
-* joescript_grammar.coffee         This file contains nodes/grammar for Joescript. The AST nodes defined here will be used throughout the project.
-* joescript_grammar.joe            Same as above except it contains some grammar data in code syntax in the form of a callback function.
-                                   I found the syntax to be much better than using explicit arrays.
-                                   Eventually both files will be merged into one, when Coffee/Joe gains runtime access to its AST.
-* interpreter/
-  * javascript.coffee              Interpreter for JoeScript under the javascript runtime.
-* translator/
-  * javascript.coffee              Translator for JoeScript into javascript code.
+* src/
+  * joeson.coffee          This is the parser logic.
+  * joescript.coffee       This file contains nodes/grammar for Joescript. The AST nodes defined here
+                            will be used throughout the project.
+  * joescript.joe          Same as above except it contains some grammar data in code syntax in the
+                            form of a callback function.
+                           I found the syntax to be much better than using explicit arrays.
+                           Eventually both files will be merged into one, when Coffee/Joe gains runtime
+                            access to its AST.
+  * interpreter/
+    * javascript.coffee    Interpreter for JoeScript under the javascript runtime.
+  * translator/
+    * javascript.coffee    Translator for JoeScript into javascript code.
 * tests/
-  * joeson_grammar_test.coffee     This parses joeson grammar against itself and does a benchmark test. Just run the file.
-  * joescript_grammar_test.coffee  This file tests the parsing of all the code in the project. Run the file, and fix joescript_grammar if it's broken.
+  * joeson.coffee          This parses joeson grammar against itself and does a benchmark test.
+                            Just run the file.
+  * joescript.coffee       This file tests the parsing of all the code in the project.
+                            Run the file, and fix joescript.coffee if it's broken.
 ```
 
 ## Contributing
