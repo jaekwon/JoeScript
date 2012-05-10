@@ -23,6 +23,7 @@ Also, npm install . for dependencies.
 
 ## Structure
 
+```
 * src/
   * joeson.coffee          This is the parser logic.
   * joescript.coffee       This file contains nodes/grammar for Joescript. The AST nodes defined here
