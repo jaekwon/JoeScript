@@ -86,7 +86,7 @@ debugLoopify = debugCache = no
   @optionKeys = ['skipLog', 'skipCache', 'cb']
 
   @$stack = (fn) -> ($) ->
-    if this isnt @rule then return fn.call this, $
+    return fn.call this, $ if this isnt @rule
     stackItem = name:@name, pos:$.code.pos
     $.stack.push stackItem
     result = fn.call this, $
@@ -95,7 +95,7 @@ debugLoopify = debugCache = no
     return result
 
   @$debug = (fn) -> ($) ->
-    if not $.debug or $.skipLog or this isnt @rule then return fn.call this, $
+    return fn.call this, $ if this isnt @rule or not $.debug or $.skipLog
     $.skipLog = yes if @skipLog
     bufferStr = escape $.code.peek chars:20
     bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
@@ -106,7 +106,7 @@ debugLoopify = debugCache = no
     return result
 
   @$cache = (fn) -> ($) ->
-    if this isnt @rule or @skipCache then return fn.call this, $
+    return fn.call this, $ if this isnt @rule or @skipCache
     key = name:@name, pos:$.code.pos
     if (cached=$.cache[key.pos]?[key.name])?
       $.log "[C] Cache hit @ $.cache[#{keystr key}]: #{escape cached.result}" if debugCache
@@ -121,7 +121,7 @@ debugLoopify = debugCache = no
     return result
 
   @$loopify = (fn) -> ($) ->
-    if this isnt @rule then return fn.call this, $
+    return fn.call this, $ if this isnt @rule
     key = name:@name, pos:$.code.pos
     item = ($.recurse[key.pos]||={})[key.name] ||= stage:0
 
@@ -193,26 +193,19 @@ debugLoopify = debugCache = no
       else
         throw new Error "Unexpected stage #{item.stage} (B)"
 
-  @$ruleCallback = (fn) -> ($) ->
+  @$prepareResult = (fn) -> ($) ->
     result = fn.call this, $
-    result = @cb.call $, result if result isnt null and @cb?
+    if result isnt null
+      # handle labels for standalone nodes
+      if @label? and not @parent?.handlesChildLabel
+        # syntax proposal:
+        # result = ( it <- (it={})[@label] = result )
+        result = ( (it={})[@label] = result; it )
+      result = @cb.call result, result, $ if @cb?
     return result
 
-  # Sequence nodes handle labels for its items, but otherwise
-  # labeled nodes get casted into an object like {"#{label}": result}.
-  # Also, Existential nodes are special.
-  @$applyLabel = (fn) -> ($) ->
-    parent = @findParent (node) -> node not instanceof Existential
-    if parent instanceof Sequence then return fn.call this, $
-    result = fn.call this, $
-    if result isnt null and @label? and @label not in ['@','&']
-      result_ = {}
-      result_[@label] = result
-      result = result_
-    return result
-
-  @$pWrap = (fn) ->
-    @$stack @$debug @$cache @$loopify @$ruleCallback @$applyLabel fn
+  @$wrap = (fn) ->
+    @$stack @$debug @$cache @$loopify @$prepareResult fn
 
   capture: yes
   walk: ({pre, post}, parent=undefined) ->
@@ -229,7 +222,7 @@ debugLoopify = debugCache = no
   include: (name, rule) ->
     @rules ||= {}
     assert.ok name?, "Rule needs a name: #{rule}"
-    assert.ok rule instanceof GNode, "Invalid rule with name #{name}"
+    assert.ok rule instanceof GNode, "Invalid rule with name #{name}: #{rule} (#{rule.constructor.name})"
     assert.ok not @rules[name]?, "Duplicate name #{name}"
     rule.name = name if not rule.name?
     @rules[name] = rule
@@ -259,7 +252,7 @@ debugLoopify = debugCache = no
   prepare: ->
     @capture = _.all @choices, (choice)->choice.capture
 
-  parse$: @$pWrap ($) ->
+  parse$: @$wrap ($) ->
     for choice in @choices
       result = $.try choice.parse
       if result isnt null
@@ -302,29 +295,40 @@ debugLoopify = debugCache = no
   toString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
+  handlesChildLabel: yes
+
   init: (@sequence) ->
     @children = @sequence
 
-  prepare: ->
-    @labels = []
-    @captures = []
+  labels$: get: ->
+    labels = []
     for child in @children
       if child instanceof Existential
         if child.label
-          @labels.push child.label
+          labels.push child.label
         else
-          _.extend @labels, child.labels
-          @captures.push child.captures if child.capture
+          _.extend labels, child.labels
       else
-        @labels.push child.label if child.label
-        @captures.push child if child.capture
-    @type =
-      if @labels.length is 0
-        if @captures.length > 1 then 'array' else 'single'
-      else
-        'object'
+        labels.push child.label if child.label
+    @labels = labels
 
-  parse$: @$pWrap ($) ->
+  captures$: get: ->
+    captures = []
+    for child in @children
+      if child instanceof Existential
+        if not child.label
+          captures.push child.captures if child.capture
+      else
+        captures.push child if child.capture
+    @captures = captures
+
+  type$: get: ->
+    if @labels.length is 0
+      if @captures.length > 1 then 'array' else 'single'
+    else
+      'object'
+
+  parse$: @$wrap ($) ->
     switch @type
       when 'array'
         results = []
@@ -368,7 +372,7 @@ debugLoopify = debugCache = no
 @Peek = Peek = clazz 'Peek', GNode, ->
   capture: no
   init: ({@chars, @words, @lines}) ->
-  parse$: @$pWrap ($) ->
+  parse$: @$wrap ($) ->
     $.code.peek chars:@chars, words:@words, lines:@lines
   toString: ->
     "<#{
@@ -381,7 +385,7 @@ debugLoopify = debugCache = no
   capture: no
   init: ({@expr}) ->
     @children = [@expr]
-  parse$: @$pWrap ($) ->
+  parse$: @$wrap ($) ->
     pos = $.code.pos
     result = @expr.parse $
     $.code.pos = pos
@@ -389,30 +393,29 @@ debugLoopify = debugCache = no
   toString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
 
 @Existential = Existential = clazz 'Existential', GNode, ->
+  handlesChildLabel$: get: -> @parent?.handlesChildLabel
+
   init: (@it) ->
     @children = [@it]
+
+  labels$: get: -> @it.labels
+  captures$: get: -> @it.captures
+
   prepare: ->
-    @labels = []
-    @captures = []
-    if @it.label?
-      @labels.push @it.label
-    else if @it instanceof Sequence or @it instanceof Existential
-      _.extend @labels, @it.labels
-      _.extend @captures, @it.captures
-    else
-      @captures.push this if @it.capture
-    @label = '@' if not @label? and @labels.length > 0
-    @capture = @captures.length > 0
-  parse$: @$pWrap ($) ->
+    @label   ?= '@' if @labels?.length > 0
+    @capture ?= @captures?.length > 0
+
+  parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
+
   toString: -> ''+@it+blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
   init: ({@value, @join, @min, @max}) ->
     @children = if @join? then [@value, @join] else [@value]
     @capture = @value.capture
-  parse$: @$pWrap ($) ->
+  parse$: @$wrap ($) ->
     matches = []
     result = $.try =>
       resV = @value.parse $
@@ -442,7 +445,7 @@ debugLoopify = debugCache = no
   capture: no
   init: (@it) ->
     @children = [@it]
-  parse$: @$pWrap ($) ->
+  parse$: @$wrap ($) ->
     pos = $.code.pos
     res = @it.parse $
     $.code.pos = pos
@@ -456,7 +459,7 @@ debugLoopify = debugCache = no
   # note: @ref because @name is reserved.
   init: (@ref) ->
     @capture = no if @ref[0] is '_'
-  parse$: @$pWrap ($) ->
+  parse$: @$wrap ($) ->
     node = $.grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
@@ -465,7 +468,7 @@ debugLoopify = debugCache = no
 @Str = Str = clazz 'Str', GNode, ->
   capture: no
   init: (@str) ->
-  parse$: @$pWrap ($) -> $.code.match string:@str
+  parse$: @$wrap ($) -> $.code.match string:@str
   toString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', GNode, ->
@@ -473,7 +476,7 @@ debugLoopify = debugCache = no
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
-  parse$: @$pWrap ($) -> $.code.match regex:@re
+  parse$: @$wrap ($) -> $.code.match regex:@re
   toString: -> magenta(''+@re)
 
 # Main external access.
@@ -491,10 +494,10 @@ debugLoopify = debugCache = no
     joe = require('joeson/src/joescript')
     chars = require('fs').readFileSync filename, 'utf8'
     try
-      fileAST = joe.GRAMMAR.parse chars
+      fileAST = joe.parse chars
     catch error
       console.log "Joeson couldn't parse #{filename}. Parse log..."
-      joe.GRAMMAR.parse chars, debug:yes
+      joe.parse chars, debug:yes
       throw error
     joeNodes = joe.NODES
     assert.ok fileAST instanceof joe.NODES.Block
@@ -726,7 +729,8 @@ St = -> Str arguments...
             ]
             o "PRIMARY": [
               o R("WORD"), Ref
-              o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("&",R("EXPR")), St(')'))
+              o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("&",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE")))))
+              i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> it.join ''
               o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str       it.join ''
               o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex     it.join ''
               o S(St("["), P(S(N(St("]")), C(R("ESC2"), R(".")))), St("]")), (it) -> Regex "[#{it.join ''}]"

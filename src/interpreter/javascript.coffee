@@ -77,9 +77,9 @@ _valueOf = (node) -> switch node.constructor
       result = constructor.apply(child, params)
       return if typeof result is "object" then result else child
     else
-      _this = if node.func instanceof joe.Index then @valueOf(node.func.obj) else @this
+      thiz = if node.func instanceof joe.Index then @valueOf(node.func.obj) else @global
       params = (@valueOf(param) for param, i in node.params)
-      return @valueOf(node.func).apply(_this, params)
+      return @valueOf(node.func).apply(thiz, params)
 
   when joe.Statement
     switch node.type
@@ -104,11 +104,9 @@ _valueOf = (node) -> switch node.constructor
     return node.value
 
   when joe.Word
-    switch key=@toKey(node)
-      when 'this' then return @this
-      else
-        return @scope[key] if `key in this.scope`
-        throw new ReferenceError "ReferenceError (JOE): #{key} is not defined"
+    key = @toKey node
+    return @scope[key] if `key in this.scope`
+    throw new ReferenceError "ReferenceError (JOE): #{key} is not defined"
 
   when joe.Str
     return (@valueOf(part) for part in node.parts).join ''
@@ -150,30 +148,20 @@ _valueOf = (node) -> switch node.constructor
   else
     throw new Error "Dunno how to interpret #{node} (#{node.constructor?.name})"
 
-@interpret = (node, {scope, include}) ->
-  node.prepare() if not node.prepared
-  # Create a new object that wraps the GLOBAL scope in a safe way.
-  if not scope? or include?
-    scopeFn = ->
-    scopeFn.prototype = scope ? GLOBAL
-    scope = new scopeFn()
-  scope[key] = value for key, value of include if include?
-  context = new Context(scope:scope, this:GLOBAL)
-  return context.valueOf node
-
 # Runtime Context
 @Context = Context = clazz 'Context', ->
 
-  init: ({@scope,@this}={}) ->
-    @scope ||= {}
+  _makeScope = (thiz, parent) ->
+    scopeFn = (@this, @__parentScope__) ->
+    scopeFn.prototype = parent if parent?
+    new scopeFn(thiz, parent)
+
+  init: ({@scope,@global}={}) ->
+    @scope ||= _makeScope(@global, @global)
 
   # spawn a child context with its own scope
-  spawn: (options) ->
-    fn = ->
-    fn.prototype = @scope
-    options.scope = new fn()
-    options.scope.__parentScope__ = @scope
-    return new Context options
+  spawn: (thiz) ->
+    return new Context scope:_makeScope(thiz, @scope), global:@global
 
   # Set a name/value pair on the topmost scope of the chain
   # Error if name already exists... all updates should happen w/ updateScope.
@@ -210,7 +198,7 @@ _valueOf = (node) -> switch node.constructor
     func = @func
     if func.block?
       _function = ->
-        newContext = context.spawn(this:this)
+        newContext = context.spawn(this)
         newContext.setScope param, arguments[i] for param, i in func.params if func.params?
         try
           return newContext.valueOf(func.block)
@@ -226,3 +214,10 @@ _valueOf = (node) -> switch node.constructor
   # Returns <BoundFunc> with optimizations in @func
   optimize: ->
     # TODO
+
+# eval a node using the interpreter
+@interpret = (node, {context, scope, include}) ->
+  node.prepare() if not node.prepared
+  context ||= new Context(scope:scope, global:GLOBAL)
+  context.scope[key] = value for key, value of include if include?
+  return context.valueOf node

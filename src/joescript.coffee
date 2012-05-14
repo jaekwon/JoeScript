@@ -411,7 +411,7 @@ resetIndent = (ws) ->
 
 @GRAMMAR = GRAMMAR = Grammar ({o, i, tokens}) -> [
   o                                 "_BLANKLINE* LINES ___", (node) -> node.prepare() unless @options?.rawNodes; node
-  i LINES:                          "LINE*_NEWLINE", Block
+  i LINES:                          "LINE*(_NEWLINE | _ _SEMICOLON)", Block
   i LINE: [
     o HEREDOC:                      "_ '###' !'#' (!'###' .)* '###'", (it) -> Heredoc it.join ''
     o LINEEXPR: [
@@ -553,6 +553,7 @@ resetIndent = (ws) ->
   i _TDQUOTE:       "'\"\"\"'"
   i _FSLASH:        "'/'"
   i _SLASH:         "'\\\\'"
+  i _SEMICOLON:     "';'"
   i '.':            "<chars:1> /[\\s\\S]/",            skipLog:yes
   i ESC1:           "_SLASH .",                        skipLog:yes
   i ESC2:           "_SLASH .", ((chr) -> '\\'+chr),   skipLog:yes
@@ -567,6 +568,20 @@ resetIndent = (ws) ->
 
 ]
 # ENDGRAMMAR
+
+# Common scripts inter'n & xlt'n
+foo = ->
+        collect = (thing) ->
+          if isWord thing
+            parameters.push thing
+          else if thing instanceof Obj # Arr is a subclass of Obj
+            collect(item.value or item) for item in thing.items
+          else if thing instanceof Index
+            "pass" # nothing to do for properties
+        collect(param) for param in @params
+
+# Parse the given code
+@parse = GRAMMAR.parse
 
 # Interpret the given code
 @run = (code, options = {}) ->

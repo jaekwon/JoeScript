@@ -7,7 +7,7 @@ _ = require 'underscore'
 counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  node = joe.GRAMMAR.parse code
+  node = joe.parse code
   proc = []
   translated = jsx.translate(node)
   if translated.replace(/[\n ]+/g, ' ').trim() isnt expected.replace(/[\n ]+/g, ' ').trim()

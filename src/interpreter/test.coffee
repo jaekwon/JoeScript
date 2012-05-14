@@ -12,7 +12,7 @@ isEqual = (a, b) ->
 counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  node = joe.GRAMMAR.parse code
+  node = joe.parse code
   result = jsi.interpret(node, include:{require:require})
   if typeof expected is 'function'
     if not expected(result)

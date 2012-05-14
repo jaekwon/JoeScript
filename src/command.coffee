@@ -124,7 +124,7 @@ compileScript = (file, input, base) ->
   try
     t = task = {file, input, options}
     JoeScript.emit 'compile', task
-    if o.nodes            then printLine inspect JoeScript.GRAMMAR.parse(t.input, options:{rawNodes:yes}), no, 10
+    if o.nodes            then printLine inspect JoeScript.parse(t.input, options:{rawNodes:yes}), no, 10
     else if o.run         then JoeScript.run t.input, t.options
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input

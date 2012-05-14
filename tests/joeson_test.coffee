@@ -10,11 +10,15 @@ pad = ({left,right}, str) ->
     return str+Array(left-str.length+1).join(' ')
   return str
 
+# NOTE: keep this grammar in sync with src/joeson.coffee
+# Once we have a compiler, we'll just move this into src/joeson.coffee.
 {o, i, t} = MACROS
 QUOTE = "'\\''"
 FSLSH = "'/'"
 LBRAK = "'['"
 RBRAK = "']'"
+LCURL = "'{'"
+RCURL = "'}'"
 RAW_GRAMMAR = [
   o EXPR: [
     o "CHOICE _"
@@ -41,7 +45,8 @@ RAW_GRAMMAR = [
             ]
             o "PRIMARY": [
               o "WORD", Ref
-              o "'(' inlineLabel:(WORD ': ')? &:EXPR ')'"
+              o "'(' inlineLabel:(WORD ': ')? &:EXPR ')' ( _ '->' _ cb:CODE )?"
+              i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joeson/src/joescript').parse(it.join '')
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str       it.join ''
               o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex     it.join ''
               o "#{LBRAK} (!#{RBRAK} (ESC2 | .))* #{RBRAK}", (it) -> Regex "[#{it.join ''}]"
