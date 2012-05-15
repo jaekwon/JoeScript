@@ -207,7 +207,6 @@ debugLoopify = debugCache = no
   @$wrap = (fn) ->
     @$stack @$debug @$cache @$loopify @$prepareResult fn
 
-  capture: yes
   walk: ({pre, post}, parent=undefined) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
     pre parent, @ if pre?
@@ -217,8 +216,17 @@ debugLoopify = debugCache = no
           throw Error "Unexpected object encountered walking children: #{child}"
         child.walk {pre:pre, post:post}, @
     post parent, @ if post?
-  prepare: -> # implement if needed
+
+  capture:   yes
+  labels$:   get: -> if @label then [@label] else []
+  captures$: get: -> if @capture then [this] else []
+
+  # called after all its children have been prepared.
+  # don't put logic in here, too easy to forget to call super.
+  prepare: ->
+
   toString: -> "[#{@constructor.name}]"
+
   include: (name, rule) ->
     @rules ||= {}
     assert.ok name?, "Rule needs a name: #{rule}"
@@ -227,16 +235,7 @@ debugLoopify = debugCache = no
     rule.name = name if not rule.name?
     @rules[name] = rule
     @children.push rule
-  # NOT USED (YET?)
-  deref: (name, excepts={}) ->
-    return this if @name is name
-    return @rules[name] if @rules?[name]?
-    excepts[name] = yes
-    for name, rule in @rules when not excepts[name]?
-      derefed = rule.deref excepts
-      return derefed if derefed?
-    return @parent.deref name, excepts if @parent?
-    return null
+
   # find a parent in the ancestry chain that satisfies condition
   findParent: (condition) ->
     parent = @parent
@@ -300,27 +299,8 @@ debugLoopify = debugCache = no
   init: (@sequence) ->
     @children = @sequence
 
-  labels$: get: ->
-    labels = []
-    for child in @children
-      if child instanceof Existential
-        if child.label
-          labels.push child.label
-        else
-          _.extend labels, child.labels
-      else
-        labels.push child.label if child.label
-    @labels = labels
-
-  captures$: get: ->
-    captures = []
-    for child in @children
-      if child instanceof Existential
-        if not child.label
-          captures.push child.captures if child.capture
-      else
-        captures.push child if child.capture
-    @captures = captures
+  labels$: get: -> if @label? then [@label] else _.flatten (child.labels for child in @children)
+  captures$: get: -> _.flatten (child.captures for child in @children)
 
   type$: get: ->
     if @labels.length is 0
@@ -395,21 +375,23 @@ debugLoopify = debugCache = no
 @Existential = Existential = clazz 'Existential', GNode, ->
   handlesChildLabel$: get: -> @parent?.handlesChildLabel
 
-  init: (@it) ->
-    @children = [@it]
-
-  labels$: get: -> @it.labels
-  captures$: get: -> @it.captures
+  init: (@it) -> @children = [@it]
 
   prepare: ->
-    @label   ?= '@' if @labels?.length > 0
-    @capture =  @captures?.length > 0
+    labels   = if @label? and @label not in ['@','&'] then [@label] else @it.labels
+    @label   ?= '@' if labels.length > 0
+    captures  = @it.captures
+    @capture  = captures?.length > 0
+    # some strangeness in overwritting getter funcs...
+    # they don't become available right away. wtf?
+    @labels   = labels
+    @captures = captures
 
   parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
 
-  toString: -> ''+@it+blue("?")
+  toString: -> '' + @it + blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
   init: ({@value, @join, @min, @max}) ->
@@ -459,10 +441,17 @@ debugLoopify = debugCache = no
   # note: @ref because @name is reserved.
   init: (@ref) ->
     @capture = no if @ref[0] is '_'
+
+  labels$: get: ->
+    if @label is '@' then @grammar.rules[@ref].labels
+    else if @label   then [@label]
+    else                  []
+  
   parse$: @$wrap ($) ->
-    node = $.grammar.rules[@ref]
+    node = @grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
+
   toString: -> red(@ref)
 
 @Str = Str = clazz 'Str', GNode, ->
@@ -556,12 +545,13 @@ debugLoopify = debugCache = no
     @rank = Rank.fromLines "__grammar__", rank if rank instanceof Array
     @rules = {}
 
-    # Initial setup
+    # First, connect all the nodes and collect dereferences into @rules
     @rank.walk
       pre: (parent, node) =>
+        # sanity check
         if node.parent? and node isnt node.rule
           throw Error 'Grammar tree should be a DAG, nodes should not be referenced more than once.'
-        # set node.parent, the immediate parent node
+        node.grammar = this
         node.parent = parent
         # set node.rule, the root node for this rule
         if not node.inlineLabel?
@@ -575,6 +565,10 @@ debugLoopify = debugCache = no
         if node.rules?
           assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.rules)).length, 0, "Duplicate key(s): #{inter.join ','}"
           _.extend @rules, node.rules
+
+    # Now prepare all the nodes, child first.
+    @rank.walk
+      post: (parent, node) =>
         # call prepare on all nodes
         node.prepare()
 
@@ -703,6 +697,8 @@ S  = -> Sequence (x for x in arguments)
 St = -> Str arguments...
 {o, i, tokens}  = MACROS
 
+# Don't worry, this is just the intermediate hand-compiled form of the grammar you can actually understand,
+# located currently in tests/joeson.coffee. Look at that instead, and keep the two in sync until they get merged later.
 @GRAMMAR = GRAMMAR = Grammar [
   o EXPR: [
     o S(R("CHOICE"), R("_"))
@@ -729,8 +725,14 @@ St = -> Str arguments...
             ]
             o "PRIMARY": [
               o R("WORD"), Ref
-              o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("&",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE")))))
-              i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> it.join ''
+              o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
+                if code?
+                  params = expr.labels
+                  cbFunc = require('joeson/src/joescript').NODES.Func params:params, type:'->', block:code
+                  cbBFunc = require('joeson/src/interpreter/javascript').BoundFunc func:cbFunc
+                  expr.cb = cbBFunc.funtion
+                return expr
+              i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> require('joeson/src/joescript').parse(it.join '')
               o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str       it.join ''
               o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex     it.join ''
               o S(St("["), P(S(N(St("]")), C(R("ESC2"), R(".")))), St("]")), (it) -> Regex "[#{it.join ''}]"

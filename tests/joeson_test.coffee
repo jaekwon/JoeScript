@@ -45,7 +45,13 @@ RAW_GRAMMAR = [
             ]
             o "PRIMARY": [
               o "WORD", Ref
-              o "'(' inlineLabel:(WORD ': ')? &:EXPR ')' ( _ '->' _ cb:CODE )?"
+              o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
+                if code?
+                  params = expr.labels
+                  cbFunc = require('joeson/src/joescript').NODES.Func params:params, type:'->', block:code
+                  cbBFunc = require('joeson/src/interpreter/javascript').BoundFunc func:cbFunc
+                  expr.cb = cbBFunc.funtion
+                return expr
               i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joeson/src/joescript').parse(it.join '')
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str       it.join ''
               o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex     it.join ''

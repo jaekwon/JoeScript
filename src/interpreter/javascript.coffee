@@ -151,11 +151,13 @@ _valueOf = (node) -> switch node.constructor
 # Runtime Context
 @Context = Context = clazz 'Context', ->
 
+  # spawn a new object with a prototype of thiz
   _makeScope = (thiz, parent) ->
     scopeFn = (@this, @__parentScope__) ->
     scopeFn.prototype = parent if parent?
     new scopeFn(thiz, parent)
 
+  # scope is a runtime scope, not associated with its lexical scope
   init: ({@scope,@global}={}) ->
     @scope ||= _makeScope(@global, @global)
 
@@ -183,13 +185,13 @@ _valueOf = (node) -> switch node.constructor
     if node instanceof joe.Str then return @valueOf (node)
     else return ''+node
 
-# A function in runtime.
+# A runtime function typically is associated with its context
 @BoundFunc = BoundFunc = clazz 'BoundFunc', ->
   # func:    The joe.Func node
   # context: The context in which func was constructed.
   init: ({@func, @context}) ->
     assert.ok @func instanceof joe.Func
-    assert.ok @context?
+    @context ||= Context()
 
   # Returns a native javascript function.
   function$: get: ->
