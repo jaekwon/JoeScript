@@ -1,6 +1,12 @@
-# This will parse the grammar below
+# Uses the existing Joeson grammar to parse the grammar RAW_GRAMMAR.
+# The resulting object, another parser (which is also a Joeson parser), is
+# used to parse its own grammar RAW_GRAMMAR.
+# The console output shows some benchmark data.
+#
+# NOTE: keep this grammar in sync with src/joeson.coffee
+# Once we have a compiler, we'll just move this into src/joeson.coffee.
 
-{GRAMMAR, MACROS, Grammar, Choice, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'joeson'
+{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'joeson'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 pad = ({left,right}, str) ->
@@ -10,8 +16,6 @@ pad = ({left,right}, str) ->
     return str+Array(left-str.length+1).join(' ')
   return str
 
-# NOTE: keep this grammar in sync with src/joeson.coffee
-# Once we have a compiler, we'll just move this into src/joeson.coffee.
 {o, i, t} = MACROS
 QUOTE = "'\\''"
 FSLSH = "'/'"
@@ -46,11 +50,13 @@ RAW_GRAMMAR = [
             o "PRIMARY": [
               o "WORD", Ref
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
+                {Func} = require('joeson/src/joescript').NODES
+                {BoundFunc, Context} = require('joeson/src/interpreter/javascript')
                 if code?
                   params = expr.labels
-                  cbFunc = require('joeson/src/joescript').NODES.Func params:params, type:'->', block:code
-                  cbBFunc = require('joeson/src/interpreter/javascript').BoundFunc func:cbFunc
-                  expr.cb = cbBFunc.funtion
+                  cbFunc = Func params:params, type:'->', block:code
+                  cbBFunc = BoundFunc func:cbFunc, context:Context(global:@env.global)
+                  expr.cb = cbBFunc.function
                 return expr
               i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joeson/src/joescript').parse(it.join '')
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str       it.join ''
@@ -86,7 +92,7 @@ testGrammar = (rule, indent=0, name=undefined) ->
     for name, value of rule.args[0]
       testGrammar value, indent, name
   else if typeof rule is 'string'
-    {result, code} = PARSED_GRAMMAR.parse rule, debug:no, returnContext:yes
+    {result, code} = PARSED_GRAMMAR.parse rule, debug:no, returnContext:yes #, env:{global:NODES}
     #{result, code} = GRAMMAR.parse rule, debug:no, returnContext:yes
     console.log "#{Array(indent*2+1).join ' '
                 }#{if name? then red pad(left:(10-indent*2), name+':') else ''

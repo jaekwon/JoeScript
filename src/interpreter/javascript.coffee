@@ -203,7 +203,8 @@ _valueOf = (node) -> switch node.constructor
         newContext = context.spawn(this)
         newContext.setScope param, arguments[i] for param, i in func.params if func.params?
         try
-          return newContext.valueOf(func.block)
+          result = newContext.valueOf(func.block)
+          return result
         catch error
           # TODO leaky
           return error.value if error.statement is 'return'
@@ -216,6 +217,8 @@ _valueOf = (node) -> switch node.constructor
   # Returns <BoundFunc> with optimizations in @func
   optimize: ->
     # TODO
+
+  toString: -> "<BoundFunc>"
 
 # eval a node using the interpreter
 @interpret = (node, {context, scope, include}) ->

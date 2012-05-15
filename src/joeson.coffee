@@ -17,11 +17,11 @@ debugLoopify = debugCache = no
 # aka '$' in parse functions
 @ParseContext = ParseContext = clazz 'ParseContext', ->
 
-  # code:     CodeStream instance
-  # grammar:  Grammar instance
-  # debug:    yes to print parse log
-  # options:  Parse-time options, accessible from grammar callback functions
-  init: ({@code, @grammar, @debug, @options}={}) ->
+  # code:       CodeStream instance
+  # grammar:    Grammar instance
+  # debug:      yes to print parse log
+  # env:        Parse-time env, accessible from grammar callback functions
+  init: ({@code, @grammar, @debug, @env}={}) ->
     @debug ?= false
     @stack = []         # [ {name,pos,...}... ]
     @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
@@ -572,11 +572,11 @@ debugLoopify = debugCache = no
         # call prepare on all nodes
         node.prepare()
 
-  parse$: (code, {debug,returnContext,options}={}) ->
+  parse$: (code, {debug,returnContext,env}={}) ->
     debug ?= no
     returnContext ?= no
     code = CodeStream code if code not instanceof CodeStream
-    $ = ParseContext code:code, grammar:this, debug:debug, options:options
+    $ = ParseContext code:code, grammar:this, debug:debug, env:env
     $.result = @rank.parse $
     throw Error "Incomplete parse: '#{escape $.code.peek chars:50}'" if $.code.pos isnt $.code.text.length
     if returnContext
@@ -591,11 +591,12 @@ debugLoopify = debugCache = no
 
 Line = clazz 'Line', ->
   init: (@args...) ->
-  # name: The final and correct name for this rule
-  # rule: A rule-like object
+  # name:       The final and correct name for this rule
+  # rule:       A rule-like object
   # parentRule: The actual parent Rule instance
-  # options: {cb,...}
-  getRule: (name, rule, parentRule, options) ->
+  # attrs:      {cb,...}, extends the result
+  # env:        Parse time env
+  getRule: (name, rule, parentRule, attrs) ->
     if typeof rule is 'string'
       try
         rule = GRAMMAR.parse rule
@@ -610,43 +611,44 @@ Line = clazz 'Line', ->
     rule.rule = rule
     assert.ok not rule.name? or rule.name is name
     rule.name = name
-    _.extend rule, options if options?
+    _.extend rule, attrs if attrs?
     rule
-  # returns {rule:rule, options:{cb,skipCache,skipLog,...}}
+
+  # returns {rule:rule, attrs:{cb,skipCache,skipLog,...}}
   getArgs: ->
     [rule, rest...] = @args
-    result = rule:rule, options:{}
+    _a_ = rule:rule, attrs:{}
     for own key, value of rule
       if key in GNode.optionKeys
-        result.options[key] = value
+        _a_.attrs[key] = value
         delete rule[key]
     for next in rest
       if next instanceof Function
-        result.options.cb = next
+        _a_.attrs.cb = next
       else if next instanceof Object and next.constructor.name is 'Func'
-        result.options.cbAST = next
+        _a_.attrs.cbAST = next
       else if next instanceof Object and next.constructor.name is 'Word'
-        result.options.cbName = next
+        _a_.attrs.cbName = next
       else
-        _.extend result.options, next
-    result
+        _.extend _a_.attrs, next
+    _a_
   toString: ->
     "#{@type} #{@args.join ','}"
 
 ILine = clazz 'ILine', Line, ->
   type: 'i'
   toRules: (parentRule) ->
-    {rule, options} = @getArgs()
+    {rule, attrs} = @getArgs()
     rules = {}
     # for an ILine, rule is an object of {"NAME":rule}
     for own name, _rule of rule
-      rules[name] = @getRule name, _rule, parentRule, options
+      rules[name] = @getRule name, _rule, parentRule, attrs
     rules
 
 OLine = clazz 'OLine', Line, ->
   type: 'o'
   toRule: (parentRule, {index,name}) ->
-    {rule, options} = @getArgs()
+    {rule, attrs} = @getArgs()
     # figure out the name for this rule
     if not name and
       typeof rule isnt 'string' and
@@ -660,7 +662,7 @@ OLine = clazz 'OLine', Line, ->
       name = parentRule.name + "[#{index}]"
     else if not name?
       throw new Error "Name undefined for 'o' line"
-    rule = @getRule name, rule, parentRule, options
+    rule = @getRule name, rule, parentRule, attrs
     rule.parent = parentRule
     rule.index = index
     rule
@@ -726,11 +728,13 @@ St = -> Str arguments...
             o "PRIMARY": [
               o R("WORD"), Ref
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
+                {Func} = require('joeson/src/joescript').NODES
+                {BoundFunc, Context} = require('joeson/src/interpreter/javascript')
                 if code?
                   params = expr.labels
-                  cbFunc = require('joeson/src/joescript').NODES.Func params:params, type:'->', block:code
-                  cbBFunc = require('joeson/src/interpreter/javascript').BoundFunc func:cbFunc
-                  expr.cb = cbBFunc.funtion
+                  cbFunc = Func params:params, type:'->', block:code
+                  cbBFunc = BoundFunc func:cbFunc, context:Context(global:@env?.global)
+                  expr.cb = cbBFunc.function
                 return expr
               i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> require('joeson/src/joescript').parse(it.join '')
               o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str       it.join ''
@@ -752,3 +756,7 @@ St = -> Str arguments...
   i ESC1:     S(St('\\'), R("."))
   i ESC2:     S(St('\\'), R(".")), (chr) -> '\\'+chr
 ]
+
+@NODES = {
+  GNode, Choice, Rank, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Regex, Grammar
+}
