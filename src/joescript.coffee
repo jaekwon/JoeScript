@@ -505,7 +505,7 @@ resetIndent = (ws) ->
     o ARR_EXPL:     "_ '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']'", Arr
     o OBJ_EXPL:     "_ '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}'", Obj
     i OBJ_EXPL_ITEM: "key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)?", Item
-    o PAREN:        "_ '(' ___ LINEEXPR ___ ')'"
+    o PAREN:        "_ '(' _RESETINDENT BLOCK ___ ')'"
     o PROPERTY:     "_ '@' (WORD|STRING)", (attr) -> Index obj:This(), attr:attr
     o THIS:         "_ '@'", This
     o REGEX:        "_ _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/", Str
@@ -515,7 +515,7 @@ resetIndent = (ws) ->
       o             "_ _DQUOTE  (!_DQUOTE  (ESCSTR | INTERP | .))* _DQUOTE", Str
       o             "_ _QUOTE   (!_QUOTE   (ESCSTR | .))* _QUOTE",  Str
       i ESCSTR:     "_SLASH .", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
-      i INTERP:     "'\#{' _BLANKLINE* _RESETINDENT LINEEXPR ___ '}'"
+      i INTERP:     "'\#{' _RESETINDENT BLOCK ___ '}'"
     ]
     o NATIVE:       "_ _BTICK (!_BTICK .)* _BTICK", NativeExpression
     o BOOLEAN:      "_TRUE | _FALSE", (it) -> it is 'true'

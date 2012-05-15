@@ -201,7 +201,7 @@ debugLoopify = debugCache = no
         # syntax proposal:
         # result = ( it <- (it={})[@label] = result )
         result = ( (it={})[@label] = result; it )
-      result = @cb.call result, result, $ if @cb?
+      result = @cb.call $, result if @cb?
     return result
 
   @$wrap = (fn) ->
@@ -403,7 +403,7 @@ debugLoopify = debugCache = no
 
   prepare: ->
     @label   ?= '@' if @labels?.length > 0
-    @capture ?= @captures?.length > 0
+    @capture =  @captures?.length > 0
 
   parse$: @$wrap ($) ->
     res = $.try @it.parse
