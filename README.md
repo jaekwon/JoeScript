@@ -7,7 +7,9 @@ This is also quickly becoming a CoffeeScript interpreter, analyzer, and translat
 
 You need CoffeeScript >= 1.3.0.
 
-Also, npm install . for dependencies.
+> npm link .<br/>
+> npm link joeson<br/>
+> npm install .
 
 ## Parser details
 

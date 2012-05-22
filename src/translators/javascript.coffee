@@ -3,11 +3,6 @@ _ = require 'underscore'
 {inspect} = require 'util'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
-INDENT  = type:'__indent__'
-OUTDENT = type:'__outdent__'
-NEWLINE = type:'__newline__'
-ENDLINE = type:'__endline__'
-
 joe = require('joeson/src/joescript').NODES
 {extend, isWord, isVariable, toString} = require('joeson/src/joescript').HELPERS
 {compact, flatten} = require('joeson/lib/helpers')
