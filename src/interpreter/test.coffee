@@ -9,6 +9,8 @@ isEqual = (a, b) ->
     return isNaN b
   return a is b
 
+console.log blue "\n-= interpreter test =-"
+
 counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"

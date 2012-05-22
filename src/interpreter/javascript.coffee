@@ -19,7 +19,7 @@ _isTrue = (node) ->
 # Interpret the given node
 _valueOf = (node) -> switch node.constructor
   when joe.Block
-    @setScope variable, undefined for variable in node.scope.variables
+    @scopeDefine variable, undefined for variable in node.scope.variables
     for line, i in node.lines
       res = @valueOf line
       if i is node.lines.length-1
@@ -33,7 +33,7 @@ _valueOf = (node) -> switch node.constructor
     value = @valueOf if node.op then joe.Operation left:@valueOf(node.target), op:node.op, right:node.value else node.value
     switch node.target.constructor
       when joe.Word
-        @updateScope node.target, value
+        @scopeUpdate node.target, value
       when joe.Index
         targetObj = @valueOf(node.target.obj)
         targetAttr = @toKey(node.target.attr)
@@ -48,8 +48,8 @@ _valueOf = (node) -> switch node.constructor
     else if node.elseBlock?
       @valueOf node.elseBlock
 
-  when joe.While, joe.Loop
-    'TODO:While,Loop'
+  when joe.Loop
+    'TODO:Loop'
 
   when joe.Operation
     result = switch node.op
@@ -117,18 +117,18 @@ _valueOf = (node) -> switch node.constructor
     if node.type is 'of'
       if node.own
         for own key, value of @valueOf(node.obj) when ((not node.cond?) or @valueOf(node.cond))
-          @updateScope node.keyIndex, key if node.keyIndex?
-          @updateScope node.keyValue, value if node.keyValue?
+          @scopeUpdate node.keyIndex, key if node.keyIndex?
+          @scopeUpdate node.keyValue, value if node.keyValue?
           results.push @valueOf(node.block)
       else
         for key, value of @valueOf(node.obj) when ((not node.cond?) or @valueOf(node.cond))
-          @updateScope node.keyIndex, key if node.keyIndex?
-          @updateScope node.keyValue, value if node.keyValue?
+          @scopeUpdate node.keyIndex, key if node.keyIndex?
+          @scopeUpdate node.keyValue, value if node.keyValue?
           results.push @valueOf(node.block)
     else if node.type is 'in'
       for value, index of @valueOf(node.obj) when ((not node.cond?) or @valueOf(node.cond))
-        @updateScope node.keyIndex, key if node.keyIndex?
-        @updateScope node.keyValue, value if node.keyValue?
+        @scopeUpdate node.keyIndex, key if node.keyIndex?
+        @scopeUpdate node.keyValue, value if node.keyValue?
         results.push @valueOf(node.block)
     else throw new Error "Unexpected For type #{node.type}"
     return results
@@ -166,14 +166,14 @@ _valueOf = (node) -> switch node.constructor
     return new Context scope:_makeScope(thiz, @scope), global:@global
 
   # Set a name/value pair on the topmost scope of the chain
-  # Error if name already exists... all updates should happen w/ updateScope.
-  setScope: (name, value) ->
+  # Error if name already exists... all updates should happen w/ scopeUpdate.
+  scopeDefine: (name, value) ->
     #console.log "set #{name} = #{value}"
     throw new Error "Already set on scope: #{name}" if @scope.hasOwnProperty(name)
     @scope[name] = value
 
   # Find scope in prototype chain with name declared, set it there.
-  updateScope: (name, value) ->
+  scopeUpdate: (name, value) ->
     #console.log "update #{name} = #{value}"
     scope = @scope
     scope = scope.__parentScope__ while scope.__parentScope__? and not scope.hasOwnProperty(name)
@@ -201,7 +201,17 @@ _valueOf = (node) -> switch node.constructor
     if func.block?
       _function = ->
         newContext = context.spawn(this)
-        newContext.setScope param, arguments[i] for param, i in func.params if func.params?
+        newContext.scopeDefine 'arguments', arguments
+        destructBlock = func.params.toLogic 'arguments'
+        # At this point we may have some Variables in destructBlock.variables.
+        # They're not usable in the runtime context unless the value is determined,
+        # and we have the func.block.scope right here, so determine the names now.
+        nameCollect = [] # collection of Variable names
+        for variable in destructBlock.scope.variables when variable instanceof joe.Variable
+          variable.determineName(func.block.scope, nameCollect)
+        # destructBlock.scope.variables contain all the parameter & intermediate Variable names
+        # Evaluating the block defines these variables on newContext.scope
+        newContext.valueOf destructBlock
         try
           result = newContext.valueOf(func.block)
           return result

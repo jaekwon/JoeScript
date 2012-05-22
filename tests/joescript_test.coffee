@@ -2,7 +2,7 @@
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 assert = require 'assert'
 
-console.log "-=TEST BASIC=-"
+console.log blue "\n-= basic test =-"
 
 counter = 0
 test  = (code, expected) ->
@@ -271,7 +271,8 @@ function foo,
 baz
 """, 'function(foo,bar) baz'
 
-console.log "-=TEST PROJECT FILES=-"
+
+console.log blue "\n-= parse project files =-"
 
 fs = require 'fs'
 walkFiles = (dir, cb) ->

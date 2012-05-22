@@ -1,261 +1,148 @@
 assert = require 'assert'
 _ = require 'underscore'
-joe = require('joeson/src/joescript').NODES
 {inspect} = require 'util'
+{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 INDENT  = type:'__indent__'
 OUTDENT = type:'__outdent__'
 NEWLINE = type:'__newline__'
 ENDLINE = type:'__endline__'
 
-extend = (dest, source) -> dest[dest.length...] = source
+joe = require('joeson/src/joescript').NODES
+{extend, isWord, isVariable, toString} = require('joeson/src/joescript').HELPERS
+{compact, flatten} = require('joeson/lib/helpers')
 
-addImplicitReturns = (node) ->
-  node.walk
-    pre: (parent, node) ->
-      if node instanceof joe.Func and node.block.lines.length > 0
-        lastLine = node.block.lines[node.block.lines.length-1]
-        lastLine.implicitReturn = yes
+jsValue = (obj) ->
+  return obj.toJSValue() if obj instanceof joe.Node
+  return obj
 
-# Translate a node into an array of strings.
-# Required parameter/return attributes marked with *
-# Parameters:
-#  *node:       The node to translate
-#   proc:       An array provided by the caller, where procedures go.
-#   target:    * varname if we want the value assigned to a variable.
-#              * undefined if the value is wanted, but no name is defined.         
-#              * null if the value is not needed at all, only the procedure.
-# Result:      * any expression if 'target' was undefined.
-@translateOnce = _t_ = translateOnce = (node, {proc,target,context}) ->
-  assert.ok proc, "proc must be an Array already provided"
-  #console.log "translateOnce: node:#{node}, proc:#{proc}, target:#{target}, context:#{context}"
+jsNode = (obj, options) ->
+  return obj.toJSNode(options) if obj instanceof joe.Node
+  return obj
 
-  valueOf = (node, options={}) ->
-    options.proc ||= proc
-    _t_ node, options
-  addProcedure = (node, options={}) ->
-    options.proc ||= proc
-    options.target ||= if options.hasOwnProperty('target') then options.target else null
-    _t_ node, options
-  procedureOf = (node, options={}) ->
-    options.proc ||= []
-    options.target ||= if options.hasOwnProperty('target') then options.target else null
-    _t_ node, options
-    # remove trailing newline so the parent can outdent before final newline.
-    options.proc.pop() if options.proc[options.proc.length-1] is NEWLINE and options.keepNewline isnt yes
-    return options.proc
-  passTo = (node, options={}) ->
-    options.proc ||= proc
-    options.target ||= if options.hasOwnProperty('target') then options.target else target
-    options.context ||= context
-    _t_ node, options
-  simple = (value) ->
-    #console.log "simple: value:#{value}, proc:#{proc}, target:#{target}, context:#{context}"
-    if context?
-      if context instanceof joe.Func
-        extend proc, ["return ", value, ENDLINE, NEWLINE]
-      else if context instanceof joe.Statement
-        extend proc, ["#{context.type} ", value, ENDLINE, NEWLINE]
-      else if context instanceof joe.Invocation
-        assert.ok (context.params is undefined), "Invocation contexts should have no parameters"
-        extend proc, [valueOf(context.func), "(", value..., ")", ENDLINE, NEWLINE]
-      else
-        throw new Error "Unexpected context #{context}"
-      return null
-    else if target?
-      if target is value
-        return value
-      else
-        extend proc, [valueOf(target), " = ", value, ENDLINE, NEWLINE]
-        return null
-    else if target is null
-      extend proc, [value, ENDLINE, NEWLINE]
-      return null
+@installJavascript = installJavascript = ->
+  return if joe.Node::toJSNode? # already defined.
+
+  joe.Node::toJSNode = ({toValue}={}) ->
+    return @toJSValue().toJSNode() if toValue
+    @childrenToJSNode()
+    return this
+
+  joe.Node::childrenToJSNode = ->
+    node = this
+    @withChildren (child, attr, desc) ->
+      node[attr] = jsNode child, toValue:desc.value
+    null
+
+  joe.Block::toJSValue = ->
+    if not @lines? or @lines.length is 0
+      return joe.Undefined()
+    else if @lines.length is 1
+      return jsValue @lines[0]
     else
-      return value
+      @lines[@lines.length-1] = jsValue @lines[@lines.length-1]
+      return this
 
-  switch node.constructor
+  joe.Try::toJSValue = ->
+    target = joe.Variable()
+    @block = joe.Assign target:target, value:@block
+    @catchBlock = joe.Assign target:target, value:@catchBlock
+    return joe.Block [this, target]
 
-    when joe.Block
-      assert.ok target isnt undefined, "Blocks can't have undefined targets"
-      # output individual lines
-      for line, i in node.lines
-        if i is node.lines.length-1 and (target? or context?)
-          assert.ok not target? or not context?, "You can't specify both"
-          passTo line
-        else
-          addProcedure line
-      # after all is done, prepend scope var declarations
-      if node.ownScope?.variables?.length > 0
-        proc[...0] = ["var #{node.scope.variables.join ', '}", ENDLINE, NEWLINE]
-      return null # blocks dont have values.
+  joe.Loop::toJSValue = ->
+    lines = []
+    # <Variable> = []
+    lines.push joe.Assign target:(target=joe.Variable()), value:joe.Arr()
+    # @label:
+    # while(@cond) {
+    #   <Variable>.push(@block)
+    # }
+    @block = joe.Invocation func:joe.Index(obj:target,attr:'push'), params:[@block]
+    lines.push this
+    # <Variable>
+    lines.push target
+    return joe.Block lines
 
-    when joe.Index
-      return simple "#{node}"
+  joe.For::toJSNode = ({toValue}={}) ->
+    return @toJSValue().toJSNode() if toValue
 
-    when joe.Assign
-      if target?
-        extend proc, [target, " = ", valueOf(node.target), " #{node.type} ", valueOf(node.value), ENDLINE, NEWLINE]
-        return null
-      else if target is undefined or context?
-        return simple ["(", valueOf(node.target), " #{node.type} ", valueOf(node.value), ")"]
-      else # target is null
-        addProcedure node.value, target:node.target
-        return null
-
-    when joe.If
-      target = node.scope.makeTempVar() if target is undefined
-      extend proc, [
-        "if(", valueOf(node.cond), ") {", INDENT, NEWLINE,
-            procedureOf(node.block, target:target, context:context), OUTDENT, NEWLINE,
-        "}"
-      ]
-      if node.elseBlock?
-        extend proc, [
-          " else {", INDENT, NEWLINE,
-              procedureOf(node.elseBlock, target:target, context:context), OUTDENT, NEWLINE,
-          "}", NEWLINE
+    switch @type
+      when 'in' # Array iteration
+        setup = joe.Block [
+          if @keys.length > 1
+            # for (@keys[1] = _i = 0; ...
+            joe.Assign(target:@keys[1], value:
+              joe.Assign(target:_i=joe.Variable('_i'), value:0))
+          else
+            # for (_i = 0; ...
+            joe.Assign(target:_i=joe.Variable('_i'), value:0)
+          ,
+          joe.Assign(target:_len=joe.Variable('_len'), value:joe.Index(obj:@obj, attr:'length')),
         ]
-      else
-        proc.push NEWLINE
-      return target
-
-    when joe.While, joe.Loop
-      target ||= node.scope.makeTempVar() if (target is undefined) or context?
-
-      # add label
-      extend proc, ["#{node.label}:", NEWLINE] if node.label?
-
-      if target? # or context?
-        addProcedure joe.Assign(target:target, value:joe.Arr())
-        extend proc, [
-          "while(", valueOf(node.cond), ") {", INDENT, NEWLINE,
-              procedureOf(node.block, proc:blockProc=[], context:joe.Invocation(func:joe.Index(obj:target, attr:'push'))), OUTDENT, NEWLINE,
-          "}", NEWLINE
+        # _i < _len; ...
+        cond = joe.Operation left:_i, op:'<', right:_len
+        counter =
+          if @keys.length > 1
+            # @keys[1] = _i++)
+            joe.Assign(target:@keys[1], value:joe.Op(left:_i, op:'++'))
+          else
+            # _i++)
+            joe.Op(left:_i, op:'++')
+        block = joe.Block [
+          joe.Assign(target:@keys[0], value:joe.Index(obj:@obj, attr:_i)),
+          if @cond?
+            # if (@cond) { @block }
+            joe.If(cond:@cond, block:@block)
+          else
+            @block
         ]
-        return simple target
-      else
-        extend proc, [
-          "while(", valueOf(node.cond), ") {", INDENT, NEWLINE,
-              procedureOf(node.block, proc:blockProc=[]), OUTDENT, NEWLINE,
-          "}", NEWLINE
+        node = joe.JSForC label:@label, block:@block, setup:setup, cond:cond, counter:counter
+        node.childrenToJSNode()
+        return node
+
+      when 'of' # Object iteration
+        # for (@keys[0] in @obj)
+        key = @keys[0]
+        block = joe.Block compact [
+          joe.Assign(target:@keys[1], value:joe.Index(obj:@obj, attr:key)) if @keys[1],
+          if @cond?
+            # if (@cond) { @block }
+            joe.If(cond:@cond, block:@block)
+          else
+            @block
         ]
-        return null
+        node = joe.JSForK label:@label, block:@block, key:key, obj:@obj
+        node.childrenToJSNode()
+        return node
+        
+      else throw new Error "Unexpected For type #{@type}"
+    # end switch
 
-    when joe.Operation
-      joeOp = {'==':'===', 'is':'===', 'isnt':'!=='}[node.op] ? node.op
-      return simple [(if node.not then "(!(" else "("), valueOf(node.left), " #{joeOp} ", valueOf(node.right), (if node.not then "))" else ")")]
+  joe.Switch::toJSValue = ->
+    # @obj @cases @default
+    lines = []
+    # <Variable> = undefined
+    lines.push joe.Assign target:(target=joe.Variable()), value:joe.Undefined()
+    # switch(@obj) { case(case.matches) { <Variable> = case.block } for case in @cases }
+    for _case in @cases
+      _case.block = joe.Assign target:target, value:_case.block
+    lines.push this
+    # <Variable>
+    lines.push target
+    return joe.Block lines
 
-    when joe.Invocation
-      params = []
-      for param, i in node.params
-        params.push valueOf(param)
-        params.push ", " if i isnt node.params.length-1
-      return simple [valueOf(node.func), "(", params, ")"]
+  joe.If::toJSValue = ->
+    @block = jsValue @block
+    @elseBlock = jsValue @elseBlock
+    return this
 
-    when joe.Statement
-      if node.expr?
-        if node.expr.constructor in [joe.If] # these nodes pass the statement in
-          passTo node.expr, context:node
-        else
-          extend proc, ["#{node.type} ", valueOf(node.expr), ENDLINE, NEWLINE]
-      else
-        extend proc, [node.type, ENDLINE, NEWLINE]
-      return null # Statements never have value
-
-    when joe.Obj
-      target = node.scope.makeTempVar() if not target?
-      # set static keys on target
-      if node.items?.length > 0
-        res = [target, ' = {', INDENT, NEWLINE]
-        for item in node.items
-          if item.key instanceof joe.Word or
-             item.key instanceof joe.Str and item.key.isStatic
-                extend res, [valueOf(item.key), ": ", valueOf(item.value), ', ', NEWLINE]
-        res.pop() if res.length > 2 # remove the last ', '
-        extend res, [OUTDENT, NEWLINE, '}', ENDLINE, NEWLINE]
-      else
-        res = [target, ' = {}', ENDLINE, NEWLINE]
-      # set dynamic keys on target
-      for item in node.items
-        if item.key instanceof joe.Str and not item.key.isStatic
-          extend res, [target, '[', valueOf(item.key), '] = ', valueOf(item.value), ENDLINE, NEWLINE]
-      extend proc, res
-      return simple target
-
-    when joe.Arr
-      return simple ["[", _.flatten([valueOf(item), ", "] for item in node.items||[])..., "]"]
-      
-    when joe.Func
-      # Argument matching lines
-      destructures = []
-      # target: (Word/string, Arr, or Obj)
-      # source: source var (Word/string or Index)
-      match = (target, source) ->
-        if target instanceof Arr
-          match(item, joe.Index(source,joe.Str(idx))) for item, idx in target.items
-        else if target instanceof Obj
-          match(item.value, joe.Index(source,joe.Str(item.key))) for item in target.items
-        else if target instanceof Word or typeof target is 'string'
-          addProcedure joe.Assign(target:target, value:source), proc:destructures
-        else
-          throw Error "Unexpected target type #{target.constructor.name}, expected Arr/Obj/Word"
-      # Collect top level param names and matches
-      topParams = []
-      if node.params? then for param, i in node.params
-        if param instanceof joe.Word or typeof param is 'string'
-          topParams.push valueOf(param)
-          topParams.push ", " if i isnt node.params.length-1
-        else
-          topParams.push valueOf(tempName=node.scope.makeTempVar('_temparg', isParam:yes))
-          topParams.push ", " if i isnt node.params.length-1
-          match param, tempName
-      return simple [
-        "function(", topParams, ") {", INDENT, NEWLINE,
-            procedureOf(node.block, context:node, proc:destructures), OUTDENT, NEWLINE,
-        "}"
-      ]
-
-    when String, Number, Boolean, joe.Undefined, joe.Null, joe.Word
-      return simple "#{node}"
-
-    when joe.Str
-      return simple "#{node}" if node.isStatic
-
-    when joe.NativeExpression
-      return simple "(#{node.exprStr})"
-
-    else
-      throw new Error "Dunno how to translate #{node} (#{node.constructor?.name})"
-
-@translate = (node) ->
-  node.prepare() if not node.prepared
-  addImplicitReturns node
-
-  indent = 0
-  serialize = (thing) ->
-    res = ''
-    if typeof thing is 'string'
-      res += thing
-    else if typeof thing is 'number'
-      res += "<debug:#{thing}>" # for debugging
-    else if thing is INDENT
-      ++indent
-    else if thing is OUTDENT
-      --indent
-    else if thing is NEWLINE
-      res += '\n'+Array(indent+1).join('  ')
-    else if thing is ENDLINE
-      res += ';'
-    else if thing instanceof Array
-      i = 0
-      while i < thing.length
-        res += serialize thing[i++]
-    else if thing instanceof Function
-      res += serialize(thing())
-    else if thing?
-      proc = []
-      translateOnce thing, target:null, proc:proc
-      res += serialize proc
-    return res
-  serialize(node)
+@translate = translate = (node) ->
+  # validate node. TODO
+  node.validate()
+  # install plugin
+  installJavascript()
+  # prepare nodes
+  node = jsNode node
+  # return translated string
+  console.log yellow node.serialize()
+  return ''+node

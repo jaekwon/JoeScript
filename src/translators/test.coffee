@@ -2,7 +2,10 @@ assert = require 'assert'
 joe = require 'joeson/src/joescript'
 jsx = require './javascript'
 _ = require 'underscore'
+{inspect} = require 'util'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
+
+console.log blue "\n-= translator test =-"
 
 counter = 0
 test = (code, expected) ->
@@ -11,7 +14,7 @@ test = (code, expected) ->
   proc = []
   translated = jsx.translate(node)
   if translated.replace(/[\n ]+/g, ' ').trim() isnt expected.replace(/[\n ]+/g, ' ').trim()
-    console.log "ERROR: expected:\n#{expected} but got\n#{translated}"
+    console.log "ERROR: expected: #{green expected} but got: #{red translated}."
     process.exit(1)
 
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1); } else { (2 + 2); }'
