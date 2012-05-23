@@ -23,19 +23,19 @@ if true
   1 + 1
   b = 2
   2
-""", 'var b; if(true) { (1 + 1); b = 2; 2; }'
+""", 'var b; if(true) { (1 + 1); b = 2; 2; };'
 test """1 + 1""", '(1 + 1);'
 test """
 if 1
   2
 else
-  3""", 'if(1) { 2; } else { 3; }'
+  3""", 'if(1) { 2; } else { 3; };'
 test """
 foo =
   if 1
     2
   else
-    3""", 'var foo; if(1) { foo = 2; } else { foo = 3; }'
+    3""", 'var foo; foo = (1 ? 2 : 3);'
 test """(a) -> return a""", 'function(a) { return a; };'
 test """(b) -> b""", 'function(b) { return b; };'
 test """(a) -> if true then a""", 'function(a) { if(true) { return a; } };'

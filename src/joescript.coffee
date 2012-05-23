@@ -10,9 +10,8 @@ _         = require 'underscore'
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
 isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
-isVariable = (thing) -> thing.isVariable
-toString = (thing) -> assert.ok isWord thing; if typeof thing is 'string' then thing else thing.word
-@HELPERS = {extend, isWord, isVariable, toString}
+isVariable = (thing) -> isWord thing or thing instanceof Undetermined
+@HELPERS = {extend, isWord, isVariable}
 
 indent = (indent) -> Array(indent+1).join('  ')
 
@@ -37,7 +36,7 @@ Node = clazz 'Node', ->
     for attr, desc of @children||{}
       value = this[attr]
       if desc instanceof Array
-        assert.ok value instanceof Array, "Expected #{this}[#{attr}] to be an Array"
+        assert.ok value instanceof Array, "Expected (#{this})[#{red attr}] to be an Array"
         for item, i in value when item?
           cb(item, this, attr, desc[0], i)
       else if value?
@@ -71,25 +70,20 @@ Word = clazz 'Word', Node, ->
         @_newOverride = Null.null
   toString: -> @word
 
-# An undetermined name.
-Variable = clazz 'Variable', Node, ->
-  isVariable: yes
+# An undetermined variable.
+Undetermined = clazz 'Undetermined', Node, ->
   init: (@prefix) ->
+  word$:
+    get: -> @_word ? throw new Error "Name of Undetermined not yet determined!"
+    set: (@_word) ->
 
 Block = clazz 'Block', Node, ->
   children:
     lines:      [{type:Node}]
-  isValue: no # set to true to wrap block in parentheses in output.
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
-    console.log "block.scope:", @scope
-    if @isValue
-      "(#{(''+line for line in @lines).join '; '})"
-    else
-      (''+line+';' for line in @lines).join '\n'
-  toStringWithIndent: ->
-    '\n  '+((''+line+';').replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
+    (''+line+';' for line in @lines).join '\n'
 
 If = clazz 'If', Node, ->
   children:
@@ -178,10 +172,10 @@ Operation = clazz 'Operation', Node, ->
   children:
     left:       {type:Node, value:yes}
     right:      {type:Node, value:yes}
-  init: ({@left, @not, @op, @right}) ->
-  toString: -> "(#{if @left  then @left+' '  else ''}#{
-                   if @not   then 'not '     else ''}#{@op}#{
-                   if @right then ' '+@right else ''})"
+  init: ({@left, @op, @right}) ->
+  toString: -> "(#{ if @left?  then @left+' '  else ''
+                }#{ @op
+                }#{ if @right? then ' '+@right else '' })"
 
 Not = (it) -> Operation op:'not', right:it
 
@@ -206,7 +200,7 @@ Assign = clazz 'Assign', Node, ->
     value:      {type:Node, value:yes}
   init: ({@target, type, @op, @value}) ->
     @op = type[...type.length-1] if type?
-  toString: -> "#{@target}#{@op or ''}=(#{@value})"
+  toString: -> "#{@target} #{@op or ''}= #{@value}"
 
 Slice = clazz 'Slice', Node, ->
   children:
@@ -296,7 +290,7 @@ Str = clazz 'Str', Node, ->
 
 Func = clazz 'Func', Node, ->
   children:
-    params:    [{type:Node}]
+    params:     {type:AssignList}
     block:      {type:Node}
   init: ({@params, @type, @block}) ->
     @block ?= Block()
@@ -338,7 +332,7 @@ AssignObj = clazz 'AssignObj', Node, ->
         block.lines.push Assign target:target, value:Index(source, key)
         block.lines.push Assign target:target, value:default_, type:'?='
       else if target instanceof AssignObj
-        temp = Variable '_assign'
+        temp = Undetermined '_assign'
         block.lines.push Assign target:temp, value:Index(source, key)
         block.lines.push Assign target:temp, value:default_, type:'?='
         target.toBlock temp, block
@@ -361,11 +355,11 @@ AssignItem = clazz 'AssignItem', Node, ->
     default:  {type:Node, value:yes}
   init: ({@key, @target, @default}) ->
   toString: ->
-    "#{ if @key             then @key         else ''
-    }#{ if @key and @target then ':'          else ''
-    }#{ if @target          then @target      else ''
-    }#{ if @splat           then '...'        else ''
-    }#{ if @default         then '='+@default else '' }"
+    "#{ if @key?              then @key         else ''
+    }#{ if @key? and @target? then ':'          else ''
+    }#{ if @target?           then @target      else ''
+    }#{ if @splat             then '...'        else ''
+    }#{ if @default?          then '='+@default else '' }"
 
 Range = clazz 'Range', Node, ->
   children:
@@ -396,7 +390,7 @@ Dummy = clazz 'Dummy', Node, ->
   Null, Undefined,
   Arr, Item, Str, Func, Range, Heredoc, Dummy,
   AssignList, AssignObj, AssignItem,
-  Variable, JSForC, JSForK
+  Undetermined, JSForC, JSForK
 }
 
 debugIndent = yes
@@ -563,8 +557,13 @@ resetIndent = (ws) ->
                 i OP20_OP:          " '*' | '/' | '%' "
                 o                   " left:(OP20|OP30) _ op:OP20_OP _SOFTLINE? right:OP30 ", Operation
                 o OP30: [
-                  i OP30_OP:        " not:_NOT? op:(_IN|_INSTANCEOF) "
-                  o                 " left:(OP30|OP40) _  @:OP30_OP _SOFTLINE? right:OP40 ", Operation
+                  i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
+                  o                 " left:(OP30|OP40) _  @:OP30_OP _SOFTLINE? right:OP40 ", ({left, _not, op, right}) ->
+                                                                                                invo = Invocation(func:op, params:[left, right])
+                                                                                                if _not
+                                                                                                  return Not(invo)
+                                                                                                else
+                                                                                                  return invo
                   o OP40: [
                     i OP40_OP:      " _NOT | '!' | '~' "
                     o               " _ op:OP40_OP right:OP40 ", Operation

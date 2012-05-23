@@ -4,7 +4,7 @@ _ = require 'underscore'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 joe = require('joeson/src/joescript').NODES
-{extend, isWord, isVariable, toString} = require('joeson/src/joescript').HELPERS
+{extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
 {compact, flatten} = require('joeson/lib/helpers')
 
 jsValue = (obj) ->
@@ -14,6 +14,8 @@ jsValue = (obj) ->
 jsNode = (obj, options) ->
   return obj.toJSNode(options) if obj instanceof joe.Node
   return obj
+
+js = (node) -> if node instanceof joe.Node then node.toJavascript() else node
 
 @install = install = ->
   return if joe.Node::toJSNode? # already defined.
@@ -32,6 +34,12 @@ jsNode = (obj, options) ->
         else
           node[attr] = jsNode child, toValue:desc.value
       null
+    toJavascript: ->
+      throw new Error "#{@constructor.name}.toJavascript not defined"
+
+  joe.Word::extend
+    toJavascript: ->
+      ''+this
 
   joe.Block::extend
     toJSValue: ->
@@ -43,6 +51,30 @@ jsNode = (obj, options) ->
       else
         @lines[@lines.length-1] = jsValue @lines[@lines.length-1]
         return this
+    toJavascript: ->
+      if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
+        lines = ["var #{toDeclare.join(', ')}", @lines...]
+      else
+        lines = @lines
+      if @isValue
+        "(#{(js(line) for line in lines).join '; '})"
+      else
+        (js(line)+';' for line in lines).join '\n'
+
+  joe.If::extend
+    toJSValue: ->
+      @isValue = yes
+      @block = jsValue @block
+      @elseBlock = jsValue @elseBlock
+      return this
+    toJavascript: ->
+      if @isValue
+        "(#{js @cond} ? #{js @block} : #{js @elseBlock})"
+      else
+        if @elseBlock?
+          "if(#{js @cond}){#{js @block}}else{#{js @elseBlock}}"
+        else
+          "if(#{js @cond}){#{js @block}}"
 
   joe.Try::extend
     toJSValue: ->
@@ -50,6 +82,9 @@ jsNode = (obj, options) ->
       @block = joe.Assign target:target, value:@block
       @catchBlock = joe.Assign target:target, value:@catchBlock
       return joe.Block [this, target]
+    toJavascript: -> "try {#{js @block}}#{
+      (@catchVar? or @catchBlock?) and " catch (#{js(@catchVar) or ''}) {#{js @catchBlock}}" or ''}#{
+      @finally and "finally {#{js @finally}}" or ''}"
 
   joe.Loop::extend
     toJSValue: ->
@@ -136,11 +171,25 @@ jsNode = (obj, options) ->
       lines.push target
       return joe.Block lines
 
-  joe.If::extend
-    toJSValue: ->
-      @block = jsValue @block
-      @elseBlock = jsValue @elseBlock
+  joe.Operation::extend
+    toJavascript: -> "(#{ if @left?  then js(@left)+' '  else ''
+                      }#{ @op
+                      }#{ if @right? then ' '+js(@right) else '' })"
+
+  joe.Statement::extend
+    toJavascript: -> "#{@type}(#{if @expr? then js(@expr)? else ''});"
+
+
+  joe.Assign::extend
+    toJavascript: -> "#{js @target} #{@op or ''}= #{js @value}"
+
+  joe.Func::extend
+    toJSNode: ->
+      ## mutate for '=>' @type binding
+      ## mutate parameters
       return this
+    toJavascript: ->
+      "function #{ if @params? then '('+@params.toString(no)+')' else '()'} {#{js @block}}"
 
 @translate = translate = (node) ->
   # install plugin
@@ -149,6 +198,7 @@ jsNode = (obj, options) ->
   node.validate()
   # prepare nodes
   node.installScope()
+  node.collectVariables()
   node = jsNode node
   # return translated string
-  return ''+node
+  return node.toJavascript()
