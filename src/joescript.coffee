@@ -31,16 +31,16 @@ Node = clazz 'Node', ->
       else return yes # nothing to do
   
   # Iterate cb function over all child attributes.
-  # cb:   (child, attrName, descriptor) -> ...
+  # cb:   (child, parent, attrName, descriptor, index?) -> ...
   withChildren: (cb, options) ->
     assert.ok not options?, "options have been deprecated. reimplement me"
     for attr, desc of @children||{}
       value = this[attr]
       if desc instanceof Array
         assert.ok value instanceof Array, "Expected #{this}[#{attr}] to be an Array"
-        for child in value
-          cb(child, this, attr, desc[0])
-      else
+        for item, i in value when item?
+          cb(item, this, attr, desc[0], i)
+      else if value?
         cb(value, this, attr, desc)
 
   # Validate types recursively for all children
@@ -79,10 +79,15 @@ Variable = clazz 'Variable', Node, ->
 Block = clazz 'Block', Node, ->
   children:
     lines:      [{type:Node}]
+  isValue: no # set to true to wrap block in parentheses in output.
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
-    (''+line for line in @lines).join '\n'
+    console.log "block.scope:", @scope
+    if @isValue
+      "(#{(''+line for line in @lines).join '; '})"
+    else
+      (''+line+';' for line in @lines).join '\n'
   toStringWithIndent: ->
     '\n  '+((''+line+';').replace(/\n/g, '\n  ') for line in @lines).join('\n  ')+'\n'
 
@@ -158,9 +163,9 @@ Try = clazz 'Try', Node, ->
     catchBlock: {type:Node}
     finally:    {type:Node}
   init: ({@block, @catchVar, @catchBlock, @finally}) ->
-  toString: -> "try{#{@block}}#{
-                (@catchVar? or @catchBlock?) and "catch(#{@catchVar or ''}){#{@catchBlock}}" or ''}#{
-                @finally and "finally{#{@finally}}" or ''}"
+  toString: -> "try {#{@block}}#{
+                (@catchVar? or @catchBlock?) and " catch (#{@catchVar or ''}) {#{@catchBlock}}" or ''}#{
+                @finally and "finally {#{@finally}}" or ''}"
 
 Case = clazz 'Case', Node, ->
   children:

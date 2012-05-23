@@ -33,28 +33,34 @@ joe = require('joeson/src/joescript').NODES
     name = toString name unless isVariable name
     @variables.push name unless name in @variables
 
-@installScopes = ->
+@install = ->
+  return if joe.Node::installScope? # already defined.
 
   init = (node, options) ->
     # Dependency validation
-    assert.ok node.parent?, "installScope requires @parent"
-    if options.create
-      node.scope = new LScope node.parent.scope
+    if options.create or not options.parent?
+      node.scope = new LScope options.parent?.scope
     else
-      node.scope ?= node.parent.scope
+      node.scope ?= options.parent.scope
 
-  joe.Node::installScope = (options) ->
-    init @ options
-    @withChildren (child) -> child.installScope(create:no)
+  joe.Node::extend
+    installScope: (options={}) ->
+      init @, options
+      @withChildren (child, parent) ->
+        child.installScope?(create:no, parent:parent)
 
-  joe.Try::installScope = (options) ->
-    init @ options
-    @catchBlock.installScope(create:yes) if @catchVar? and @catchBlock?
-    @catchBlock.scope.declareVariable(@catchVar) if @catchVar?
-    @withChildren ((child) => child.installScope(create:no)), except:[@catchBlock]
+  joe.Try::extend
+    installScope: (options={}) ->
+      init @, options
+      @catchBlock.installScope(create:yes, parent:this) if @catchVar? and @catchBlock?
+      @catchBlock.scope.declareVariable(@catchVar) if @catchVar?
+      @withChildren (child, parent, attr) ->
+        child.installScope?(create:no, parent:parent) unless attr is 'catchBlock'
 
-  joe.Func::installScope = (options) ->
-    init @ options
-    @block.installScope(create:yes) if @block?
-    @block.scope.declareVariable(name) for name in @params?.targetNames||[]
-    @withChildren ((child) -> child.installScope(create:no)), except:[@block]
+  joe.Func::extend
+    installScope: (options={}) ->
+      init @, options
+      @block.installScope(create:yes, parent:this) if @block?
+      @block.scope.declareVariable(name) for name in @params?.targetNames||[]
+      @withChildren (child, parent, attr) ->
+        child.installScope?(create:no, parent:parent) unless attr is 'block'

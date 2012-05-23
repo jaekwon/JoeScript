@@ -13,11 +13,11 @@ test = (code, expected) ->
   node = joe.parse code
   proc = []
   translated = jsx.translate(node)
-  if translated.replace(/[\n ]+/g, ' ').trim() isnt expected.replace(/[\n ]+/g, ' ').trim()
-    console.log "ERROR: expected: #{green expected} but got: #{red translated}."
+  if translated.replace(/[\n ]+/g, '').trim() isnt expected.replace(/[\n ]+/g, '').trim()
+    console.log "ERROR:\n  expected:\n#{green expected}\n  result:\n#{red translated}.\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
-test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1); } else { (2 + 2); }'
+test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1); } else { (2 + 2); };'
 test """
 if true
   1 + 1
