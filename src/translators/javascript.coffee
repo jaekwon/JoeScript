@@ -15,7 +15,7 @@ jsNode = (obj, options) ->
   return obj.toJSNode(options) if obj instanceof joe.Node
   return obj
 
-js = (obj) -> if obj instanceof joe.Node then obj.toJavascript() else obj
+js = (obj) -> if obj.toJavascript? then obj.toJavascript() else obj
 
 trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else obj
 
@@ -68,7 +68,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         return this
     toJavascript: ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
-        lines = ["var #{toDeclare.join(', ')}", @lines...]
+        lines = [joe.NativeExpression("var #{toDeclare.join(', ')}"), @lines...]
       else
         lines = @lines
       if @isValue
@@ -104,7 +104,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       else
         return this
     toJavascript: -> "try {#{js @block}}#{
-      (@catchVar? or @catchBlock?) and " catch (#{js(@catchVar) or ''}) {#{js @catchBlock}}" or ''}#{
+      (@catchVar? or @catchBlock?) and " catch(#{js(@catchVar) or ''}) {#{js @catchBlock}}" or ''}#{
       @finally and "finally {#{js @finally}}" or ''}"
 
   joe.Loop::extend
@@ -124,6 +124,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         return joe.Block lines
       else
         return this
+    toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
   joe.For::extend
     toJSNode: ({toValue}={}) ->
@@ -238,6 +239,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       assert.ok typeof @parts is 'string', "Str.toJavascript can only handle a string part."
       return '"' + escape(@parts) + '"'
 
+  String::toJavascript = -> '"' + escape(@) + '"'
+
   joe.Func::extend
     toJSNode: ->
       ## mutate for '=>' @type binding
@@ -249,8 +252,25 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJavascript: ->
       "function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{js @block}}"
 
+  joe.NativeExpression::extend
+    toJavascript: -> @exprStr
+
+  joe.Null::extend
+    toJavascript: -> 'null'
+
+  joe.Undefined::extend
+    toJavascript: -> 'undefined'
+
+  joe.Invocation::extend
+    toJavascript: -> "#{js @func}(#{@params.map (p)->js(p)})"
+
+  joe.Index::extend
+    toJavascript: ->
+      close = if @type is '[' then ']' else ''
+      "#{js @obj}#{@type}#{js @attr}#{close}"
+
 @translate = translate = (node) ->
-  console.log node.serialize()
+  # console.log node.serialize() # print before transformations...
   # install plugin
   install()
   # validate node. TODO

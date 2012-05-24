@@ -47,8 +47,8 @@ foo = bar
 if res is null
   break
   results.push res
-""", 'var foo; foo = bar; if((res === null)) { break; results.push(res); }'
+""", 'var foo; foo = bar; if((res === null)) { break; results.push(res) }'
 test """
 loop
   a = b
-""", 'var a; while(true) { a = b; }'
+""", 'var a; while(true) { a = b }'

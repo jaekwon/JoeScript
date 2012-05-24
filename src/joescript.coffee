@@ -278,7 +278,20 @@ Item = clazz 'Item', Node, ->
 Str = clazz 'Str', Node, ->
   children:
     parts:     [{type:Object, value:yes}]
-  init: (@parts) ->
+  init: (parts) ->
+    @parts = []
+    chars = []
+    for item in parts
+      if typeof item is 'string'
+        chars.push item
+      else if item instanceof Node
+        if chars.length > 0
+          @parts.push chars.join('')
+          chars = []
+        @parts.push item
+      else throw new Error "Dunno how to handle part of Str: #{item} (#{item.constructor.name})"
+    if chars.length > 0
+      @parts.push chars.join('')
   isStatic: get: -> _.all @parts, (part)->typeof part is 'string'
   toString: ->
     if typeof @parts is 'string'
@@ -376,7 +389,7 @@ Range = clazz 'Range', Node, ->
                      "type:'#{@type}', by:#{@by})"
 
 NativeExpression = clazz 'NativeExpression', Node, ->
-  init: ({@exprStr}) ->
+  init: (@exprStr) ->
   toString: -> "`#{@exprStr}`"
 
 Heredoc = clazz 'Heredoc', Node, ->
@@ -391,7 +404,7 @@ Dummy = clazz 'Dummy', Node, ->
   Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
   Statement, Invocation, Assign, Slice, Index, Soak, Obj, This,
   Null, Undefined,
-  Arr, Item, Str, Func, Range, Heredoc, Dummy,
+  Arr, Item, Str, Func, Range, NativeExpression, Heredoc, Dummy,
   AssignList, AssignObj, AssignItem,
   Undetermined, JSForC, JSForK
 }
