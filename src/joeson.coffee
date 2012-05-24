@@ -8,9 +8,7 @@ assert = require 'assert'
 {inspect, CodeStream} = require './codestream'
 {clazz} = require 'cardamom'
 {red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
-
-escape = (str) ->
-  (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
+{escape} = require 'joeson/lib/helpers'
 keystr = (key) -> "#{key.pos},#{key.name}"
 debugLoopify = debugCache = no
 

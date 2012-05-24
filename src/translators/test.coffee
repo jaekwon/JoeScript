@@ -17,31 +17,31 @@ test = (code, expected) ->
     console.log "ERROR:\n  expected:\n#{green expected}\n  result:\n#{red translated}.\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
-test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1); } else { (2 + 2); };'
+test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
 test """
 if true
   1 + 1
   b = 2
   2
-""", 'var b; if(true) { (1 + 1); b = 2; 2; };'
-test """1 + 1""", '(1 + 1);'
+""", 'var b; if(true) { (1 + 1); b = 2; 2 }'
+test """1 + 1""", '(1 + 1)'
 test """
 if 1
   2
 else
-  3""", 'if(1) { 2; } else { 3; };'
+  3""", 'if(1) { 2 } else { 3 }'
 test """
 foo =
   if 1
     2
   else
-    3""", 'var foo; foo = (1 ? 2 : 3);'
-test """(a) -> return a""", 'function(a) { return a; };'
-test """(b) -> b""", 'function(b) { return b; };'
-test """(a) -> if true then a""", 'function(a) { if(true) { return a; } };'
-test """(a) -> if true then a else b""", 'function(a) { if(true) { return a; } else { return b; } };'
-test """foo is bar""", '(foo === bar);'
-test """if foo is bar then 'foo is bar'""", 'if((foo === bar)) { \"foo is bar\"; }'
+    3""", 'var foo; foo = (1 ? 2 : 3)'
+test """(a) -> return a""", 'function(a) { return a }'
+test """(b) -> b""", 'function(b) { return b }'
+test """(a) -> if true then a""", 'function(a) { if(true) { return a } }'
+test """(a) -> if true then a else b""", 'function(a) { if(true) { return a } else { return b } }'
+test """foo is bar""", '(foo === bar)'
+test """if foo is bar then 'foo is bar'""", 'if((foo === bar)) { \"foo is bar\" }'
 test """
 foo = bar
 if res is null

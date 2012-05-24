@@ -20,13 +20,16 @@ Node = clazz 'Node', ->
 
   validateType = (obj, descriptor) ->
     switch descriptor.type
-      when Array
-        if obj? and obj not instanceof Array
-          throw new Error "Expected an instanceof Array"
       when Node
         if typeof obj is 'object'
           if obj not instanceof Node
             throw new Error "Expected an instanceof Node (or primary object)"
+      when Array, String
+        if obj? and obj not instanceof descriptor.type
+          throw new Error "Expected an instanceof #{descriptor.type.constructor.name}"
+      when 'string'
+        if typeof obj isnt 'string'
+          throw new Error "Expected typeof string"
       else return yes # nothing to do
   
   # Iterate cb function over all child attributes.
@@ -181,7 +184,7 @@ Not = (it) -> Operation op:'not', right:it
 
 Statement = clazz 'Statement', Node, ->
   children:
-    expr:       {type:Node}
+    expr:       {type:Node, value:yes}
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr ? ''});"
 

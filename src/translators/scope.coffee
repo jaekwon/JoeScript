@@ -11,6 +11,7 @@ joe = require('joeson/src/joescript').NODES
 @LScope = LScope = clazz 'LScope', ->
   init: (@parent) ->
     @variables  = [] #
+    @parameters = []
     @children   = [] # child LScopes
     @parent.children.push this if @parent?
   declares: (name) ->
@@ -29,12 +30,10 @@ joe = require('joeson/src/joescript').NODES
   ensureVariable: (name) ->
     name = ''+name unless name instanceof joe.Undetermined
     @variables.push name unless @isDeclared name
-  declareVariable: (name) ->
+  declareVariable: (name, isParameter=no) ->
     name = ''+name unless name instanceof joe.Undetermined
     @variables.push name unless name in @variables
-  parameters$:
-    get: -> @_parameters||[]
-    set: (@_parameters) -> @declareVariable(name) for name in @_parameters||[]
+    @parameters.push name unless name in @parameters if isParameter
   nonparameterVariables$: get: ->
     _.difference @variables, @parameters
 
@@ -75,7 +74,7 @@ joe = require('joeson/src/joescript').NODES
       @withChildren (child, parent, attr) ->
         child.installScope?(create:no, parent:parent) unless attr is 'block'
     collectVariables: ->
-      @block.scope.parameters = (name for name in @params?.targetNames||[])
+      @block.scope.declareVariable(name, yes) for name in @params?.targetNames||[]
       @withChildren (child, parent, attr) ->
         child.collectVariables?() unless attr is 'block'
 
