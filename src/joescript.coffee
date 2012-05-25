@@ -77,7 +77,7 @@ Word = clazz 'Word', Node, ->
 Undetermined = clazz 'Undetermined', Node, ->
   init: (@prefix) ->
   word$:
-    get: -> @_word ? throw new Error "Name of Undetermined not yet determined!"
+    get: -> throw new Error "Name of Undetermined not yet determined!" unless @_word?
     set: (@_word) ->
 
 Block = clazz 'Block', Node, ->
@@ -86,7 +86,7 @@ Block = clazz 'Block', Node, ->
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
-    (''+line+';' for line in @lines).join '\n'
+    (''+line for line in @lines).join ';\n'
 
 If = clazz 'If', Node, ->
   children:
@@ -203,7 +203,7 @@ Assign = clazz 'Assign', Node, ->
     value:      {type:Node, value:yes}
   init: ({@target, type, @op, @value}) ->
     @op = type[...type.length-1] if type?
-  toString: -> "#{@target} #{@op or ''}= #{@value}"
+  toString: -> "#{@target} #{@op or ''}= (#{@value})"
 
 Slice = clazz 'Slice', Node, ->
   children:

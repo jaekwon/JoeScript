@@ -77,7 +77,7 @@ test  """
           "correct"
         else
           "incorrect"
-      """, "x=(1)\nswitch(x){when 1{\"correct\"}//else{\"incorrect\"}}"
+      """, "x=(1);\nswitch(x){when 1{\"correct\"}//else{\"incorrect\"}}"
 test  "foo.replace(bar).replace(baz)", "foo.replace(bar).replace(baz)"
 test  "foo.replace(/\\/g, 'bar')", "foo.replace(\"\\\\\",\"bar\")"
 test  "a = () ->", "a=(()->{undefined})"
@@ -90,7 +90,7 @@ test  "for x in [0..10] then console.log x", "for x in Range(start:0,end:10,type
 test  "for x in array[0..10] then console.log x", "for x in array[Range(start:0,end:10,type:'..', by:1)]{console.log(x)}"
 test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{user.name}\")"
 test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{user.name}\"}\")"
-test  "line instanceof Object and 'true'", '((line instanceof Object) and "true")'
+test  "line instanceof Object and 'true'", '(instanceof(line,Object) and "true")'
 test  "lines.length-1", '(lines.length - 1)'
 test  "foo( func x for x in items )", 'foo(for x in items {func(x)})'
 test  """
@@ -114,7 +114,7 @@ while foo
 while(foo){
   while(true){
     while(bar){
-      baz=(\"baz\")
+      baz=(\"baz\");
       break();}}}
 """
 test  """
@@ -138,14 +138,14 @@ test """
 foo bar
 baz bak
 """, """
-foo(bar)
+foo(bar);
 baz(bak)
 """
 test """
 "first line" if true
 "next line"
 """, """
-if(true){"first line"}"next line"
+if(true){"first line"}; "next line"
 """
 test """
 func arguments...
@@ -214,7 +214,7 @@ if true
   "qwe"
 else if line instanceof Object and idx is lines.length - 1
   "Qwe"
-""", 'if(true){"qwe"}else{if(((line instanceof Object) and (idx is (lines.length - 1)))){"Qwe"}}'
+""", 'if(true){"qwe"}else{if((instanceof(line, Object) and (idx is (lines.length - 1)))){"Qwe"}}'
 test """
 {
   get: -> (foo)
@@ -269,7 +269,7 @@ test """
 function foo,
   bar
 baz
-""", 'function(foo,bar) baz'
+""", 'function(foo,bar); baz'
 
 
 console.log blue "\n-= parse project files =-"
