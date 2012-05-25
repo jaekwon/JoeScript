@@ -1,7 +1,7 @@
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
 assert = require 'assert'
 _ = require 'underscore'
-{inspect} = require 'util'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 joe = require('joeson/src/joescript').NODES
 {extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS

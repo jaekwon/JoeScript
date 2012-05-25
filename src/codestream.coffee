@@ -1,23 +1,23 @@
-{clazz} = require 'cardamom'
+{clazz, bisect:{bisect_right}} = require 'cardamom'
+assert = require 'assert'
 
 @inspect = (x) -> require('util').inspect x, false, 100
 
 @CodeStream = CodeStream = clazz 'CodeStream', ->
-  init: (@text, @pos=0, @buffer=null) ->
-    @maxSeen=0
+  init: (@text) ->
+    @pos = 0
+    @numLines = 0
+    # LAZY HACK
+    @lineStarts = [0]
+    @lineStarts.push(@pos) while @getUntil("\n").length > 0
+    @lineStarts.pop() # last one is @ EOL.
+    @pos = 0
+    # END HACK
 
-  pos$:
-    enum: true
-    conf: true
-    get: -> (@_pos)
-    set: (newPos) ->
-      if @_pos isnt newPos
-        @buffer = null
-        @_pos = newPos
-      if newPos > @maxSeen
-        @maxSeen = newPos
-        #console.log "#{@maxSeen}/#{@text.length} #{@text[@maxSeen..@maxSeen+10]}"
-      @_pos
+  line$: get: ->
+    bisect_right(@lineStarts, @pos) - 1
+  col$:  get: ->
+    @pos - @lineStarts[@line]
 
   # Get until the string `end` is encountered.
   # Change @pos accordingly, including the `end`.
@@ -32,42 +32,37 @@
       index += end.length
     return @text[@pos...(@pos=index)]
 
-  # Returns a string of up to chars chars or words words,
-  # words:
-  #  - are delimited by space(s)
-  #  - include preceding space(s)
-  #  - exclude trailing space(s)
-  peek: ({chars, words, lines}) ->
-    if chars?
-      return @buffer = @text[@pos...@pos+chars]
-    else if words?
-      origPos = @pos
-      while words > 0
-        words -= 1 unless @getUntil(' ') is ' '
-      @pos -= 1 if @pos > origPos and @text[@pos] is ' '
-      result = @text[origPos...@pos]
-      @pos = origPos
-      return @buffer = result
-    else if lines?
-      throw new Error 'Not implemented yet'
+  peek: ({beforeChars, beforeLines, afterChars, afterLines}) ->
+    if not beforeLines? and not beforeChars? then beforeChars = 0
+    if not afterLines?  and not afterChars?  then afterChars  = 0
+    assert.ok not (beforeChars is 0 and afterChars is 0), "You can't peek at nothing."
+
+    if beforeLines?
+      startLine = Math.max(0, @line-beforeLines)
+      start = @lineStarts[startLine]
     else
-      return @buffer = @text[@pos]
+      start = @pos - beforeChars
+    if afterLines?
+      endLine = Math.min(@lineStarts.length-1, @line+afterLines)
+      if endLine < @lineStarts.length-1
+        end = @lineStarts[endLine+1] - 1
+      else
+        end = @text.length
+    else
+      end = @pos + afterChars
+    return @text[start...end]
 
   # Match a string or a regex
-  # If matching a regex, don't forget to
-  # set the buffer by calling .peek.
   # Regex returns null if match failed,
   # otherwise returns match[0] which may be ''
   match: ({regex, string}) ->
     if string?
-      peek = @peek chars: string.length
+      peek = @peek afterChars: string.length
       return null if peek isnt string
       @pos += string.length
       string
     else if regex?
-      if not @buffer?
-        throw new Error 'Buffer was null during regex match. Forget to peek?'
-      matched = @buffer.match regex
+      matched = @text[@pos...].match regex # TODO improve
       return null if matched is null
       @pos += matched[0].length
       matched[0]

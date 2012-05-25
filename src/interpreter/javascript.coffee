@@ -1,10 +1,10 @@
 # TODO Secure GLOBAL scope & this
 
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
 assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
-{inspect} = require 'util'
-{clazz} = require 'cardamom'
 
 _isTrue = (node) ->
   switch typeof node

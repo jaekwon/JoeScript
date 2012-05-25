@@ -6,8 +6,11 @@
 # NOTE: keep this grammar in sync with src/joeson.coffee
 # Once we have a compiler, we'll just move this into src/joeson.coffee.
 
-{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'joeson'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
+{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'joeson'
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
+assert = require 'assert'
+_ = require 'underscore'
 
 pad = ({left,right}, str) ->
   if right? and right > str.length
@@ -33,11 +36,7 @@ RAW_GRAMMAR = [
         o "UNIT": [
           o "_ LABELED"
           o "LABELED": [
-            o "(label:LABEL ':')? &:(COMMAND|DECORATED|PRIMARY)"
-            o "COMMAND": [
-              o "'<chars:' chars:INT '>'", Peek
-              o "'<words:' words:INT '>'", Peek
-            ]
+            o "(label:LABEL ':')? &:(DECORATED|PRIMARY)"
             o "DECORATED": [
               o "PRIMARY '?'", Existential
               o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
@@ -69,12 +68,12 @@ RAW_GRAMMAR = [
     ]
   ]
   i LABEL:      "'&' | '@' | WORD"
-  i WORD:       "<words:1> /[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
-  i INT:        "<words:1> /[0-9]+/", Number
+  i WORD:       "/[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
+  i INT:        "/[0-9]+/", Number
   i _PIPE:      "_ '|'"
   i _:          "(' ' | '\n')*"
   i __:         "(' ' | '\n')+"
-  i '.':        "<chars:1> /[\\s\\S]/"
+  i '.':        "/[\\s\\S]/"
   i ESC1:       "'\\\\' ."
   i ESC2:       "'\\\\' .", (chr) -> '\\'+chr
 ]
@@ -96,7 +95,7 @@ testGrammar = (rule, indent=0, name=undefined) ->
     #{result, code} = GRAMMAR.parse rule, debug:no, returnContext:yes
     console.log "#{Array(indent*2+1).join ' '
                 }#{if name? then red pad(left:(10-indent*2), name+':') else ''
-                }#{if result? then yellow result else red result} #{white code.peek chars:10}"
+                }#{if result? then yellow result else red result} #{white code.peek afterChars:10}"
   else
     for name, r of rule
       testGrammar r, indent, name

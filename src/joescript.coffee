@@ -1,11 +1,10 @@
-{Grammar} = require 'joeson'
-{clazz}   = require 'cardamom'
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
+_         = require 'underscore'
 fs        = require 'fs'
 path      = require 'path'
-_         = require 'underscore'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
+{Grammar} = require 'joeson'
 
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
@@ -623,7 +622,7 @@ resetIndent = (ws) ->
     o PAREN:        " _ '(' _RESETINDENT BLOCK ___ ')' "
     o PROPERTY:     " _ '@' (WORD|STRING) ", (attr) -> Index obj:This(), attr:attr
     o THIS:         " _ '@' ", This
-    o REGEX:        " _ _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH <words:1> flags:/[a-zA-Z]*/ ", Str
+    o REGEX:        " _ _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", Str
     o STRING: [
       o             " _ _TQUOTE  (!_TQUOTE  (ESCSTR | INTERP | .))* _TQUOTE  ", Str
       o             " _ _TDQUOTE (!_TDQUOTE (ESCSTR | INTERP | .))* _TDQUOTE ", Str
@@ -634,7 +633,7 @@ resetIndent = (ws) ->
     ]
     o NATIVE:       " _ _BTICK (!_BTICK .)* _BTICK ", NativeExpression
     o BOOLEAN:      " _TRUE | _FALSE ", (it) -> it is 'true'
-    o NUMBER:       " _ <words:1> /-?[0-9]+(\\.[0-9]+)?/ ", Number
+    o NUMBER:       " _ /-?[0-9]+(\\.[0-9]+)?/ ", Number
     o SYMBOL:       " _ !_KEYWORD WORD "
   ]
 
@@ -656,7 +655,7 @@ resetIndent = (ws) ->
   i _COMMA_NEWLINE: " _BLANKLINE+ &:_ ", checkCommaNewline, skipCache:yes
 
   # TOKENS:
-  i WORD:           " _ <words:1> /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", Word
+  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", Word
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
@@ -669,13 +668,13 @@ resetIndent = (ws) ->
   i _FSLASH:        " '/'         "
   i _SLASH:         " '\\\\'      "
   i _SEMICOLON:     " ';'         "
-  i '.':            " <chars:1> /[\\s\\S]/ ",            skipLog:yes
+  i '.':            " /[\\s\\S]/ ",                      skipLog:yes
   i ESC1:           " _SLASH . ",                        skipLog:yes
   i ESC2:           " _SLASH . ", ((chr) -> '\\'+chr),   skipLog:yes
 
   # WHITESPACES:
-  i _:              " <words:1> /[ ]*/ ",                skipLog:yes
-  i __:             " <words:1> /[ ]+/ ",                skipLog:yes
+  i _:              " /[ ]*/ ",                          skipLog:yes
+  i __:             " /[ ]+/ ",                          skipLog:yes
   i _TERM:          " _ ('\r\n'|'\n') ",                 skipLog:yes
   i _COMMENT:       " _ !HEREDOC '#' (!_TERM .)* ",      skipLog:yes
   i _BLANKLINE:     " _ _COMMENT? _TERM ",               skipLog:yes

@@ -1,9 +1,9 @@
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
 assert = require 'assert'
+_ = require 'underscore'
 joe = require 'joeson/src/joescript'
 jsx = require './javascript'
-_ = require 'underscore'
-{inspect} = require 'util'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 console.log blue "\n-= translator test =-"
 

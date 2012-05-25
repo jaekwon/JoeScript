@@ -7,7 +7,7 @@
   "dependencies": {
       "underscore": ">= 1.2.3",
       "coffee-script": ">= 1.3.0",
-      "cardamom": ">= 0.0.7e"
+      "cardamom": ">= 0.0.7f"
     },
   "main": "./src/joeson",
   "keywords": [],

@@ -1,6 +1,8 @@
 {GRAMMAR, NODES} = require 'joeson/src/joescript'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
 assert = require 'assert'
+_ = require 'underscore'
 
 console.log blue "\n-= basic test =-"
 

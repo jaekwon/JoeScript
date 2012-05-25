@@ -3,12 +3,13 @@ JoeSon Parser
 Jae Kwon 2012
 ###
 
-_ = require 'underscore'
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
 assert = require 'assert'
-{inspect, CodeStream} = require './codestream'
-{clazz} = require 'cardamom'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
+_ = require 'underscore'
+{CodeStream} = require 'joeson/src/codestream'
 {escape} = require 'joeson/lib/helpers'
+
 keystr = (key) -> "#{key.pos},#{key.name}"
 debugLoopify = debugCache = no
 
@@ -95,9 +96,10 @@ debugLoopify = debugCache = no
   @$debug = (fn) -> ($) ->
     return fn.call this, $ if this isnt @rule or not $.debug or $.skipLog
     $.skipLog = yes if @skipLog
-    bufferStr = escape $.code.peek chars:20
-    bufferStr = if bufferStr.length < 20 then '['+bufferStr+']' else '['+bufferStr+'>'
-    $.log "#{red @name}: #{blue this} #{black bufferStr}", true
+    bufferStr = "#{ blue "code:"
+                }#{ blue escape $.code.peek beforeChars:20
+                }#{ yellow escape $.code.peek afterChars:20 }"
+    $.log "#{red @name}: #{blue this} #{bufferStr}", true
     result = fn.call this, $
     $.log "^-- #{escape result} #{black typeof result}", true if result isnt null
     delete $.skipLog
@@ -347,18 +349,6 @@ debugLoopify = debugCache = no
         ''+node
     blue("(")+(labeledStrs.join ' ')+blue(")")
 
-@Peek = Peek = clazz 'Peek', GNode, ->
-  capture: no
-  init: ({@chars, @words, @lines}) ->
-  parse$: @$wrap ($) ->
-    $.code.peek chars:@chars, words:@words, lines:@lines
-  toString: ->
-    "<#{
-      yellow @chars? and "chars:#{@chars}" or
-             @words? and "words:#{@words}" or
-             @lines? and "lines:#{@lines}"
-    }>"
-
 @Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
   capture: no
   init: ({@expr}) ->
@@ -576,7 +566,7 @@ debugLoopify = debugCache = no
     code = CodeStream code if code not instanceof CodeStream
     $ = ParseContext code:code, grammar:this, debug:debug, env:env
     $.result = @rank.parse $
-    throw Error "Incomplete parse: '#{escape $.code.peek chars:50}'" if $.code.pos isnt $.code.text.length
+    throw Error "Incomplete parse: '#{escape $.code.peek beforeChars:20}#{red escape $.code.peek afterChars:20}'" if $.code.pos isnt $.code.text.length
     if returnContext
       return $
     else
@@ -676,7 +666,7 @@ OLine = clazz 'OLine', Line, ->
     rank = Rank()
     for token in tokens
       name = '_'+token.toUpperCase()
-      rule = GRAMMAR.parse "_ &:'#{token}' <chars:1> !/[a-zA-Z\\$_0-9]/"
+      rule = GRAMMAR.parse "_ &:'#{token}' !/[a-zA-Z\\$_0-9]/"
       rule.skipLog = yes
       rule.skipCache = yes
       rule.cb = cb if cb?
@@ -687,7 +677,6 @@ OLine = clazz 'OLine', Line, ->
 C  = -> Choice (x for x in arguments)
 E  = -> Existential arguments...
 L  = (label, node) -> node.label = label; node
-Pk = -> Peek arguments...
 La = -> Lookahead arguments...
 N  = -> Not arguments...
 P  = (value, join, min, max) -> Pattern value:value, join:join, min:min, max:max
@@ -709,11 +698,7 @@ St = -> Str arguments...
         o "UNIT": [
           o S(R("_"), R("LABELED"))
           o "LABELED": [
-            o S(E(S(L("label",R("LABEL")), St(':'))), L('&',C(R("COMMAND"),R("DECORATED"),R("PRIMARY"))))
-            o "COMMAND": [
-              o S(St('<chars:'), L("chars",R("INT")), St('>')), Peek
-              o S(St('<words:'), L("words",R("INT")), St('>')), Peek
-            ]
+            o S(E(S(L("label",R("LABEL")), St(':'))), L('&',C(R("DECORATED"),R("PRIMARY"))))
             o "DECORATED": [
               o S(R("PRIMARY"), St('?')), Existential
               o S(L("value",R("PRIMARY")), St('*'), L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
@@ -745,16 +730,16 @@ St = -> Str arguments...
     ]
   ]
   i LABEL:    C(St('&'), St('@'), R("WORD"))
-  i WORD:     S(Pk(words:1), Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*"))
-  i INT:      S(Pk(words:1), Re("[0-9]+")), Number
+  i WORD:     Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*")
+  i INT:      Re("[0-9]+"), Number
   i _PIPE:    S(R("_"), St('|'))
   i _:        P(C(St(' '), St('\n')))
   i __:       P(C(St(' '), St('\n')), null, 1)
-  i '.':      S(Pk(chars:1), Re("[\\s\\S]"))
+  i '.':      Re("[\\s\\S]")
   i ESC1:     S(St('\\'), R("."))
   i ESC2:     S(St('\\'), R(".")), (chr) -> '\\'+chr
 ]
 
 @NODES = {
-  GNode, Choice, Rank, Sequence, Peek, Lookahead, Existential, Pattern, Not, Ref, Regex, Grammar
+  GNode, Choice, Rank, Sequence, Lookahead, Existential, Pattern, Not, Ref, Regex, Grammar
 }

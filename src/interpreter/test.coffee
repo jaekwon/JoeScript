@@ -1,8 +1,9 @@
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
 assert = require 'assert'
+_ = require 'underscore'
 joe = require 'joeson/src/joescript'
 jsi = require './javascript'
-_ = require 'underscore'
-{red, blue, cyan, magenta, green, normal, black, white, yellow} = require 'joeson/lib/colors'
 
 isEqual = (a, b) ->
   if isNaN a
