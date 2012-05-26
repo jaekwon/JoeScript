@@ -54,13 +54,19 @@ Node = clazz 'Node', ->
   defineProperty: (name, data) -> Object.defineProperty @, name, data
 
   serialize: (_indent=0) ->
-    str = "#{green @constructor.name}\n"
-    @withChildren (child, parent, attr, desc) ->
-      str += "#{indent _indent+1}#{red "@"+attr}: #{blue inspect desc}\n"
-      if child.serialize?
-        str += "#{indent _indent+2}#{child.serialize(_indent+2)}\n"
+    valueStr = if isWord this
+        ''+this
+      else if typeof this in ['number', 'string', 'boolean']
+        ''+this
       else
-        str += "#{indent _indent+2}#{''+child} #{green "("+child.constructor.name+")"}\n"
+        ''
+    str = "#{green @constructor.name} #{valueStr}\n"
+    @withChildren (child, parent, attr, desc) ->
+      str += "#{indent _indent+1}#{red "@"+attr}: " ##{blue inspect desc}\n"
+      if child.serialize?
+        str += "#{child.serialize(_indent+1)}\n"
+      else
+        str += "#{''+child} #{"("+child.constructor.name+")"}\n"
     return str.trimRight()
 
 Word = clazz 'Word', Node, ->
@@ -542,7 +548,7 @@ resetIndent = (ws) ->
           o INVOC_IMPL:             " func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE) ", Invocation
           i OBJ_IMPL_INDENTED:      " _INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", Obj
           o OBJ_IMPL:               " _INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", Obj
-          i OBJ_IMPL_ITEM:          " key:(WORD|STRING) _ ':' value:EXPR ", Item
+          i OBJ_IMPL_ITEM:          " key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", Item
           o ASSIGN:                 " target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", Assign
         ]
         o COMPLEX: [
@@ -616,7 +622,7 @@ resetIndent = (ws) ->
       o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", Invocation
     ]
     o RANGE:        " _ '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", Range
-    o ARR_EXPL:     " _ '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ']' ", Arr
+    o ARR_EXPL:     " _ '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", Arr
     o OBJ_EXPL:     " _ '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", Obj
     i OBJ_EXPL_ITEM: " key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", Item
     o PAREN:        " _ '(' _RESETINDENT BLOCK ___ ')' "
@@ -637,10 +643,22 @@ resetIndent = (ws) ->
     o SYMBOL:       " _ !_KEYWORD WORD "
   ]
 
+  # WHITESPACES:
+  i _:              " /[ ]*/ ",                          skipLog:no
+  i __:             " /[ ]+/ ",                          skipLog:no
+  i _TERM:          " _ ('\r\n'|'\n') ",                 skipLog:no
+  i _COMMENT:       " _ !HEREDOC '#' (!_TERM .)* ",      skipLog:no
+  i _BLANKLINE:     " _COMMENT? _TERM ",                 skipLog:no
+  i ___:            " _BLANKLINE* _ ",                   skipLog:yes
+
   # BLOCKS:
   i BLOCK: [
-    o               " _INDENT LINE*_NEWLINE ", Block
+    o               " _INDENT LINE+_NEWLINE ", Block
     o               " _THEN?  LINE+(_ ';') ", Block
+    o               " _INDENTED_COMMENT+ ", -> Block []
+    i _INDENTED_COMMENT: " _BLANKLINE ws:_ _COMMENT ", ({ws}) ->
+                      return null if checkIndent.call(this, ws) is null
+                      return undefined
   ]
   i BLOCKEXPR:      " _INDENT? EXPR "
   i _INDENT:        " _BLANKLINE+ &:_ ", checkIndent, skipCache:yes
@@ -671,14 +689,6 @@ resetIndent = (ws) ->
   i '.':            " /[\\s\\S]/ ",                      skipLog:yes
   i ESC1:           " _SLASH . ",                        skipLog:yes
   i ESC2:           " _SLASH . ", ((chr) -> '\\'+chr),   skipLog:yes
-
-  # WHITESPACES:
-  i _:              " /[ ]*/ ",                          skipLog:yes
-  i __:             " /[ ]+/ ",                          skipLog:yes
-  i _TERM:          " _ ('\r\n'|'\n') ",                 skipLog:yes
-  i _COMMENT:       " _ !HEREDOC '#' (!_TERM .)* ",      skipLog:yes
-  i _BLANKLINE:     " _ _COMMENT? _TERM ",               skipLog:yes
-  i ___:            " _BLANKLINE* _ ",                   skipLog:yes
 
 ]
 # ENDGRAMMAR

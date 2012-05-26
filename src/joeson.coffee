@@ -26,7 +26,7 @@ debugLoopify = debugCache = no
     @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
     @cacheStores = []   # [ {name,pos}... ]
     @recurse = {}       # { pos:{ "#{name}":{stage,base,endPos}... } }
-    @_ctr = 0
+    @counter = 0
 
   # code.pos will be reverted if result is null
   try: (fn) ->
@@ -35,12 +35,9 @@ debugLoopify = debugCache = no
     @code.pos = pos if result is null
     result
 
-  log: (message, count=false) ->
+  log: (message) ->
     if @debug and not @skipLog
-      if count
-        console.log "#{++@_ctr}\t#{cyan Array(@stack.length-1).join '| '}#{message}"
-      else
-        console.log "#{@_ctr}\t#{cyan Array(@stack.length-1).join '| '}#{message}"
+      console.log "#{@counter}\t#{cyan Array(@stack.length-1).join '| '}#{message}"
 
   cacheSet: (key, value) ->
     if not @cache[key.pos]?[key.name]?
@@ -51,13 +48,20 @@ debugLoopify = debugCache = no
 
   cacheMask: (pos, stopName) ->
     stash = []
+    left = right = undefined
     for i in [@cacheStores.length-1..0] by -1
       cacheKey = @cacheStores[i]
       continue if cacheKey.pos isnt pos
+      if right is undefined then right = i+1
       cacheValue = @cache[cacheKey.pos][cacheKey.name]
+      assert.ok cacheValue?, "No cache value for #{inspect cacheKey}"
       delete @cache[cacheKey.pos][cacheKey.name]
       stash.push {cacheKey, cacheValue}
-      break if cacheKey.name is stopName
+      if cacheKey.name is stopName
+        left = i
+        break
+    assert.ok left, "Something is broken"
+    @cacheStores[left...right] = []
     stash
 
   # key: {name,pos}
@@ -96,12 +100,15 @@ debugLoopify = debugCache = no
   @$debug = (fn) -> ($) ->
     return fn.call this, $ if this isnt @rule or not $.debug or $.skipLog
     $.skipLog = yes if @skipLog
-    bufferStr = "#{ blue "code:"
-                }#{ blue escape $.code.peek beforeChars:20
-                }#{ yellow escape $.code.peek afterChars:20 }"
-    $.log "#{red @name}: #{blue this} #{bufferStr}", true
+    bufferStr = "#{ black "["
+                }#{ black escape $.code.peek afterChars:20
+                }#{ if $.code.pos+20 < $.code.text.length
+                      black '>'
+                    else
+                      black ']'}"
+    $.log "#{this} #{bufferStr}"
     result = fn.call this, $
-    $.log "^-- #{escape result} #{black typeof result}", true if result isnt null
+    $.log "^-- #{escape result} #{black typeof result}" if result isnt null
     delete $.skipLog
     return result
 
@@ -110,12 +117,15 @@ debugLoopify = debugCache = no
     key = name:@name, pos:$.code.pos
     if (cached=$.cache[key.pos]?[key.name])?
       $.log "[C] Cache hit @ $.cache[#{keystr key}]: #{escape cached.result}" if debugCache
-      $.code.pos = cached.endPos
+      $.code.pos = cached.endPos if cached.endPos?
       return cached.result
     result = fn.call this, $
     if not $.cache[key.pos]?[key.name]?
       $.log "[C] Cache store @ $.cache[#{keystr key}]: #{escape result}" if debugCache
-      $.cacheSet key, result:result, endPos:$.code.pos
+      if result is null
+        $.cacheSet key, result:null
+      else
+        $.cacheSet key, result:result, endPos:$.code.pos
     else
       throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
     return result
@@ -194,6 +204,7 @@ debugLoopify = debugCache = no
         throw new Error "Unexpected stage #{item.stage} (B)"
 
   @$prepareResult = (fn) -> ($) ->
+    $.counter++
     result = fn.call this, $
     if result isnt null
       # handle labels for standalone nodes
@@ -225,7 +236,13 @@ debugLoopify = debugCache = no
   # don't put logic in here, too easy to forget to call super.
   prepare: ->
 
-  toString: -> "[#{@constructor.name}]"
+  toString: ->
+    "#{ if this is @rule
+          red(@name+'=')
+        else if @label?
+          cyan(@label+':')
+        else ''
+    }#{ @contentString() }"
 
   include: (name, rule) ->
     @rules ||= {}
@@ -258,7 +275,7 @@ debugLoopify = debugCache = no
         return result
     return null
 
-  toString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
+  contentString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 @Rank = Rank = clazz 'Rank', Choice, ->
 
@@ -291,7 +308,7 @@ debugLoopify = debugCache = no
     @include rule.name, rule
     @choices.push rule
 
-  toString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
+  contentString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
   handlesChildLabel: yes
@@ -341,12 +358,9 @@ debugLoopify = debugCache = no
         throw new Error "Unexpected type #{@type}"
     throw new Error
 
-  toString: ->
+  contentString: ->
     labeledStrs = for node in @sequence
-      if node.label?
-        "#{cyan node.label}#{blue ':'}#{node}"
-      else
-        ''+node
+      ''+node
     blue("(")+(labeledStrs.join ' ')+blue(")")
 
 @Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
@@ -358,7 +372,7 @@ debugLoopify = debugCache = no
     result = @expr.parse $
     $.code.pos = pos
     result
-  toString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
+  contentString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
 
 @Existential = Existential = clazz 'Existential', GNode, ->
   handlesChildLabel$: get: -> @parent?.handlesChildLabel
@@ -379,7 +393,7 @@ debugLoopify = debugCache = no
     res = $.try @it.parse
     return res ? undefined
 
-  toString: -> '' + @it + blue("?")
+  contentString: -> '' + @it + blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
   init: ({@value, @join, @min, @max}) ->
@@ -408,7 +422,7 @@ debugLoopify = debugCache = no
       return null if @min? and @min > matches.length
       return matches
     return result
-  toString: ->
+  contentString: ->
     "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 
 @Not = Not = clazz 'Not', GNode, ->
@@ -423,7 +437,7 @@ debugLoopify = debugCache = no
       return null
     else
       return undefined
-  toString: -> "#{yellow '!'}#{@it}"
+  contentString: -> "#{yellow '!'}#{@it}"
 
 @Ref = Ref = clazz 'Ref', GNode, ->
   # note: @ref because @name is reserved.
@@ -440,13 +454,13 @@ debugLoopify = debugCache = no
     throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
 
-  toString: -> red(@ref)
+  contentString: -> red(@ref)
 
 @Str = Str = clazz 'Str', GNode, ->
   capture: no
   init: (@str) ->
   parse$: @$wrap ($) -> $.code.match string:@str
-  toString: -> green("'#{escape @str}'")
+  contentString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', GNode, ->
   init: (@reStr) ->
@@ -454,7 +468,7 @@ debugLoopify = debugCache = no
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '^'+@reStr
   parse$: @$wrap ($) -> $.code.match regex:@re
-  toString: -> magenta(''+@re)
+  contentString: -> magenta(''+@re)
 
 # Main external access.
 # I dunno if Grammar should be a GNode or not. It
@@ -566,7 +580,16 @@ debugLoopify = debugCache = no
     code = CodeStream code if code not instanceof CodeStream
     $ = ParseContext code:code, grammar:this, debug:debug, env:env
     $.result = @rank.parse $
-    throw Error "Incomplete parse: '#{escape $.code.peek beforeChars:20}#{red escape $.code.peek afterChars:20}'" if $.code.pos isnt $.code.text.length
+    if $.code.pos isnt $.code.text.length
+      # find the maximum parsed entity
+      maxPos = $.code.pos
+      for pos, name2item of $.cache
+        for name, item of name2item
+          maxPos = item.endPos if item.endPos > maxPos
+      throw Error "Incomplete parse in line #{$.code.line}: (#{white 'OK'}/#{yellow 'Parsing'}/#{red 'Unread'})\n\n#{
+            $.code.peek beforeLines:2
+        }#{ yellow $.code.peek afterChars:(maxPos-$.code.pos)
+        }#{ $.code.pos = maxPos; red $.code.peek afterLines:2}\n"
     if returnContext
       return $
     else

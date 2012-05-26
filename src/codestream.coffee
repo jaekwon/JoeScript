@@ -35,7 +35,9 @@ assert = require 'assert'
   peek: ({beforeChars, beforeLines, afterChars, afterLines}) ->
     if not beforeLines? and not beforeChars? then beforeChars = 0
     if not afterLines?  and not afterChars?  then afterChars  = 0
-    assert.ok not (beforeChars is 0 and afterChars is 0), "You can't peek at nothing."
+
+    if (beforeChars is 0 and afterChars is 0)
+      return ''
 
     if beforeLines?
       startLine = Math.max(0, @line-beforeLines)

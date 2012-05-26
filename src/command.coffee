@@ -34,6 +34,7 @@ BANNER = '''
 SWITCHES = [
   ['-b', '--bare',            'compile without a top-level function wrapper']
   ['-c', '--compile',         'compile to JavaScript and save as .js files']
+  ['-d', '--debug',           'show parsing process debug output']
   ['-e', '--eval',            'pass a string from the command line as input']
   ['-h', '--help',            'display this help message']
   #['-i', '--interactive',     'run an interactive JoeScript REPL']
@@ -124,7 +125,7 @@ compileScript = (file, input, base) ->
   try
     t = task = {file, input, options}
     JoeScript.emit 'compile', task
-    if o.nodes            then printLine inspect JoeScript.parse(t.input, options:{rawNodes:yes}), no, 10
+    if o.nodes or o.debug then printLine JoeScript.parse(t.input, debug:o.debug).serialize()
     else if o.run         then JoeScript.run t.input, t.options
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input
