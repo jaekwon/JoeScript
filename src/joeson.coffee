@@ -18,9 +18,10 @@ pad = ({left,right}, str) ->
   return str
 
 trace =
-  stack:     no
-  loop:      no
-  skipSetup: yes
+  #filterLine: 299
+  stack:      no
+  loop:       no
+  skipSetup:  yes
 
 _loopStack = [] # trace stack
 
@@ -52,7 +53,9 @@ _loopStack = [] # trace stack
 
   log: (message) ->
     unless @skipLog
-      codeSgmnt = "#{ white ''+@code.line+','+@code.col
+      line = @code.line
+      return if trace.filterLine? and line isnt trace.filterLine
+      codeSgmnt = "#{ white ''+line+','+@code.col
                 }\t#{ black pad right:5, (p=escape(@code.peek beforeChars:5))[p.length-5...]
                   }#{ green pad left:20, (p=escape(@code.peek afterChars:20))[0...20]
                   }#{ if @code.pos+20 < @code.text.length
@@ -158,9 +161,10 @@ _loopStack = [] # trace stack
               return result
             else
               frame.loopStage = 3
-              if trace.loop
-                _loopStack.push(@name)
+              if trace.loop and (not trace.filterLine? or
+                                 $.code.line is trace.filterLine)
                 line = $.code.line
+                _loopStack.push(@name)
                 console.log  "#{ (switch line%6
                                     when 0 then blue
                                     when 1 then cyan
@@ -361,17 +365,17 @@ _loopStack = [] # trace stack
           result = res if child.capture
         return result
       when 'object'
-        results = {}
+        results = undefined
         # results[label] = undefined for label in @labels
         for child in @sequence
           res = child.parse $
           return null if res is null
           if child.label is '&'
-            results = _.extend res, results
+            results = if results? then _.extend res, results else res
           else if child.label is '@'
-            _.extend results, res
+            results = if results? then _.extend results, res else res
           else if child.label?
-            results[child.label] = res
+            (results?={})[child.label] = res
         return results
       else
         throw new Error "Unexpected type #{@type}"
