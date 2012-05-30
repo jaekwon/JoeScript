@@ -236,7 +236,16 @@ _loopStack = [] # trace stack
     return result
 
   @$wrap = (fn) ->
-    @$stack @$loopify @$prepareResult fn
+    wrapped1 = @$stack @$loopify @$prepareResult fn
+    wrapped2 = @$prepareResult fn
+    ($) ->
+      if this is @rule
+        @parse = parse = wrapped1.bind(this)
+      else if @label? and not @parent?.handlesChildLabel or @cb?
+        @parse = parse = wrapped2.bind(this)
+      else
+        @parse = parse = fn.bind(this)
+      return parse($)
 
   walk: ({pre, post}, parent=undefined) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
