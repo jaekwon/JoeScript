@@ -526,27 +526,28 @@ resetIndent = (ws, $) ->
       # rest
       o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", make Statement
       o EXPR: [
-        o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", make Func
-        i PARAM_LIST:               " _ '(' ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
-        i ASSIGN_LIST:              " _ '[' ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
-        i ASSIGN_LIST_ITEM:         " _ target:(
+        o FUNC:                     " params:_PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", make Func
+        i _PARAM_LIST:              " _ '(' &:_ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
+        i _ASSIGN_LIST:             " _ '[' &:_ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
+        i _ASSIGN_LIST_ITEM:        " _ target:(
                                         | &:SYMBOL   splat:'...'?
                                         | &:PROPERTY splat:'...'?
-                                        | ASSIGN_OBJ
-                                        | ASSIGN_LIST
+                                        | _ASSIGN_OBJ
+                                        | _ASSIGN_LIST
                                       )
                                       default:(_ '=' LINEEXPR)? ", make AssignItem
-        i ASSIGN_OBJ:               " _ '{' ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
-        i ASSIGN_OBJ_ITEM:          " _ key:(SYMBOL|PROPERTY)
-                                      target:(_ ':' _ (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
+        i _ASSIGN_OBJ:              " _ '{' &:_ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
+        i _ASSIGN_OBJ_ITEM:         " _ key:(SYMBOL|PROPERTY)
+                                      target:(_ ':' _ (SYMBOL|PROPERTY|_ASSIGN_OBJ|_ASSIGN_LIST))?
                                       default:(_ '=' LINEEXPR)?", make AssignItem
-        o RIGHT_RECURSIVE: [
-          o OBJ_IMPL:               " _INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
-          i OBJ_IMPL_ITEM:          " _ key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", make Item
-          o ASSIGN:                 " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
-          o INVOC_IMPL:             " _ func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE) ", make Invocation
-          i OBJ_IMPL_INDENTED:      " _INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
-        ]
+        # RIGHT_RECURSIVE
+        o OBJ_IMPL:                 " _INDENT? &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
+        i _OBJ_IMPL_ITEM:           " _ key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", make Item
+        o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
+        o INVOC_IMPL:               " _ func:ASSIGNABLE (? __|_OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE) ", make Invocation
+        i _OBJ_IMPL_INDENTED:       " _INDENT &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
+
+        # COMPLEX
         o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
         i _COMPLEX: [
           o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", make If
@@ -561,6 +562,8 @@ resetIndent = (ws, $) ->
                                       (_NEWLINE? _CATCH catchVar:EXPR? catchBlock:BLOCK?)?
                                       (_NEWLINE? _FINALLY finally:BLOCK)? ", make Try
         ]
+
+        # OPERATIONS
         o OP_OPTIMIZATION:          " OP40 _ !/[&\\|\\^=\\!\\<\\>\\+\\-\\*\\/\\%]|(and|or|is|isnt|not|in|instanceof)[^a-zA-Z\\$_0-9]/ " #(OP00_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP) "
         o OP00: [
           i OP00_OP:                " '&&' | '||' | '&' | '|' | '^' | _AND | _OR "
@@ -592,7 +595,7 @@ resetIndent = (ws, $) ->
                         i OP50_OP:  " '--' | '++' "
                         o           " left:OPATOM op:OP50_OP ", make Operation
                         o           " _ op:OP50_OP right:OPATOM ", make Operation
-                        o OPATOM:   " FUNC | RIGHT_RECURSIVE | COMPLEX | _ ASSIGNABLE "
+                        o OPATOM:   " FUNC | OBJ_IMPL | ASSIGN | INVOC_IMPL | COMPLEX | _ ASSIGNABLE "
                       ] # end OP50
                     ] # end OP45
                   ] # end OP40
@@ -613,31 +616,33 @@ resetIndent = (ws, $) ->
     o PROTO:        " obj:ASSIGNABLE type:'::' attr:WORD? ", make Index
     o INVOC_EXPL:   " func:ASSIGNABLE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
     o SOAK:         " ASSIGNABLE '?' ", make Soak
+
     # rest
+    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", make Number
+    o SYMBOL:       " !_KEYWORD WORD "
+    o BOOLEAN:      " _TRUE | _FALSE ", (it) -> it is 'true'
     o TYPEOF: [
       o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make Invocation
       o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
     ]
-    o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
+    # starts with symbol
     o ARR_EXPL:     " '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
-    o OBJ_EXPL:     " '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
-    i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", make Item
-    o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
+    o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
+    o OBJ_EXPL:     " '{' _SOFTLINE? &:_OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
+    i _OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", make Item
     o PROPERTY:     " '@' (WORD|STRING) ", (attr) -> Index obj:This(), attr:attr
     o THIS:         " '@' ", make This
-    o REGEX:        " _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", make Str
+    o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [
-      o             " _TQUOTE  (!_TQUOTE  (ESCSTR | INTERP | .))* _TQUOTE  ", make Str
-      o             " _TDQUOTE (!_TDQUOTE (ESCSTR | INTERP | .))* _TDQUOTE ", make Str
-      o             " _DQUOTE  (!_DQUOTE  (ESCSTR | INTERP | .))* _DQUOTE  ", make Str
-      o             " _QUOTE   (!_QUOTE   (ESCSTR | .))* _QUOTE            ", make Str
-      i ESCSTR:     " _SLASH . ", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
-      i INTERP:     " '\#{' _RESETINDENT BLOCK ___ '}' "
+      o             " _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", make Str
+      o             " _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", make Str
+      o             " _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", make Str
+      o             " _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE            ", make Str
+      i _ESCSTR:    " _SLASH . ", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
+      i _INTERP:    " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]
+    o REGEX:        " _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", make Str
     o NATIVE:       " _BTICK (!_BTICK .)* _BTICK ", make NativeExpression
-    o BOOLEAN:      " _TRUE | _FALSE ", (it) -> it is 'true'
-    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", make Number
-    o SYMBOL:       " !_KEYWORD WORD "
   ]
 
   # WHITESPACES:

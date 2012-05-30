@@ -10,12 +10,19 @@ _ = require 'underscore'
 {CodeStream} = require 'joeson/src/codestream'
 {escape} = require 'joeson/lib/helpers'
 
+pad = ({left,right}, str) ->
+  if right? and right > str.length
+    return Array(right-str.length+1).join(' ')+str
+  else if left > str.length
+    return str+Array(left-str.length+1).join(' ')
+  return str
+
 trace =
   stack:     no
-  loop:      yes
+  loop:      no
   skipSetup: yes
 
-_stk = [] # trace stack
+_loopStack = [] # trace stack
 
 # Frames stack up during parsing
 @Frame = Frame = clazz 'Frame', ->
@@ -45,7 +52,14 @@ _stk = [] # trace stack
 
   log: (message) ->
     unless @skipLog
-      console.log "#{@counter}\t#{cyan Array(@stackLength+1).join '| '}#{message}"
+      codeSgmnt = "#{ white ''+@code.line+','+@code.col
+                }\t#{ black pad right:5, (p=escape(@code.peek beforeChars:5))[p.length-5...]
+                  }#{ green pad left:20, (p=escape(@code.peek afterChars:20))[0...20]
+                  }#{ if @code.pos+20 < @code.text.length
+                        black '>'
+                      else
+                        black ']'}"
+      console.log "#{codeSgmnt} #{cyan Array(@stackLength).join '| '}#{message}"
 
   stackPush: (node) -> @stack[@stackLength++] = @getFrame(node)
   stackPop: (node) -> --@stackLength
@@ -103,18 +117,11 @@ _stk = [] # trace stack
     return fn.call this, $ if this isnt @rule
 
     # STACK TRACE
-    if trace.stack
-      bufferStr = "#{ black "["
-                  }#{ black escape $.code.peek afterChars:20
-                  }#{ if $.code.pos+20 < $.code.text.length
-                        black '>'
-                      else
-                        black ']'}"
-      $.log "x #{this} #{bufferStr}"
+    $.log "#{blue '*'} #{this} #{black $.counter}" if trace.stack
 
     if @skipCache
       result = fn.call this, $
-      $.log "#{cyan "`->"} #{escape result} #{black typeof result}" if trace.stack
+      $.log "#{cyan "`->:"} #{escape result} #{black typeof result}" if trace.stack
       return result
 
     frame = $.getFrame this
@@ -126,7 +133,7 @@ _stk = [] # trace stack
 
         # The only time a cache hit will simply return is when loopStage is 0
         if frame.endPos?
-          $.log "#{cyan "`- HIT >"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
+          $.log "#{cyan "`-hit:"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
           $.code.pos = frame.endPos
           return frame.result
 
@@ -140,7 +147,7 @@ _stk = [] # trace stack
           when 1 # non-recursive (done)
             frame.loopStage = 0
             frame.cacheSet result, $.code.pos
-            $.log "#{cyan "`- CS >"} #{escape result} #{black typeof result}" if trace.stack
+            $.log "#{cyan "`-set:"} #{escape result} #{black typeof result}" if trace.stack
             return result
 
           when 2 # recursion detected by subroutine above
@@ -152,7 +159,7 @@ _stk = [] # trace stack
             else
               frame.loopStage = 3
               if trace.loop
-                _stk.push(@name)
+                _loopStack.push(@name)
                 line = $.code.line
                 console.log  "#{ (switch line%6
                                     when 0 then blue
@@ -162,8 +169,8 @@ _stk = [] # trace stack
                                     when 4 then red
                                     when 5 then magenta)('@'+line)
                            }\t#{ red (frame.id for frame in $.stack[...$.stackLength])
-                          } - #{ _stk
-                          } - #{ yellow escape result
+                          } - #{ _loopStack
+                          } - #{ yellow escape ''+result
                            }: #{ blue escape $.code.peek beforeChars:10, afterChars:10 }"
               while result isnt null
                 #timez.push (end = new Date()).valueOf() - start.valueOf()
@@ -180,7 +187,7 @@ _stk = [] # trace stack
                 break unless $.code.pos > bestEndPos
 
               if trace.loop
-                _stk.pop()
+                _loopStack.pop()
 
               $.wipeWith frame, no
               $.restoreWith bestStash
@@ -197,7 +204,7 @@ _stk = [] # trace stack
           frame.loopStage = 2 # recursion detected
 
         # Step 1: Collect wipemask so we can wipe the frames later.
-        $.log "#{yellow "`- base ->"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
+        $.log "#{yellow "`-base:"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
         frame.wipemask ?= new Array($.grammar.numRules)
         for i in [$.stackLength-2..0] by -1
           i_frame = $.stack[i]
@@ -318,7 +325,7 @@ _stk = [] # trace stack
     @include rule.name, rule
     @choices.push rule
 
-  contentString: -> blue("Rank(")+(@choices.map((c)->red(c.name)).join blue(' | '))+blue(")")
+  contentString: -> blue("Rank(")+(@choices.map((c)->red(c.name)).join blue(','))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
   handlesChildLabel: yes
