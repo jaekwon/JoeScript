@@ -1,4 +1,4 @@
-# TODO Secure GLOBAL scope & this
+# The interpreter shall be a Javascript interpreter.
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -6,15 +6,87 @@ assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
 
-_isTrue = (node) ->
-  switch typeof node
-    when 'number', 'string', 'boolean' then Boolean(node)
-    when 'object'
-      switch node
-        when joe.Undefined.undefined, joe.Null.null then false
-        else true
-    when 'function' then true
-    else throw new Error "Unexpected node for isTrue: #{node} (#{node.constructor.name})"
+@install = install = ->
+
+  joe.Word::extend
+    interpret: (C, cb) ->
+      cb(C.get @word)
+
+  joe.Block::extend
+    interpret: (C, cb) ->
+      i = 0
+      doLine = =>
+        line = @lines[i++]
+        if i < @lines.length
+          C.interpret line, doLine
+        else
+          C.interpret line, cb
+      doLine()
+
+  joe.If::extend
+    interpret: (C, cb) ->
+      C.interpret @cond, (cond) =>
+        if cond
+          C.interpret @block, cb
+        else
+          C.interpret @elseBlock, cb
+
+  # We're interpreting javascript, so
+  # loops have no value.
+  joe.Loop::extend
+    interpret: (C, cb) ->
+      # TODO do label stuff
+      doLoop = =>
+        C.interpret @cond, (cond) =>
+          if cond
+            C.interpret @block, doLoop
+          else
+            cb()
+      doLoop()
+
+  joe.JSForC::extend
+    interpret: (C, cb) ->
+      # TODO do label stuff
+      C.interpret @setup, =>
+        doLoop = =>
+          C.interpret @cond, (cond) =>
+            if cond
+              C.interpret @block, =>
+                C.interpret @counter, doLoop
+            else
+              cb()
+        doLoop()
+
+  joe.JSForK::extend
+    interpret: (C, cb) ->
+      # TODO do label stuff
+      C.interpret @obj, (obj) =>
+        keys = (key for key in @obj)
+        i = 0
+        doLoop = =>
+          key = keys[i++]
+          C.set @key, key
+          if i < keys.length
+            C.interpret @block, doLoop
+          else
+            C.interpret @block, cb
+        doLoop()
+
+  joe.Switch::extend
+    interpret: (C, cb) ->
+      
+
+"""
+@NODES = {
+  Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
+  Statement, Invocation, Assign, Slice, Index, Soak, Obj, This,
+  Null, Undefined,
+  Arr, Item, Str, Func, Range, NativeExpression, Heredoc, Dummy,
+  AssignList, AssignObj, AssignItem,
+  Undetermined, JSForC, JSForK
+}
+"""
+
 
 # Interpret the given node
 _valueOf = (node) -> switch node.constructor

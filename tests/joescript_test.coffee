@@ -20,7 +20,7 @@ test  = (code, expected) ->
     catch error
       # pass
     console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"
-    console.log error
+    console.log error.stack
     process.exit(1)
 
 test  "!!a", "(! (! a))"

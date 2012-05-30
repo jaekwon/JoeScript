@@ -10,22 +10,30 @@ _ = require 'underscore'
 {CodeStream} = require 'joeson/src/codestream'
 {escape} = require 'joeson/lib/helpers'
 
-keystr = (key) -> "#{key.pos},#{key.name}"
-debugLoopify = debugCache = no
+trace =
+  stack:     no
+  loop:      yes
+  skipSetup: yes
+
+_stk = [] # trace stack
+
+# Frames stack up during parsing
+@Frame = Frame = clazz 'Frame', ->
+  init: ({@result, @pos, @endPos, @id, @loopStage, @wipemask}) ->
+  cacheSet: (@result, @endPos) ->
+  toString: -> "[F|result:#{@result} #{yellow @id}@#{blue @pos}...#{blue @endPos ? ''} lS:#{@loopStage or '_'} m:#{@wipemask?}]"
 
 # aka '$' in parse functions
 @ParseContext = ParseContext = clazz 'ParseContext', ->
 
   # code:       CodeStream instance
   # grammar:    Grammar instance
-  # debug:      yes to print parse log
   # env:        Parse-time env, accessible from grammar callback functions
-  init: ({@code, @grammar, @debug, @env}={}) ->
-    @debug ?= false
-    @stack = []         # [ {name,pos,...}... ]
-    @cache = {}         # { pos:{ "#{name}":{result,endPos}... } }
-    @cacheStores = []   # [ {name,pos}... ]
-    @recurse = {}       # { pos:{ "#{name}":{stage,base,endPos}... } }
+  init: ({@code, @grammar, @env}={}) ->
+    @stack = new Array(1024)
+    @stackLength = 0
+    # { pos:{ (node.id):{id,result,pos,endPos,stage,...(same object as in stack)}... } }
+    @frames = (new Array(@grammar.numRules) for i in [0...@code.text.length+1]) # include EOF
     @counter = 0
 
   # code.pos will be reverted if result is null
@@ -36,46 +44,42 @@ debugLoopify = debugCache = no
     result
 
   log: (message) ->
-    if @debug and not @skipLog
-      console.log "#{@counter}\t#{cyan Array(@stack.length-1).join '| '}#{message}"
+    unless @skipLog
+      console.log "#{@counter}\t#{cyan Array(@stackLength+1).join '| '}#{message}"
 
-  cacheSet: (key, value) ->
-    if not @cache[key.pos]?[key.name]?
-      (@cache[key.pos]||={})[key.name] = value
-      @cacheStores.push key
-    else
-      throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
+  stackPush: (node) -> @stack[@stackLength++] = @getFrame(node)
+  stackPop: (node) -> --@stackLength
 
-  cacheMask: (pos, stopName) ->
-    stash = []
-    left = right = undefined
-    for i in [@cacheStores.length-1..0] by -1
-      cacheKey = @cacheStores[i]
-      continue if cacheKey.pos isnt pos
-      if right is undefined then right = i+1
-      cacheValue = @cache[cacheKey.pos][cacheKey.name]
-      assert.ok cacheValue?, "No cache value for #{inspect cacheKey}"
-      delete @cache[cacheKey.pos][cacheKey.name]
-      stash.push {cacheKey, cacheValue}
-      if cacheKey.name is stopName
-        left = i
-        break
-    assert.ok left, "Something is broken"
-    @cacheStores[left...right] = []
-    stash
+  getFrame: (node) ->
+    id = node.id
+    pos = @code.pos
+    posFrames = @frames[pos]
+    if not (frame=posFrames[id])?
+      return posFrames[id] = new Frame(pos:pos, id:id)
+    else return frame
 
-  # key: {name,pos}
-  cacheDelete: (key) ->
-    assert.ok @cache[key.pos]?[key.name]?, "Cannot delete missing cache item at key #{keystr key}"
-    cacheStoresIdx = undefined
-    for i in [@cacheStores.length-1..0] by -1
-      cKey = @cacheStores[i]
-      if cKey.pos is key.pos and cKey.name is key.name
-        cacheStoresIdx = i
-        break
-    assert.ok cacheStoresIdx, "cacheStores[] is missing an entry for #{keystr key}"
-    delete @cache[key.pos][key.name]
-    @cacheStores.splice cacheStoresIdx, 1
+  wipeWith: (frame, makeStash=yes) ->
+    assert.ok frame.wipemask?, "Need frame.wipemask to know what to wipe"
+    stash = new Array(@grammar.numRules) if makeStash
+    stashCount = 0
+    pos = frame.pos
+    posFrames = @frames[pos]
+    for wipe, i in frame.wipemask when wipe
+      stash[i] = posFrames[i] if makeStash
+      #console.log "wipe", i, ">", wipe, ">", posFrames[i]
+      posFrames[i] = undefined
+      stashCount++
+    stash?.count = stashCount
+    return stash
+
+  restoreWith: (stash) ->
+    stashCount = stash.count
+    for frame, i in stash when frame
+      pos       ?= frame.pos
+      posFrames ?= @frames[pos]
+      posFrames[i] = frame
+      stashCount--
+      break if stashCount is 0
 
 ###
   In addition to the attributes defined by subclasses,
@@ -90,118 +94,123 @@ debugLoopify = debugCache = no
 
   @$stack = (fn) -> ($) ->
     return fn.call this, $ if this isnt @rule
-    stackItem = name:@name, pos:$.code.pos
-    $.stack.push stackItem
+    $.stackPush this
     result = fn.call this, $
-    popped = $.stack.pop()
-    assert.ok stackItem is popped
-    return result
-
-  @$debug = (fn) -> ($) ->
-    return fn.call this, $ if this isnt @rule or not $.debug or $.skipLog
-    $.skipLog = yes if @skipLog
-    bufferStr = "#{ black "["
-                }#{ black escape $.code.peek afterChars:20
-                }#{ if $.code.pos+20 < $.code.text.length
-                      black '>'
-                    else
-                      black ']'}"
-    $.log "#{this} #{bufferStr}"
-    result = fn.call this, $
-    $.log "^-- #{escape result} #{black typeof result}" if result isnt null
-    delete $.skipLog
-    return result
-
-  @$cache = (fn) -> ($) ->
-    return fn.call this, $ if this isnt @rule or @skipCache
-    key = name:@name, pos:$.code.pos
-    if (cached=$.cache[key.pos]?[key.name])?
-      $.log "[C] Cache hit @ $.cache[#{keystr key}]: #{escape cached.result}" if debugCache
-      $.code.pos = cached.endPos if cached.endPos?
-      return cached.result
-    result = fn.call this, $
-    if not $.cache[key.pos]?[key.name]?
-      $.log "[C] Cache store @ $.cache[#{keystr key}]: #{escape result}" if debugCache
-      if result is null
-        $.cacheSet key, result:null
-      else
-        $.cacheSet key, result:result, endPos:$.code.pos
-    else
-      throw new Error "Cache store error @ $.cache[#{keystr key}]: existing entry"
+    $.stackPop this
     return result
 
   @$loopify = (fn) -> ($) ->
     return fn.call this, $ if this isnt @rule
-    key = name:@name, pos:$.code.pos
-    item = ($.recurse[key.pos]||={})[key.name] ||= stage:0
 
-    switch item.stage
-      when 0 # non-recursive (so far)
-        item.stage = 1
-        startPos = $.code.pos
-        startCacheLength = $.cacheStores.length
+    # STACK TRACE
+    if trace.stack
+      bufferStr = "#{ black "["
+                  }#{ black escape $.code.peek afterChars:20
+                  }#{ if $.code.pos+20 < $.code.text.length
+                        black '>'
+                      else
+                        black ']'}"
+      $.log "x #{this} #{bufferStr}"
+
+    if @skipCache
+      result = fn.call this, $
+      $.log "#{cyan "`->"} #{escape result} #{black typeof result}" if trace.stack
+      return result
+
+    frame = $.getFrame this
+    pos = startPos = $.code.pos
+    key = "#{@name}@#{pos}"
+
+    switch frame.loopStage
+      when 0, undefined # non-recursive (so far)
+
+        # The only time a cache hit will simply return is when loopStage is 0
+        if frame.endPos?
+          $.log "#{cyan "`- HIT >"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
+          $.code.pos = frame.endPos
+          return frame.result
+
+        #start = new Date()
+        #timez = []
+        frame.loopStage = 1
+        frame.cacheSet null
         result = fn.call this, $
-        #try
-        switch item.stage
+
+        switch frame.loopStage
           when 1 # non-recursive (done)
-            delete $.recurse[key.pos][key.name]
+            frame.loopStage = 0
+            frame.cacheSet result, $.code.pos
+            $.log "#{cyan "`- CS >"} #{escape result} #{black typeof result}" if trace.stack
             return result
-          when 2 # recursion detected
+
+          when 2 # recursion detected by subroutine above
             if result is null
-              $.log "[L] returning #{escape result} (no result)" if debugLoopify
-              $.cacheDelete key
-              delete $.recurse[key.pos][key.name]
+              $.log "#{yellow "`--- loop null ---"} " if trace.stack
+              frame.loopStage = 0
+              #frame.cacheSet null # already null
               return result
             else
-              $.log "[L] --- loop start --- (#{keystr key}) (initial result was #{escape result})" if debugLoopify
-              item.stage = 3
+              frame.loopStage = 3
+              if trace.loop
+                _stk.push(@name)
+                line = $.code.line
+                console.log  "#{ (switch line%6
+                                    when 0 then blue
+                                    when 1 then cyan
+                                    when 2 then white
+                                    when 3 then yellow
+                                    when 4 then red
+                                    when 5 then magenta)('@'+line)
+                           }\t#{ red (frame.id for frame in $.stack[...$.stackLength])
+                          } - #{ _stk
+                          } - #{ yellow escape result
+                           }: #{ blue escape $.code.peek beforeChars:10, afterChars:10 }"
               while result isnt null
-                $.log "[L] --- loop iteration --- (#{keystr key})" if debugLoopify
+                #timez.push (end = new Date()).valueOf() - start.valueOf()
+                #start = end
 
-                # Step 1: reset the cache state
-                bestCacheStash = $.cacheMask startPos, @name
-                # Step 2: set the cache to the last good result
-                bestResult = item.base = result
-                bestPos = item.endPos = $.code.pos
-                $.cacheSet key, result:bestResult, endPos:bestPos
-                # Step 3: reset the code state
+                assert.ok frame.wipemask?, "where's my wipemask"
+                bestStash = $.wipeWith frame, yes
+                bestResult = result
+                bestEndPos = $.code.pos
+                frame.cacheSet bestResult, bestEndPos
+                $.log "#{yellow "|`--- loop iteration ---"} #{frame}" if trace.stack
                 $.code.pos = startPos
-                # Step 4: get the new result with above modifications
                 result = fn.call this, $
-                # Step 5: break when we found the best result
-                $.log "[L] #{@name} break unless #{$.code.pos} > #{bestPos}" if debugLoopify
-                break unless $.code.pos > bestPos
+                break unless $.code.pos > bestEndPos
 
-              # Tidy up state to best match
-              # Step 1: reset the cache state again
-              $.cacheMask startPos, @name
-              # Step 2: revert to best cache stash
-              while bestCacheStash.length > 0
-                {cacheKey,cacheValue} = bestCacheStash.pop()
-                $.cacheSet cacheKey, cacheValue if not (cacheKey.name is key.name and cacheKey.pos is key.pos)
-              assert.ok $.cache[key.pos]?[key.name] is undefined, "Cache value for self should have been cleared"
-              # Step 3: set best code pos
-              $.code.pos = bestPos
-              $.log "[L] --- loop done --- (final result: #{escape bestResult})" if debugLoopify
+              if trace.loop
+                _stk.pop()
+
+              $.wipeWith frame, no
+              $.restoreWith bestStash
+              $.code.pos = bestEndPos
+              $.log "#{yellow "`--- loop done! ---"} best result: #{escape bestResult}" if trace.stack
               # Step 4: return best result, which will get cached
-              delete $.recurse[key.pos][key.name]
+              frame.loopStage = 0
               return bestResult
-          else
-            throw new Error "Unexpected stage #{item.stage}"
-        #finally
-        #  delete $.recurse[key.pos][key.name]
-      when 1,2 # recursion detected
-        item.stage = 2
-        $.log "[L] recursion detected! (#{keystr key})" if debugLoopify
-        $.log "[L] returning null" if debugLoopify
-        return null
-      when 3 # loopified case
-        throw new Error "This should not happen, cache should have hit (#{keystr key})"
-        #$.log "[L] returning #{item.base} (base case)" if debugLoopify
-        #$.code.pos = item.endPos
-        #return item.base
-      else
-        throw new Error "Unexpected stage #{item.stage} (B)"
+
+          else throw new Error "Unexpected stage #{stages[pos]}"
+
+      when 1,2,3
+        if frame.loopStage = 1
+          frame.loopStage = 2 # recursion detected
+
+        # Step 1: Collect wipemask so we can wipe the frames later.
+        $.log "#{yellow "`- base ->"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
+        frame.wipemask ?= new Array($.grammar.numRules)
+        for i in [$.stackLength-2..0] by -1
+          i_frame = $.stack[i]
+          assert.ok i_frame.pos <= startPos
+          break if i_frame.pos < startPos
+          break if i_frame.id is @id
+          frame.wipemask[i_frame.id] = yes
+
+        # Step 2: Return whatever was cacheSet.
+        $.code.pos = frame.endPos if frame.endPos?
+        return frame.result
+
+      else throw new Error "Unexpected stage #{stage} (B)"
 
   @$prepareResult = (fn) -> ($) ->
     $.counter++
@@ -212,11 +221,11 @@ debugLoopify = debugCache = no
         # syntax proposal:
         # result = ( it <- (it={})[@label] = result )
         result = ( (it={})[@label] = result; it )
-      result = @cb.call $, result if @cb?
+      result = @cb.call this, result, $ if @cb?
     return result
 
   @$wrap = (fn) ->
-    @$stack @$debug @$cache @$loopify @$prepareResult fn
+    @$stack @$loopify @$prepareResult fn
 
   walk: ({pre, post}, parent=undefined) ->
     # pre, post: (parent, childNode) -> where childNode in parent.children.
@@ -229,8 +238,8 @@ debugLoopify = debugCache = no
     post parent, @ if post?
 
   capture:   yes
-  labels$:   get: -> if @label then [@label] else []
-  captures$: get: -> if @capture then [this] else []
+  labels$:   get: -> @_labels ?= (if @label then [@label] else [])
+  captures$: get: -> @_captures ?= (if @capture then [this] else [])
 
   # called after all its children have been prepared.
   # don't put logic in here, too easy to forget to call super.
@@ -238,17 +247,18 @@ debugLoopify = debugCache = no
 
   toString: ->
     "#{ if this is @rule
-          red(@name+'=')
+          red(@name+': ')
         else if @label?
           cyan(@label+':')
         else ''
     }#{ @contentString() }"
 
   include: (name, rule) ->
-    @rules ||= {}
-    assert.ok name?, "Rule needs a name: #{rule}"
-    assert.ok rule instanceof GNode, "Invalid rule with name #{name}: #{rule} (#{rule.constructor.name})"
-    assert.ok not @rules[name]?, "Duplicate name #{name}"
+    @rules ?= {}
+    @children ?= []
+    #assert.ok name?, "Rule needs a name: #{rule}"
+    #assert.ok rule instanceof GNode, "Invalid rule with name #{name}: #{rule} (#{rule.constructor.name})"
+    #assert.ok not @rules[name]?, "Duplicate name #{name}"
     rule.name = name if not rule.name?
     @rules[name] = rule
     @children.push rule
@@ -308,7 +318,7 @@ debugLoopify = debugCache = no
     @include rule.name, rule
     @choices.push rule
 
-  contentString: -> blue("Rank(")+(@choices.map((c)->c.name).join blue(' | '))+blue(")")
+  contentString: -> blue("Rank(")+(@choices.map((c)->red(c.name)).join blue(' | '))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
   handlesChildLabel: yes
@@ -316,14 +326,16 @@ debugLoopify = debugCache = no
   init: (@sequence) ->
     @children = @sequence
 
-  labels$: get: -> if @label? then [@label] else _.flatten (child.labels for child in @children)
-  captures$: get: -> _.flatten (child.captures for child in @children)
+  labels$: get: -> @_labels ?= (if @label? then [@label] else _.flatten (child.labels for child in @children))
+  captures$: get: -> @_captures ?= (_.flatten (child.captures for child in @children))
 
   type$: get: ->
-    if @labels.length is 0
-      if @captures.length > 1 then 'array' else 'single'
-    else
-      'object'
+    @_type?=(
+      if @labels.length is 0
+        if @captures.length > 1 then 'array' else 'single'
+      else
+        'object'
+    )
 
   parse$: @$wrap ($) ->
     switch @type
@@ -343,7 +355,7 @@ debugLoopify = debugCache = no
         return result
       when 'object'
         results = {}
-        results[label] = undefined for label in @labels
+        # results[label] = undefined for label in @labels
         for child in @sequence
           res = child.parse $
           return null if res is null
@@ -445,9 +457,10 @@ debugLoopify = debugCache = no
     @capture = no if @ref[0] is '_'
 
   labels$: get: ->
-    if @label is '@' then @grammar.rules[@ref].labels
-    else if @label   then [@label]
-    else                  []
+    @_labels ?=
+      if @label is '@' then @grammar.rules[@ref].labels
+      else if @label   then [@label]
+      else                  []
   
   parse$: @$wrap ($) ->
     node = @grammar.rules[@ref]
@@ -466,7 +479,7 @@ debugLoopify = debugCache = no
   init: (@reStr) ->
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
-    @re = RegExp '^'+@reStr
+    @re = RegExp '('+@reStr+')', 'g' # TODO document why http://blog.stevenlevithan.com/archives/fixing-javascript-regexp
   parse$: @$wrap ($) -> $.code.match regex:@re
   contentString: -> magenta(''+@re)
 
@@ -476,76 +489,12 @@ debugLoopify = debugCache = no
 # in some glue language.
 @Grammar = Grammar = clazz 'Grammar', GNode, ->
 
-  # Temporary convenience function for loading a Joescript file with
-  # a single GRAMMAR = ... definition, for parser generation.
-  # A proper joescript environment should give access of
-  # block ASTs to the runtime, thereby making this compilation step
-  # unnecessary.
-  @fromFile = (filename) ->
-    joe = require('joeson/src/joescript')
-    chars = require('fs').readFileSync filename, 'utf8'
-    try
-      fileAST = joe.parse chars
-    catch error
-      console.log "Joeson couldn't parse #{filename}. Parse log..."
-      joe.parse chars, debug:yes
-      throw error
-    joeNodes = joe.NODES
-    assert.ok fileAST instanceof joe.NODES.Block
-
-    # Find GRAMMAR = ...
-    grammarAssign = _.find fileAST.lines, (line) ->
-      line instanceof joe.NODES.Assign and
-        ''+line.target is 'GRAMMAR' and
-        line.type is '='
-    grammarAST = grammarAssign.value
-
-    # Compile an AST node
-    # Func GNodes (->) become Arrays
-    #  (unless it's a non-first parameter to an Invocation, a callback function)
-    # Str, Obj, Arr, and Invocations become interpreted directly
-    compileAST = (node) ->
-      switch node.constructor
-        when joe.NODES.Func
-          assert.ok node.params is undefined, "Rank function should accept no parameters"
-          assert.ok node.type is '->', "Rank function should be ->, not #{node.type}"
-          return node.block.lines.map( (item)->compileAST item ).filter (x)->x?
-        when joe.NODES.Word
-          # words *should* be function references. Pass the AST on.
-          return node
-        when joe.NODES.Invocation
-          func = MACROS[''+node.func]
-          assert.ok func?, "Function #{node.func.name} not in MACROS"
-          params = node.params.map (p) ->
-            # Func nodes that are direct invocation parameters do not
-            # get interpreted, they are callback functions
-            # & joeson rules need them as ASTs for parser generation.
-            if p instanceof joe.NODES.Func then p else compileAST p
-          return func.apply null, params
-        when joe.NODES.Str
-          return node.parts.join ''
-        when joe.NODES.Arr
-          return node.items.map (item) -> compileAST item
-        when joe.NODES.Obj
-          obj = {}
-          for item in node.items
-            if ''+item.key in ['cb'] # pass the AST thru.
-              obj[compileAST item.key] = item.value
-            else
-              obj[compileAST item.key] = compileAST item.value
-          return obj
-        when joe.NODES.Heredoc
-          return null
-        else
-          throw new Error "Unexpected node type #{node.constructor.name}"
-
-    compiledAST = compileAST grammarAST
-    return Grammar compiledAST
-
   init: (rank) ->
     rank = rank(MACROS) if typeof rank is 'function'
     @rank = Rank.fromLines "__grammar__", rank if rank instanceof Array
     @rules = {}
+    @numRules = 0
+    @id2Rule = {} # slow lookup for debugging...
 
     # First, connect all the nodes and collect dereferences into @rules
     @rank.walk
@@ -563,10 +512,12 @@ debugLoopify = debugCache = no
           node.rule = node
           parent.rule.include node.inlineLabel, node
       post: (parent, node) =>
-        # dereference all rules
-        if node.rules?
-          assert.equal (inter = _.intersection _.keys(@rules), _.keys(node.rules)).length, 0, "Duplicate key(s): #{inter.join ','}"
-          _.extend @rules, node.rules
+        if node is node.rule
+          @rules[node.name] = node
+          node.id = @numRules++
+          @id2Rule[node.id] = node
+          if trace.loop # print out id->rulename for convenience
+            console.log "#{red node.id}:\t#{node}"
 
     # Now prepare all the nodes, child first.
     @rank.walk
@@ -574,18 +525,19 @@ debugLoopify = debugCache = no
         # call prepare on all nodes
         node.prepare()
 
-  parse$: (code, {debug,returnContext,env}={}) ->
-    debug ?= no
+  parse$: (code, {returnContext,env}={}) ->
     returnContext ?= no
     code = CodeStream code if code not instanceof CodeStream
-    $ = ParseContext code:code, grammar:this, debug:debug, env:env
+    $ = ParseContext code:code, grammar:this, env:env
     $.result = @rank.parse $
     if $.code.pos isnt $.code.text.length
       # find the maximum parsed entity
       maxPos = $.code.pos
-      for pos, name2item of $.cache
-        for name, item of name2item
-          maxPos = item.endPos if item.endPos > maxPos
+      for posFrames, pos in $.frames
+        break if pos <= maxPos
+        for frame, id in posFrames when frame
+          maxPos = pos
+          break
       throw Error "Incomplete parse in line #{$.code.line}: (#{white 'OK'}/#{yellow 'Parsing'}/#{red 'Unread'})\n\n#{
             $.code.peek beforeLines:2
         }#{ yellow $.code.peek afterChars:(maxPos-$.code.pos)
@@ -594,11 +546,6 @@ debugLoopify = debugCache = no
       return $
     else
       return $.result
-
-  compile: () ->
-    joe = require('joeson/src/joescript').NODES
-    code = undefined # TODO
-    require('./translators/javascript').translate code
 
 Line = clazz 'Line', ->
   init: (@args...) ->
@@ -610,10 +557,16 @@ Line = clazz 'Line', ->
   getRule: (name, rule, parentRule, attrs) ->
     if typeof rule is 'string'
       try
+        # HACK: temporarily halt trace
+        oldTrace = trace
+        trace = stack:no, loop:no if trace.skipSetup
         rule = GRAMMAR.parse rule
+        trace = oldTrace
       catch err
         console.log "Error in rule #{name}: #{rule}"
-        GRAMMAR.parse rule, debug:yes
+        console.log err.stack
+        # TODO force debug output
+        GRAMMAR.parse rule
     else if rule instanceof Array
       rule = Rank.fromLines name, rule
     else if rule instanceof OLine
@@ -686,16 +639,22 @@ OLine = clazz 'OLine', Line, ->
   # Helper for declaring tokens
   tokens: (tokens...) ->
     cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-    rank = Rank()
+    regexAll = Regex("[ ]*(#{tokens.join('|')})[^a-zA-Z\\$_0-9]")
     for token in tokens
       name = '_'+token.toUpperCase()
-      rule = GRAMMAR.parse "_ &:'#{token}' !/[a-zA-Z\\$_0-9]/"
+      # HACK: temporarily halt trace
+      oldTrace = trace
+      trace = stack:no
+      rule = GRAMMAR.parse "/[ ]*/ &:'#{token}' !/[a-zA-Z\\$_0-9]/"
+      trace = oldTrace
+      rule.rule = rule
       rule.skipLog = yes
       rule.skipCache = yes
       rule.cb = cb if cb?
-      rank.choices.push rule
-      rank.include name, rule
-    OLine rank
+      regexAll.include name, rule
+    OLine regexAll
+  # Helper for clazz construction in callbacks
+  make: (clazz) -> (it) -> new clazz it
 
 C  = -> Choice (x for x in arguments)
 E  = -> Existential arguments...
@@ -715,37 +674,37 @@ St = -> Str arguments...
   o EXPR: [
     o S(R("CHOICE"), R("_"))
     o "CHOICE": [
-      o S(P(R("_PIPE")), P(R("SEQUENCE"),R("_PIPE"),2), P(R("_PIPE"))), Choice
+      o S(P(R("_PIPE")), P(R("SEQUENCE"),R("_PIPE"),2), P(R("_PIPE"))), (it) -> new Choice it
       o "SEQUENCE": [
-        o P(R("UNIT"),null,2), Sequence
+        o P(R("UNIT"),null,2), (it) -> new Sequence it
         o "UNIT": [
           o S(R("_"), R("LABELED"))
           o "LABELED": [
             o S(E(S(L("label",R("LABEL")), St(':'))), L('&',C(R("DECORATED"),R("PRIMARY"))))
             o "DECORATED": [
-              o S(R("PRIMARY"), St('?')), Existential
-              o S(L("value",R("PRIMARY")), St('*'), L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), Pattern
-              o S(L("value",R("PRIMARY")), St('+'), L("join",E(S(N(R("__")), R("PRIMARY"))))), ({value,join}) -> Pattern value:value, join:join, min:1
-              o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), Pattern
-              o S(St('!'), R("PRIMARY")), Not
-              o C(S(St('(?'), L("expr",R("EXPR")), St(')')), S(St('?'), L("expr",R("EXPR")))), Lookahead
+              o S(R("PRIMARY"), St('?')), (it) -> new Existential it
+              o S(L("value",R("PRIMARY")), St('*'), L("join",E(S(N(R("__")), R("PRIMARY")))), L("@",E(R("RANGE")))), (it) -> new Pattern it
+              o S(L("value",R("PRIMARY")), St('+'), L("join",E(S(N(R("__")), R("PRIMARY"))))), ({value,join}) -> new Pattern value:value, join:join, min:1
+              o S(L("value",R("PRIMARY")), L("@",R("RANGE"))), (it) -> new Pattern it
+              o S(St('!'), R("PRIMARY")), (it) -> new Not it
+              o C(S(St('(?'), L("expr",R("EXPR")), St(')')), S(St('?'), L("expr",R("EXPR")))), (it) -> new Lookahead it
               i "RANGE": o S(St('{'), R("_"), L("min",E(R("INT"))), R("_"), St(','), R("_"), L("max",E(R("INT"))), R("_"), St('}'))
             ]
             o "PRIMARY": [
-              o R("WORD"), Ref
+              o R("WORD"), (it) -> new Ref it
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
                 {Func} = require('joeson/src/joescript').NODES
                 {BoundFunc, Context} = require('joeson/src/interpreter/javascript')
                 if code?
                   params = expr.labels
-                  cbFunc = Func params:params, type:'->', block:code
-                  cbBFunc = BoundFunc func:cbFunc, context:Context(global:@env?.global)
+                  cbFunc = new Func params:params, type:'->', block:code
+                  cbBFunc = new BoundFunc func:cbFunc, context:Context(global:@env?.global)
                   expr.cb = cbBFunc.function
                 return expr
               i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> require('joeson/src/joescript').parse(it.join '')
-              o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> Str       it.join ''
-              o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> Regex     it.join ''
-              o S(St("["), P(S(N(St("]")), C(R("ESC2"), R(".")))), St("]")), (it) -> Regex "[#{it.join ''}]"
+              o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> new Str       it.join ''
+              o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> new Regex     it.join ''
+              o S(St("["), P(S(N(St("]")), C(R("ESC2"), R(".")))), St("]")), (it) -> new Regex "[#{it.join ''}]"
             ]
           ]
         ]
@@ -754,7 +713,7 @@ St = -> Str arguments...
   ]
   i LABEL:    C(St('&'), St('@'), R("WORD"))
   i WORD:     Re("[a-zA-Z\\._][a-zA-Z\\._0-9]*")
-  i INT:      Re("[0-9]+"), Number
+  i INT:      Re("[0-9]+"), (it) -> new Number it
   i _PIPE:    S(R("_"), St('|'))
   i _:        P(C(St(' '), St('\n')))
   i __:       P(C(St(' '), St('\n')), null, 1)

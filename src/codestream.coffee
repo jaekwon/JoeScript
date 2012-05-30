@@ -59,12 +59,13 @@ assert = require 'assert'
   # otherwise returns match[0] which may be ''
   match: ({regex, string}) ->
     if string?
-      peek = @peek afterChars: string.length
+      peek = @text[@pos...@pos+string.length]
       return null if peek isnt string
       @pos += string.length
       string
     else if regex?
-      matched = @text[@pos...].match regex # TODO improve
-      return null if matched is null
-      @pos += matched[0].length
-      matched[0]
+      regex.lastIndex = @pos
+      match = regex.exec(@text)
+      return null if not match or match.index != @pos
+      @pos = regex.lastIndex
+      match[0]

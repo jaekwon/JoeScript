@@ -30,37 +30,37 @@ RAW_GRAMMAR = [
   o EXPR: [
     o "CHOICE _"
     o "CHOICE": [
-      o "_PIPE* SEQUENCE*_PIPE{2,} _PIPE*", Choice
+      o "_PIPE* SEQUENCE*_PIPE{2,} _PIPE*", (it) -> new Choice it
       o "SEQUENCE": [
-        o "UNIT{2,}", Sequence
+        o "UNIT{2,}", (it) -> new Sequence it
         o "UNIT": [
           o "_ LABELED"
           o "LABELED": [
             o "(label:LABEL ':')? &:(DECORATED|PRIMARY)"
             o "DECORATED": [
-              o "PRIMARY '?'", Existential
-              o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", Pattern
-              o "value:PRIMARY '+' join:(!__ PRIMARY)?", ({value,join}) -> Pattern value:value, join:join, min:1
-              o "value:PRIMARY @:RANGE", Pattern
-              o "'!' PRIMARY", Not
-              o "'(?' expr:EXPR ')' | '?' expr:EXPR", Lookahead
+              o "PRIMARY '?'", (it) -> new Existential it
+              o "value:PRIMARY '*' join:(!__ PRIMARY)? @:RANGE?", (it) -> new Pattern it
+              o "value:PRIMARY '+' join:(!__ PRIMARY)?", ({value,join}) -> new Pattern value:value, join:join, min:1
+              o "value:PRIMARY @:RANGE", (it) -> new Pattern it
+              o "'!' PRIMARY", (it) -> new Not it
+              o "'(?' expr:EXPR ')' | '?' expr:EXPR", (it) -> new Lookahead it
               i "RANGE": "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
             ]
             o "PRIMARY": [
-              o "WORD", Ref
+              o "WORD", (it) -> new Ref it
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
                 {Func} = require('joeson/src/joescript').NODES
                 {BoundFunc, Context} = require('joeson/src/interpreter/javascript')
                 if code?
                   params = expr.labels
-                  cbFunc = Func params:params, type:'->', block:code
-                  cbBFunc = BoundFunc func:cbFunc, context:Context(global:@env.global)
+                  cbFunc = new Func params:params, type:'->', block:code
+                  cbBFunc = new BoundFunc func:cbFunc, context:Context(global:@env.global)
                   expr.cb = cbBFunc.function
                 return expr
               i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joeson/src/joescript').parse(it.join '')
-              o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> Str       it.join ''
-              o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> Regex     it.join ''
-              o "#{LBRAK} (!#{RBRAK} (ESC2 | .))* #{RBRAK}", (it) -> Regex "[#{it.join ''}]"
+              o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> new Str       it.join ''
+              o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> new Regex     it.join ''
+              o "#{LBRAK} (!#{RBRAK} (ESC2 | .))* #{RBRAK}", (it) -> new Regex "[#{it.join ''}]"
             ]
           ]
         ]
@@ -69,7 +69,7 @@ RAW_GRAMMAR = [
   ]
   i LABEL:      "'&' | '@' | WORD"
   i WORD:       "/[a-zA-Z\\._][a-zA-Z\\._0-9]*/"
-  i INT:        "/[0-9]+/", Number
+  i INT:        "/[0-9]+/", (it) -> new Number it
   i _PIPE:      "_ '|'"
   i _:          "(' ' | '\n')*"
   i __:         "(' ' | '\n')+"
@@ -100,11 +100,8 @@ testGrammar = (rule, indent=0, name=undefined) ->
     for name, r of rule
       testGrammar r, indent, name
 
-if false
-  testGrammar "FOO | BAR*MACK{3,4} (blah?) blah:blah <words:2>"
-
-if true
-  start = new Date()
-  for i in [0..10]
-    testGrammar RAW_GRAMMAR
-  console.log new Date() - start
+console.log blue "\n-= self-parse test =-"
+start = new Date()
+for i in [0..10]
+  testGrammar RAW_GRAMMAR
+console.log new Date() - start

@@ -34,11 +34,11 @@ Node = clazz 'Node', ->
   # Iterate cb function over all child attributes.
   # cb:   (child, parent, attrName, descriptor, index?) -> ...
   withChildren: (cb, options) ->
-    assert.ok not options?, "options have been deprecated. reimplement me"
+    #assert.ok not options?, "options have been deprecated. reimplement me"
     for attr, desc of @children||{}
       value = this[attr]
       if desc instanceof Array
-        assert.ok value instanceof Array, "Expected (#{this})[#{red attr}] to be an Array"
+        #assert.ok value instanceof Array, "Expected (#{this})[#{red attr}] to be an Array"
         for item, i in value when item?
           cb(item, this, attr, desc[0], i)
       else if value?
@@ -414,13 +414,14 @@ Dummy = clazz 'Dummy', Node, ->
   Undetermined, JSForC, JSForK
 }
 
-debugIndent = yes
+trace =
+  indent:no
 
-checkIndent = (ws) ->
-  @stack[0].indent ?= '' # set default lazily
+checkIndent = (ws, $) ->
+  $.stack[0].indent ?= '' # set default lazily
 
-  container = @stack[@stack.length-2]
-  @log "[In] container (@#{@stack.length-2}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}'" if debugIndent
+  container = $.stack[$.stackLength-2]
+  $.log "[In] container (@#{$.stackLength-2}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}'" if trace.indent
   if container.softline?
     # {
     #   get: -> # begins with a softline
@@ -429,77 +430,72 @@ checkIndent = (ws) ->
     pIndent = container.softline
   else
     # Get the parent container's indent string
-    for i in [@stack.length-3..0] by -1
-      if @stack[i].softline? or @stack[i].indent?
-        pContainer = @stack[i]
+    for i in [$.stackLength-3..0] by -1
+      if $.stack[i].softline? or $.stack[i].indent?
+        pContainer = $.stack[i]
         pIndent = pContainer.softline ? pContainer.indent
-        @log "[In] parent pContainer (@#{i}:#{pContainer.name}) indent:'#{pContainer.indent}', softline:'#{pContainer.softline}'" if debugIndent
+        $.log "[In] parent pContainer (@#{i}:#{pContainer.name}) indent:'#{pContainer.indent}', softline:'#{pContainer.softline}'" if trace.indent
         break
   # If ws starts with pIndent... valid
   if ws.length > pIndent.length and ws.indexOf(pIndent) is 0
-    @log "Setting container.indent to '#{ws}'"
+    $.log "Setting container.indent to '#{ws}'" if trace.indent
     container.indent = ws
     return container.indent
   null
 
-checkNewline = (ws) ->
-  @stack[0].indent ?= '' # set default lazily
-
+checkNewline = (ws, $) ->
   # find the container indent (or softline) on the stack
-  for i in [@stack.length-2..0] by -1
-    if @stack[i].softline? or @stack[i].indent?
-      container = @stack[i]
+  for i in [$.stackLength-2..0] by -1
+    if $.stack[i].softline? or $.stack[i].indent?
+      container = $.stack[i]
       break
 
   containerIndent = container.softline ? container.indent
   isNewline = ws is containerIndent
-  @log "[NL] container (@#{i}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}', isNewline:'#{isNewline}'" if debugIndent
+  $.log "[NL] container (@#{i}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}', isNewline:'#{isNewline}'" if trace.indent
   return ws if isNewline
   null
 
 # like a newline, but allows additional padding
-checkSoftline = (ws) ->
-  @stack[0].indent ?= '' # set default lazily
-
+checkSoftline = (ws, $) ->
   # find the applicable indent
   container = null
-  for i in [@stack.length-2..0] by -1
-    if i < @stack.length-2 and @stack[i].softline?
+  for i in [$.stackLength-2..0] by -1
+    if i < $.stackLength-2 and $.stack[i].softline?
       # a strict ancestor's container's softline acts like an indent.
       # this allows softlines to be shortened only within the same direct container.
-      container = @stack[i]
-      @log "[SL] (@#{i}:#{container.name}) indent(ignored):'#{container.indent}', **softline**:'#{container.softline}'" if debugIndent
+      container = $.stack[i]
+      $.log "[SL] (@#{i}:#{container.name}) indent(ignored):'#{container.indent}', **softline**:'#{container.softline}'" if trace.indent
       break
-    else if @stack[i].indent?
-      container = @stack[i]
-      @log "[SL] (@#{i}:#{container.name}) **indent**:'#{container.indent}', softline(ignored):'#{container.softline}'" if debugIndent
+    else if $.stack[i].indent?
+      container = $.stack[i]
+      $.log "[SL] (@#{i}:#{container.name}) **indent**:'#{container.indent}', softline(ignored):'#{container.softline}'" if trace.indent
       break
-  assert.ok container isnt null
+  #assert.ok container isnt null
   # commit softline ws to container
   if ws.indexOf(container.softline ? container.indent) is 0
-    topContainer = @stack[@stack.length-2]
-    @log "[SL] Setting topmost container (@#{@stack.length-2}:#{topContainer.name})'s softline to '#{ws}'"
+    topContainer = $.stack[$.stackLength-2]
+    $.log "[SL] Setting topmost container (@#{$.stackLength-2}:#{topContainer.name})'s softline to '#{ws}'" if trace.indent
     topContainer.softline = ws
     return ws
   null
 
-checkComma = ({beforeBlanks, beforeWS, afterBlanks, afterWS}) ->
-  container = @stack[@stack.length-2]
+checkComma = ({beforeBlanks, beforeWS, afterBlanks, afterWS}, $) ->
+  container = $.stack[$.stackLength-2]
   container.trailingComma = yes if afterBlanks?.length > 0 # hack for INVOC_IMPL, see _COMMA_NEWLINE
   if afterBlanks.length > 0
-    return null if checkSoftline.call(this, afterWS) is null
+    return null if checkSoftline(afterWS, $) is null
   else if beforeBlanks.length > 0
-    return null if checkSoftline.call(this, beforeWS) is null
+    return null if checkSoftline(beforeWS, $) is null
   ','
 
-checkCommaNewline = (ws) ->
-  @stack[0].indent ?= '' # set default lazily
-  container = @stack[@stack.length-2]
+checkCommaNewline = (ws, $) ->
+  container = $.stack[$.stackLength-2]
   return null if not container.trailingComma
   # Get the parent container's indent string
-  for i in [@stack.length-3..0] by -1
-    if @stack[i].softline? or @stack[i].indent?
-      pContainer = @stack[i]
+  for i in [$.stackLength-3..0] by -1
+    if $.stack[i].softline? or $.stack[i].indent?
+      pContainer = $.stack[i]
       pIndent = pContainer.softline ? pContainer.indent
       break
   # If ws starts with pIndent... valid
@@ -507,95 +503,96 @@ checkCommaNewline = (ws) ->
     return yes
   null
 
-resetIndent = (ws) ->
-  @stack[0].indent ?= '' # set default lazily
+resetIndent = (ws, $) ->
   # find any container
-  container = @stack[@stack.length-2]
-  assert.ok container?
-  @log "setting container(=#{container.name}).indent to '#{ws}'"
+  container = $.stack[$.stackLength-2]
+  #assert.ok container?
+  $.log "setting container(=#{container.name}).indent to '#{ws}'" if trace.indent
   container.indent = ws
   return container.indent
 
-@GRAMMAR = GRAMMAR = Grammar ({o, i, tokens}) -> [
-  o                                 " _BLANKLINE* LINES ___ "
-  i LINES:                          " LINE*(_NEWLINE | _ _SEMICOLON) ", Block
+@GRAMMAR = GRAMMAR = Grammar ({o, i, tokens, make}) -> [
+  o                                 " _SETUP _BLANKLINE* LINES ___ "
+  i _SETUP:                         " '' ", (dontcare, $) -> $.stack[0].indent = ''
+  i LINES:                          " LINE*(_NEWLINE | _ _SEMICOLON) ", make Block
   i LINE: [
     o HEREDOC:                      " _ '###' !'#' (!'###' .)* '###' ", (it) -> Heredoc it.join ''
     o LINEEXPR: [
       # left recursive
-      o POSTIF:                     " block:LINEEXPR _IF cond:EXPR ", If
-      o POSTUNLESS:                 " block:LINEEXPR _UNLESS cond:EXPR ", Unless
-      o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", For
-      o POSTWHILE:                  " block:LINEEXPR _WHILE cond:EXPR ", Loop
+      o POSTIF:                     " block:LINEEXPR _IF cond:EXPR ", make If
+      o POSTUNLESS:                 " block:LINEEXPR _UNLESS cond:EXPR ", make Unless
+      o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? __ keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", make For
+      o POSTWHILE:                  " block:LINEEXPR _WHILE cond:EXPR ", make Loop
       # rest
-      o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", Statement
+      o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", make Statement
       o EXPR: [
-        o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", Func
-        i PARAM_LIST:               " _ '(' ASSIGN_LIST_ITEM*_COMMA _ ')' ", AssignList
-        i ASSIGN_LIST:              " _ '[' ASSIGN_LIST_ITEM*_COMMA _ ']' ", AssignList
-        i ASSIGN_LIST_ITEM:         " target:(
+        o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", make Func
+        i PARAM_LIST:               " _ '(' ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
+        i ASSIGN_LIST:              " _ '[' ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
+        i ASSIGN_LIST_ITEM:         " _ target:(
                                         | &:SYMBOL   splat:'...'?
                                         | &:PROPERTY splat:'...'?
                                         | ASSIGN_OBJ
                                         | ASSIGN_LIST
                                       )
-                                      default:(_ '=' LINEEXPR)? ", AssignItem
-        i ASSIGN_OBJ:               " _ '{' ASSIGN_OBJ_ITEM*_COMMA _ '}'", AssignObj
-        i ASSIGN_OBJ_ITEM:          " key:(SYMBOL|PROPERTY)
-                                      target:(_ ':' (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
-                                      default:(_ '=' LINEEXPR)?", AssignItem
+                                      default:(_ '=' LINEEXPR)? ", make AssignItem
+        i ASSIGN_OBJ:               " _ '{' ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
+        i ASSIGN_OBJ_ITEM:          " _ key:(SYMBOL|PROPERTY)
+                                      target:(_ ':' _ (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
+                                      default:(_ '=' LINEEXPR)?", make AssignItem
         o RIGHT_RECURSIVE: [
-          o INVOC_IMPL:             " func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE) ", Invocation
-          i OBJ_IMPL_INDENTED:      " _INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", Obj
-          o OBJ_IMPL:               " _INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", Obj
-          i OBJ_IMPL_ITEM:          " key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", Item
-          o ASSIGN:                 " target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", Assign
+          o OBJ_IMPL:               " _INDENT? OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
+          i OBJ_IMPL_ITEM:          " _ key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", make Item
+          o ASSIGN:                 " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
+          o INVOC_IMPL:             " _ func:ASSIGNABLE (? __|OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE) ", make Invocation
+          i OBJ_IMPL_INDENTED:      " _INDENT OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
         ]
-        o COMPLEX: [
-          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", If
-          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", Unless
-          o FOR:                    " _FOR own:_OWN? keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", For
-          o LOOP:                   " _LOOP block:BLOCK ", Loop
-          o WHILE:                  " _WHILE cond:EXPR block:BLOCK ", Loop
-          o SWITCH:                 " _SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT? ", Switch
-          i CASE:                   " _WHEN matches:EXPR+_COMMA block:BLOCK ", Case
+        o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
+        i _COMPLEX: [
+          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", make If
+          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", make Unless
+          o FOR:                    " _FOR own:_OWN? __ keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", make For
+          o LOOP:                   " _LOOP block:BLOCK ", make Loop
+          o WHILE:                  " _WHILE cond:EXPR block:BLOCK ", make Loop
+          o SWITCH:                 " _SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT? ", make Switch
+          i CASE:                   " _WHEN matches:EXPR+_COMMA block:BLOCK ", make Case
           i DEFAULT:                " _NEWLINE _ELSE BLOCK "
           o TRY:                    " _TRY block:BLOCK
                                       (_NEWLINE? _CATCH catchVar:EXPR? catchBlock:BLOCK?)?
-                                      (_NEWLINE? _FINALLY finally:BLOCK)? ", Try
+                                      (_NEWLINE? _FINALLY finally:BLOCK)? ", make Try
         ]
-        o OP_OPTIMIZATION:          " OP40 _ !(OP00_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP) "
+        o OP_OPTIMIZATION:          " OP40 _ !/[&\\|\\^=\\!\\<\\>\\+\\-\\*\\/\\%]|(and|or|is|isnt|not|in|instanceof)[^a-zA-Z\\$_0-9]/ " #(OP00_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP) "
         o OP00: [
           i OP00_OP:                " '&&' | '||' | '&' | '|' | '^' | _AND | _OR "
-          o                         " left:(OP00|OP05) _ op:OP00_OP _SOFTLINE? right:OP05 ", Operation
+          o                         " left:OP00 _ op:OP00_OP _SOFTLINE? right:OP05 ", make Operation
           o OP05: [
             i OP05_OP:              " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
-            o                       " left:(OP05|OP10) _ op:OP05_OP _SOFTLINE? right:OP10 ", Operation
+            o                       " left:OP05 _ op:OP05_OP _SOFTLINE? right:OP10 ", make Operation
             o OP10: [
               i OP10_OP:            " '+' | '-' "
-              o                     " left:(OP10|OP20) _ op:OP10_OP _SOFTLINE? right:OP20 ", Operation
+              o                     " left:OP10 _ op:OP10_OP _SOFTLINE? right:OP20 ", make Operation
               o OP20: [
                 i OP20_OP:          " '*' | '/' | '%' "
-                o                   " left:(OP20|OP30) _ op:OP20_OP _SOFTLINE? right:OP30 ", Operation
+                o                   " left:OP20 _ op:OP20_OP _SOFTLINE? right:OP30 ", make Operation
                 o OP30: [
                   i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
-                  o                 " left:(OP30|OP40) _  @:OP30_OP _SOFTLINE? right:OP40 ", ({left, _not, op, right}) ->
-                                                                                                invo = Invocation(func:op, params:[left, right])
+                  o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", ({left, _not, op, right}) ->
+                                                                                                invo = new Invocation(func:op, params:[left, right])
                                                                                                 if _not
-                                                                                                  return Not(invo)
+                                                                                                  return new Not invo
                                                                                                 else
                                                                                                   return invo
                   o OP40: [
                     i OP40_OP:      " _NOT | '!' | '~' "
-                    o               " _ op:OP40_OP right:OP40 ", Operation
+                    o               " _ op:OP40_OP right:OP40 ", make Operation
                     o OP45: [
                       i OP45_OP:    " '?' "
-                      o             " left:(OP45|OP50) _ op:OP45_OP _SOFTLINE? right:OP50 ", Operation
+                      o             " left:OP45 _ op:OP45_OP _SOFTLINE? right:OP50 ", make Operation
                       o OP50: [
                         i OP50_OP:  " '--' | '++' "
-                        o           " left:OPATOM op:OP50_OP ", Operation
-                        o           " _ op:OP50_OP right:OPATOM ", Operation
-                        o OPATOM:   " FUNC | RIGHT_RECURSIVE | COMPLEX | ASSIGNABLE "
+                        o           " left:OPATOM op:OP50_OP ", make Operation
+                        o           " _ op:OP50_OP right:OPATOM ", make Operation
+                        o OPATOM:   " FUNC | RIGHT_RECURSIVE | COMPLEX | _ ASSIGNABLE "
                       ] # end OP50
                     ] # end OP45
                   ] # end OP40
@@ -610,37 +607,37 @@ resetIndent = (ws) ->
 
   i ASSIGNABLE: [
     # left recursive
-    o SLICE:        " obj:ASSIGNABLE !__ range:RANGE ", Slice
-    o INDEX0:       " obj:ASSIGNABLE type:'['  attr:LINEEXPR _ ']' ", Index
-    o INDEX1:       " obj:ASSIGNABLE type:'.'  attr:WORD ", Index
-    o PROTO:        " obj:ASSIGNABLE type:'::' attr:WORD? ", Index
-    o INVOC_EXPL:   " func:ASSIGNABLE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", Invocation
-    o SOAK:         " ASSIGNABLE '?' ", Soak
+    o SLICE:        " obj:ASSIGNABLE range:RANGE ", make Slice
+    o INDEX0:       " obj:ASSIGNABLE type:'['  attr:LINEEXPR _ ']' ", make Index
+    o INDEX1:       " obj:ASSIGNABLE type:'.'  attr:WORD ", make Index
+    o PROTO:        " obj:ASSIGNABLE type:'::' attr:WORD? ", make Index
+    o INVOC_EXPL:   " func:ASSIGNABLE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
+    o SOAK:         " ASSIGNABLE '?' ", make Soak
     # rest
     o TYPEOF: [
-      o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", Invocation
-      o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", Invocation
+      o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make Invocation
+      o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
     ]
-    o RANGE:        " _ '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", Range
-    o ARR_EXPL:     " _ '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", Arr
-    o OBJ_EXPL:     " _ '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", Obj
-    i OBJ_EXPL_ITEM: " key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", Item
-    o PAREN:        " _ '(' _RESETINDENT BLOCK ___ ')' "
-    o PROPERTY:     " _ '@' (WORD|STRING) ", (attr) -> Index obj:This(), attr:attr
-    o THIS:         " _ '@' ", This
-    o REGEX:        " _ _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", Str
+    o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
+    o ARR_EXPL:     " '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
+    o OBJ_EXPL:     " '{' _SOFTLINE? OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
+    i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", make Item
+    o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
+    o PROPERTY:     " '@' (WORD|STRING) ", (attr) -> Index obj:This(), attr:attr
+    o THIS:         " '@' ", make This
+    o REGEX:        " _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", make Str
     o STRING: [
-      o             " _ _TQUOTE  (!_TQUOTE  (ESCSTR | INTERP | .))* _TQUOTE  ", Str
-      o             " _ _TDQUOTE (!_TDQUOTE (ESCSTR | INTERP | .))* _TDQUOTE ", Str
-      o             " _ _DQUOTE  (!_DQUOTE  (ESCSTR | INTERP | .))* _DQUOTE  ", Str
-      o             " _ _QUOTE   (!_QUOTE   (ESCSTR | .))* _QUOTE            ", Str
+      o             " _TQUOTE  (!_TQUOTE  (ESCSTR | INTERP | .))* _TQUOTE  ", make Str
+      o             " _TDQUOTE (!_TDQUOTE (ESCSTR | INTERP | .))* _TDQUOTE ", make Str
+      o             " _DQUOTE  (!_DQUOTE  (ESCSTR | INTERP | .))* _DQUOTE  ", make Str
+      o             " _QUOTE   (!_QUOTE   (ESCSTR | .))* _QUOTE            ", make Str
       i ESCSTR:     " _SLASH . ", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
       i INTERP:     " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]
-    o NATIVE:       " _ _BTICK (!_BTICK .)* _BTICK ", NativeExpression
+    o NATIVE:       " _BTICK (!_BTICK .)* _BTICK ", make NativeExpression
     o BOOLEAN:      " _TRUE | _FALSE ", (it) -> it is 'true'
-    o NUMBER:       " _ /-?[0-9]+(\\.[0-9]+)?/ ", Number
-    o SYMBOL:       " _ !_KEYWORD WORD "
+    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", make Number
+    o SYMBOL:       " !_KEYWORD WORD "
   ]
 
   # WHITESPACES:
@@ -653,11 +650,11 @@ resetIndent = (ws) ->
 
   # BLOCKS:
   i BLOCK: [
-    o               " _INDENT LINE+_NEWLINE ", Block
-    o               " _THEN?  LINE+(_ ';') ", Block
-    o               " _INDENTED_COMMENT+ ", -> Block []
-    i _INDENTED_COMMENT: " _BLANKLINE ws:_ _COMMENT ", ({ws}) ->
-                      return null if checkIndent.call(this, ws) is null
+    o               " _INDENT LINE+_NEWLINE ", make Block
+    o               " _THEN?  LINE+(_ ';') ", make Block
+    o               " _INDENTED_COMMENT+ ", -> new Block []
+    i _INDENTED_COMMENT: " _BLANKLINE ws:_ _COMMENT ", ({ws}, $) ->
+                      return null if checkIndent(ws,$) is null
                       return undefined
   ]
   i BLOCKEXPR:      " _INDENT? EXPR "
@@ -673,7 +670,7 @@ resetIndent = (ws) ->
   i _COMMA_NEWLINE: " _BLANKLINE+ &:_ ", checkCommaNewline, skipCache:yes
 
   # TOKENS:
-  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", Word
+  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", make Word
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
