@@ -340,7 +340,7 @@ AssignObj = clazz 'AssignObj', Node, ->
 
   # source:   The source for destructuring assignment
   # block:    The block into which assignment nodes will be appended
-  #           Created and prepared with its own scope, if undefined.
+  #           Created with its own scope, if undefined.
   # returns the block.
   toBlock: (source, block) ->
     if not block?

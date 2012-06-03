@@ -30,6 +30,8 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   # Spawn a child context with its own scope
   # thiz:   Will be bound to the upper scope frame's
   #         'this' variable.
+  XXX there is no reason to create a whole new JRuntimeContext. is there?
+  XXX hmmm
   spawn: (thiz) ->
     scopeFn = (@this) ->
     scopeFn.prototype = parent
@@ -41,6 +43,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   scopeDefine: (name, value) ->
     assert.ok not hasOwn.call(@scope, name), "Already defined in scope: #{name}"
     @scope[name] = value
+    return
 
   # Find scope in prototype chain with name declared, set it there.
   # NOTE on v8, you can't set __proto__. You can't even use it
@@ -50,6 +53,13 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
     scope = @scope
     scope = scope.__proto__ while scope.__proto__? and not hasOwn.call(scope, name)
     scope[name] = value
+    return
+
+  scopeGet: (name) ->
+    value = @scope[name]
+    if not value?
+      throw new ReferenceError "#{name} is not defined"
+    return @scope[name]
 
   # Look at the object's acl to determine
   # if the action is permitted.
