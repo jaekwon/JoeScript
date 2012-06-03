@@ -9,71 +9,71 @@ joe = require('joeson/src/joescript').NODES
 @install = install = ->
 
   joe.Word::extend
-    interpret: (C, cb) ->
-      cb(C.get @word)
+    interpret: ($, cb) ->
+      cb($.get @word)
 
   joe.Block::extend
-    interpret: (C, cb) ->
+    interpret: ($, cb) ->
       i = 0
       doLine = =>
         line = @lines[i++]
         if i < @lines.length
-          C.interpret line, doLine
+          $.queue line, doLine
         else
-          C.interpret line, cb
+          $.queue line, cb
       doLine()
 
   joe.If::extend
-    interpret: (C, cb) ->
-      C.interpret @cond, (cond) =>
+    interpret: ($, cb) ->
+      $.queue @cond, (cond) =>
         if cond
-          C.interpret @block, cb
+          $.queue @block, cb
         else
-          C.interpret @elseBlock, cb
+          $.queue @elseBlock, cb
 
   # We're interpreting javascript, so
   # loops have no value.
   joe.Loop::extend
-    interpret: (C, cb) ->
+    interpret: ($, cb) ->
       # TODO do label stuff
       doLoop = =>
-        C.interpret @cond, (cond) =>
+        $.queue @cond, (cond) =>
           if cond
-            C.interpret @block, doLoop
+            $.queue @block, doLoop
           else
             cb()
       doLoop()
 
   joe.JSForC::extend
-    interpret: (C, cb) ->
+    interpret: ($, cb) ->
       # TODO do label stuff
-      C.interpret @setup, =>
+      $.queue @setup, =>
         doLoop = =>
-          C.interpret @cond, (cond) =>
+          $.queue @cond, (cond) =>
             if cond
-              C.interpret @block, =>
-                C.interpret @counter, doLoop
+              $.queue @block, =>
+                $.queue @counter, doLoop
             else
               cb()
         doLoop()
 
   joe.JSForK::extend
-    interpret: (C, cb) ->
+    interpret: ($, cb) ->
       # TODO do label stuff
-      C.interpret @obj, (obj) =>
+      $.queue @obj, (obj) =>
         keys = (key for key in @obj)
         i = 0
         doLoop = =>
           key = keys[i++]
-          C.set @key, key
+          $.set @key, key
           if i < keys.length
-            C.interpret @block, doLoop
+            $.queue @block, doLoop
           else
-            C.interpret @block, cb
+            $.queue @block, cb
         doLoop()
 
   joe.Switch::extend
-    interpret: (C, cb) ->
+    interpret: ($, cb) ->
       
 
 """
@@ -220,87 +220,6 @@ _valueOf = (node) -> switch node.constructor
   else
     throw new Error "Dunno how to interpret #{node} (#{node.constructor?.name})"
 
-# Runtime Context
-@Context = Context = clazz 'Context', ->
-
-  # spawn a new object with a prototype of thiz
-  _makeScope = (thiz, parent) ->
-    scopeFn = (@this, @__parentScope__) ->
-    scopeFn.prototype = parent if parent?
-    new scopeFn(thiz, parent)
-
-  # scope is a runtime scope, not associated with its lexical scope
-  init: ({@scope,@global}={}) ->
-    @scope ||= _makeScope(@global, @global)
-
-  # spawn a child context with its own scope
-  spawn: (thiz) ->
-    return new Context scope:_makeScope(thiz, @scope), global:@global
-
-  # Set a name/value pair on the topmost scope of the chain
-  # Error if name already exists... all updates should happen w/ scopeUpdate.
-  scopeDefine: (name, value) ->
-    #console.log "set #{name} = #{value}"
-    throw new Error "Already set on scope: #{name}" if @scope.hasOwnProperty(name)
-    @scope[name] = value
-
-  # Find scope in prototype chain with name declared, set it there.
-  scopeUpdate: (name, value) ->
-    #console.log "update #{name} = #{value}"
-    scope = @scope
-    scope = scope.__parentScope__ while scope.__parentScope__? and not scope.hasOwnProperty(name)
-    scope[name] = value
-
-  valueOf: _valueOf
-
-  toKey: (node) ->
-    if node instanceof joe.Str then return @valueOf (node)
-    else return ''+node
-
-# A runtime function typically is associated with its context
-@BoundFunc = BoundFunc = clazz 'BoundFunc', ->
-  # func:    The joe.Func node
-  # context: The context in which func was constructed.
-  init: ({@func, @context}) ->
-    assert.ok @func instanceof joe.Func
-    @context ||= Context()
-
-  # Returns a native javascript function.
-  function$: get: ->
-    bfunc = this
-    context = @context
-    func = @func
-    if func.block?
-      _function = ->
-        newContext = context.spawn(this)
-        newContext.scopeDefine 'arguments', arguments
-        destructBlock = func.params.toLogic 'arguments'
-        # At this point we may have some Variables in destructBlock.variables.
-        # They're not usable in the runtime context unless the value is determined,
-        # and we have the func.block.scope right here, so determine the names now.
-        nameCollect = [] # collection of Variable names
-        for variable in destructBlock.scope.variables when variable instanceof joe.Variable
-          variable.determineName(func.block.scope, nameCollect)
-        # destructBlock.scope.variables contain all the parameter & intermediate Variable names
-        # Evaluating the block defines these variables on newContext.scope
-        newContext.valueOf destructBlock
-        try
-          result = newContext.valueOf(func.block)
-          return result
-        catch error
-          # TODO leaky
-          return error.value if error.statement is 'return'
-          throw error
-    else
-      _function = -> undefined
-    _function.__joe_boundfunc__ = this
-    return @function=_function
-
-  # Returns <BoundFunc> with optimizations in @func
-  optimize: ->
-    # TODO
-
-  toString: -> "<BoundFunc>"
 
 # eval a node using the interpreter
 @interpret = (node, {context, scope, include}) ->
