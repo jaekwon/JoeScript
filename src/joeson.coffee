@@ -8,14 +8,7 @@ Jae Kwon 2012
 assert = require 'assert'
 _ = require 'underscore'
 {CodeStream} = require 'joeson/src/codestream'
-{escape} = require 'joeson/lib/helpers'
-
-pad = ({left,right}, str) ->
-  if right? and right > str.length
-    return Array(right-str.length+1).join(' ')+str
-  else if left > str.length
-    return str+Array(left-str.length+1).join(' ')
-  return str
+{pad, escape} = require 'joeson/lib/helpers'
 
 trace =
   #filterLine: 299

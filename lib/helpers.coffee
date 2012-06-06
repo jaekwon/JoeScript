@@ -57,3 +57,11 @@
 
 # Escape a string into javascript string code.
 @escape = (str) -> (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
+
+@pad = ({left,right}, str) ->
+  str = ''+str
+  if right? and right > str.length
+    return Array(right-str.length+1).join(' ')+str
+  else if left > str.length
+    return str+Array(left-str.length+1).join(' ')
+  return str

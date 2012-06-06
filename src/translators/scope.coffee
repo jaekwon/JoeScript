@@ -36,6 +36,13 @@ joe = require('joeson/src/joescript').NODES
   nonparameterVariables$: get: ->
     _.difference @variables, @parameters
 
+# Node::installScope: (plugin)
+# Installs lexical scopes on nodes and collect variables and parameters.
+#
+# CONTRACT:
+#   Calling installScope on a node with scope already installed
+#   should be a safe operation that re-installs the scope.
+#   After node transformations like node.toJSNode(), you need to re-install.
 @install = ->
   return if joe.Node::installScope? # already defined.
 
@@ -44,41 +51,37 @@ joe = require('joeson/src/joescript').NODES
     if options.create or not options.parent?
       node.scope = node.ownScope = new LScope options.parent?.scope
     else
-      node.scope ?= options.parent.scope
+      node.scope = options.parent.scope
 
   joe.Node::extend
     installScope: (options={}) ->
       init @, options
       @withChildren (child, parent) ->
         child.installScope?(create:no, parent:parent)
-    collectVariables: ->
-      @withChildren (child, parent) ->
-        child.collectVariables?()
+      return this
 
   joe.Try::extend
     installScope: (options={}) ->
       init @, options
       @catchBlock.installScope(create:yes, parent:this) if @catchVar? and @catchBlock?
-      @withChildren (child, parent, attr) ->
-        child.installScope?(create:no, parent:parent) unless attr is 'catchBlock'
-    collectVariables: ->
       @catchBlock.scope.declareVariable(@catchVar) if @catchVar?
       @withChildren (child, parent, attr) ->
-        child.collectVariables?() unless attr is 'catchBlock'
+        child.installScope?(create:no, parent:parent) unless attr is 'catchBlock'
+      return this
 
   joe.Func::extend
     installScope: (options={}) ->
       init @, options
       @block.installScope(create:yes, parent:this) if @block?
-      @withChildren (child, parent, attr) ->
-        child.installScope?(create:no, parent:parent) unless attr is 'block'
-    collectVariables: ->
       @block.scope.declareVariable(name, yes) for name in @params?.targetNames||[]
       @withChildren (child, parent, attr) ->
-        child.collectVariables?() unless attr is 'block'
+        child.installScope?(create:no, parent:parent) unless attr is 'block'
+      return this
 
   joe.Assign::extend
-    collectVariables: ->
+    installScope: (options={}) ->
+      init @, options
       @scope.ensureVariable(@target) if isVariable @target
-      @withChildren (child, parent, attr) ->
-        child.collectVariables?()
+      @withChildren (child, parent) ->
+        child.installScope?(create:no, parent:parent)
+      return this

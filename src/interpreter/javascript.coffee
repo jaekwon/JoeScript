@@ -5,6 +5,7 @@
 assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
+{extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
 
 ERRORS = [ 'RangeError',
   'EvalError',
@@ -20,82 +21,65 @@ ERRORS = [ 'RangeError',
   require('joeson/src/translators/javascript').install() # dependency
 
   joe.Node::extend
-    interpret: ($, cb) ->
+    interpret: ($) ->
       throw new EvalError "Dunno how to evaluate #{this}"
 
   joe.Word::extend
-    interpret: ($, cb) ->
-      cb($.scopeGet @word)
+    interpret: ($) ->
+      $.code_pop()
+      $.data_push $.scopeGet @word
 
   joe.Block::extend
-    interpret: ($, cb) ->
-      i = 0
-      doLine = =>
-        line = @lines[i++]
-        if i < @lines.length
-          $.queue line, doLine
-        else
-          $.queue line, cb
-      doLine()
+    interpret: ($) ->
+      $.code_pop()
+      $.data_push @lines.length-1
+      $.code_push this:this, func:joe.Block::interpretLoop
+    interpretLoop: ($) ->
+      idx = $.data_peek(0)
+      if idx < 0
+        $.code_pop()
+      else
+        line = @lines[idx]
+        $.data_set 0, idx-1
+        $.code_push this:line, func:line.interpret
 
   joe.If::extend
-    interpret: ($, cb) ->
-      $.queue @cond, (cond) =>
-        if cond
-          $.queue @block, cb
-        else
-          $.queue @elseBlock, cb
+    interpret: ($) ->
+      $.code_pop()
+      $.code_push this:this,  func:If::interpret2
+      $.code_push this:@cond, func:@cond.interpret
+    interpret2: ($) ->
+      $.code_pop()
+      cond = $.data_pop()
+      if cond.__isTrue__?() or cond
+        $.code_push this:@block, func:@block.interpret
+      else if @elseBlock
+        $.code_push this:@elseblock, func:@elseBlock.interpret
 
-  # We're interpreting javascript, so
-  # loops have no value.
-  joe.Loop::extend
-    interpret: ($, cb) ->
-      # TODO do label stuff
-      doLoop = =>
-        $.queue @cond, (cond) =>
-          if cond
-            $.queue @block, doLoop
-          else
-            cb()
-      doLoop()
+  joe.Assign::extend
+    interpret: ($) ->
+      $.code_pop()
+      $.code_push this:this,    func:joe.Assign::interpret2
+      $.code_push this:@value,  func:@value.interpret
+    interpret2: ($) ->
+      $.code_pop()
+      if isWord @target
+        value = $.data_pop()
+        $.scopeUpdate @target, value
+      else if @target instanceof joe.Index
+        throw new EvalError "Implement me"
+      else
+        throw new EvalError "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
 
-  joe.JSForC::extend
-    interpret: ($, cb) ->
-      # TODO do label stuff
-      $.queue @setup, =>
-        doLoop = =>
-          $.queue @cond, (cond) =>
-            if cond
-              $.queue @block, =>
-                $.queue @counter, doLoop
-            else
-              cb()
-        doLoop()
+  Number::interpret = ($) ->
+      $.code_pop()
+      $.data_push @valueOf()
 
-  joe.JSForK::extend
-    interpret: ($, cb) ->
-      # TODO do label stuff
-      $.queue @obj, (obj) =>
-        keys = (key for key in @obj)
-        i = 0
-        doLoop = =>
-          key = keys[i++]
-          $.set @key, key
-          if i < keys.length
-            $.queue @block, doLoop
-          else
-            $.queue @block, cb
-        doLoop()
-
-  joe.Switch::extend
-    interpret: ($, cb) ->
-
+# deprecated for now:
 # eval a node using the interpreter
 @interpret = (node, {context, scope, include}) ->
   # install plugin
   install()
   # install scopes and translate to javascript.
   jsnode = require('joeson/src/translators/javascript').translate(node)
-  context ||= new Context(scope:scope, global:GLOBAL)
-  context.scope[key] = value for key, value of include if include?
-  return context.valueOf node
+  throw new Error "TODO Deprecated. Re-implement me!"

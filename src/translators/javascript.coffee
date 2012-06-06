@@ -273,11 +273,4 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   # console.log node.serialize() # print before transformations...
   # install plugin
   install()
-  # validate node. TODO
-  node.validate()
-  # prepare nodes
-  node.installScope()
-  node.collectVariables()
-  node = jsNode node
-  # return translated string
-  return node.toJavascript()
+  return node.toJSNode().installScope().toJavascript()
