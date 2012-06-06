@@ -60,6 +60,8 @@ Node = clazz 'Node', ->
         ''+this
       else
         ''
+    if @ownScope?.variables?.length > 0
+      valueStr += yellow (@ownScope.variables.join ' ')
     str = "#{green @constructor.name} #{valueStr}\n"
     @withChildren (child, parent, attr, desc) ->
       str += "#{indent _indent+1}#{red "@"+attr}: " ##{blue inspect desc}\n"

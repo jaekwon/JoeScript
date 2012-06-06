@@ -32,12 +32,14 @@ ERRORS = [ 'RangeError',
   joe.Block::extend
     interpret: ($) ->
       $.code_pop()
+      $.scopeDefine variable, undefined for variable in @ownScope.variables if @ownScope?
       $.data_push @lines.length-1
       $.code_push this:this, func:joe.Block::interpretLoop
     interpretLoop: ($) ->
       idx = $.data_peek(0)
       if idx < 0
         $.code_pop()
+        $.data_pop()
       else
         line = @lines[idx]
         $.data_set 0, idx-1
@@ -46,7 +48,7 @@ ERRORS = [ 'RangeError',
   joe.If::extend
     interpret: ($) ->
       $.code_pop()
-      $.code_push this:this,  func:If::interpret2
+      $.code_push this:this,  func:joe.If::interpret2
       $.code_push this:@cond, func:@cond.interpret
     interpret2: ($) ->
       $.code_pop()
@@ -70,6 +72,10 @@ ERRORS = [ 'RangeError',
         throw new EvalError "Implement me"
       else
         throw new EvalError "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
+
+  String::interpret = ($) ->
+      $.code_pop()
+      $.data_push @valueOf()
 
   Number::interpret = ($) ->
       $.code_pop()

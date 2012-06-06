@@ -48,7 +48,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
     @codes.pop()
 
   code_push: (item) ->
-    assert.ok item.func?, "Code item's function is missing."
+    assert.ok item.func?, "Missing function in code_push({this,func})"
     @codes.push item
 
   data_peek: (offset) ->
@@ -199,7 +199,7 @@ SYSTEM =
 do =>
   require('joeson/src/translators/javascript').install()
   require('joeson/src/interpreter/javascript').install()
-  node = require('joeson/src/joescript').parse "foo = 1"
+  node = require('joeson/src/joescript').parse "a = 'foo'"
   node = node.toJSNode().installScope()
   console.log node.serialize()
   $ = new JRuntimeContext SYSTEM.user
