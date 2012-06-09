@@ -3,30 +3,31 @@
 assert = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
-jsi = require './javascript'
-
-isEqual = (a, b) ->
-  if isNaN a
-    return isNaN b
-  return a is b
+{JRuntimeContext, SYSTEM} = require 'joeson/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 
 counter = 0
-test = (code, expected) ->
+test = (code, cb) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  node = joe.parse code
-  result = jsi.interpret(node, include:{require:require})
-  if typeof expected is 'function'
-    if not expected(result)
-      console.log "ERROR: didnt expect to get #{result}"
-      process.exit(1)
-  else if not isEqual result, expected
-    console.log "ERROR: expected: #{expected} (#{expected?.constructor?.name}) but got #{result} (#{result?.constructor?.name})"
+  node = require('joeson/src/joescript').parse code
+  node = node.toJSNode().installScope()
+  #console.log node.serialize()
+  $ = new JRuntimeContext SYSTEM.user
+  try
+    res = $.exec node
+    res = res.valueOf()
+    cb.call $, res, node
+  catch err
+    console.log red "ERROR"
+    console.log red err.stack
     process.exit(1)
 
-test "null", null
-test "undefined", undefined
+test "null", (it) -> assert.ok it is null
+test "undefined", (it) -> assert.ok it is undefined
+test "null * undefined", (it) -> assert.ok it is NaN
+
+###
 test "null * undefined", NaN
 test "Array", Array
 test """if true then 1 else 2""", 1
@@ -114,3 +115,4 @@ f.key""", 'value'
 test """
 _ = require('underscore')
 _.keys(foo:1, bar:2, baz:3).join(',')""", 'foo,bar,baz'
+###

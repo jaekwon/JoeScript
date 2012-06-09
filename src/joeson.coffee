@@ -706,8 +706,9 @@ St = -> Str arguments...
             o "PRIMARY": [
               o R("WORD"), (it) -> new Ref it
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
+                # DEPRECATED
                 {Func} = require('joeson/src/joescript').NODES
-                {BoundFunc, Context} = require('joeson/src/interpreter/javascript')
+                {BoundFunc, Context} = require('joeson/src/interpreter')
                 if code?
                   params = expr.labels
                   cbFunc = new Func params:params, type:'->', block:code

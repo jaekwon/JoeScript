@@ -44,7 +44,7 @@ RAW_GRAMMAR = [
               o "WORD", (it) -> new Ref it
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
                 {Func} = require('joeson/src/joescript').NODES
-                {BoundFunc, Context} = require('joeson/src/interpreter/javascript')
+                {BoundFunc, Context} = require('joeson/src/interpreter')
                 if code?
                   params = expr.labels
                   cbFunc = new Func params:params, type:'->', block:code

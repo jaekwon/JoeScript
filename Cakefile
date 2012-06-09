@@ -8,7 +8,7 @@ task 'test', ->
   run 'coffee tests/joeson_test.coffee', ->
     run 'coffee tests/joescript_test.coffee', ->
       run 'coffee src/translators/test.coffee', ->
-        run 'coffee src/interpreter/test.coffee', ->
+        run 'coffee tests/interpreter_test.coffee', ->
           console.log "All tests OK"
 
 run = (args...) ->

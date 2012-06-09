@@ -254,7 +254,6 @@ Null = clazz 'Null', Node, ->
   init: (construct) ->
     if construct isnt yes
       @_newOverride = Null.null
-  value: null
   toString: -> "null"
 Null.null = new Null(yes)
 
@@ -262,7 +261,6 @@ Undefined = clazz 'Undefined', Node, ->
   init: (construct) ->
     if construct isnt yes
       @_newOverride = Undefined.undefined
-  value: undefined
   toString: -> "undefined"
 Undefined.undefined = new Undefined(yes)
 
@@ -715,6 +713,8 @@ resetIndent = (ws, $) ->
   mainModule.paths = require('module')._nodeModulePaths path.dirname fs.realpathSync options.filename
 
   # Interpret
-  jsi = require './interpreter/javascript'
-  node = GRAMMAR.parse code
-  return jsi.interpret(node, include:{require:require}) # TODO set require properly.
+  # TODO
+  throw new Error "Implement me!"
+  #jsi = require 'joeson/src/interpreter'
+  #node = GRAMMAR.parse code
+  #return jsi.interpret(node, include:{require:require}) # TODO set require properly.
