@@ -70,6 +70,8 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
           console.log "             #{cyan "->"} #{last}"
         return last
       catch error
+        # error should be an evalerror
+        throw error if error not instanceof EvalError
         # Unwind to the last Try item.
         # We pop the @codes stack until we hit a Try item,
         # then set the error on the item.
@@ -231,10 +233,10 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
                          $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
   __keys__: ($) ->       $.throw 'TypeError', "Cannot get keys of #{@name}"
   __iterator__: ($) ->   $.throw 'TypeError', "Cannot get iterator of #{@name}"
-  __add__: ($, other) -> $.throw 'TypeError', "Cannot operate (+) with #{@name}"
-  __sub__: ($, other) -> $.throw 'TypeError', "Cannot operate (-) with #{@name}"
-  __mul__: ($, other) -> $.throw 'TypeError', "Cannot operate (*) with #{@name}"
-  __div__: ($, other) -> $.throw 'TypeError', "Cannot operate (/) with #{@name}"
+  __add__: ($, other) -> JNaN
+  __sub__: ($, other) -> JNaN
+  __mul__: ($, other) -> JNaN
+  __div__: ($, other) -> JNaN
   toString: -> "Singleton(#{@name})"
 
 _JNull = clazz '_JNull', JSingleton, ->
@@ -245,6 +247,10 @@ _JUndefined = clazz '_JUndefined', JSingleton, ->
   valueOf: -> undefined
 JUndefined = @JUndefined = new _JUndefined()
 
+_JNaN = clazz '_JNaN', JSingleton, ->
+  valueOf: -> NaN
+JNaN = @JNaN = new _JNaN()
+
 ## SETUP
 
 unless joe.Node::interpret? then do =>
@@ -253,7 +259,7 @@ unless joe.Node::interpret? then do =>
 
   joe.Node::extend
     interpret: ($) ->
-      new EvalError "Dunno how to evaluate #{this}"
+      throw new Error "Dunno how to evaluate a #{this.constructor.name}."
 
   joe.Word::extend
     interpret: ($) ->
@@ -305,6 +311,10 @@ unless joe.Node::interpret? then do =>
         throw new Error "Implement me"
       else
         throw new Error "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
+
+  joe.Obj::extend
+    interpret: ($) ->
+      # XXX
 
   joe.Operation::extend
     interpret: ($, item, last) ->
