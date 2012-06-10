@@ -247,6 +247,8 @@ Soak = clazz 'Soak', Node, ->
 Obj = clazz 'Obj', Node, ->
   children:
     items:     [{type:Item}]
+  # NOTE Items may contain Heredocs.
+  # TODO consider filtering them out or organizing the heredocs
   init: (@items) ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
@@ -489,6 +491,8 @@ checkComma = ({beforeBlanks, beforeWS, afterBlanks, afterWS}, $) ->
     return null if checkSoftline(beforeWS, $) is null
   ','
 
+# a kinda newline that can only happen after an initial comma from a common container.
+# see _COMMA_NEWLINE
 checkCommaNewline = (ws, $) ->
   container = $.stack[$.stackLength-2]
   return null if not container.trailingComma
@@ -542,9 +546,12 @@ resetIndent = (ws, $) ->
                                       default:(_ '=' LINEEXPR)?", make AssignItem
         # RIGHT_RECURSIVE
         o OBJ_IMPL:                 " _INDENT? &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
-        i _OBJ_IMPL_ITEM:           " _ key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", make Item
+        i _OBJ_IMPL_ITEM: [
+          o                         " _ key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", make Item
+          o                         " HEREDOC "
+        ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
-        o INVOC_IMPL:               " _ func:ASSIGNABLE (? __|_OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA | _COMMA_NEWLINE) ", make Invocation
+        o INVOC_IMPL:               " _ func:ASSIGNABLE (? __|_OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) ", make Invocation
         i _OBJ_IMPL_INDENTED:       " _INDENT &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
 
         # COMPLEX

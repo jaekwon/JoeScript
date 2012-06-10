@@ -25,6 +25,22 @@ ERRORS = [ 'RangeError',
   'TypeError' ]
 ###
 
+printStack = (stack) ->
+  # code
+  for item, i in stack
+    itemCopy = _.clone item
+    delete itemCopy.this
+    delete itemCopy.func
+    console.log "#{ green pad right:12, "#{item.this.constructor.name}"
+               } #{ green item.this
+               }.#{ yellow item.func?._name
+               }(#{ white inspect itemCopy })"
+
+printScope = (scope, lvl=0) ->
+  for key, value of scope when key isnt '__parent__'
+    console.log "#{pad left:4, lvl} #{red pad left:10, key+':'} #{value}"
+  printScope scope.__parent__, lvl+1 if scope.__parent__?
+
 JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
   # Create a new context with a new scope.
@@ -41,48 +57,48 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   # node: If present, will push node to @codes
   #       before starting.
   exec: (node) ->
-    @code_push this:node, func:node.interpret
+    @push this:node, func:node.interpret
     last = undefined
     loop
       try
-        while code_item = @codes[@codes.length-1]
+        while item = @codes[@codes.length-1]
           console.log cyan "             -- step --"
-          func = code_item.func
-          that = code_item.this
-          @printInfo()
-          last = func.call that, this, code_item, last
+          func = item.func
+          that = item.this
+          @print()
+          last = func.call that, this, item, last
           console.log "             #{cyan "->"} #{last}"
         return last
       catch error
-        # Unwind to the last try block.
-        # We pop the @codes stack until we hit a try item,
+        # Unwind to the last Try item.
+        # We pop the @codes stack until we hit a Try item,
         # then set the error on the item.
-        throw new EvalError "Implement exceptions. For now... #{inspect @error}"
+        dontcare = @pop()
+        loop
+          item = @pop()
+          if not item
+            # just print error here
+            console.log "#{@error.name}: #{@error.message}"
+            # print stack
+            printStack @error.stack
+            return
+          if item.this instanceof joe.Try and not item.isHandlingError
+            item.isHandlingError = true
+            item.func = joe.Try::interpretCatch
+            return @error
+        throw new Error "should not happen"
 
   ### STACKS ###
 
-  code_pop: ->
-    @codes.pop()
+  pop: -> @codes.pop()
 
-  code_push: (item) ->
-    @codes.push item
+  push: (item) -> @codes.push item
 
-  printInfo: ->
-    # code
-    for item, i in @codes
-      itemCopy = _.clone item
-      delete itemCopy.this
-      delete itemCopy.func
-      console.log "#{ green pad right:12, "#{item.this.constructor.name}"
-                 } #{ green item.this
-                 }.#{ yellow item.func?._name
-                 }(#{ white inspect itemCopy })"
-    # scope
-    _printScope = (scope, lvl=0) ->
-      for key, value of scope when key isnt '__parent__'
-        console.log "#{pad left:4, lvl} #{red pad left:10, key+':'} #{value}"
-      _printScope scope.__parent__, lvl+1 if scope.__parent__?
-    _printScope @scope
+  copy: -> @codes[...]
+
+  print: ->
+    printStack @codes
+    printScope @scope
 
   ### SCOPE ###
 
@@ -123,9 +139,9 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
   ### FLOW CONTROL ###
 
-  throw: (error, message) ->
-    @error = error:error, message:message
-    throw EvalError "Error (#{error}) thrown"
+  throw: (name, message) ->
+    @error = name:name, message:message, stack:@copy()
+    throw EvalError "Error (#{name}) thrown"
 
   ### ACCESS CONTROL ###
 
@@ -241,48 +257,48 @@ unless joe.Node::interpret? then do =>
 
   joe.Word::extend
     interpret: ($) ->
-      $.code_pop()
+      $.pop()
       return $.scopeGet @word
 
   joe.Block::extend
     interpret: ($) ->
-      $.code_pop()
+      $.pop()
       $.scopeDefine variable, undefined for variable in @ownScope.variables if @ownScope?
       if (length=@lines.length) > 1
-        $.code_push this:@, func:joe.Block::interpretLoop, length:length, idx:0
+        $.push this:@, func:joe.Block::interpretLoop, length:length, idx:0
       firstLine = @lines[0]
-      $.code_push this:firstLine, func:firstLine.interpret
+      $.push this:firstLine, func:firstLine.interpret
       return
     interpretLoop: ($, item, last) ->
       assert.ok typeof item.idx is 'number'
       if item.idx is item.length-2
-        $.code_pop() # pop this
+        $.pop() # pop this
       nextLine = @lines[++item.idx]
-      $.code_push this:nextLine, func:nextLine.interpret
+      $.push this:nextLine, func:nextLine.interpret
       return
 
   joe.If::extend
     interpret: ($) ->
-      $.code_pop()
-      $.code_push this:this,  func:joe.If::interpret2
-      $.code_push this:@cond, func:@cond.interpret
+      $.pop()
+      $.push this:this,  func:joe.If::interpret2
+      $.push this:@cond, func:@cond.interpret
       return
     interpret2: ($, item, cond) ->
-      $.code_pop()
+      $.pop()
       if cond.__isTrue__?() or cond
-        $.code_push this:@block, func:@block.interpret
+        $.push this:@block, func:@block.interpret
       else if @elseBlock
-        $.code_push this:@elseblock, func:@elseBlock.interpret
+        $.push this:@elseblock, func:@elseBlock.interpret
       return
 
   joe.Assign::extend
     interpret: ($) ->
-      $.code_pop()
-      $.code_push this:this,    func:joe.Assign::interpret2
-      $.code_push this:@value,  func:@value.interpret
+      $.pop()
+      $.push this:this,    func:joe.Assign::interpret2
+      $.push this:@value,  func:@value.interpret
       return
     interpret2: ($, item, value) ->
-      $.code_pop()
+      $.pop()
       if isWord @target
         $.scopeUpdate @target, value
       else if @target instanceof joe.Index
@@ -299,24 +315,24 @@ unless joe.Node::interpret? then do =>
               item.stage = 'andGetRight'
             else
               item.stage = 'evaluateLeft'
-            $.code_push this:@left, func:@left.interpret
+            $.push this:@left, func:@left.interpret
           else
             item.stage = 'evaluateRight'
-            $.code_push this:@right, func:@right.interpret
+            $.push this:@right, func:@right.interpret
         when 'andGetRight'
           item.left = last
           item.stage = 'evaluateBoth'
-          $.code_push this:@right, func:@right.interpret
+          $.push this:@right, func:@right.interpret
         when 'evaluateLeft'
-          $.code_pop()
+          $.pop()
           throw new Error "Implement me"
           return result
         when 'evaluateRight'
-          $.code_pop()
+          $.pop()
           throw new Error "Implement me"
           return result
         when 'evaluateBoth'
-          $.code_pop()
+          $.pop()
           switch @op
             when '+' then return item.left.__add__ $, last
             when '-' then return item.left.__sub__ $, last
@@ -327,18 +343,18 @@ unless joe.Node::interpret? then do =>
 
   joe.Null::extend
     interpret: ($) ->
-      $.code_pop()
+      $.pop()
       return JNull
 
   joe.Undefined::extend
     interpret: ($) ->
-      $.code_pop()
+      $.pop()
       return JUndefined
 
   String::interpret = ($) ->
-      $.code_pop()
+      $.pop()
       return @valueOf()
 
   Number::interpret = ($) ->
-      $.code_pop()
+      $.pop()
       return @valueOf()
