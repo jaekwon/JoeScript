@@ -16,15 +16,14 @@ test = (code, cb) ->
   $ = new JRuntimeContext SYSTEM.user
   try
     res = $.exec node
-    res = res?.valueOf()
     cb.call $, res, node
   catch err
     console.log red "TEST ERROR:"
     console.log red err.stack
     process.exit(1)
 
-test "null", (it) -> assert.ok it is null
-test "undefined", (it) -> assert.ok it is undefined
+test "null", (it) -> assert.equal it, null
+test "undefined", (it) -> assert.equal it, undefined
 test "null * undefined", (it) -> assert.ok isNaN it
 test "{foo:1}", (it) -> assert.ok it instanceof Object and it.foo is 1
 

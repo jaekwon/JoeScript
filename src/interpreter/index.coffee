@@ -35,7 +35,7 @@ printStack = (stack) ->
     console.log "#{ green pad right:12, "#{i9n.this.constructor.name}"
                } #{ green i9n.this
                }.#{ yellow i9n.func?._name
-               }($, #{ white inspect i9nCopy }, _)"
+               }($, {#{ white _.keys(i9nCopy).join ','}}, _)"
 
 printScope = (scope, lvl=0) ->
   for key, value of scope when key isnt '__parent__'
@@ -70,7 +70,10 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
           @print()
           last = func.call that, this, i9n, last
           console.log "             #{cyan "->"} #{last}"
-        return last
+        if last?.__jsValue__?
+          return last.__jsValue__()
+        else
+          return last
       catch error
         # error should be an evalerror
         throw error if error not instanceof EvalError
@@ -207,6 +210,15 @@ JObject = @JObject = clazz 'JObject', ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
 
+  __jsValue__: ->
+    tmp = {}
+    for key, value of @data
+      if value?.__jsValue__?
+        tmp[key] = value.__jsValue__()
+      else
+        tmp[key] = value
+    return tmp
+
   toString: -> "[JObject]"
 
 SimpleIterator = clazz 'SimpleIterator', ->
@@ -243,15 +255,15 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   toString: -> "Singleton(#{@name})"
 
 _JNull = clazz '_JNull', JSingleton, ->
-  valueOf: -> null
+  __jsValue__: -> null
 JNull = @JNull = new _JNull()
 
 _JUndefined = clazz '_JUndefined', JSingleton, ->
-  valueOf: -> undefined
+  __jsValue__: -> undefined
 JUndefined = @JUndefined = new _JUndefined()
 
 _JNaN = clazz '_JNaN', JSingleton, ->
-  valueOf: -> NaN
+  __jsValue__: -> NaN
 JNaN = @JNaN = new _JNaN()
 
 ## SETUP
