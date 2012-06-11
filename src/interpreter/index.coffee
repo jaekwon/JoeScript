@@ -32,14 +32,14 @@ printStack = (stack) ->
     i9nCopy = _.clone i9n
     delete i9nCopy.this
     delete i9nCopy.func
-    console.log "#{ green pad right:12, "#{i9n.this?.constructor.name}"
-               } #{ green i9n.this
+    console.log "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
                }.#{ yellow i9n.func?._name
-               }($, {#{ white _.keys(i9nCopy).join ','}}, _)"
+           }($, {#{ white _.keys(i9nCopy).join ','
+          }}, _) #{ black escape i9n.this }"
 
 printScope = (scope, lvl=0) ->
   for key, value of scope when key isnt '__parent__'
-    console.log "#{black pad left:4, lvl}#{red pad right:10, key}#{ cyan ':'} #{value}"
+    console.log "#{black pad left:4, lvl}#{red pad right:10, key}#{ blue ':'} #{value}"
   printScope scope.__parent__, lvl+1 if scope.__parent__?
 
 JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
@@ -64,7 +64,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
     loop
       try
         while i9n = @i9ns[@i9ns.length-1]
-          console.log cyan "             -- step --"
+          console.log blue "\n             -- step --"
           func = i9n.func
           that = i9n.this
           # validation
@@ -74,7 +74,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
           if not that?
             throw new Error "Last i9n.this undefined!"
           last = func.call that, this, i9n, last
-          console.log "             #{cyan "->"} #{last}"
+          console.log "             #{blue "return"} #{last}"
         if last?.__jsValue__?
           return last.__jsValue__()
         else
@@ -346,10 +346,9 @@ unless joe.Node::interpret? then do =>
           i9n.func = joe.Obj::interpretKV
           i9n.key = key.toString()
           $.push this:value, func:value.interpret
-        else if key instanceof joe.Str
+        else
           i9n.func = joe.Obj::interpretKey
           $.push this:key, func:key.interpret
-        else throw new Error "Dunno how to handle object key of type #{key.constructor.name}"
         return
       else
         $.pop()
@@ -420,6 +419,24 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return JUndefined
+
+  joe.Index::extend
+    interpret: ($, i9n) ->
+      i9n.func = joe.Index::interpretTarget
+      $.push this:@obj, func:@obj.interpret
+      return
+    interpretTarget: ($, i9n, obj) ->
+      if @attr instanceof joe.Word
+        $.pop()
+        return obj.__get__ $, @attr
+      else
+        i9n.obj = obj
+        i9n.func = joe.Index::interpretKey
+        $.push this:@attr, func:@attr.interpret
+        return
+    interpretKey: ($, i9n, key) ->
+      $.pop()
+      return i9n.obj.__get__ $, key
 
   clazz.extend String,
     interpret: ($) ->
