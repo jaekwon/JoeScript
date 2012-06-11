@@ -8,7 +8,9 @@ joe = require('joeson/src/joescript').NODES
 
 # A heirarchical lexical scope structure.
 @LScope = LScope = clazz 'LScope', ->
-  init: (@parent) ->
+  init: (parent) ->
+    # this is to make scopes and nodes non-circular.
+    Object.defineProperty this, 'parent', value:parent, enumerable:no
     @variables  = [] #
     @parameters = []
     @children   = [] # child LScopes

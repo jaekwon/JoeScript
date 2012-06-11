@@ -17,15 +17,7 @@ joe = require('joeson/src/joescript').NODES
 {pad, escape} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 
-###
-ERRORS = [ 'RangeError',
-  'EvalError',
-  'SyntaxError',
-  'URIError',
-  'ReferenceError',
-  'Error',
-  'TypeError' ]
-###
+# ERRORS = [ 'RangeError', 'EvalError', 'SyntaxError', 'URIError', 'ReferenceError', 'Error', 'TypeError' ]
 
 printStack = (stack) ->
   for i9n, i in stack
@@ -39,7 +31,7 @@ printStack = (stack) ->
 
 printScope = (scope, lvl=0) ->
   for key, value of scope when key isnt '__parent__'
-    console.log "#{black pad left:4, lvl}#{red pad right:10, key}#{ blue ':'} #{value}"
+    console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{value}"
   printScope scope.__parent__, lvl+1 if scope.__parent__?
 
 JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
@@ -109,8 +101,8 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   copy: -> @i9ns[...]
 
   print: ->
-    printStack @i9ns
     printScope @scope
+    printStack @i9ns
 
   ### SCOPE ###
 
@@ -437,6 +429,16 @@ unless joe.Node::interpret? then do =>
     interpretKey: ($, i9n, key) ->
       $.pop()
       return i9n.obj.__get__ $, key
+
+  joe.Func::extend
+    interpret: ($, i9n) ->
+      $.pop()
+      return
+
+  joe.Invocation::extend
+    interpret: ($, i9n) ->
+      $.pop()
+      return
 
   clazz.extend String,
     interpret: ($) ->
