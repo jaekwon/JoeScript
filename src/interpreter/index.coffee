@@ -34,7 +34,7 @@ printStack = (stack) ->
     console.log "#{ green pad right:12, "#{item.this.constructor.name}"
                } #{ green item.this
                }.#{ yellow item.func?._name
-               }(#{ white inspect itemCopy })"
+               }($, #{ white inspect itemCopy }, _)"
 
 printScope = (scope, lvl=0) ->
   for key, value of scope when key isnt '__parent__'
@@ -59,6 +59,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   exec: (node) ->
     @push this:node, func:node.interpret
     last = undefined
+    # Main execution loop!
     loop
       try
         while item = @codes[@codes.length-1]
@@ -305,6 +306,7 @@ unless joe.Node::interpret? then do =>
         throw new Error "Implement me"
       else
         throw new Error "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
+      return
 
   joe.Operation::extend
     interpret: ($, item, last) ->
