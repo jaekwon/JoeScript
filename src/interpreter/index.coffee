@@ -32,14 +32,14 @@ printStack = (stack) ->
     i9nCopy = _.clone i9n
     delete i9nCopy.this
     delete i9nCopy.func
-    console.log "#{ green pad right:12, "#{i9n.this.constructor.name}"
+    console.log "#{ green pad right:12, "#{i9n.this?.constructor.name}"
                } #{ green i9n.this
                }.#{ yellow i9n.func?._name
                }($, {#{ white _.keys(i9nCopy).join ','}}, _)"
 
 printScope = (scope, lvl=0) ->
   for key, value of scope when key isnt '__parent__'
-    console.log "#{pad left:4, lvl} #{red pad left:10, key+':'} #{value}"
+    console.log "#{black pad left:4, lvl}#{red pad right:10, key}#{ cyan ':'} #{value}"
   printScope scope.__parent__, lvl+1 if scope.__parent__?
 
 JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
@@ -67,7 +67,12 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
           console.log cyan "             -- step --"
           func = i9n.func
           that = i9n.this
+          # validation
           @print()
+          if not func?
+            throw new Error "Last i9n.func undefined!"
+          if not that?
+            throw new Error "Last i9n.this undefined!"
           last = func.call that, this, i9n, last
           console.log "             #{cyan "->"} #{last}"
         if last?.__jsValue__?
@@ -127,7 +132,8 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   # Set a name/value pair on the topmost scope of the chain
   # Error if name already exists... all updates should happen w/ scopeUpdate.
   scopeDefine: (name, value) ->
-    assert.ok not `name in this.scope`, "Already defined in scope: #{name}"
+    alreadyDefined = `name in this.scope` # coffeescript but, can't say "not `...`"
+    assert.ok not alreadyDefined, "Already defined in scope: #{name}"
     @scope[name] = value
     return
 
@@ -309,7 +315,7 @@ unless joe.Node::interpret? then do =>
       if cond.__isTrue__?() or cond
         $.push this:@block, func:@block.interpret
       else if @elseBlock
-        $.push this:@elseblock, func:@elseBlock.interpret
+        $.push this:@elseBlock, func:@elseBlock.interpret
       return
 
   joe.Assign::extend
@@ -326,7 +332,7 @@ unless joe.Node::interpret? then do =>
         throw new Error "Implement me"
       else
         throw new Error "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
-      return
+      return value
 
   joe.Obj::extend
     interpret: ($, i9n) ->
@@ -415,10 +421,32 @@ unless joe.Node::interpret? then do =>
       $.pop()
       return JUndefined
 
-  String::interpret = ($) ->
-    $.pop()
-    return @valueOf()
+  clazz.extend String,
+    interpret: ($) ->
+      $.pop()
+      return @valueOf()
+    __get__: ($, key) -> # pass
+    __set__: ($, key, value) -> # pass
+    __keys__:       ($) -> $.throw 'TypeError', "Object.keys called on non-object"
+    __iterator__:   ($) -> new SimpleIterator @valueOf()
+    __str__:        ($) -> @valueOf()
+    __add__: ($, other) -> @valueOf() + other.__str__()
+    __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
+    __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
+    __div__: ($, other) -> $.throw 'TypeError', "Can't divide strings yet"
 
-  Number::interpret = ($) ->
-    $.pop()
-    return @valueOf()
+  clazz.extend Number,
+    interpret: ($) ->
+      $.pop()
+      return @valueOf()
+    __str__:        ($) -> ''+@valueOf()
+    __num__:        ($) -> @valueOf()
+    __add__: ($, other) -> @valueOf() + other.__num__()
+    __sub__: ($, other) -> @valueOf() - other.__num__()
+    __mul__: ($, other) -> @valueOf() * other.__num__()
+    __div__: ($, other) -> @valueOf() / other.__num__()
+
+  clazz.extend Boolean,
+    interpret: ($) ->
+      $.pop()
+      return @valueOf()

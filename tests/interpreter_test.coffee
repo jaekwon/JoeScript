@@ -1,6 +1,6 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
-assert = require 'assert'
+{equal, ok} = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
 {JRuntimeContext, SYSTEM} = require 'joeson/src/interpreter'
@@ -16,30 +16,31 @@ test = (code, cb) ->
   $ = new JRuntimeContext SYSTEM.user
   try
     res = $.exec node
-    cb.call $, res, node
+    cb.call context:$, it:res, node:node
   catch err
     console.log red "TEST ERROR:"
     console.log red err.stack
     process.exit(1)
 
-test "null", (it) -> assert.equal it, null
-test "undefined", (it) -> assert.equal it, undefined
-test "null * undefined", (it) -> assert.ok isNaN it
-test "{foo:1}", (it) -> assert.ok it instanceof Object and it.foo is 1
+test ' null ',                            -> equal @it, null
+test ' undefined ',                       -> equal @it, undefined
+test ' null * undefined ',                -> ok isNaN @it
+test ' {} ',                              -> ok @it instanceof Object and _.keys(@it).length is 0
+test ' {foo:1} ',                         -> ok @it instanceof Object and _.keys(@it).length is 1 and @it.foo is 1
+test ' a = {foo:1}; a.foo ',              -> equal @it, 1
+test ' if true then 1 else 2 ',           -> equal @it, 1
+test ' if false then 1 else 2 ',          -> equal @it, 2
+test ' a = "bar" ',                       -> equal @it, 'bar'
+test ' a = "bar"; a ',                    -> equal @it, 'bar'
+test '''
+a = 'foo'
+b = 'bar'
+a + b
+''',                                      -> equal @it, 'foobar'
+test ' 1 + 2 * 3 + 4 ',                   -> equal @it, 11
 
 ###
 test "Array", Array
-test """if true then 1 else 2""", 1
-test """if false then 1 else 2""", 2
-test """a = 'bar'""", 'bar'
-test """a = 'foo'
-b = 'bar'
-a + b""", 'foobar'
-test """1 + 2 * 3 + 4""", 11
-test """{}""", (it) -> it instanceof Object and _.keys(it).length is 0
-test """{foo:1}""", (it) -> it instanceof Object and _.keys(it).length is 1
-test """a = {foo:1}
-a.foo""", 1
 test """
 foo = (bar) -> return bar + 1
 foo(1)""", 2
