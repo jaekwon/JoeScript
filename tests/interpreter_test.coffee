@@ -38,13 +38,13 @@ b = 'bar'
 a + b
 ''',                                      -> equal @it, 'foobar'
 test ' 1 + 2 * 3 + 4 ',                   -> equal @it, 11
+test '''
+foo = (bar) -> return bar + 1
+foo(1)
+''',                                      -> equal @it, 2
 
 ###
 test "Array", Array
-test """
-foo = (bar) -> return bar + 1
-foo(1)""", 2
-test """
 outer = (foo) ->
   inner = ->
     return foo + 1
