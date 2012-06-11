@@ -5,6 +5,8 @@ Concerns:
                  simultaneous amongst processes.)
   * performance
   * networking  (future)
+
+i9n: short for instruction
 ###
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
@@ -13,7 +15,7 @@ assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
 {pad, escape} = require 'joeson/lib/helpers'
-{extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
+{extend, isVariable} = require('joeson/src/joescript').HELPERS
 
 ###
 ERRORS = [ 'RangeError',
@@ -26,15 +28,14 @@ ERRORS = [ 'RangeError',
 ###
 
 printStack = (stack) ->
-  # code
-  for item, i in stack
-    itemCopy = _.clone item
-    delete itemCopy.this
-    delete itemCopy.func
-    console.log "#{ green pad right:12, "#{item.this.constructor.name}"
-               } #{ green item.this
-               }.#{ yellow item.func?._name
-               }($, #{ white inspect itemCopy }, _)"
+  for i9n, i in stack
+    i9nCopy = _.clone i9n
+    delete i9nCopy.this
+    delete i9nCopy.func
+    console.log "#{ green pad right:12, "#{i9n.this.constructor.name}"
+               } #{ green i9n.this
+               }.#{ yellow i9n.func?._name
+               }($, #{ white inspect i9nCopy }, _)"
 
 printScope = (scope, lvl=0) ->
   for key, value of scope when key isnt '__parent__'
@@ -51,10 +52,10 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   init: (@user, @scope={}) ->
     assert.ok @user instanceof JObject, "A JRuntimeContext must have an associated user object."
     if @user is SYSTEM.user then @will = -> yes
-    @codes = [] # code stack
+    @i9ns = [] # i9n stack
 
   # Run to completion, synchronously.
-  # node: If present, will push node to @codes
+  # node: If present, will push node to @i9ns
   #       before starting.
   exec: (node) ->
     @push this:node, func:node.interpret
@@ -62,43 +63,45 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
     # Main execution loop!
     loop
       try
-        while item = @codes[@codes.length-1]
+        while i9n = @i9ns[@i9ns.length-1]
           console.log cyan "             -- step --"
-          func = item.func
-          that = item.this
+          func = i9n.func
+          that = i9n.this
           @print()
-          last = func.call that, this, item, last
+          last = func.call that, this, i9n, last
           console.log "             #{cyan "->"} #{last}"
         return last
       catch error
-        # Unwind to the last Try item.
-        # We pop the @codes stack until we hit a Try item,
-        # then set the error on the item.
+        # error should be an evalerror
+        throw error if error not instanceof EvalError
+        # Unwind to the last Try i9n.
+        # We pop the @i9ns stack until we hit a Try i9n,
+        # then set the error on the i9n.
         dontcare = @pop()
         loop
-          item = @pop()
-          if not item
+          i9n = @pop()
+          if not i9n
             # just print error here
             console.log "#{@error.name}: #{@error.message}"
             # print stack
             printStack @error.stack
             return
-          if item.this instanceof joe.Try and not item.isHandlingError
-            item.isHandlingError = true
-            item.func = joe.Try::interpretCatch
+          if i9n.this instanceof joe.Try and not i9n.isHandlingError
+            i9n.isHandlingError = true
+            i9n.func = joe.Try::interpretCatch
             return @error
         throw new Error "should not happen"
 
   ### STACKS ###
 
-  pop: -> @codes.pop()
+  pop: -> @i9ns.pop()
 
-  push: (item) -> @codes.push item
+  push: (i9n) -> @i9ns.push i9n
 
-  copy: -> @codes[...]
+  copy: -> @i9ns[...]
 
   print: ->
-    printStack @codes
+    printStack @i9ns
     printScope @scope
 
   ### SCOPE ###
@@ -180,6 +183,7 @@ JObject = @JObject = clazz 'JObject', ->
   # acl:  A JArray of JAccessControlItems
   #       NOTE: the acl has its own acl!
   init: ({@creator, @data, @acl}) ->
+    @data ?= {}
     assert.ok @creator? and @creator instanceof JObject,
                         "JObject.init requires 'creator' (JObject)."
                         # Everything has a creator. Wait a minute...
@@ -232,10 +236,10 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
                          $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
   __keys__: ($) ->       $.throw 'TypeError', "Cannot get keys of #{@name}"
   __iterator__: ($) ->   $.throw 'TypeError', "Cannot get iterator of #{@name}"
-  __add__: ($, other) -> $.throw 'TypeError', "Cannot operate (+) with #{@name}"
-  __sub__: ($, other) -> $.throw 'TypeError', "Cannot operate (-) with #{@name}"
-  __mul__: ($, other) -> $.throw 'TypeError', "Cannot operate (*) with #{@name}"
-  __div__: ($, other) -> $.throw 'TypeError', "Cannot operate (/) with #{@name}"
+  __add__: ($, other) -> JNaN
+  __sub__: ($, other) -> JNaN
+  __mul__: ($, other) -> JNaN
+  __div__: ($, other) -> JNaN
   toString: -> "Singleton(#{@name})"
 
 _JNull = clazz '_JNull', JSingleton, ->
@@ -246,6 +250,10 @@ _JUndefined = clazz '_JUndefined', JSingleton, ->
   valueOf: -> undefined
 JUndefined = @JUndefined = new _JUndefined()
 
+_JNaN = clazz '_JNaN', JSingleton, ->
+  valueOf: -> NaN
+JNaN = @JNaN = new _JNaN()
+
 ## SETUP
 
 unless joe.Node::interpret? then do =>
@@ -254,7 +262,7 @@ unless joe.Node::interpret? then do =>
 
   joe.Node::extend
     interpret: ($) ->
-      new EvalError "Dunno how to evaluate #{this}"
+      throw new Error "Dunno how to evaluate a #{this.constructor.name}."
 
   joe.Word::extend
     interpret: ($) ->
@@ -270,11 +278,11 @@ unless joe.Node::interpret? then do =>
       firstLine = @lines[0]
       $.push this:firstLine, func:firstLine.interpret
       return
-    interpretLoop: ($, item, last) ->
-      assert.ok typeof item.idx is 'number'
-      if item.idx is item.length-2
+    interpretLoop: ($, i9n, last) ->
+      assert.ok typeof i9n.idx is 'number'
+      if i9n.idx is i9n.length-2
         $.pop() # pop this
-      nextLine = @lines[++item.idx]
+      nextLine = @lines[++i9n.idx]
       $.push this:nextLine, func:nextLine.interpret
       return
 
@@ -284,7 +292,7 @@ unless joe.Node::interpret? then do =>
       $.push this:this,  func:joe.If::interpret2
       $.push this:@cond, func:@cond.interpret
       return
-    interpret2: ($, item, cond) ->
+    interpret2: ($, i9n, cond) ->
       $.pop()
       if cond.__isTrue__?() or cond
         $.push this:@block, func:@block.interpret
@@ -298,9 +306,9 @@ unless joe.Node::interpret? then do =>
       $.push this:this,    func:joe.Assign::interpret2
       $.push this:@value,  func:@value.interpret
       return
-    interpret2: ($, item, value) ->
+    interpret2: ($, i9n, value) ->
       $.pop()
-      if isWord @target
+      if isVariable @target
         $.scopeUpdate @target, value
       else if @target instanceof joe.Index
         throw new Error "Implement me"
@@ -308,22 +316,64 @@ unless joe.Node::interpret? then do =>
         throw new Error "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
       return
 
+  joe.Obj::extend
+    interpret: ($, i9n) ->
+      length = @items.length
+      if length > 0
+        {key, value} = @items[0]
+        i9n.obj = new JObject(creator:$.user)
+        i9n.idx = 0
+        i9n.length = @items.length
+        if key instanceof joe.Word
+          i9n.func = joe.Obj::interpretKV
+          i9n.key = key.toString()
+          $.push this:value, func:value.interpret
+        else if key instanceof joe.Str
+          i9n.func = joe.Obj::interpretKey
+          $.push this:key, func:key.interpret
+        else throw new Error "Dunno how to handle object key of type #{key.constructor.name}"
+        return
+      else
+        $.pop()
+        return new JObject(creator:$.user)
+    interpretKey: ($, i9n, key) ->
+      i9n.key = key
+      i9n.func = joe.Obj::interpretKV
+      return
+    interpretKV: ($, i9n, value) ->
+      i9n.obj.__set__($, i9n.key, value)
+      idx = i9n.idx + 1
+      if idx < idx.length
+        {key, value} = @items[idx]
+        i9n.idx = idx
+        if key instanceof joe.Word
+          i9n.key = key
+          $.push this:value, func:value.interpret
+        else if key instanceof joe.Str
+          i9n.func = joe.Obj::interpretKey
+          $.push this:key, func:key.interpret
+        else throw new Error "Dunno how to handle object key of type #{key.constructor.name}"
+        return
+      else
+        $.pop()
+        return i9n.obj
+
   joe.Operation::extend
-    interpret: ($, item, last) ->
-      switch item.stage
+    interpret: ($, i9n, last) ->
+      switch i9n.stage
         when undefined
           if @left?
             if @right?
-              item.stage = 'andGetRight'
+              i9n.stage = 'andGetRight'
             else
-              item.stage = 'evaluateLeft'
+              i9n.stage = 'evaluateLeft'
             $.push this:@left, func:@left.interpret
           else
-            item.stage = 'evaluateRight'
+            i9n.stage = 'evaluateRight'
             $.push this:@right, func:@right.interpret
         when 'andGetRight'
-          item.left = last
-          item.stage = 'evaluateBoth'
+          i9n.left = last
+          i9n.stage = 'evaluateBoth'
           $.push this:@right, func:@right.interpret
         when 'evaluateLeft'
           $.pop()
@@ -336,10 +386,10 @@ unless joe.Node::interpret? then do =>
         when 'evaluateBoth'
           $.pop()
           switch @op
-            when '+' then return item.left.__add__ $, last
-            when '-' then return item.left.__sub__ $, last
-            when '*' then return item.left.__mul__ $, last
-            when '/' then return item.left.__div__ $, last
+            when '+' then return i9n.left.__add__ $, last
+            when '-' then return i9n.left.__sub__ $, last
+            when '*' then return i9n.left.__mul__ $, last
+            when '/' then return i9n.left.__div__ $, last
             else throw new Error "Unexpected operation #{@op}"
       return
 
@@ -354,9 +404,9 @@ unless joe.Node::interpret? then do =>
       return JUndefined
 
   String::interpret = ($) ->
-      $.pop()
-      return @valueOf()
+    $.pop()
+    return @valueOf()
 
   Number::interpret = ($) ->
-      $.pop()
-      return @valueOf()
+    $.pop()
+    return @valueOf()

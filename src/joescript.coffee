@@ -8,9 +8,8 @@ path      = require 'path'
 
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
-isWord = (thing) -> thing instanceof Word or typeof thing is 'string'
-isVariable = (thing) -> isWord thing or thing instanceof Undetermined
-@HELPERS = {extend, isWord, isVariable}
+isVariable = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
+@HELPERS = {extend, isVariable}
 
 indent = (indent) -> Array(indent+1).join('  ')
 
@@ -54,12 +53,7 @@ Node = clazz 'Node', ->
   defineProperty: (name, data) -> Object.defineProperty @, name, data
 
   serialize: (_indent=0) ->
-    valueStr = if isWord this
-        ''+this
-      else if typeof this in ['number', 'string', 'boolean']
-        ''+this
-      else
-        ''
+    valueStr = this.toString()
     if @ownScope?.variables?.length > 0
       valueStr += yellow (@ownScope.variables.join ' ')
     str = "#{green @constructor.name} #{valueStr}\n"
@@ -200,7 +194,7 @@ Invocation = clazz 'Invocation', Node, ->
     func:       {type:Node, value:yes}
     params:    [{type:Node, value:yes}]
   init: ({@func, @params}) ->
-    @type = if isWord(@func) and ''+@func is 'new' then 'new' else undefined
+    @type = if @func instanceof Word and @func.word is 'new' then 'new' else undefined
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->
@@ -224,7 +218,7 @@ Index = clazz 'Index', Node, ->
     obj:        {type:Node, value:yes}
     attr:       {type:Node, value:yes}
   init: ({obj, attr, type}) ->
-    type ?= if isWord attr then '.' else '['
+    type ?= if attr instanceof Word then '.' else '['
     if type is '::'
       if attr?
         obj = Index obj:obj, attr:'prototype', type:'.'
@@ -330,7 +324,7 @@ AssignObj = clazz 'AssignObj', Node, ->
     names = []
     for item in @items
       target = item.target ? item.key
-      if isWord target
+      if target instanceof Word
         names.push target
       else if target instanceof AssignObj
         extend names, target.targetNames
@@ -351,7 +345,7 @@ AssignObj = clazz 'AssignObj', Node, ->
       target   = item.target ? item.key
       key      = item.key ? i
       default_ = item.default
-      if isWord target or target instanceof Index
+      if target instanceof Word or target instanceof Index
         block.lines.push Assign target:target, value:Index(source, key)
         block.lines.push Assign target:target, value:default_, type:'?='
       else if target instanceof AssignObj
