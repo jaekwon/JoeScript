@@ -34,10 +34,14 @@ printScope = (scope, lvl=0) ->
     console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{value}"
   printScope scope.__parent__, lvl+1 if scope.__parent__?
 
+# A runtime context. (Represents a thread/process of execution)
+# user:     Owner of the process
+# scope:    All the local variables, a dual of the lexical scope.
+# i9ns:     Instructions, a "stack" that also stores intermediate data.
+# error:    Last thrown error
 JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
-  # Create a new context with a new scope.
-  # e.g.
+  # Usage..
   #   scope = {}
   #   scope.global = scope
   #   new JRuntimeContext user, scope
@@ -106,12 +110,6 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
   ### SCOPE ###
 
-  # Spawn a child context with its own scope
-  # thiz:   Will be bound to the upper scope frame's
-  #         'this' variable.
-  scopeSpawn: (thiz) ->
-    return {__parent__:@scope, this:thiz}
-
   #
   scopeGet: (name) ->
     scope = @scope
@@ -162,11 +160,13 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 # A function gets bound to the runtime context upon declaration.
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', ->
 
-  # func:    The joe.Func node
-  # context: The context in which func was constructed.
-  init: ({@func, @context}) ->
+  # func:    The joe.Func node.
+  # creator: The owner of the process that declared above function.
+  # scope:   Runtime scope of process that declares above function.
+  init: ({@func, @creator, @scope}) ->
     assert.ok @func instanceof joe.Func, "func not Func"
-    assert.ok @context instanceof JRuntimeContext, "context not JRuntimeContext"
+    assert.ok @scope? and @scope instanceof Object, "scope not an object"
+    assert.ok @creator instanceof joe.JUser, "creator not JUser"
 
   toString: -> "[JBoundFunc]"
 
@@ -433,12 +433,54 @@ unless joe.Node::interpret? then do =>
   joe.Func::extend
     interpret: ($, i9n) ->
       $.pop()
-      return
+      return new JBoundFunc func:this, creator:$.user, scope:$.scope
 
   joe.Invocation::extend
     interpret: ($, i9n) ->
-      $.pop()
+      i9n.oldScope = $.scope # remember
+      # interpret the func
+      i9n.func = joe.Invocation::interpretFunc
+      $.push this:@func, func:@func.interpret
       return
+    interpretFunc: ($, i9n, func) ->
+      # interpret the parameters
+      length = @params.length
+      if lenght > 0
+        i9n.func = joe.Invocation::interpretParams
+        i9n.idx = 0
+        i9n.length = @params.length
+        i9n.params = new Array(length)
+        param = @params[0]
+        $.push this:param, func:param.interpret
+        return
+      else
+        i9n.func = joe.Invocation::interpretCall
+        return
+    interpretParams: ($, i9n, param) ->
+      i9n.params[i9n.idx] = param
+      if i9n.idx < i9n.length - 1
+        i9n.idx = i9n.idx + 1
+        param = @params[i9n.idx]
+        $.push this:param, func:param.interpret
+        return
+      else
+        i9n.func = joe.Invocation::interpretCall
+        return
+    interpretCall: ($, i9n) ->
+      i9n.func = joe.Invocation::interpretFinish
+      i9n.oldScope = $.scope
+      $.scope = {__parent__:$.scope} # spawn new scope.
+      $.push this:@func.block, func:@func.block.interpret
+      $.push this:@func.params, func:@func.params.interpret
+      return i9n.params # the rhs of an AssignObj or AssignList
+    interpretFinish: ($, i9n, result) ->
+      $.pop()
+      $.scope = i9n.oldScope # recall old scope
+      return result
+
+  joe.AssignObj::extend
+    interpret: ($, i9n, rhs)
+      for item, xxxx
 
   clazz.extend String,
     interpret: ($) ->
