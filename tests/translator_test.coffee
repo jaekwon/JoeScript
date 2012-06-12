@@ -3,7 +3,7 @@
 assert = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
-jsx = require './javascript'
+jsx = require 'joeson/src/translators/javascript'
 
 console.log blue "\n-= translator test =-"
 
@@ -52,3 +52,7 @@ test """
 loop
   a = b
 """, 'var a; while(true) { a = b }'
+test """
+{foo,bar} = {foo:1, bar:2}
+foo + bar
+""", ''

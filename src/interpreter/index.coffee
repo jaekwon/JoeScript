@@ -479,8 +479,8 @@ unless joe.Node::interpret? then do =>
       return result
 
   joe.AssignObj::extend
-    interpret: ($, i9n, rhs)
-      for item, xxxx
+    interpret: ($, i9n, rhs) ->
+      #for item, xxxx
 
   clazz.extend String,
     interpret: ($) ->

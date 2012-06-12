@@ -269,6 +269,10 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       close = if @type is '[' then ']' else ''
       "#{js @obj}#{@type}#{js @attr}#{close}"
 
+  joe.Obj::extend
+    toJavascript: ->
+      xxx
+
 @translate = translate = (node) ->
   # console.log node.serialize() # print before transformations...
   # install plugin

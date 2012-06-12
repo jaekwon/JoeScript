@@ -7,7 +7,7 @@ task 'build', ->
 task 'test', ->
   run 'coffee tests/joeson_test.coffee', ->
     run 'coffee tests/joescript_test.coffee', ->
-      run 'coffee src/translators/test.coffee', ->
+      run 'coffee tests/translator_test.coffee', ->
         run 'coffee tests/interpreter_test.coffee', ->
           console.log "All tests OK"
 
