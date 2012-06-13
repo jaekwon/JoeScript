@@ -272,6 +272,9 @@ function foo,
   bar
 baz
 """, 'function(foo,bar); baz'
+test """
+foo[bar] = 2
+""", 'foo[bar] = (2)'
 
 
 console.log blue "\n-= parse project files =-"

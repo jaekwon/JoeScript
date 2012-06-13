@@ -612,7 +612,17 @@ resetIndent = (ws, $) ->
   ] # end LINE
 
   # ASSIGNABLE
-  i ASSIGNABLE:           " ASSIGNABLE_VALUE | SYMBOL | PROPERTY | ASSIGN_LIST | ASSIGN_OBJ "
+  # TODO I want to do the following,
+  #   i ASSIGNABLE:           " SYMBOL | PROPERTY | ASSIGN_LIST | ASSIGN_OBJ | ASSIGNABLE_VALUE "
+  # where ASSIGNABLE_VALUE are the assignable left-recursive values like SLIDE or INDEX...
+  # This would be more restrictive, and so better in that sense.
+  # Taken from the top of src/joeson...
+  # > Unfortunately, there is an issue with with the implementation of Joeson where "transient" cached values
+  # > like those derived from a loopify iteration, that do not get wiped out of the cache between iterations.
+  # > What we want is a way to "taint" the cache results, and wipe all the tainted results...
+  # > We could alternatively wipe out all cache items for a given position, but this proved to be
+  # > significantly slower.
+  i ASSIGNABLE:           " ASSIGN_LIST | ASSIGN_OBJ | VALUE "
   i PARAM_LIST:           " _ '(' &:ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
   i ASSIGN_LIST:          " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
   i ASSIGN_LIST_ITEM:     " _ target:(
@@ -629,12 +639,10 @@ resetIndent = (ws, $) ->
 
   i VALUE: [
     # left recursive
-    o ASSIGNABLE_VALUE: [
-      o SLICE:        " obj:VALUE range:RANGE ", make Slice
-      o INDEX0:       " obj:VALUE type:'['  attr:LINEEXPR _ ']' ", make Index
-      o INDEX1:       " obj:VALUE type:'.'  attr:WORD ", make Index
-      o PROTO:        " obj:VALUE type:'::' attr:WORD? ", make Index
-    ]
+    o SLICE:        " obj:VALUE range:RANGE ", make Slice
+    o INDEX0:       " obj:VALUE type:'['  attr:LINEEXPR _ ']' ", make Index
+    o INDEX1:       " obj:VALUE type:'.'  attr:WORD ", make Index
+    o PROTO:        " obj:VALUE type:'::' attr:WORD? ", make Index
     o INVOC_EXPL:   " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
     o SOAK:         " VALUE '?' ", make Soak
 
