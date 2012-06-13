@@ -65,3 +65,7 @@
   else if left > str.length
     return str+Array(left-str.length+1).join(' ')
   return str
+
+@randid = (len=12) ->
+  possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''

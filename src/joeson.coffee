@@ -10,7 +10,7 @@ _ = require 'underscore'
 {CodeStream} = require 'joeson/src/codestream'
 {pad, escape} = require 'joeson/lib/helpers'
 
-trace =
+@trace = trace =
   #filterLine: 299
   stack:      no
   loop:       no
@@ -538,11 +538,19 @@ _loopStack = [] # trace stack
         # call prepare on all nodes
         node.prepare()
 
-  parse$: (code, {returnContext,env}={}) ->
+  parse$: (code, {returnContext,env,debug}={}) ->
     returnContext ?= no
     code = CodeStream code if code not instanceof CodeStream
     $ = ParseContext code:code, grammar:this, env:env
+
+    # janky
+    if debug
+      oldTrace = _.clone trace
+      trace.stack = yes
     $.result = @rank.parse $
+    if debug
+      trace = oldTrace
+
     if $.code.pos isnt $.code.text.length
       # find the maximum parsed entity
       maxPos = $.code.pos

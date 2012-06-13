@@ -53,6 +53,12 @@ loop
   a = b
 """, 'var a; while(true) { a = b }'
 test """
-{foo,bar} = {foo:1, bar:2}
+temp = {foo:1, bar:2}
+{foo,bar} = temp
 foo + bar
-""", ''
+""", """
+var temp, foo, bar;
+temp = {"foo": 1, "bar": 2};
+foo = temp.foo;
+bar = temp.bar;
+(foo + bar)"""

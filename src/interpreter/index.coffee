@@ -306,8 +306,8 @@ unless joe.Node::interpret? then do =>
       $.pop()
       if cond.__isTrue__?() or cond
         $.push this:@block, func:@block.interpret
-      else if @elseBlock
-        $.push this:@elseBlock, func:@elseBlock.interpret
+      else if @else
+        $.push this:@else, func:@else.interpret
       return
 
   joe.Assign::extend
@@ -480,7 +480,7 @@ unless joe.Node::interpret? then do =>
 
   joe.AssignObj::extend
     interpret: ($, i9n, rhs) ->
-      #for item, xxxx
+      # for item, xxxx
 
   clazz.extend String,
     interpret: ($) ->

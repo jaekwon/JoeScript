@@ -5,6 +5,7 @@ _         = require 'underscore'
 
 joe = require('joeson/src/joescript').NODES
 {extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
+{randid}  = require 'joeson/lib/helpers'
 
 # A heirarchical lexical scope structure.
 @LScope = LScope = clazz 'LScope', ->
@@ -87,3 +88,13 @@ joe = require('joeson/src/joescript').NODES
       @withChildren (child, parent) ->
         child.installScope?(create:no, parent:parent)
       return this
+
+  joe.Undetermined::extend
+    word$:
+      get: ->
+        return "[Undetermined #{@prefix}]" if not @scope?
+        loop
+          _word = @prefix + randid(12) # lol.
+          if not @scope.isDeclared(_word) and not @scope.willDeclare(_word)
+            @word=_word
+            return _word

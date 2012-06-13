@@ -10,42 +10,74 @@ path      = require 'path'
 extend = (dest, source) -> dest.push x for x in source
 isVariable = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
 @HELPERS = {extend, isVariable}
-
 indent = (indent) -> Array(indent+1).join('  ')
+
+# TODO move out.
+Set = clazz 'Set', ->
+  __init__: (@elements) ->
+
+# Returns an error message if validation fails.
+validateType = (obj, descriptor) ->
+  if not obj?
+    return if not descriptor.required
+    return "missing value"
+
+  # handle array types
+  if descriptor.type instanceof Array
+    assert.ok descriptor.type.length is 1, "Dunno how to handle cases where the type is an Array of length != 1"
+    type = descriptor.type[0]
+    if not obj instanceof Array
+      return "Expected an array of #{inspect type}, got #{obj.constructor.name}."
+    for item in obj
+      error = validateType item, type
+      return error if error?
+    return # ok
+
+  # handle a set of types
+  else if descriptor.type instanceof Set
+    for type in descriptor.type.elements
+      error = validateType obj, type
+      return if not error?
+    return "Expected one of #{(inspect type for type in descriptor.type.elements).join(', ')} but got #{obj.constructor.name}"
+
+  # otherwise
+  if descriptor.type instanceof Function
+    return if obj instanceof descriptor.type # ok
+    return "Expected type of #{descriptor.type.name} but got #{obj.constructor.name}"
+  else if typeof descriptor.type is 'string'
+    return if typeof obj is descriptor.type # ok
+    return "Expected native type of #{descriptor.type} but got #{typeof obj}"
+  else if descriptor.type?
+    assert.ok no, "Should not happen. Dunno how to handle descriptor type #{inspect descriptor.type}"
+  # else nothing to do
 
 # All AST nodes are instances of Node.
 Node = clazz 'Node', ->
 
-  validateType = (obj, descriptor) ->
-    switch descriptor.type
-      when Node
-        if typeof obj is 'object'
-          if obj not instanceof Node
-            throw new Error "Expected an instanceof Node (or primary object)"
-      when Array, String
-        if obj? and obj not instanceof descriptor.type
-          throw new Error "Expected an instanceof #{descriptor.type.constructor.name}"
-      when 'string'
-        if typeof obj isnt 'string'
-          throw new Error "Expected typeof string"
-      else return yes # nothing to do
   
   # Iterate cb function over all child attributes.
-  # cb:   (child, parent, attrName, descriptor, index?) -> ...
+  # cb:       (child, parent, attrName, descriptor, index?) -> ...
+  # options:
+  #   skipUndefined:  (default yes) Skip over undefined or null children
   withChildren: (cb, options) ->
-    #assert.ok not options?, "options have been deprecated. reimplement me"
+    skipUndefined = options?.skipUndefined ? yes
     for attr, desc of @children||{}
       value = this[attr]
-      if desc instanceof Array
-        #assert.ok value instanceof Array, "Expected (#{this})[#{red attr}] to be an Array"
+      if desc.type instanceof Array
+        assert.ok value instanceof Array, "Expected (#{this})[#{red attr}] to be an Array"
         for item, i in value when item?
-          cb(item, this, attr, desc[0], i)
-      else if value?
+          cb(item, this, attr, desc.type[0], i)
+      else if value? or not skipUndefined
         cb(value, this, attr, desc)
 
   # Validate types recursively for all children
+  # TODO write some tests that test validation failure.
   validate: ->
-    withChildren: (child, parent, attr, desc) -> validateType child, desc
+    @withChildren (child, parent, attr, desc) ->
+      error = validateType child, desc
+      throw new Error "Error in validation (attr='#{attr}'): #{error}" if error?
+      child.validate() if child instanceof Node
+    , skipUndefined:no
 
   # e.g.
   # Block::defineProperty('foo', get: -> 'FOO')
@@ -80,10 +112,11 @@ Undetermined = clazz 'Undetermined', Node, ->
   word$:
     get: -> throw new Error "Name of Undetermined not yet determined!" unless @_word?
     set: (@_word) ->
+  toString: -> @word
 
 Block = clazz 'Block', Node, ->
   children:
-    lines:      [{type:Node}]
+    lines:      {type:[type:EXPR]}
   init: (lines) ->
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
@@ -91,34 +124,34 @@ Block = clazz 'Block', Node, ->
 
 If = clazz 'If', Node, ->
   children:
-    cond:       {type:Node, value:yes}
-    block:      {type:Node}
-    elseBlock:  {type:Node}
-  init: ({@cond, @block, @elseBlock}) ->
+    cond:       {type:EXPR, isValue:yes}
+    block:      {type:Block, required:yes}
+    else:       {type:Block}
+  init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
   toString: ->
-    if @elseBlock?
-      "if(#{@cond}){#{@block}}else{#{@elseBlock}}"
+    if @else?
+      "if(#{@cond}){#{@block}}else{#{@else}}"
     else
       "if(#{@cond}){#{@block}}"
 
-Unless = ({cond, block, elseBlock}) -> If cond:Not(cond), block:block, elseBlock:elseBlock
+Unless = ({cond, block, _else}) -> If cond:Not(cond), block:block, else:_else
 
 Loop = clazz 'Loop', Node, ->
   children:
     label:      {type:Word}
-    cond:       {type:Node, value:yes}
-    block:      {type:Node}
+    cond:       {type:EXPR, isValue:yes}
+    block:      {type:Block, required:yes}
   init: ({@label, @cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
 
 For = clazz 'For', Loop, ->
   children:
     label:      {type:Word}
-    block:      {type:Node}
-    keys:      [{type:Node}]
-    obj:        {type:Node, value:yes}
-    cond:       {type:Node, value:yes}
+    block:      {type:Block}
+    keys:       {type:[type:Node]}
+    obj:        {type:EXPR, isValue:yes}
+    cond:       {type:EXPR, isValue:yes}
   # types:
   #   in: Array / generator iteration,  e.g.  for @keys[0] in @obj {@block}
   #   of: Object key-value iteration,   e.g.  for @keys[0], @keys[1] of @obj {@block}
@@ -129,9 +162,9 @@ For = clazz 'For', Loop, ->
 JSForC = clazz 'JSForC', Loop, ->
   children:
     label:      {type:Word}
-    block:      {type:Node}
+    block:      {type:Block}
     setup:      {type:Node}
-    cond:       {type:Node, value:yes}
+    cond:       {type:EXPR, isValue:yes}
     counter:    {type:Node}
   init: ({@label, @block, @setup, @cond, @counter}) ->
   toString: -> "for (#{@setup or ''};#{@cond or ''};#{@counter or ''}) {#{@block}}"
@@ -140,42 +173,42 @@ JSForC = clazz 'JSForC', Loop, ->
 JSForK = clazz 'JSForK', Loop, ->
   children:
     label:      {type:Word}
-    block:      {type:Node}
+    block:      {type:Block}
     key:        {type:Word}
-    obj:        {type:Node, value:yes}
+    obj:        {type:EXPR, isValue:yes}
   init: ({@label, @block, @key, @obj}) ->
   toString: -> "for (#{@key} in #{@obj}) {#{@block}}"
 
 Switch = clazz 'Switch', Node, ->
   children:
-    obj:        {type:Node, value:yes}
-    cases:     [{type:Case}]
-    default:    {type:Node}
+    obj:        {type:EXPR, isValue:yes, required:yes}
+    cases:      {type:[type:Case]}
+    default:    {type:EXPR, isValue:yes}
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
 
 Try = clazz 'Try', Node, ->
   children:
-    block:      {type:Node}
+    block:      {type:Block, required:yes}
     catchVar:   {type:Word}
-    catchBlock: {type:Node}
-    finally:    {type:Node}
-  init: ({@block, @catchVar, @catchBlock, @finally}) ->
+    catch:      {type:Block}
+    finally:    {type:Block}
+  init: ({@block, @catchVar, @catch, @finally}) ->
   toString: -> "try {#{@block}}#{
-                (@catchVar? or @catchBlock?) and " catch (#{@catchVar or ''}) {#{@catchBlock}}" or ''}#{
+                (@catchVar? or @catch?) and " catch (#{@catchVar or ''}) {#{@catch}}" or ''}#{
                 @finally and "finally {#{@finally}}" or ''}"
 
 Case = clazz 'Case', Node, ->
   children:
-    matches:   [{type:Node}]
-    block:      {type:Node}
+    matches:    {type:[type:EXPR], required:yes}
+    block:      {type:Block}
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
 
 Operation = clazz 'Operation', Node, ->
   children:
-    left:       {type:Node, value:yes}
-    right:      {type:Node, value:yes}
+    left:       {type:EXPR, isValue:yes}
+    right:      {type:EXPR, isValue:yes}
   init: ({@left, @op, @right}) ->
   toString: -> "(#{ if @left?  then @left+' '  else ''
                 }#{ @op
@@ -185,14 +218,14 @@ Not = (it) -> Operation op:'not', right:it
 
 Statement = clazz 'Statement', Node, ->
   children:
-    expr:       {type:Node, value:yes}
+    expr:       {type:EXPR, isValue:yes}
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
   children:
-    func:       {type:Node, value:yes}
-    params:    [{type:Node, value:yes}]
+    func:       {type:EXPR, isValue:yes}
+    params:     {type:[type:EXPR,isValue:yes]}
   init: ({@func, @params}) ->
     @type = if @func instanceof Word and @func.word is 'new' then 'new' else undefined
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
@@ -200,23 +233,24 @@ Invocation = clazz 'Invocation', Node, ->
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
   children:
-    target:     {type:Node}
-    value:      {type:Node, value:yes}
+    target:     {type:Node, required:yes}
+    value:      {type:EXPR, isValue:yes, required:yes}
   init: ({@target, type, @op, @value}) ->
+    assert.ok @value?, "need value"
     @op = type[...type.length-1] if type?
   toString: -> "#{@target} #{@op or ''}= (#{@value})"
 
 Slice = clazz 'Slice', Node, ->
   children:
-    obj:        {type:Node, value:yes}
-    range:      {type:Range}
+    obj:        {type:EXPR, isValue:yes}
+    range:      {type:Range, required:yes}
   init: ({@obj, @range}) ->
   toString: -> "#{@obj}[#{@range}]"
 
 Index = clazz 'Index', Node, ->
   children:
-    obj:        {type:Node, value:yes}
-    attr:       {type:Node, value:yes}
+    obj:        {type:EXPR, isValue:yes}
+    attr:       {type:EXPR, isValue:yes}
   init: ({obj, attr, type}) ->
     type ?= if attr instanceof Word then '.' else '['
     if type is '::'
@@ -234,13 +268,13 @@ Index = clazz 'Index', Node, ->
 
 Soak = clazz 'Soak', Node, ->
   children:
-    obj:        {type:Node, value:yes}
+    obj:        {type:EXPR, isValue:yes}
   init: (@obj) ->
   toString: -> "(#{@obj})?"
 
 Obj = clazz 'Obj', Node, ->
   children:
-    items:     [{type:Item}]
+    items:      {type:[type:Item]}
   # NOTE Items may contain Heredocs.
   # TODO consider filtering them out or organizing the heredocs
   init: (@items) ->
@@ -266,19 +300,19 @@ This = clazz 'This', Node, ->
 
 Arr = clazz 'Arr', Obj, ->
   children:
-    items:     [{type:Item}]
+    items:      {type:[type:Item]}
   toString: -> "[#{if @items? then @items.join ',' else ''}]"
 
 Item = clazz 'Item', Node, ->
   children:
     key:        {type:Node}
-    value:      {type:Node, value:yes}
+    value:      {type:EXPR, isValue:yes}
   init: ({@key, @value}) ->
   toString: -> @key+(if @value?   then ":(#{@value})"   else '')
 
 Str = clazz 'Str', Node, ->
   children:
-    parts:     [{type:Object, value:yes}]
+    parts:      {type:[type:EXPR, isValue:yes]}
   init: (parts) ->
     @parts = []
     chars = []
@@ -308,7 +342,7 @@ Str = clazz 'Str', Node, ->
 Func = clazz 'Func', Node, ->
   children:
     params:     {type:AssignList}
-    block:      {type:Node}
+    block:      {type:Block}
   init: ({@params, @type, @block}) ->
     @block ?= Block()
   toString: ->
@@ -318,7 +352,7 @@ Func = clazz 'Func', Node, ->
 
 AssignObj = clazz 'AssignObj', Node, ->
   children:
-    items:      {type:AssignItem}
+    items:      {type:[type:AssignItem]}
   init: (@items) ->
   targetNames$: get: ->
     names = []
@@ -333,33 +367,14 @@ AssignObj = clazz 'AssignObj', Node, ->
       else
         throw new Error "Unexpected assign target #{target} (#{target.constructor.name})"
     return names
-
-  # source:   The source for destructuring assignment
-  # block:    The block into which assignment nodes will be appended
-  #           Created with its own scope, if undefined.
-  # returns the block.
-  toBlock: (source, block) ->
-    if not block?
-      block = Block([])
-    for item, i in @items
-      target   = item.target ? item.key
-      key      = item.key ? i
-      default_ = item.default
-      if target instanceof Word or target instanceof Index
-        block.lines.push Assign target:target, value:Index(source, key)
-        block.lines.push Assign target:target, value:default_, type:'?='
-      else if target instanceof AssignObj
-        temp = Undetermined '_assign'
-        block.lines.push Assign target:temp, value:Index(source, key)
-        block.lines.push Assign target:temp, value:default_, type:'?='
-        target.toBlock temp, block
-      else
-        throw new Error "Unexpected assign target #{target} (#{target.constructor.name})"
-    return block
-    
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 AssignList = clazz 'AssignList', AssignObj, ->
+  init: (@items) ->
+    # need to consider splats.
+    # TODO
+    for item in @items
+      throw new Error "Implement me" if item.splat
   toString: (braces=yes) ->
     "#{ if braces  then '['             else ''
     }#{ if @items? then @items.join ',' else ''
@@ -369,7 +384,7 @@ AssignItem = clazz 'AssignItem', Node, ->
   children:
     key:      {type:Word}
     target:   {type:Node}
-    default:  {type:Node, value:yes}
+    default:  {type:EXPR, isValue:yes}
   init: ({@key, @target, @default}) ->
   toString: ->
     "#{ if @key?              then @key         else ''
@@ -380,9 +395,9 @@ AssignItem = clazz 'AssignItem', Node, ->
 
 Range = clazz 'Range', Node, ->
   children:
-    start:    {type:Node, value:yes}
-    end:      {type:Node, value:yes}
-    by:       {type:Node, value:yes}
+    start:    {type:EXPR, isValue:yes}
+    end:      {type:EXPR, isValue:yes}
+    by:       {type:EXPR, isValue:yes}
   init: ({@start, @type, @end, @by}) ->
     @by ?= 1
   toString: -> "Range(#{@start? and "start:#{@start}," or ''}"+
@@ -467,7 +482,7 @@ checkSoftline = (ws, $) ->
       container = $.stack[i]
       $.log "[SL] (@#{i}:#{container.name}) **indent**:'#{container.indent}', softline(ignored):'#{container.softline}'" if trace.indent
       break
-  #assert.ok container isnt null
+  assert.ok container isnt null
   # commit softline ws to container
   if ws.indexOf(container.softline ? container.indent) is 0
     topContainer = $.stack[$.stackLength-2]
@@ -504,7 +519,7 @@ checkCommaNewline = (ws, $) ->
 resetIndent = (ws, $) ->
   # find any container
   container = $.stack[$.stackLength-2]
-  #assert.ok container?
+  assert.ok container?
   $.log "setting container(=#{container.name}).indent to '#{ws}'" if trace.indent
   container.indent = ws
   return container.indent
@@ -519,25 +534,12 @@ resetIndent = (ws, $) ->
       # left recursive
       o POSTIF:                     " block:LINEEXPR _IF cond:EXPR ", make If
       o POSTUNLESS:                 " block:LINEEXPR _UNLESS cond:EXPR ", make Unless
-      o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? __ keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", make For
+      o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", make For
       o POSTWHILE:                  " block:LINEEXPR _WHILE cond:EXPR ", make Loop
       # rest
       o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", make Statement
       o EXPR: [
-        o FUNC:                     " params:_PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", make Func
-        i _PARAM_LIST:              " _ '(' &:_ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
-        i _ASSIGN_LIST:             " _ '[' &:_ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
-        i _ASSIGN_LIST_ITEM:        " _ target:(
-                                        | &:SYMBOL   splat:'...'?
-                                        | &:PROPERTY splat:'...'?
-                                        | _ASSIGN_OBJ
-                                        | _ASSIGN_LIST
-                                      )
-                                      default:(_ '=' LINEEXPR)? ", make AssignItem
-        i _ASSIGN_OBJ:              " _ '{' &:_ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
-        i _ASSIGN_OBJ_ITEM:         " _ key:(SYMBOL|PROPERTY)
-                                      target:(_ ':' _ (SYMBOL|PROPERTY|_ASSIGN_OBJ|_ASSIGN_LIST))?
-                                      default:(_ '=' LINEEXPR)?", make AssignItem
+        o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", make Func
         # RIGHT_RECURSIVE
         o OBJ_IMPL:                 " _INDENT? &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
         i _OBJ_IMPL_ITEM: [
@@ -545,22 +547,22 @@ resetIndent = (ws, $) ->
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
-        o INVOC_IMPL:               " _ func:ASSIGNABLE (? __|_OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) ", make Invocation
+        o INVOC_IMPL:               " _ func:VALUE (? __|_OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) ", make Invocation
         i _OBJ_IMPL_INDENTED:       " _INDENT &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
 
         # COMPLEX
         o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
         i _COMPLEX: [
-          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", make If
-          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE elseBlock:BLOCK)? ", make Unless
-          o FOR:                    " _FOR own:_OWN? __ keys:SYMBOL*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", make For
+          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)? ", make If
+          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)? ", make Unless
+          o FOR:                    " _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", make For
           o LOOP:                   " _LOOP block:BLOCK ", make Loop
           o WHILE:                  " _WHILE cond:EXPR block:BLOCK ", make Loop
           o SWITCH:                 " _SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT? ", make Switch
           i CASE:                   " _WHEN matches:EXPR+_COMMA block:BLOCK ", make Case
           i DEFAULT:                " _NEWLINE _ELSE BLOCK "
           o TRY:                    " _TRY block:BLOCK
-                                      (_NEWLINE? _CATCH catchVar:EXPR? catchBlock:BLOCK?)?
+                                      (_NEWLINE? _CATCH catchVar:EXPR? catch:BLOCK?)?
                                       (_NEWLINE? _FINALLY finally:BLOCK)? ", make Try
         ]
 
@@ -596,7 +598,7 @@ resetIndent = (ws, $) ->
                         i OP50_OP:  " '--' | '++' "
                         o           " left:OPATOM op:OP50_OP ", make Operation
                         o           " _ op:OP50_OP right:OPATOM ", make Operation
-                        o OPATOM:   " FUNC | OBJ_IMPL | ASSIGN | INVOC_IMPL | COMPLEX | _ ASSIGNABLE "
+                        o OPATOM:   " FUNC | OBJ_IMPL | ASSIGN | INVOC_IMPL | COMPLEX | _ VALUE "
                       ] # end OP50
                     ] # end OP45
                   ] # end OP40
@@ -609,14 +611,32 @@ resetIndent = (ws, $) ->
     ] # end LINEEXPR
   ] # end LINE
 
-  i ASSIGNABLE: [
+  # ASSIGNABLE
+  i ASSIGNABLE:           " ASSIGNABLE_VALUE | SYMBOL | PROPERTY | ASSIGN_LIST | ASSIGN_OBJ "
+  i PARAM_LIST:           " _ '(' &:ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
+  i ASSIGN_LIST:          " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
+  i ASSIGN_LIST_ITEM:     " _ target:(
+                              | &:SYMBOL   splat:'...'?
+                              | &:PROPERTY splat:'...'?
+                              | ASSIGN_OBJ
+                              | ASSIGN_LIST
+                            )
+                            default:(_ '=' LINEEXPR)? ", make AssignItem
+  i ASSIGN_OBJ:           " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
+  i ASSIGN_OBJ_ITEM:      " _ key:(SYMBOL|PROPERTY)
+                            target:(_ ':' _ (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
+                            default:(_ '=' LINEEXPR)?", make AssignItem
+
+  i VALUE: [
     # left recursive
-    o SLICE:        " obj:ASSIGNABLE range:RANGE ", make Slice
-    o INDEX0:       " obj:ASSIGNABLE type:'['  attr:LINEEXPR _ ']' ", make Index
-    o INDEX1:       " obj:ASSIGNABLE type:'.'  attr:WORD ", make Index
-    o PROTO:        " obj:ASSIGNABLE type:'::' attr:WORD? ", make Index
-    o INVOC_EXPL:   " func:ASSIGNABLE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
-    o SOAK:         " ASSIGNABLE '?' ", make Soak
+    o ASSIGNABLE_VALUE: [
+      o SLICE:        " obj:VALUE range:RANGE ", make Slice
+      o INDEX0:       " obj:VALUE type:'['  attr:LINEEXPR _ ']' ", make Index
+      o INDEX1:       " obj:VALUE type:'.'  attr:WORD ", make Index
+      o PROTO:        " obj:VALUE type:'::' attr:WORD? ", make Index
+    ]
+    o INVOC_EXPL:   " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
+    o SOAK:         " VALUE '?' ", make Soak
 
     # rest
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", make Number
@@ -695,6 +715,9 @@ resetIndent = (ws, $) ->
 
 ]
 # ENDGRAMMAR
+
+# NODE TYPE GROUPS
+EXPR = new Set([Node, Boolean, String, Number])
 
 # Parse the given code
 @parse = GRAMMAR.parse
