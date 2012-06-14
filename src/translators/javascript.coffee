@@ -22,12 +22,12 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       else
         return @childrenToJSNode()
     childrenToJSNode: ->
-      node = this
+      that = this
       @withChildren (child, parent, attr, desc, index) ->
         if index?
-          node[attr][index] = child.toJSNode toValue:desc.isValue
+          that[attr][index] = child.toJSNode toValue:desc.isValue
         else
-          node[attr] = child.toJSNode toValue:desc.isValue
+          that[attr] = child.toJSNode toValue:desc.isValue
       @
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined"
@@ -47,7 +47,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @
     toJavascript: ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
-        lines = [joe.NativeExpression("var #{toDeclare.join(', ')}"), @lines...]
+        lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.toKey()).join(', ')}"), @lines...]
       else
         lines = @lines
       if @isValue and @lines.length > 1
@@ -123,7 +123,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ({toValue,toReturn}={}) ->
       if toValue or toReturn
         # call Loop.toJSNode to accumuate.
-        accum = @super.toJSNode(toValue:toValue,toReturn:toReturn)
+        accum = @super.toJSNode.call(@, toValue:toValue,toReturn:toReturn)
         # finally call this function again.
         return accum.toJSNode()
 
@@ -319,13 +319,10 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   clazz.extend Number,
     toJSNode: -> @
 
-  joe.Undetermined::extend
-    toJavascript: -> @word
-
 @translate = translate = (node) ->
   # console.log node.serialize() # print before transformations...
   # install plugin
   install()
-  node = node.toJSNode().installScope()
+  node = node.toJSNode().installScope().determine()
   node.validate()
   return node.toJavascript()

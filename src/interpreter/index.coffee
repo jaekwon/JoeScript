@@ -64,15 +64,13 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
         # main loop
         while i9n = @i9ns[@i9ns.length-1]
           console.log blue "\n             -- step --"
-          func = i9n.func
-          that = i9n.this
-          # validation
+          {func, this:that, target, attr} = i9n
           @print()
-          if not func?
-            throw new Error "Last i9n.func undefined!"
-          if not that?
-            throw new Error "Last i9n.this undefined!"
+          throw new Error "Last i9n.func undefined!" if not func?
+          throw new Error "Last i9n.this undefined!" if not that?
+          throw new Error "target and attr must be present together" if (target? or attr?) and not (target? and attr?)
           last = func.call that, this, i9n, last
+          target[attr] = last if target?
           console.log "             #{blue "return"} #{last}"
         return last.jsValue
       catch interrupt
@@ -136,6 +134,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   # Set a name/value pair on the topmost scope of the chain
   # Error if name already exists... all updates should happen w/ scopeUpdate.
   scopeDefine: (name, value) ->
+    name = name.toKey()
     alreadyDefined = `name in this.scope` # coffeescript but, can't say "not `...`"
     assert.ok not alreadyDefined, "Already defined in scope: #{name}"
     @scope[name] = value
@@ -201,12 +200,10 @@ JObject = @JObject = clazz 'JObject', ->
   # acl:  A JArray of JAccessControlItems
   #       NOTE: the acl has its own acl!
   init: ({@creator, @data, @acl}) ->
-    @data ?= {}
     assert.ok @creator? and @creator instanceof JObject,
                         "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
                         # Everything has a creator. Wait a minute...
-    assert.ok @data? and @data instanceof Object,
-                        "#{@constructor.name}.init requires 'data' (Object)."
+    @data ?= {}
   __get__: ($, key) ->
     $.will('read', this)
     return @data[key.__str__($)]
@@ -234,20 +231,20 @@ JObject = @JObject = clazz 'JObject', ->
 JArray = @JArray = clazz 'JArray', JObject, ->
   init: ({creator, data, acl, array}) ->
     @array = array ? []
-    @super.init({creator, data, acl})
+    @super.init.call @, {creator, data, acl}
   __get__: ($, key) ->
     $.will('read', this)
     if isInteger key
       return @array[key]
     else
-      return @super.__get__($, key)
+      return @super.__get__.call @, $, key
   __set__: ($, key, value) ->
     $.will('write', this)
     if isInteger key
       @array[key] = value
       return
     else
-      return @super.__set__($, key, value)
+      return @super.__set__.call @, $, key, value
   __keys__: ($) ->
     $.will('read', this)
     return _.keys(@array).concat _.keys(@data)
@@ -274,7 +271,7 @@ SimpleIterator = clazz 'SimpleIterator', ->
 JUser = @JUser = clazz 'JUser', JObject, ->
   init: ({@name}) ->
     assert.equal typeof @name, 'string', "@name not string"
-    @super.init creator:this, data:{name:@name}
+    @super.init.call @, creator:this, data:{name:@name}
   toString: -> "[JUser #{@name}]"
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->
@@ -312,7 +309,7 @@ unless joe.Node::interpret? then do =>
   joe.Word::extend
     interpret: ($) ->
       $.pop()
-      return $.scopeGet @word
+      return $.scopeGet @
     __str__: joe.Word::toString
 
   joe.Block::extend
@@ -564,6 +561,21 @@ unless joe.Node::interpret? then do =>
 
   joe.Range::extend
     interpret: ($, i9n) ->
+      i9n.func = joe.Range::interpret2
+      if @start?
+        $.push this:@start, func:@start.interpret, target:i9n, attr:'start'
+      if @end?
+        $.push this:@end, func:@end.interpret, target:i9n, attr:'end'
+      if @by?
+        $.push this:@by, func:@by.interpret, target:i9n, attr:'by'
+    interpret2: ($, i9n) ->
+      # TODO Make range an iterator
+      $.pop()
+      if i9n.by?
+        array = (x for x in [i9n.start...i9n.end] by i9n.by)
+      else
+        array = [i9n.start...i9n.end]
+      return JArray creator:SYSTEM.user, array:array
       
   clazz.extend String,
     interpret: ($) ->

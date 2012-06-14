@@ -62,6 +62,18 @@ joe = require('joeson/src/joescript').NODES
       @withChildren (child, parent) ->
         child.installScope?(create:no, parent:parent)
       return this
+    determine: ->
+      that = this
+      @withChildren (child, parent, attr, desc, index) ->
+        if child instanceof joe.Undetermined
+          child.determine()
+          if index?
+            that[attr][index] = child.word
+          else
+            that[attr] = child.word
+        else if child instanceof joe.Node
+          child.determine()
+      @
 
   joe.Try::extend
     installScope: (options={}) ->
@@ -90,11 +102,10 @@ joe = require('joeson/src/joescript').NODES
       return this
 
   joe.Undetermined::extend
-    word$:
-      get: ->
-        return "[Undetermined #{@prefix}]" if not @scope?
-        loop
-          _word = @prefix + randid(12) # lol.
-          if not @scope.isDeclared(_word) and not @scope.willDeclare(_word)
-            @word=_word
-            return _word
+    determine: ->
+      return if @word? # already determined.
+      assert.ok @scope?, "Scope must be available to determine an Undetermined"
+      loop
+        word = @prefix + randid(12) # lol.
+        if not @scope.isDeclared(word) and not @scope.willDeclare(word)
+          return @word=joe.Word(word)

@@ -98,21 +98,24 @@ Node = clazz 'Node', ->
     return str.trimRight()
 
 Word = clazz 'Word', Node, ->
-  init: (@word) ->
-    switch @word
+  init: (@key) ->
+    switch @key
       when 'undefined'
         @_newOverride = Undefined.undefined
       when 'null'
         @_newOverride = Null.null
-  toString: -> @word
+  toString: -> @key
+  toKey: -> @key
 
 # An undetermined variable.
 Undetermined = clazz 'Undetermined', Node, ->
   init: (@prefix) ->
-  word$:
-    get: -> throw new Error "Name of Undetermined not yet determined!" unless @_word?
-    set: (@_word) ->
-  toString: -> @word
+  toString: -> "[Undetermined prefix:#{@prefix}]"
+  toKey: ->
+    assert.ok @word?, "Undetermined not yet determined!"
+    return @word.toKey()
+
+String::toKey = -> @
 
 Block = clazz 'Block', Node, ->
   children:
@@ -227,7 +230,7 @@ Invocation = clazz 'Invocation', Node, ->
     func:       {type:EXPR, isValue:yes}
     params:     {type:[type:EXPR,isValue:yes]}
   init: ({@func, @params}) ->
-    @type = if @func instanceof Word and @func.word is 'new' then 'new' else undefined
+    @type = if @func.toKey?() is 'new' then 'new'
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->

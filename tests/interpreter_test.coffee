@@ -11,7 +11,7 @@ counter = 0
 test = (code, cb) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = require('joeson/src/joescript').parse code
-  node = node.toJSNode().installScope()
+  node = node.toJSNode().installScope().determine()
   #console.log node.serialize()
   $ = new JRuntimeContext SYSTEM.user
   try
