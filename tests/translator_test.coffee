@@ -62,6 +62,8 @@ temp = {"foo": 1, "bar": 2};
 foo = temp.foo;
 bar = temp.bar;
 (foo + bar)"""
+### TODO need to find a good way to test translations with generated variables.
 test """
 ({foo,bar}) -> foo+bar
 """, ""
+###

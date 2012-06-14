@@ -241,7 +241,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
           target.destructLines temp, lines
         else
-          throw new Error "Unexpected assign target #{target} (#{target.constructor.name})"
+          throw new Error "Unexpected AssignObj target: #{target} (#{target?.constructor.name})"
       return
 
   joe.Str::extend
@@ -276,11 +276,10 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       ## destructuring parameters
       if @params?
         destructs = []
-        for param, i in @params.items
+        for {target:param}, i in @params.items
           if not isVariable param
             arg = joe.Undetermined('arg')
-            @params.items[i] = arg
-            console.log ">>", param, typeof param, param.constructor.name
+            @params.items[i] = joe.AssignItem target:arg
             param.destructLines arg, destructs
         @block.lines[...0] = destructs
       ## make last line return

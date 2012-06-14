@@ -358,14 +358,14 @@ AssignObj = clazz 'AssignObj', Node, ->
     names = []
     for item in @items
       target = item.target ? item.key
-      if target instanceof Word
+      if isVariable target
         names.push target
       else if target instanceof AssignObj
         extend names, target.targetNames
       else if target instanceof Index
         "pass" # noitem to do for properties
       else
-        throw new Error "Unexpected assign target #{target} (#{target.constructor.name})"
+        throw new Error "Unexpected AssignObj target #{target} (#{target?.constructor.name})"
     return names
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
