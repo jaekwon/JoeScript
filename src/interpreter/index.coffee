@@ -17,6 +17,8 @@ joe = require('joeson/src/joescript').NODES
 {pad, escape} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 
+isInteger = (n) -> n%1 is 0
+
 # ERRORS = [ 'RangeError', 'EvalError', 'SyntaxError', 'URIError', 'ReferenceError', 'Error', 'TypeError' ]
 
 printStack = (stack) ->
@@ -72,10 +74,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
             throw new Error "Last i9n.this undefined!"
           last = func.call that, this, i9n, last
           console.log "             #{blue "return"} #{last}"
-        if last?.__jsValue__?
-          return last.__jsValue__()
-        else
-          return last
+        return last.jsValue
       catch interrupt
         throw interrupt if typeof interrupt isnt 'string'
 
@@ -148,7 +147,10 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   # It's just an expensive no-op.
   scopeUpdate: (name, value) ->
     scope = @scope
-    while not `name in scope`
+    # while not `name in scope` TODO coffeesript bug
+    loop
+      nameInScope = `name in scope`
+      break if nameInScope
       scope = scope.__parent__
       if not scope?
         @throw 'ReferenceError', "#{name} is not defined"
@@ -178,7 +180,6 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
 # A function gets bound to the runtime context upon declaration.
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', ->
-
   # func:    The joe.Func node.
   # creator: The owner of the process that declared above function.
   # scope:   Runtime scope of process that declares above function.
@@ -190,53 +191,76 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', ->
   toString: -> "[JBoundFunc]"
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
-
   # who:  User or JArray of users
   # what: Action or JArray of actions
   init: (@who, @what) ->
-
   toString: -> "[JAccessControlItem #{@who}: #{@what}]"
 
 JObject = @JObject = clazz 'JObject', ->
-
-  # data: An Object of key-value pairs
+  # data: An Object
   # acl:  A JArray of JAccessControlItems
   #       NOTE: the acl has its own acl!
   init: ({@creator, @data, @acl}) ->
     @data ?= {}
     assert.ok @creator? and @creator instanceof JObject,
-                        "JObject.init requires 'creator' (JObject)."
+                        "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
                         # Everything has a creator. Wait a minute...
     assert.ok @data? and @data instanceof Object,
-                        "JObject.init requires 'data' (Object)."
-
+                        "#{@constructor.name}.init requires 'data' (Object)."
   __get__: ($, key) ->
     $.will('read', this)
-    return @data[key]
-
+    return @data[key.__str__($)]
   __set__: ($, key, value) ->
     $.will('write', this)
-    @data[key] = value
+    @data[key.__str__($)] = value
     return
-
   __keys__: ($) ->
     $.will('read', this)
     return _.keys @data
-
   __iterator__: ($) ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
-
-  __jsValue__: ->
+  __add__: ($, other) -> $.throw 'TypeError', "Can't add to object yet"
+  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
+  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
+  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __bool__: ($, other) -> JTrue
+  jsValue$: get: ->
     tmp = {}
-    for key, value of @data
-      if value?.__jsValue__?
-        tmp[key] = value.__jsValue__()
-      else
-        tmp[key] = value
+    tmp[key] = value.jsValue for key, value of @data
     return tmp
-
   toString: -> "[JObject]"
+
+JArray = @JArray = clazz 'JArray', JObject, ->
+  init: ({creator, data, acl, array}) ->
+    @array = array ? []
+    @super.init({creator, data, acl})
+  __get__: ($, key) ->
+    $.will('read', this)
+    if isInteger key
+      return @array[key]
+    else
+      return @super.__get__($, key)
+  __set__: ($, key, value) ->
+    $.will('write', this)
+    if isInteger key
+      @array[key] = value
+      return
+    else
+      return @super.__set__($, key, value)
+  __keys__: ($) ->
+    $.will('read', this)
+    return _.keys(@array).concat _.keys(@data)
+  __add__: ($, other) -> $.throw 'TypeError', "Can't add to array yet"
+  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
+  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
+  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
+  __bool__: ($, other) -> JTrue
+  jsValue$: get: ->
+    tmp = @array[...]
+    tmp[key] = value.jsValue for key, value of @data
+    return tmp
+  toString: -> "[JArray]"
 
 SimpleIterator = clazz 'SimpleIterator', ->
   init: (@items) ->
@@ -253,13 +277,8 @@ JUser = @JUser = clazz 'JUser', JObject, ->
     @super.init creator:this, data:{name:@name}
   toString: -> "[JUser #{@name}]"
 
-SYSTEM = @SYSTEM =
-  user: new JUser name:'root'
-
-## JObject subclasses...
-
 JSingleton = @JSingleton = clazz 'JSingleton', ->
-  __init__: (@name) ->
+  __init__: (@name, @jsValue) ->
   __get__: ($, key)   -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
   __set__: ($, key, value) ->
                          $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
@@ -269,21 +288,18 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   __sub__: ($, other) -> JNaN
   __mul__: ($, other) -> JNaN
   __div__: ($, other) -> JNaN
+  __bool__: ($, other) -> JFalse
   toString: -> "Singleton(#{@name})"
 
-_JNull = clazz '_JNull', JSingleton, ->
-  __jsValue__: -> null
-JNull = @JNull = new _JNull()
-
-_JUndefined = clazz '_JUndefined', JSingleton, ->
-  __jsValue__: -> undefined
-JUndefined = @JUndefined = new _JUndefined()
-
-_JNaN = clazz '_JNaN', JSingleton, ->
-  __jsValue__: -> NaN
-JNaN = @JNaN = new _JNaN()
+JNull       = @JNull      = new JSingleton 'null', null
+JUndefined  = @JUndefined = new JSingleton 'undefined', undefined
+JNaN        = @JNaN       = new JSingleton 'NaN', NaN
+JTrue       = @JTrue      = new JSingleton 'true', true
+JFalse      = @JFalse     = new JSingleton 'false', false
 
 ## SETUP
+
+SYSTEM = @SYSTEM = user: new JUser name:'root'
 
 unless joe.Node::interpret? then do =>
   require('joeson/src/translators/scope').install() # dependency
@@ -297,11 +313,12 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return $.scopeGet @word
+    __str__: joe.Word::toString
 
   joe.Block::extend
     interpret: ($) ->
       $.pop()
-      $.scopeDefine variable, undefined for variable in @ownScope.nonparameterVariables if @ownScope?
+      $.scopeDefine variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
       if (length=@lines.length) > 1
         $.push this:@, func:joe.Block::interpretLoop, length:length, idx:0
       firstLine = @lines[0]
@@ -355,7 +372,7 @@ unless joe.Node::interpret? then do =>
         i9n.length = @items.length
         if key instanceof joe.Word
           i9n.func = joe.Obj::interpretKV
-          i9n.key = key.toString()
+          i9n.key = key
           $.push this:value, func:value.interpret
         else
           i9n.func = joe.Obj::interpretKey
@@ -520,6 +537,33 @@ unless joe.Node::interpret? then do =>
         $.return joe.JUndefined
     interpretResult: ($, i9n, result) ->
       $.return result
+
+  joe.Loop::extend
+    interpret: ($, i9n) ->
+      $.push this:@block, func:@block.interpret
+
+  joe.JSForC::extend
+    interpret: ($, i9n) ->
+      if @cond?
+        i9n.func = joe.JSForC::interpretConditionalLoop
+        $.push this:@cond,  func:@cond.interpret
+      else
+        i9n.func = joe.JSForC::interpretUnconditionalLoop
+      if @setup?
+        $.push this:@setup, func:@setup.interpret
+    interpretConditionalLoop: ($, i9n, cond) ->
+      if cond.__bool__().jsValue
+        $.push this:@cond,    func:@cond.interpret
+        $.push this:@block,   func:@block.interpret
+        $.push this:@counter, func:@counter.interpret
+      else
+        $.pop()
+    interpretUnconditionalLoop: ($, i9n) ->
+      $.push this:@block,   func:@block.interpret
+      $.push this:@counter, func:@counter.interpret
+
+  joe.Range::extend
+    interpret: ($, i9n) ->
       
   clazz.extend String,
     interpret: ($) ->
@@ -530,10 +574,11 @@ unless joe.Node::interpret? then do =>
     __keys__:       ($) -> $.throw 'TypeError', "Object.keys called on non-object"
     __iterator__:   ($) -> new SimpleIterator @valueOf()
     __str__:        ($) -> @valueOf()
-    __add__: ($, other) -> @valueOf() + other.__str__()
+    __add__: ($, other) -> @valueOf() + other.__str__($)
     __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
     __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
     __div__: ($, other) -> $.throw 'TypeError', "Can't divide strings yet"
+    jsValue$: get: -> @
 
   clazz.extend Number,
     interpret: ($) ->
@@ -545,8 +590,10 @@ unless joe.Node::interpret? then do =>
     __sub__: ($, other) -> @valueOf() - other.__num__()
     __mul__: ($, other) -> @valueOf() * other.__num__()
     __div__: ($, other) -> @valueOf() / other.__num__()
+    jsValue$: get: -> @
 
   clazz.extend Boolean,
     interpret: ($) ->
       $.pop()
       return @valueOf()
+    jsValue$: get: -> @

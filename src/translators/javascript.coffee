@@ -105,7 +105,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       if toValue or toReturn
         lines = []
         # <Variable> = []
-        lines.push joe.Assign target:(target=joe.Variable()), value:joe.Arr()
+        lines.push joe.Assign target:(target=joe.Undetermined('accum')), value:joe.Arr()
         # @label:
         # while(@cond) {
         #   <Variable>.push(@block)
@@ -133,22 +133,22 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             if @keys.length > 1
               # for (@keys[1] = _i = 0; ...
               joe.Assign(target:@keys[1], value:
-                joe.Assign(target:_i=joe.Variable('_i'), value:0))
+                joe.Assign(target:_i=joe.Undetermined('_i'), value:0))
             else
               # for (_i = 0; ...
-              joe.Assign(target:_i=joe.Variable('_i'), value:0)
+              joe.Assign(target:_i=joe.Undetermined('_i'), value:0)
             ,
-            joe.Assign(target:_len=joe.Variable('_len'), value:joe.Index(obj:@obj, attr:'length')),
+            joe.Assign(target:_len=joe.Undetermined('_len'), value:joe.Index(obj:@obj, attr:'length', type:'.')),
           ]
           # _i < _len; ...
           cond = joe.Operation left:_i, op:'<', right:_len
           counter =
             if @keys.length > 1
               # @keys[1] = _i++)
-              joe.Assign(target:@keys[1], value:joe.Op(left:_i, op:'++'))
+              joe.Assign(target:@keys[1], value:joe.Operation(left:_i, op:'++'))
             else
               # _i++)
-              joe.Op(left:_i, op:'++')
+              joe.Operation(left:_i, op:'++')
           block = joe.Block [
             joe.Assign(target:@keys[0], value:joe.Index(obj:@obj, attr:_i)),
             if @cond?

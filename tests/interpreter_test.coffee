@@ -25,8 +25,11 @@ test = (code, cb) ->
 test ' null ',                            -> equal @it, null
 test ' undefined ',                       -> equal @it, undefined
 test ' null * undefined ',                -> ok isNaN @it
-test ' {} ',                              -> ok @it instanceof Object and _.keys(@it).length is 0
-test ' {foo:1} ',                         -> ok @it instanceof Object and _.keys(@it).length is 1 and @it.foo is 1
+test ' {} ',                              -> ok @it instanceof Object;\
+                                             equal _.keys(@it).length, 0
+test ' {foo:1} ',                         -> ok @it instanceof Object;\
+                                             equal _.keys(@it).length, 1;\
+                                             equal @it.foo, 1
 test ' a = {foo:1}; a.foo ',              -> equal @it, 1
 test ' if true then 1 else 2 ',           -> equal @it, 1
 test ' if false then 1 else 2 ',          -> equal @it, 2
@@ -61,10 +64,7 @@ func()
 func()
 func()
 ''',                                      -> equal @it, 6
-
-###
-test "Array", Array
-test """
+test '''
 outer = (foo) ->
   inner = ->
     bar = bar + 1
@@ -73,8 +73,8 @@ outer = (foo) ->
 func = outer(1)
 func()
 func()
-""", NaN
-test """
+''',                                      -> ok isNaN @it
+test '''
 outer = (foo) ->
   bar = foo
   inner = ->
@@ -82,7 +82,10 @@ outer = (foo) ->
 func = outer(1)
 a = func() for i in [1..5]
 a
-""", 6
+''',                                      -> equal @it, 6
+
+###
+test "Array", Array
 test """
 foo = ->
   1 + 1

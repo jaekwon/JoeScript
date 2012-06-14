@@ -675,8 +675,8 @@ resetIndent = (ws, $) ->
   ]
 
   # WHITESPACES:
-  i _:              " /[ ]*/ ",                          skipLog:no
-  i __:             " /[ ]+/ ",                          skipLog:no
+  i _:              " /( |\\\\\\n)*/ ",                  skipLog:yes, (ws) -> ws.replace /\\\\\\n/g, ''
+  i __:             " /( |\\\\\\n)+/ ",                  skipLog:yes, (ws) -> ws.replace /\\\\\\n/g, ''
   i _TERM:          " _ ('\r\n'|'\n') ",                 skipLog:no
   i _COMMENT:       " _ !HEREDOC '#' (!_TERM .)* ",      skipLog:no
   i _BLANKLINE:     " _COMMENT? _TERM ",                 skipLog:no
