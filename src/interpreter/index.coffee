@@ -126,7 +126,9 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   #
   scopeGet: (name) ->
     scope = @scope
-    while not `name in scope`
+    loop
+      nameInScope = `name in scope`
+      break if nameInScope
       scope = scope.__parent__
       if not scope?
         @throw 'ReferenceError', "#{name} is not defined"
@@ -462,8 +464,8 @@ unless joe.Node::interpret? then do =>
     interpretFunc: ($, i9n, func) ->
       # interpret the parameters
       length = @params.length
+      i9n.invokedFunction = func
       if length > 0
-        i9n._func = func
         i9n.func = joe.Invocation::interpretParams
         i9n.idx = 0
         i9n.length = @params.length
@@ -487,15 +489,16 @@ unless joe.Node::interpret? then do =>
     interpretCall: ($, i9n) ->
       i9n.func = joe.Invocation::interpretFinish
       i9n.oldScope = $.scope
-      {block, params} = i9n._func.func
+      {func:{block,params}, scope} = i9n.invokedFunction
       paramValues = i9n.paramValues
-      $.scope = {__parent__:$.scope} # spawn new scope.
-      # Though params is an AssignList,
-      assert.ok params instanceof joe.AssignList
-      # ... we'll manually bind values to param names.
-      for {target:argName}, i in params.items
-        assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
-        $.scopeDefine argName, paramValues[i]
+      $.scope = {__parent__:scope} # spawn new scope.
+      if params?
+        # Though params is an AssignList,
+        assert.ok params instanceof joe.AssignList
+        # ... we'll manually bind values to param names.
+        for {target:argName}, i in params.items
+          assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
+          $.scopeDefine argName, paramValues[i]
       $.push this:block, func:block.interpret
       return
     interpretFinish: ($, i9n, result) ->

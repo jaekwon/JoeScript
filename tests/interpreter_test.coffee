@@ -42,16 +42,14 @@ test '''
 foo = (bar) -> return bar + 1
 foo(1)
 ''',                                      -> equal @it, 2
-
-###
-test "Array", Array
+test '''
 outer = (foo) ->
   inner = ->
     return foo + 1
 func = outer(1)
 func()
-""", 2
-test """
+''',                                      -> equal @it, 2
+test '''
 outer = (foo) ->
   bar = foo
   inner = ->
@@ -62,7 +60,10 @@ func()
 func()
 func()
 func()
-""", 6
+''',                                      -> equal @it, 6
+
+###
+test "Array", Array
 test """
 outer = (foo) ->
   inner = ->
