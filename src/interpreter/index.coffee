@@ -56,9 +56,10 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
   exec: (node) ->
     @push this:node, func:node.interpret
     last = undefined
-    # Main execution loop!
+    # interrupt recovery loop
     loop
       try
+        # main loop
         while i9n = @i9ns[@i9ns.length-1]
           console.log blue "\n             -- step --"
           func = i9n.func
@@ -75,30 +76,42 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
           return last.__jsValue__()
         else
           return last
-      catch error
-        # error should be an evalerror
-        throw error if error not instanceof EvalError
-        # Unwind to the last Try i9n.
-        # We pop the @i9ns stack until we hit a Try i9n,
-        # then set the error on the i9n.
-        dontcare = @pop()
-        loop
-          i9n = @pop()
-          if not i9n
-            # just print error here
-            console.log "#{@error.name}: #{@error.message}"
-            # print stack
-            printStack @error.stack
-            return
-          if i9n.this instanceof joe.Try and not i9n.isHandlingError
-            i9n.isHandlingError = true
-            i9n.func = joe.Try::interpretCatch
-            return @error
-        throw new Error "should not happen"
+      catch interrupt
+        throw interrupt if typeof interrupt isnt 'string'
+
+        switch interrupt
+          when 'throw'
+            loop # unwind loop
+              dontcare = @pop()
+              i9n = @peek()
+              if not i9n?
+                # just print error here
+                console.log "#{@error.name}: #{@error.message}"
+                # print stack
+                printStack @error.stack
+                return
+              else if i9n.this instanceof joe.Try and not i9n.isHandlingError
+                i9n.isHandlingError = true
+                i9n.func = joe.Try::interpretCatch
+                last = @error
+                break
+          when 'return'
+            loop # unwind loop
+              dontcare = @pop()
+              i9n = @peek()
+              if not i9n?
+                return @result
+              else if i9n.this instanceof joe.Invocation
+                assert.ok i9n.func is joe.Invocation::interpretFinish
+                last = @result
+                break
+          else throw new Error "Unexpected interrupt #{interrupt} (#{interrupt?.constructor.name})"
 
   ### STACKS ###
 
   pop: -> @i9ns.pop()
+
+  peek: -> @i9ns[@i9ns.length-1]
 
   push: (i9n) -> @i9ns.push i9n
 
@@ -144,7 +157,11 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
   throw: (name, message) ->
     @error = name:name, message:message, stack:@copy()
-    throw EvalError "Error (#{name}) thrown"
+    throw 'throw'
+
+  return: (result) ->
+    @result = result
+    throw 'return'
 
   ### ACCESS CONTROL ###
 
@@ -282,7 +299,7 @@ unless joe.Node::interpret? then do =>
   joe.Block::extend
     interpret: ($) ->
       $.pop()
-      $.scopeDefine variable, undefined for variable in @ownScope.variables if @ownScope?
+      $.scopeDefine variable, undefined for variable in @ownScope.nonparameterVariables if @ownScope?
       if (length=@lines.length) > 1
         $.push this:@, func:joe.Block::interpretLoop, length:length, idx:0
       firstLine = @lines[0]
@@ -450,19 +467,19 @@ unless joe.Node::interpret? then do =>
         i9n.func = joe.Invocation::interpretParams
         i9n.idx = 0
         i9n.length = @params.length
-        i9n.params = new Array(length)
-        param = @params[0]
-        $.push this:param, func:param.interpret
+        i9n.paramValues = new Array(length)
+        paramValue = @params[0]
+        $.push this:paramValue, func:paramValue.interpret
         return
       else
         i9n.func = joe.Invocation::interpretCall
         return
-    interpretParams: ($, i9n, param) ->
-      i9n.params[i9n.idx] = param
+    interpretParams: ($, i9n, value) ->
+      i9n.paramValues[i9n.idx] = value
       if i9n.idx < i9n.length - 1
         i9n.idx = i9n.idx + 1
-        param = @params[i9n.idx]
-        $.push this:param, func:param.interpret
+        paramValue = @params[i9n.idx]
+        $.push this:paramValue, func:paramValue.interpret
         return
       else
         i9n.func = joe.Invocation::interpretCall
@@ -471,10 +488,16 @@ unless joe.Node::interpret? then do =>
       i9n.func = joe.Invocation::interpretFinish
       i9n.oldScope = $.scope
       {block, params} = i9n._func.func
+      paramValues = i9n.paramValues
       $.scope = {__parent__:$.scope} # spawn new scope.
+      # Though params is an AssignList,
+      assert.ok params instanceof joe.AssignList
+      # ... we'll manually bind values to param names.
+      for {target:argName}, i in params.items
+        assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
+        $.scopeDefine argName, paramValues[i]
       $.push this:block, func:block.interpret
-      $.push this:params, func:params.interpret
-      return i9n.params # the rhs of an AssignObj or AssignList
+      return
     interpretFinish: ($, i9n, result) ->
       $.pop()
       $.scope = i9n.oldScope # recall old scope
@@ -484,6 +507,17 @@ unless joe.Node::interpret? then do =>
     interpret: ($, i9n, rhs) ->
       assert.ok no, "AssignObjs aren't part of javascript. Why didn't they get transformed away?"
 
+  joe.Statement::extend
+    interpret: ($, i9n) ->
+      if @expr?
+        i9n.func = joe.Statement::interpretResult
+        $.push this:@expr, func:@expr.interpret
+        return
+      else
+        $.return joe.JUndefined
+    interpretResult: ($, i9n, result) ->
+      $.return result
+      
   clazz.extend String,
     interpret: ($) ->
       $.pop()
