@@ -62,3 +62,6 @@ temp = {"foo": 1, "bar": 2};
 foo = temp.foo;
 bar = temp.bar;
 (foo + bar)"""
+test """
+({foo,bar}) -> foo+bar
+""", ""

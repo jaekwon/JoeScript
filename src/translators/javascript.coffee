@@ -274,6 +274,15 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ->
       ## TODO bind to this for '=>' @type binding
       ## destructuring parameters
+      if @params?
+        destructs = []
+        for param, i in @params.items
+          if not isVariable param
+            arg = joe.Undetermined('arg')
+            @params.items[i] = arg
+            console.log ">>", param, typeof param, param.constructor.name
+            param.destructLines arg, destructs
+        @block.lines[...0] = destructs
       ## make last line return
       @block = @block.toJSNode(toValue:yes, toReturn:yes)
       return this

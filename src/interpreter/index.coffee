@@ -166,7 +166,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', ->
   init: ({@func, @creator, @scope}) ->
     assert.ok @func instanceof joe.Func, "func not Func"
     assert.ok @scope? and @scope instanceof Object, "scope not an object"
-    assert.ok @creator instanceof joe.JUser, "creator not JUser"
+    assert.ok @creator instanceof JUser, "creator not JUser"
 
   toString: -> "[JBoundFunc]"
 
@@ -445,7 +445,8 @@ unless joe.Node::interpret? then do =>
     interpretFunc: ($, i9n, func) ->
       # interpret the parameters
       length = @params.length
-      if lenght > 0
+      if length > 0
+        i9n._func = func
         i9n.func = joe.Invocation::interpretParams
         i9n.idx = 0
         i9n.length = @params.length
@@ -469,9 +470,10 @@ unless joe.Node::interpret? then do =>
     interpretCall: ($, i9n) ->
       i9n.func = joe.Invocation::interpretFinish
       i9n.oldScope = $.scope
+      {block, params} = i9n._func.func
       $.scope = {__parent__:$.scope} # spawn new scope.
-      $.push this:@func.block, func:@func.block.interpret
-      $.push this:@func.params, func:@func.params.interpret
+      $.push this:block, func:block.interpret
+      $.push this:params, func:params.interpret
       return i9n.params # the rhs of an AssignObj or AssignList
     interpretFinish: ($, i9n, result) ->
       $.pop()
@@ -480,7 +482,7 @@ unless joe.Node::interpret? then do =>
 
   joe.AssignObj::extend
     interpret: ($, i9n, rhs) ->
-      # for item, xxxx
+      assert.ok no, "AssignObjs aren't part of javascript. Why didn't they get transformed away?"
 
   clazz.extend String,
     interpret: ($) ->
