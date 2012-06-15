@@ -55,27 +55,27 @@ validateType = (obj, descriptor) ->
 Node = clazz 'Node', ->
 
   
-  # Iterate cb function over all child attributes.
-  # cb:       (child, parent, attrName, descriptor, index?) -> ...
+  # Iterate cb function over all child keys
+  # cb:       (child, parent, keyname, descriptor, index?) -> ...
   # options:
   #   skipUndefined:  (default yes) Skip over undefined or null children
   withChildren: (cb, options) ->
     skipUndefined = options?.skipUndefined ? yes
-    for attr, desc of @children||{}
-      value = this[attr]
+    for key, desc of @children||{}
+      value = this[key]
       if desc.type instanceof Array
-        assert.ok value instanceof Array, "Expected (#{this})[#{red attr}] to be an Array"
+        assert.ok value instanceof Array, "Expected (#{this})[#{red key}] to be an Array"
         for item, i in value when item?
-          cb(item, this, attr, desc.type[0], i)
+          cb(item, this, key, desc.type[0], i)
       else if value? or not skipUndefined
-        cb(value, this, attr, desc)
+        cb(value, this, key, desc)
 
   # Validate types recursively for all children
   # TODO write some tests that test validation failure.
   validate: ->
-    @withChildren (child, parent, attr, desc) ->
+    @withChildren (child, parent, key, desc) ->
       error = validateType child, desc
-      throw new Error "Error in validation (attr='#{attr}'): #{error}" if error?
+      throw new Error "Error in validation (key='#{key}'): #{error}" if error?
       child.validate() if child instanceof Node
     , skipUndefined:no
 
@@ -89,8 +89,8 @@ Node = clazz 'Node', ->
     if @ownScope?.variables?.length > 0
       valueStr += yellow (@ownScope.variables.join ' ')
     str = "#{green @constructor.name} #{valueStr}\n"
-    @withChildren (child, parent, attr, desc) ->
-      str += "#{indent _indent+1}#{red "@"+attr}: " ##{blue inspect desc}\n"
+    @withChildren (child, parent, key, desc) ->
+      str += "#{indent _indent+1}#{red "@"+key}: " ##{blue inspect desc}\n"
       if child.serialize?
         str += "#{child.serialize(_indent+1)}\n"
       else
@@ -253,21 +253,21 @@ Slice = clazz 'Slice', Node, ->
 Index = clazz 'Index', Node, ->
   children:
     obj:        {type:EXPR, isValue:yes}
-    attr:       {type:EXPR, isValue:yes}
-  init: ({obj, attr, type}) ->
-    type ?= if attr instanceof Word then '.' else '['
+    key:        {type:EXPR, isValue:yes}
+  init: ({obj, key, type}) ->
+    type ?= if key instanceof Word then '.' else '['
     if type is '::'
-      if attr?
-        obj = Index obj:obj, attr:'prototype', type:'.'
+      if key?
+        obj = Index obj:obj, key:'prototype', type:'.'
       else
-        attr = 'prototype'
+        key = 'prototype'
       type = '.'
     @obj = obj
-    @attr = attr
+    @key = key
     @type = type
   toString: ->
     close = if @type is '[' then ']' else ''
-    "#{@obj}#{@type}#{@attr}#{close}"
+    "#{@obj}#{@type}#{@key}#{close}"
 
 Soak = clazz 'Soak', Node, ->
   children:
@@ -643,9 +643,9 @@ resetIndent = (ws, $) ->
   i VALUE: [
     # left recursive
     o SLICE:        " obj:VALUE range:RANGE ", make Slice
-    o INDEX0:       " obj:VALUE type:'['  attr:LINEEXPR _ ']' ", make Index
-    o INDEX1:       " obj:VALUE type:'.'  attr:WORD ", make Index
-    o PROTO:        " obj:VALUE type:'::' attr:WORD? ", make Index
+    o INDEX0:       " obj:VALUE type:'['  key:LINEEXPR _ ']' ", make Index
+    o INDEX1:       " obj:VALUE type:'.'  key:WORD ", make Index
+    o PROTO:        " obj:VALUE type:'::' key:WORD? ", make Index
     o INVOC_EXPL:   " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
     o SOAK:         " VALUE '?' ", make Soak
 
@@ -662,7 +662,7 @@ resetIndent = (ws, $) ->
     o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
     o OBJ_EXPL:     " '{' _SOFTLINE? &:_OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
     i _OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", make Item
-    o PROPERTY:     " '@' (WORD|STRING) ", (attr) -> Index obj:This(), attr:attr
+    o PROPERTY:     " '@' (WORD|STRING) ", (key) -> Index obj:This(), key:key
     o THIS:         " '@' ", make This
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [

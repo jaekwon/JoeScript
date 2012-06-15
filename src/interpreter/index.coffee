@@ -64,13 +64,13 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
         # main loop
         while i9n = @i9ns[@i9ns.length-1]
           console.log blue "\n             -- step --"
-          {func, this:that, target, attr} = i9n
+          {func, this:that, target, targetKey} = i9n
           @print()
           throw new Error "Last i9n.func undefined!" if not func?
           throw new Error "Last i9n.this undefined!" if not that?
-          throw new Error "target and attr must be present together" if (target? or attr?) and not (target? and attr?)
+          throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
           last = func.call that, this, i9n, last
-          target[attr] = last if target?
+          target[targetKey] = last if target?
           console.log "             #{blue "return"} #{last}"
         return last.jsValue
       catch interrupt
@@ -217,11 +217,11 @@ JObject = @JObject = clazz 'JObject', ->
   __iterator__: ($) ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
-  __add__: ($, other) -> $.throw 'TypeError', "Can't add to object yet"
-  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
-  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
-  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
-  __bool__: ($, other) -> JTrue
+  __add__:  ($, other) -> $.throw 'TypeError', "Can't add to object yet"
+  __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
+  __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
+  __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __bool__: ($, other) -> yes
   jsValue$: get: ->
     tmp = {}
     tmp[key] = value.jsValue for key, value of @data
@@ -234,25 +234,28 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     @super.init.call @, {creator, data, acl}
   __get__: ($, key) ->
     $.will('read', this)
-    if isInteger key
-      return @array[key]
-    else
-      return @super.__get__.call @, $, key
+    return @array[key] if isInteger key
+    keyStr = key.__str__($)
+    return @array.length if keyStr is 'length'
+    return @data[keyStr]
   __set__: ($, key, value) ->
     $.will('write', this)
     if isInteger key
       @array[key] = value
       return
-    else
-      return @super.__set__.call @, $, key, value
+    keyStr = key.__str__($)
+    if keyStr is 'length'
+      @array.length = value
+      return
+    @data[keyStr] = value
   __keys__: ($) ->
     $.will('read', this)
     return _.keys(@array).concat _.keys(@data)
-  __add__: ($, other) -> $.throw 'TypeError', "Can't add to array yet"
-  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
-  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
-  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
-  __bool__: ($, other) -> JTrue
+  __add__:  ($, other) -> $.throw 'TypeError', "Can't add to array yet"
+  __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
+  __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
+  __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
+  __bool__: ($, other) -> yes
   jsValue$: get: ->
     tmp = @array[...]
     tmp[key] = value.jsValue for key, value of @data
@@ -276,23 +279,21 @@ JUser = @JUser = clazz 'JUser', JObject, ->
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->
   __init__: (@name, @jsValue) ->
-  __get__: ($, key)   -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
-  __set__: ($, key, value) ->
-                         $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
-  __keys__: ($) ->       $.throw 'TypeError', "Cannot get keys of #{@name}"
-  __iterator__: ($) ->   $.throw 'TypeError', "Cannot get iterator of #{@name}"
-  __add__: ($, other) -> JNaN
-  __sub__: ($, other) -> JNaN
-  __mul__: ($, other) -> JNaN
-  __div__: ($, other) -> JNaN
-  __bool__: ($, other) -> JFalse
+  __get__:    ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
+  __set__: ($, key, value) -> $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
+  __keys__:        ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
+  __iterator__:    ($) -> $.throw 'TypeError', "Cannot get iterator of #{@name}"
+  __add__:  ($, other) -> JNaN
+  __sub__:  ($, other) -> JNaN
+  __mul__:  ($, other) -> JNaN
+  __div__:  ($, other) -> JNaN
+  __bool__: ($, other) -> no
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = new JSingleton 'null', null
 JUndefined  = @JUndefined = new JSingleton 'undefined', undefined
 JNaN        = @JNaN       = new JSingleton 'NaN', NaN
-JTrue       = @JTrue      = new JSingleton 'true', true
-JFalse      = @JFalse     = new JSingleton 'false', false
+# JFalse/JTrue don't exist, just use native booleans.
 
 ## SETUP
 
@@ -361,79 +362,82 @@ unless joe.Node::interpret? then do =>
 
   joe.Obj::extend
     interpret: ($, i9n) ->
+      # setup
       length = @items.length
       if length > 0
-        {key, value} = @items[0]
         i9n.obj = new JObject(creator:$.user)
         i9n.idx = 0
         i9n.length = @items.length
-        if key instanceof joe.Word
-          i9n.func = joe.Obj::interpretKV
-          i9n.key = key
-          $.push this:value, func:value.interpret
-        else
-          i9n.func = joe.Obj::interpretKey
-          $.push this:key, func:key.interpret
-        return
+        i9n.func = joe.Obj::interpretKV
       else
         $.pop()
         return new JObject(creator:$.user)
-    interpretKey: ($, i9n, key) ->
-      i9n.key = key
-      i9n.func = joe.Obj::interpretKV
-      return
-    interpretKV: ($, i9n, value) ->
-      i9n.obj.__set__($, i9n.key, value)
-      idx = i9n.idx + 1
-      if idx < idx.length
-        {key, value} = @items[idx]
-        i9n.idx = idx
+    interpretKV: ($, i9n) ->
+      # store prior item
+      if 0 < i9n.idx
+        i9n.obj.__set__($, i9n.key, i9n.value)
+      # push next item evaluation
+      if i9n.idx < i9n.length
+        {key, value} = @items[i9n.idx]
+        # setup key
         if key instanceof joe.Word
           i9n.key = key
-          $.push this:value, func:value.interpret
         else if key instanceof joe.Str
-          i9n.func = joe.Obj::interpretKey
-          $.push this:key, func:key.interpret
-        else throw new Error "Dunno how to handle object key of type #{key.constructor.name}"
-        return
+          $.push this:key, func:key.interpret, target:i9n, targetKey:'key'
+        else throw new Error "Unexpected object key of type #{key?.constructor.name}"
+        # setup value
+        $.push this:value, func:value.interpret, target:i9n, targetKey:'value'
+        i9n.idx++
       else
         $.pop()
         return i9n.obj
 
   joe.Operation::extend
-    interpret: ($, i9n, last) ->
-      switch i9n.stage
-        when undefined
-          if @left?
-            if @right?
-              i9n.stage = 'andGetRight'
-            else
-              i9n.stage = 'evaluateLeft'
-            $.push this:@left, func:@left.interpret
-          else
-            i9n.stage = 'evaluateRight'
-            $.push this:@right, func:@right.interpret
-        when 'andGetRight'
-          i9n.left = last
-          i9n.stage = 'evaluateBoth'
-          $.push this:@right, func:@right.interpret
-        when 'evaluateLeft'
-          $.pop()
-          throw new Error "Implement me"
-          return result
-        when 'evaluateRight'
-          $.pop()
-          throw new Error "Implement me"
-          return result
-        when 'evaluateBoth'
-          $.pop()
-          switch @op
-            when '+' then return i9n.left.__add__ $, last
-            when '-' then return i9n.left.__sub__ $, last
-            when '*' then return i9n.left.__mul__ $, last
-            when '/' then return i9n.left.__div__ $, last
-            else throw new Error "Unexpected operation #{@op}"
+    interpret: ($, i9n) ->
+      i9n.func = joe.Operation::interpret2
+      if @left?
+        $.push this:@left, func:@left.interpret, target:i9n, targetKey:'left'
+        if @left instanceof joe.Index and @op in ['--', '++']
+          {target, key} = @left
+          $.push this:target, func:target.interpret, target:i9n, targetKey:'target'
+          if key instanceof joe.Word
+            i9n.key = key
+          else if key instanceof joe.Str
+            $.push this:key, func:key.interpret, target:i9n, targetKey:'key'
+          else throw new Error "Unexpected object key of type #{key?.constructor.name}"
+      if @right?
+        $.push this:@right, func:@right.interpret, target:i9n, targetKey:'right'
       return
+    interpret2: ($, i9n) ->
+      $.pop()
+      if @left?
+        left = i9n.left
+        if @right?
+          right = i9n.right
+          switch @op
+            when '+'  then return left.__add__ $, right
+            when '-'  then return left.__sub__ $, right
+            when '*'  then return left.__mul__ $, right
+            when '/'  then return left.__div__ $, right
+            when '<'  then return left.__cmp__($, right) < 0
+            when '>'  then return left.__cmp__($, right) > 0
+            when '<=' then return left.__cmp__($, right) <= 0
+            when '>=' then return left.__cmp__($, right) >= 0
+            else throw new Error "Unexpected operation #{@op}"
+        else # left++, left--...
+          switch @op
+            when '++' then value = left.__add__ $, 1
+            when '--' then value = left.__sub__ $, 1
+            else throw new Error "Unexpected operation #{@op}"
+          if isVariable left
+            $.scopeUpdate left, value
+          else if left instanceof joe.Index
+            i9n.target.__set__ $, i9n.key, value
+          else
+            throw new Error "Dunno how to increment #{left} (#{left.constructor.name})"
+          return value
+      else
+        throw new Error "implement me"
 
   joe.Null::extend
     interpret: ($) ->
@@ -451,13 +455,13 @@ unless joe.Node::interpret? then do =>
       $.push this:@obj, func:@obj.interpret
       return
     interpretTarget: ($, i9n, obj) ->
-      if @attr instanceof joe.Word
+      if @key instanceof joe.Word
         $.pop()
-        return obj.__get__ $, @attr
+        return obj.__get__ $, @key
       else
         i9n.obj = obj
         i9n.func = joe.Index::interpretKey
-        $.push this:@attr, func:@attr.interpret
+        $.push this:@key, func:@key.interpret
         return
     interpretKey: ($, i9n, key) ->
       $.pop()
@@ -563,11 +567,11 @@ unless joe.Node::interpret? then do =>
     interpret: ($, i9n) ->
       i9n.func = joe.Range::interpret2
       if @start?
-        $.push this:@start, func:@start.interpret, target:i9n, attr:'start'
+        $.push this:@start, func:@start.interpret, target:i9n, targetKey:'start'
       if @end?
-        $.push this:@end, func:@end.interpret, target:i9n, attr:'end'
+        $.push this:@end, func:@end.interpret, target:i9n, targetKey:'end'
       if @by?
-        $.push this:@by, func:@by.interpret, target:i9n, attr:'by'
+        $.push this:@by, func:@by.interpret, target:i9n, targetKey:'by'
     interpret2: ($, i9n) ->
       # TODO Make range an iterator
       $.pop()
@@ -602,10 +606,20 @@ unless joe.Node::interpret? then do =>
     __sub__: ($, other) -> @valueOf() - other.__num__()
     __mul__: ($, other) -> @valueOf() * other.__num__()
     __div__: ($, other) -> @valueOf() / other.__num__()
+    __cmp__: ($, other) -> @valueOf() - other.__num__()
+    __bool__:       ($) -> this isnt 0
     jsValue$: get: -> @
 
   clazz.extend Boolean,
     interpret: ($) ->
       $.pop()
       return @valueOf()
+    __str__:        ($) -> ''+@valueOf()
+    __num__:        ($) -> JNaN
+    __add__: ($, other) -> JNaN
+    __sub__: ($, other) -> JNaN
+    __mul__: ($, other) -> JNaN
+    __div__: ($, other) -> JNaN
+    __cmp__: ($, other) -> JNaN
+    __bool__:       ($) -> @
     jsValue$: get: -> @

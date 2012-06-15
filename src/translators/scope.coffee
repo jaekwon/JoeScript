@@ -64,13 +64,13 @@ joe = require('joeson/src/joescript').NODES
       return this
     determine: ->
       that = this
-      @withChildren (child, parent, attr, desc, index) ->
+      @withChildren (child, parent, key, desc, index) ->
         if child instanceof joe.Undetermined
           child.determine()
           if index?
-            that[attr][index] = child.word
+            that[key][index] = child.word
           else
-            that[attr] = child.word
+            that[key] = child.word
         else if child instanceof joe.Node
           child.determine()
       @
@@ -80,8 +80,8 @@ joe = require('joeson/src/joescript').NODES
       init @, options
       @catchBlock.installScope(create:yes, parent:this) if @catchVar? and @catchBlock?
       @catchBlock.scope.declareVariable(@catchVar) if @catchVar?
-      @withChildren (child, parent, attr) ->
-        child.installScope?(create:no, parent:parent) unless attr is 'catchBlock'
+      @withChildren (child, parent, key) ->
+        child.installScope?(create:no, parent:parent) unless key is 'catchBlock'
       return this
 
   joe.Func::extend
@@ -89,8 +89,8 @@ joe = require('joeson/src/joescript').NODES
       init @, options
       @block.installScope(create:yes, parent:this) if @block?
       @block.scope.declareVariable(name, yes) for name in @params?.targetNames||[]
-      @withChildren (child, parent, attr) ->
-        child.installScope?(create:no, parent:parent) unless attr is 'block'
+      @withChildren (child, parent, key) ->
+        child.installScope?(create:no, parent:parent) unless key is 'block'
       return this
 
   joe.Assign::extend
@@ -106,6 +106,6 @@ joe = require('joeson/src/joescript').NODES
       return if @word? # already determined.
       assert.ok @scope?, "Scope must be available to determine an Undetermined"
       loop
-        word = @prefix + randid(12) # lol.
+        word = @prefix+'_'+randid(4)
         if not @scope.isDeclared(word) and not @scope.willDeclare(word)
           return @word=joe.Word(word)

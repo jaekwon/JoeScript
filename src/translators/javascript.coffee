@@ -23,11 +23,11 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         return @childrenToJSNode()
     childrenToJSNode: ->
       that = this
-      @withChildren (child, parent, attr, desc, index) ->
+      @withChildren (child, parent, key, desc, index) ->
         if index?
-          that[attr][index] = child.toJSNode toValue:desc.isValue
+          that[key][index] = child.toJSNode toValue:desc.isValue
         else
-          that[attr] = child.toJSNode toValue:desc.isValue
+          that[key] = child.toJSNode toValue:desc.isValue
       @
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined"
@@ -110,7 +110,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         # while(@cond) {
         #   <Variable>.push(@block)
         # }
-        @block = joe.Invocation(func:joe.Index(obj:target,attr:'push'), params:[@block]).toJSNode()
+        @block = joe.Invocation(func:joe.Index(obj:target,key:'push'), params:[@block]).toJSNode()
         lines.push this
         # <Variable>
         lines.push target.toJSNode({toReturn})
@@ -138,7 +138,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
               # for (_i = 0; ...
               joe.Assign(target:_i=joe.Undetermined('_i'), value:0)
             ,
-            joe.Assign(target:_len=joe.Undetermined('_len'), value:joe.Index(obj:@obj, attr:'length', type:'.')),
+            joe.Assign(target:_len=joe.Undetermined('_len'), value:joe.Index(obj:@obj, key:'length', type:'.')),
           ]
           # _i < _len; ...
           cond = joe.Operation left:_i, op:'<', right:_len
@@ -150,7 +150,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
               # _i++)
               joe.Operation(left:_i, op:'++')
           block = joe.Block [
-            joe.Assign(target:@keys[0], value:joe.Index(obj:@obj, attr:_i)),
+            joe.Assign(target:@keys[0], value:joe.Index(obj:@obj, key:_i)),
             if @cond?
               # if (@cond) { @block }
               joe.If(cond:@cond, block:@block)
@@ -164,7 +164,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           # for (@keys[0] in @obj)
           key = @keys[0]
           block = joe.Block compact [
-            joe.Assign(target:@keys[1], value:joe.Index(obj:@obj, attr:key)) if @keys[1],
+            joe.Assign(target:@keys[1], value:joe.Index(obj:@obj, key:key)) if @keys[1],
             if @cond?
               # if (@cond) { @block }
               joe.If(cond:@cond, block:@block)
@@ -233,11 +233,11 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         key      = item.key ? i
         default_ = item.default
         if target instanceof joe.Word or target instanceof joe.Index
-          lines.push joe.Assign target:target, value:joe.Index(obj:source, attr:key)
+          lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
           lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
         else if target instanceof joe.AssignObj
           temp = joe.Undetermined '_assign'
-          lines.push joe.Assign target:temp, value:joe.Index(obj:source, attr:key)
+          lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
           lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
           target.destructLines temp, lines
         else
@@ -303,7 +303,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.Index::extend
     toJavascript: ->
       close = if @type is '[' then ']' else ''
-      "#{js @obj}#{@type}#{js @attr}#{close}"
+      "#{js @obj}#{@type}#{js @key}#{close}"
 
   joe.Obj::extend
     toJavascript: ->
