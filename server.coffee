@@ -40,9 +40,9 @@ io.sockets.on 'connection', (socket) ->
       user:   SYSTEM.user,
       code:   code,
       stdout: (str) ->
-        console.log "stdout", str
-        socket.emit 'stdout', str
+        console.log "stdout", str, ixid
+        socket.emit 'stdout', text:str, ixid:ixid
       stderr: (str) ->
-        console.log "stderr", str
-        socket.emit 'stderr', str
+        console.log "stderr", str, ixid
+        socket.emit 'stderr', text:str, ixid:ixid
       stdin:  undefined # not implemented
