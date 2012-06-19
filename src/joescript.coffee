@@ -1,101 +1,19 @@
-{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{ clazz,
+  colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
+  collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
 _         = require 'underscore'
 fs        = require 'fs'
 path      = require 'path'
 {Grammar} = require 'joeson'
+{Node} = require 'joeson/src/node'
 
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
 isVariable = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
 @HELPERS = {extend, isVariable}
 indent = (indent) -> Array(indent+1).join('  ')
-
-# TODO move out.
-Set = clazz 'Set', ->
-  __init__: (@elements) ->
-
-# Returns an error message if validation fails.
-validateType = (obj, descriptor) ->
-  if not obj?
-    return if not descriptor.required
-    return "missing value"
-
-  # handle array types
-  if descriptor.type instanceof Array
-    assert.ok descriptor.type.length is 1, "Dunno how to handle cases where the type is an Array of length != 1"
-    type = descriptor.type[0]
-    if not obj instanceof Array
-      return "Expected an array of #{inspect type}, got #{obj.constructor.name}."
-    for item in obj
-      error = validateType item, type
-      return error if error?
-    return # ok
-
-  # handle a set of types
-  else if descriptor.type instanceof Set
-    for type in descriptor.type.elements
-      error = validateType obj, type
-      return if not error?
-    return "Expected one of #{(inspect type for type in descriptor.type.elements).join(', ')} but got #{obj.constructor.name}"
-
-  # otherwise
-  if descriptor.type instanceof Function
-    return if obj instanceof descriptor.type # ok
-    return "Expected type of #{descriptor.type.name} but got #{obj.constructor.name}"
-  else if typeof descriptor.type is 'string'
-    return if typeof obj is descriptor.type # ok
-    return "Expected native type of #{descriptor.type} but got #{typeof obj}"
-  else if descriptor.type?
-    assert.ok no, "Should not happen. Dunno how to handle descriptor type #{inspect descriptor.type}"
-  # else nothing to do
-
-# All AST nodes are instances of Node.
-Node = clazz 'Node', ->
-
-  
-  # Iterate cb function over all child keys
-  # cb:       (child, parent, keyname, descriptor, index?) -> ...
-  # options:
-  #   skipUndefined:  (default yes) Skip over undefined or null children
-  withChildren: (cb, options) ->
-    skipUndefined = options?.skipUndefined ? yes
-    for key, desc of @children||{}
-      value = this[key]
-      if desc.type instanceof Array
-        assert.ok value instanceof Array, "Expected (#{this})[#{red key}] to be an Array"
-        for item, i in value when item?
-          cb(item, this, key, desc.type[0], i)
-      else if value? or not skipUndefined
-        cb(value, this, key, desc)
-
-  # Validate types recursively for all children
-  # TODO write some tests that test validation failure.
-  validate: ->
-    @withChildren (child, parent, key, desc) ->
-      error = validateType child, desc
-      throw new Error "Error in validation (key='#{key}'): #{error}" if error?
-      child.validate() if child instanceof Node
-    , skipUndefined:no
-
-  # e.g.
-  # Block::defineProperty('foo', get: -> 'FOO')
-  # Block().foo is 'FOO'
-  defineProperty: (name, data) -> Object.defineProperty @, name, data
-
-  serialize: (_indent=0) ->
-    valueStr = this.toString()
-    if @ownScope?.variables?.length > 0
-      valueStr += yellow (@ownScope.variables.join ' ')
-    str = "#{green @constructor.name} #{valueStr}\n"
-    @withChildren (child, parent, key, desc) ->
-      str += "#{indent _indent+1}#{red "@"+key}: " ##{blue inspect desc}\n"
-      if child.serialize?
-        str += "#{child.serialize(_indent+1)}\n"
-      else
-        str += "#{''+child} #{"("+child.constructor.name+")"}\n"
-    return str.trimRight()
 
 Word = clazz 'Word', Node, ->
   init: (@key) ->
@@ -546,18 +464,17 @@ resetIndent = (ws, $) ->
         # RIGHT_RECURSIVE
         o OBJ_IMPL:                 " _INDENT? &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
         i _OBJ_IMPL_ITEM: [
-          o                         " _ key:(WORD|STRING) _ ':' _SOFTLINE? value:EXPR ", make Item
+          o                         " _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", make Item
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
-        o INVOC_IMPL:               " _ func:VALUE (? __|_OBJ_IMPL_INDENTED) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) ", make Invocation
-        i _OBJ_IMPL_INDENTED:       " _INDENT &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
+        o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? _OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) ", make Invocation
 
         # COMPLEX
         o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
         i _COMPLEX: [
-          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)? ", make If
-          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE | _INDENT)? _ELSE else:BLOCK)? ", make Unless
+          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", make If
+          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", make Unless
           o FOR:                    " _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", make For
           o LOOP:                   " _LOOP block:BLOCK ", make Loop
           o WHILE:                  " _WHILE cond:EXPR block:BLOCK ", make Loop
@@ -636,7 +553,7 @@ resetIndent = (ws, $) ->
                             )
                             default:(_ '=' LINEEXPR)? ", make AssignItem
   i ASSIGN_OBJ:           " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
-  i ASSIGN_OBJ_ITEM:      " _ key:(SYMBOL|PROPERTY)
+  i ASSIGN_OBJ_ITEM:      " _ key:(SYMBOL|PROPERTY|NUMBER)
                             target:(_ ':' _ (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
                             default:(_ '=' LINEEXPR)?", make AssignItem
 
@@ -644,8 +561,8 @@ resetIndent = (ws, $) ->
     # left recursive
     o SLICE:        " obj:VALUE range:RANGE ", make Slice
     o INDEX0:       " obj:VALUE type:'['  key:LINEEXPR _ ']' ", make Index
-    o INDEX1:       " obj:VALUE type:'.'  key:WORD ", make Index
-    o PROTO:        " obj:VALUE type:'::' key:WORD? ", make Index
+    o INDEX1:       " obj:VALUE _SOFTLINE? type:'.'  key:WORD ", make Index
+    o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", make Index
     o INVOC_EXPL:   " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
     o SOAK:         " VALUE '?' ", make Soak
 
@@ -661,7 +578,7 @@ resetIndent = (ws, $) ->
     o ARR_EXPL:     " '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
     o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
     o OBJ_EXPL:     " '{' _SOFTLINE? &:_OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
-    i _OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING) value:(_ ':' LINEEXPR)? ", make Item
+    i _OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", make Item
     o PROPERTY:     " '@' (WORD|STRING) ", (key) -> Index obj:This(), key:key
     o THIS:         " '@' ", make This
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
@@ -723,7 +640,6 @@ resetIndent = (ws, $) ->
   i '.':            " /[\\s\\S]/ ",                      skipLog:yes
   i ESC1:           " _SLASH . ",                        skipLog:yes
   i ESC2:           " _SLASH . ", ((chr) -> '\\'+chr),   skipLog:yes
-
 ]
 # ENDGRAMMAR
 

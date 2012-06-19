@@ -21,6 +21,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
 assert = require 'assert'
 _ = require 'underscore'
 {CodeStream} = require 'joeson/src/codestream'
+{Node} = require 'joeson/src/node'
 {pad, escape} = require 'joeson/lib/helpers'
 
 @trace = trace =
@@ -111,7 +112,7 @@ _loopStack = [] # trace stack
   node.rule = rule # sometimes true.
   node.name = name of the rule, if this is @rule.
 ###
-@GNode = GNode = clazz 'GNode', ->
+@GNode = GNode = clazz 'GNode', Node, ->
 
   @optionKeys = ['skipLog', 'skipCache', 'cb']
 
@@ -156,6 +157,7 @@ _loopStack = [] # trace stack
           when 1 # non-recursive (done)
             frame.loopStage = 0
             frame.cacheSet result, $.code.pos
+            frame.stackLength = $.stackLength if result is null # para parse error message
             $.log "#{cyan "`-set:"} #{escape result} #{black typeof result}" if trace.stack
             return result
 
@@ -210,7 +212,7 @@ _loopStack = [] # trace stack
           else throw new Error "Unexpected stage #{stages[pos]}"
 
       when 1,2,3
-        if frame.loopStage = 1
+        if frame.loopStage is 1
           frame.loopStage = 2 # recursion detected
 
         # Step 1: Collect wipemask so we can wipe the frames later.
@@ -253,16 +255,8 @@ _loopStack = [] # trace stack
         @parse = parse = fn.bind(this)
       return parse($)
 
-  walk: ({pre, post}, parent=undefined) ->
-    # pre, post: (parent, childNode) -> where childNode in parent.children.
-    pre parent, @ if pre?
-    if @children
-      for child in @children
-        if child not instanceof GNode
-          throw Error "Unexpected object encountered walking children: #{child}"
-        child.walk {pre:pre, post:post}, @
-    post parent, @ if post?
-
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
   capture:   yes
   labels$:   get: -> @_labels ?= (if @label then [@label] else [])
   captures$: get: -> @_captures ?= (if @capture then [this] else [])
@@ -281,13 +275,11 @@ _loopStack = [] # trace stack
 
   include: (name, rule) ->
     @rules ?= {}
-    @children ?= []
     #assert.ok name?, "Rule needs a name: #{rule}"
     #assert.ok rule instanceof GNode, "Invalid rule with name #{name}: #{rule} (#{rule.constructor.name})"
     #assert.ok not @rules[name]?, "Duplicate name #{name}"
     rule.name = name if not rule.name?
     @rules[name] = rule
-    @children.push rule
 
   # find a parent in the ancestry chain that satisfies condition
   findParent: (condition) ->
@@ -297,30 +289,27 @@ _loopStack = [] # trace stack
       parent = parent.parent
 
 @Choice = Choice = clazz 'Choice', GNode, ->
-
-  init: (@choices) ->
-    @children = @choices
-
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    choices:    {type:[type:GNode]}
+  init: (@choices=[]) ->
   prepare: ->
     @capture = _.all @choices, (choice)->choice.capture
-
   parse$: @$wrap ($) ->
     for choice in @choices
       result = $.try choice.parse
       if result isnt null
         return result
     return null
-
   contentString: -> blue("(")+(@choices.join blue(' | '))+blue(")")
 
 @Rank = Rank = clazz 'Rank', Choice, ->
-
   @fromLines = (name, lines) ->
     rank = Rank name
     for line, idx in lines
       if line instanceof OLine
         choice = line.toRule rank, index:rank.choices.length
-        rank.addChoice choice
+        rank.choices.push choice
       else if line instanceof ILine
         for own name, rule of line.toRules()
           rank.include name, rule
@@ -331,39 +320,33 @@ _loopStack = [] # trace stack
       else
         throw new Error "Unknown line type, expected 'o' or 'i' line, got '#{line}' (#{typeof line})"
     rank
-
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    choices:    {type:[type:GNode]}
   init: (@name, @choices=[], includes={}) ->
     @rules = {}
-    @children = []
     for choice, i in @choices
-      @addChoice choice
+      @choices.push choice
     for name, rule of includes
       @include name, rule
-
-  addChoice: (rule) ->
-    @include rule.name, rule
-    @choices.push rule
-
   contentString: -> blue("Rank(")+(@choices.map((c)->red(c.name)).join blue(','))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
   handlesChildLabel: yes
-
-  init: (@sequence) ->
-    @children = @sequence
-
-  labels$: get: -> @_labels ?= (if @label? then [@label] else _.flatten (child.labels for child in @children))
-  captures$: get: -> @_captures ?= (_.flatten (child.captures for child in @children))
-
-  type$: get: ->
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    sequence:   {type:[type:GNode]}
+  init:       (@sequence) ->
+  labels$:    get: -> @_labels ?= (if @label? then [@label] else _.flatten (child.labels for child in @sequence))
+  captures$:  get: -> @_captures ?= (_.flatten (child.captures for child in @sequence))
+  type$:      get: ->
     @_type?=(
       if @labels.length is 0
         if @captures.length > 1 then 'array' else 'single'
       else
         'object'
     )
-
-  parse$: @$wrap ($) ->
+  parse$:       @$wrap ($) ->
     switch @type
       when 'array'
         results = []
@@ -403,8 +386,10 @@ _loopStack = [] # trace stack
 
 @Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
   capture: no
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    expr:       {type:GNode}
   init: ({@expr}) ->
-    @children = [@expr]
   parse$: @$wrap ($) ->
     pos = $.code.pos
     result = @expr.parse $
@@ -414,9 +399,10 @@ _loopStack = [] # trace stack
 
 @Existential = Existential = clazz 'Existential', GNode, ->
   handlesChildLabel$: get: -> @parent?.handlesChildLabel
-
-  init: (@it) -> @children = [@it]
-
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    it:         {type:GNode}
+  init: (@it) ->
   prepare: ->
     labels   = if @label? and @label not in ['@','&'] then [@label] else @it.labels
     @label   ?= '@' if labels.length > 0
@@ -426,16 +412,17 @@ _loopStack = [] # trace stack
     # they don't become available right away. wtf?
     @labels   = labels
     @captures = captures
-
   parse$: @$wrap ($) ->
     res = $.try @it.parse
     return res ? undefined
-
   contentString: -> '' + @it + blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    value:      {type:GNode}
+    join:       {type:GNode}
   init: ({@value, @join, @min, @max}) ->
-    @children = if @join? then [@value, @join] else [@value]
     @capture = @value.capture
   parse$: @$wrap ($) ->
     matches = []
@@ -465,8 +452,10 @@ _loopStack = [] # trace stack
 
 @Not = Not = clazz 'Not', GNode, ->
   capture: no
+  children:
+    rules:      {type:{key:undefined,value:{type:GNode}}}
+    it:         {type:GNode}
   init: (@it) ->
-    @children = [@it]
   parse$: @$wrap ($) ->
     pos = $.code.pos
     res = @it.parse $
@@ -481,18 +470,15 @@ _loopStack = [] # trace stack
   # note: @ref because @name is reserved.
   init: (@ref) ->
     @capture = no if @ref[0] is '_'
-
   labels$: get: ->
     @_labels ?=
       if @label is '@' then @grammar.rules[@ref].labels
       else if @label   then [@label]
       else                  []
-  
   parse$: @$wrap ($) ->
     node = @grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
     return node.parse $
-
   contentString: -> red(@ref)
 
 @Str = Str = clazz 'Str', GNode, ->
@@ -515,6 +501,8 @@ _loopStack = [] # trace stack
 # in some glue language.
 @Grammar = Grammar = clazz 'Grammar', GNode, ->
 
+  children: rank: {type:Rank}
+
   init: (rank) ->
     rank = rank(MACROS) if typeof rank is 'function'
     @rank = Rank.fromLines "__grammar__", rank if rank instanceof Array
@@ -522,22 +510,37 @@ _loopStack = [] # trace stack
     @numRules = 0
     @id2Rule = {} # slow lookup for debugging...
 
-    # First, connect all the nodes and collect dereferences into @rules
-    @rank.walk
-      pre: (parent, node) =>
+    # TODO refactor into transformation passes.
+    # Merge Choices with just a single choice.
+    @walk
+      pre: (node, parent, key, desc, key2) =>
+        if node instanceof Choice and node.choices.length is 1
+          # Merge label
+          node.choices[0].label ?= node.label
+          # Merge included rules
+          _.extend (node.choices[0].rules?={}), node.rules if node.rules?
+          # Replace with grandchild
+          if key2?
+            parent[key][key2] = node.choices[0]
+          else
+            parent[key] = node.choices[0]
+
+    # Connect all the nodes and collect dereferences into @rules
+    @walk
+      pre: (node, parent) =>
         # sanity check
         if node.parent? and node isnt node.rule
           throw Error 'Grammar tree should be a DAG, nodes should not be referenced more than once.'
         node.grammar = this
         node.parent = parent
-        # set node.rule, the root node for this rule
-        if not node.inlineLabel?
-          node.rule ||= parent?.rule
-        else
-          # inline rules are special
+        # inline rules are special
+        if node.inlineLabel?
           node.rule = node
           parent.rule.include node.inlineLabel, node
-      post: (parent, node) =>
+        # set node.rule, the root node for this rule
+        else
+          node.rule ||= parent?.rule
+      post: (node, parent) =>
         if node is node.rule
           @rules[node.name] = node
           node.id = @numRules++
@@ -545,9 +548,9 @@ _loopStack = [] # trace stack
           if trace.loop # print out id->rulename for convenience
             console.log "#{red node.id}:\t#{node}"
 
-    # Now prepare all the nodes, child first.
-    @rank.walk
-      post: (parent, node) =>
+    # Prepare all the nodes, child first.
+    @walk
+      post: (node, parent) =>
         # call prepare on all nodes
         node.prepare()
 
@@ -565,21 +568,55 @@ _loopStack = [] # trace stack
       trace = oldTrace
 
     if $.code.pos isnt $.code.text.length
-      # find the maximum parsed entity
-      maxPos = $.code.pos
-      for posFrames, pos in $.frames
-        break if pos <= maxPos
-        for frame, id in posFrames when frame
+
+      # TODO... improve.
+      # Find the rightmost position with null results in the cache,
+      # and get the frame(s) with the least stackLength.
+      maxPos = undefined
+      maxPosMinStackLength = undefined
+      maxPosMinStackLengthRules = undefined
+      for posFrames, pos in $.frames[$.code.pos...]
+        continue if pos < maxPos
+        if not maxPos? or maxPos < pos
           maxPos = pos
-          break
-      throw Error "Incomplete parse in line #{$.code.line}: (#{white 'OK'}/#{yellow 'Parsing'}/#{red 'Unread'})\n\n#{
-            $.code.peek beforeLines:2
-        }#{ yellow $.code.peek afterChars:(maxPos-$.code.pos)
-        }#{ $.code.pos = maxPos; red $.code.peek afterLines:2}\n"
+          maxPosMinStackLength = undefined
+          maxPosMinStackLengthRules = []
+        for frame, id in posFrames when frame
+          continue unless frame.stackLength?
+          continue if frame.result isnt null
+          if maxPosMinStackLength < frame.stackLength
+            continue
+          else if not maxPosMinStackLength? or frame.stackLength < maxPosMinStackLength
+            maxPosMinStackLength = frame.stackLength
+            maxPosMinStackLengthRules = [@id2Rule[frame.id].name]
+          else
+            maxPosMinStackLengthRules.push @id2Rule[frame.id].name
+      if maxPosMinStackLengthRules.length > 0
+        throw new Error "Error parsing at char:#{maxPos}=(line:#{$.code.posToLine(maxPos)},col:#{$.code.posToCol(maxPos)}). Expected #{maxPosMinStackLengthRules.join '|'}"
+      else
+        # find the maximum parsed entity
+        maxAttempt = $.code.pos
+        maxSuccess = $.code.pos
+        for posFrames, pos in $.frames[$.code.pos...]
+          continue if pos < maxAttempt
+          for frame, id in posFrames
+            if frame
+              maxAttempt = pos
+              if frame.result isnt null
+                maxSuccess = pos
+                break
+        throw new Error "Error parsing at char:#{maxSuccess}=(line:#{$.code.posToLine(maxSuccess)},col:#{$.code.posToCol(maxSuccess)}). #{green 'OK'}/#{yellow 'Parsing'}/#{red 'Suspect'}/#{white 'Unknown'})\n\n#{
+              green  $.code.peek beforeLines:2
+          }#{ yellow $.code.peek afterChars:(maxSuccess-$.code.pos)
+          }#{ $.code.pos = maxSuccess; red $.code.peek afterChars:(maxAttempt-$.code.pos)
+          }#{ $.code.pos = maxAttempt; white $.code.peek afterLines:2}\n"
+
     if returnContext
       return $
     else
       return $.result
+
+  contentString: -> magenta('GRAMMAR{')+@rank+magenta('}')
 
 Line = clazz 'Line', ->
   init: (@args...) ->

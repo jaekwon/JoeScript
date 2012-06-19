@@ -41,68 +41,83 @@ printScope = (scope, lvl=0) ->
 # scope:    All the local variables, a dual of the lexical scope.
 # i9ns:     Instructions, a "stack" that also stores intermediate data.
 # error:    Last thrown error
-JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
+JThread = @JThread = clazz 'JThread', ->
 
-  # Usage..
-  #   scope = {}
-  #   scope.global = scope
-  #   new JRuntimeContext user, scope
-  init: (@user, @scope={}) ->
-    assert.ok @user instanceof JObject, "A JRuntimeContext must have an associated user object."
+  # start:  The start node of program to run
+  # user:   The user associated with this thread
+  # global: Global lexical scope object
+  # stdin:  Native function, () -> "user input string" or null if EOL
+  # stdout: Native function, (str) -> # prints to user console
+  init: ({@start, @user, global, @stdin, @stdout}) ->
+    assert.ok @start instanceof joe.Node, "Start must be a function node"
+    assert.ok @user instanceof JObject, "A JThread must have an associated user object."
+    assert.ok Object.isFrozen(global), "Global object must be pre-frozen" if global
+    @scope = if global then {__parent__:global} else {}
     if @user is SYSTEM.user then @will = -> yes
     @i9ns = [] # i9n stack
+    @last = JUndefined # last return value.
+    @interrupt = null
+    @push this:@start, func:@start.interpret
 
-  # Run to completion, synchronously.
-  # node: If present, will push node to @i9ns
-  #       before starting.
-  exec: (node) ->
-    @push this:node, func:node.interpret
-    last = undefined
-    # interrupt recovery loop
-    loop
-      try
-        # main loop
-        while i9n = @i9ns[@i9ns.length-1]
-          console.log blue "\n             -- step --"
-          {func, this:that, target, targetKey} = i9n
-          @print()
-          throw new Error "Last i9n.func undefined!" if not func?
-          throw new Error "Last i9n.this undefined!" if not that?
-          throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
-          last = func.call that, this, i9n, last
-          target[targetKey] = last if target?
-          console.log "             #{blue "return"} #{last}"
-        return last.jsValue
-      catch interrupt
-        throw interrupt if typeof interrupt isnt 'string'
+  # Convenience
+  run: ->
+    resCode=@runStep() while not resCode?
+    switch resCode
+      when 'return' then return @last.jsValue
+      when 'error' then throw @error
+      else throw new Error "Unexpected resCode #{resCode}"
 
-        switch interrupt
-          when 'throw'
-            loop # unwind loop
-              dontcare = @pop()
-              i9n = @peek()
-              if not i9n?
-                # just print error here
-                console.log "#{@error.name}: #{@error.message}"
-                # print stack
-                printStack @error.stack
-                return
-              else if i9n.this instanceof joe.Try and not i9n.isHandlingError
-                i9n.isHandlingError = true
-                i9n.func = joe.Try::interpretCatch
-                last = @error
-                break
-          when 'return'
-            loop # unwind loop
-              dontcare = @pop()
-              i9n = @peek()
-              if not i9n?
-                return @result
-              else if i9n.this instanceof joe.Invocation
-                assert.ok i9n.func is joe.Invocation::interpretFinish
-                last = @result
-                break
-          else throw new Error "Unexpected interrupt #{interrupt} (#{interrupt?.constructor.name})"
+  # Main run loop.
+  # returns...
+  #   'error'   for uncaught errors. see @error
+  #   'return'  for the final return value. see @last
+  #   null      for all other intermediate cases.
+  runStep: ->
+    console.log blue "\n             -- runStep --"
+    return 'return' if @i9ns.length is 0
+    {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
+    printScope @scope
+    printStack @i9ns
+    throw new Error "Last i9n.func undefined!" if not func?
+    throw new Error "Last i9n.this undefined!" if not that?
+    throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
+    @last = func.call that, this, i9n, @last
+    switch @interrupt
+      when 'error'
+        console.log "             #{red 'throw ->'} #{@last}"
+        @interrupt = null
+        loop # unwind loop
+          dontcare = @pop()
+          i9n = @peek()
+          if not i9n?
+            # just print error here
+            console.log "#{@error.name}: #{@error.message}"
+            # print stack
+            printStack @error.stack
+            return 'error'
+          else if i9n.this instanceof joe.Try and not i9n.isHandlingError
+            i9n.isHandlingError = true
+            i9n.func = joe.Try::interpretCatch
+            last = @error
+            return null
+      when 'return'
+        console.log "             #{yellow 'return ->'} #{@last}"
+        @interrupt = null
+        loop # unwind loop
+          dontcare = @pop()
+          i9n = @peek()
+          if not i9n?
+            return 'return'
+          else if i9n.this instanceof joe.Invocation
+            assert.ok i9n.func is joe.Invocation::interpretFinish
+            return null
+      else
+        console.log "             #{blue 'last ->'} #{@last}"
+        if targetIndex?
+          target[targetKey][targetIndex] = @last
+        else if target?
+          target[targetKey] = @last
+        return null
 
   ### STACKS ###
 
@@ -114,10 +129,6 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
   copy: -> @i9ns[...]
 
-  print: ->
-    printScope @scope
-    printStack @i9ns
-
   ### SCOPE ###
 
   #
@@ -128,7 +139,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
       break if nameInScope
       scope = scope.__parent__
       if not scope?
-        @throw 'ReferenceError', "#{name} is not defined"
+        return @throw 'ReferenceError', "#{name} is not defined"
     return scope[name]
 
   # Set a name/value pair on the topmost scope of the chain
@@ -152,7 +163,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
       break if nameInScope
       scope = scope.__parent__
       if not scope?
-        @throw 'ReferenceError', "#{name} is not defined"
+        return @throw 'ReferenceError', "#{name} is not defined"
     scope[name] = value
     return
 
@@ -160,11 +171,11 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
 
   throw: (name, message) ->
     @error = name:name, message:message, stack:@copy()
-    throw 'throw'
+    @interrupt = 'error'
 
   return: (result) ->
-    @result = result
-    throw 'return'
+    @last = result
+    @interrupt = 'return'
 
   ### ACCESS CONTROL ###
 
@@ -175,7 +186,7 @@ JRuntimeContext = @JRuntimeContext = clazz 'JRuntimeContext', ->
     acl = obj.acl ? obj
     throw new Error 'TODO determine permissing using ACL'
 
-  toString: -> "[JRuntimeContext]"
+  toString: -> "[JThread]"
 
 # A function gets bound to the runtime context upon declaration.
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', ->
@@ -199,14 +210,16 @@ JObject = @JObject = clazz 'JObject', ->
   # data: An Object
   # acl:  A JArray of JAccessControlItems
   #       NOTE: the acl has its own acl!
-  init: ({@creator, @data, @acl}) ->
+  init: ({@creator, @data, @proto, @acl}) ->
     assert.ok @creator? and @creator instanceof JObject,
                         "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
                         # Everything has a creator. Wait a minute...
     @data ?= {}
   __get__: ($, key) ->
     $.will('read', this)
-    return @data[key.__str__($)]
+    value = @data[key.__str__($)]
+    return value if value?
+    return @proto.__get__($, key)
   __set__: ($, key, value) ->
     $.will('write', this)
     @data[key.__str__($)] = value
@@ -475,51 +488,42 @@ unless joe.Node::interpret? then do =>
   joe.Invocation::extend
     interpret: ($, i9n) ->
       i9n.oldScope = $.scope # remember
-      # interpret the func
-      i9n.func = joe.Invocation::interpretFunc
+      # interpret the func synchronously.
+      i9n.func = joe.Invocation::interpretParams
       $.push this:@func, func:@func.interpret
       return
-    interpretFunc: ($, i9n, func) ->
-      # interpret the parameters
-      length = @params.length
+    interpretParams: ($, i9n, func) ->
       i9n.invokedFunction = func
-      if length > 0
-        i9n.func = joe.Invocation::interpretParams
-        i9n.idx = 0
-        i9n.length = @params.length
-        i9n.paramValues = new Array(length)
-        paramValue = @params[0]
-        $.push this:paramValue, func:paramValue.interpret
-        return
-      else
-        i9n.func = joe.Invocation::interpretCall
-        return
-    interpretParams: ($, i9n, value) ->
-      i9n.paramValues[i9n.idx] = value
-      if i9n.idx < i9n.length - 1
-        i9n.idx = i9n.idx + 1
-        paramValue = @params[i9n.idx]
-        $.push this:paramValue, func:paramValue.interpret
-        return
-      else
-        i9n.func = joe.Invocation::interpretCall
-        return
-    interpretCall: ($, i9n) ->
-      i9n.func = joe.Invocation::interpretFinish
-      i9n.oldScope = $.scope
-      {func:{block,params}, scope} = i9n.invokedFunction
-      paramValues = i9n.paramValues
-      $.scope = {__parent__:scope} # spawn new scope.
-      if params?
-        # Though params is an AssignList,
-        assert.ok params instanceof joe.AssignList
-        # ... we'll manually bind values to param names.
-        for {target:argName}, i in params.items
-          assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
-          $.scopeDefine argName, paramValues[i]
-      $.push this:block, func:block.interpret
+      # interpret the parameters
+      i9n.paramValeus = []
+      for param, i in @params
+        $.push this:param, func:param.interpret, target:i9n, targetKey:'paramValues', targetIndex:i
+      i9n.func = joe.Invocation::interpretCall
       return
-    interpretFinish: ($, i9n, result) ->
+    interpretCall: ($, i9n) ->
+      i9n.func = joe.Invocation::interpretFinal
+      if i9n.invokedFunction instanceof joe.BoundFunc
+        i9n.oldScope = $.scope
+        {func:{block,params}, scope} = i9n.invokedFunction
+        paramValues = i9n.paramValues
+        $.scope = {__parent__:scope} # spawn new scope.
+        if params?
+          # Though params is an AssignList,
+          assert.ok params instanceof joe.AssignList
+          # ... we'll manually bind values to param names.
+          for {target:argName}, i in params.items
+            assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
+            $.scopeDefine argName, paramValues[i]
+        $.push this:block, func:block.interpret
+        return
+      else if i9n.invokedFunction instanceof Function # native function
+        try
+          # NOTE: i9n is unavailable to native functions
+          # me don't see why it should be needed.
+          return i9n.invokedFunction.apply $, i9n.paramValues
+        catch error
+          return $.throw error?.name ? 'UnknownError', error?.message ? ''+error
+    interpretFinal: ($, i9n, result) ->
       $.pop()
       $.scope = i9n.oldScope # recall old scope
       return result
@@ -535,9 +539,9 @@ unless joe.Node::interpret? then do =>
         $.push this:@expr, func:@expr.interpret
         return
       else
-        $.return joe.JUndefined
+        return $.return joe.JUndefined
     interpretResult: ($, i9n, result) ->
-      $.return result
+      return $.return result
 
   joe.Loop::extend
     interpret: ($, i9n) ->
@@ -623,3 +627,47 @@ unless joe.Node::interpret? then do =>
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> @
     jsValue$: get: -> @
+
+# Global objects available in everybody's scope.
+GLOBAL_ =
+  print: ($, str) -> $.stdout(str)
+Object.freeze GLOBAL_
+
+# Multi-user time-shared interpreter.
+@JKernel = JKernel = clazz 'JKernel', ->
+
+  init: ->
+    @threads = []
+    @index = 0
+
+  # start processing another thread
+  run: ({user, code, stdin, stdout, stderr}) ->
+    try
+      if typeof 'code' is 'string'
+        node = require('joeson/src/joescript').parse code
+        node = node.toJSNode().installScope().determine()
+      else
+        node = code
+      thread = new JThread start:node, user:user, global:GLOBAL_, stdin:stdin, stdout:stdout, stderr:stderr
+      @threads.push thread
+      if @threads.length is 1
+        @index = 0 # might have been NaN
+        @runloop()
+    catch error
+      stderr(error)
+
+  runloop$: ->
+    thread = @threads[@index]
+    console.log "tick"
+    resCode = thread.runStep()
+    if resCode?
+      if resCode is 'error'
+        thread.stderr(thread.error)
+      else if resCode is 'return'
+        thread.stdout(thread.last.jsValue)
+      console.log "thread #{thread} finished with rescode #{resCode}."
+      @threads[@index..@index] = [] # splice out
+      @index = @index % @threads.length # oops, sometimes NaN
+    else
+      process.nextTick @runloop
+      @index = (@index + 1) % @threads.length

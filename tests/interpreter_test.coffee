@@ -3,7 +3,7 @@
 {equal, ok} = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
-{JRuntimeContext, SYSTEM} = require 'joeson/src/interpreter'
+{JThread, SYSTEM} = require 'joeson/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 
@@ -13,9 +13,9 @@ test = (code, cb) ->
   node = require('joeson/src/joescript').parse code
   node = node.toJSNode().installScope().determine()
   #console.log node.serialize()
-  $ = new JRuntimeContext SYSTEM.user
+  $ = new JThread start:node, user:SYSTEM.user
   try
-    res = $.exec node
+    res = $.run()
     cb.call context:$, it:res, node:node
   catch err
     console.log red "TEST ERROR:"

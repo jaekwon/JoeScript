@@ -14,10 +14,10 @@ assert = require 'assert'
     @pos = 0
     # END HACK
 
-  line$: get: ->
-    bisect_right(@lineStarts, @pos) - 1
-  col$:  get: ->
-    @pos - @lineStarts[@line]
+  posToLine: (pos) -> bisect_right(@lineStarts, pos) - 1
+  posToCol:  (pos) -> pos - @lineStarts[@posToLine(pos)]
+  line$: get: -> @posToLine(@pos)
+  col$:  get: -> @posToCol(@pos)
 
   # Get until the string `end` is encountered.
   # Change @pos accordingly, including the `end`.
