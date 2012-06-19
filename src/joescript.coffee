@@ -13,7 +13,6 @@ path      = require 'path'
 extend = (dest, source) -> dest.push x for x in source
 isVariable = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
 @HELPERS = {extend, isVariable}
-indent = (indent) -> Array(indent+1).join('  ')
 
 Word = clazz 'Word', Node, ->
   init: (@key) ->

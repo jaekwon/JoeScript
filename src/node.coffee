@@ -5,6 +5,8 @@
 assert    = require 'assert'
 _         = require 'underscore'
 
+indent = (c) -> Array(c+1).join('  ')
+
 # A base node class, used for both Joescript code nodes, and Joeson AST nodes.
 @Node = Node = clazz 'Node', ->
   

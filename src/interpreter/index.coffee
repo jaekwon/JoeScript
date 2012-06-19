@@ -75,9 +75,9 @@ JThread = @JThread = clazz 'JThread', ->
   #   'return'  for the final return value. see @last
   #   null      for all other intermediate cases.
   runStep: ->
-    console.log blue "\n             -- runStep --"
     return 'return' if @i9ns.length is 0
     {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
+    console.log blue "             -- runStep --"
     printScope @scope
     printStack @i9ns
     throw new Error "Last i9n.func undefined!" if not func?
@@ -131,6 +131,9 @@ JThread = @JThread = clazz 'JThread', ->
 
   copy: -> @i9ns[...]
 
+  callStack: ->
+    (item for item in @i9ns when item.this instanceof joe.Invocation)
+
   ### SCOPE ###
 
   #
@@ -172,7 +175,7 @@ JThread = @JThread = clazz 'JThread', ->
   ### FLOW CONTROL ###
 
   throw: (name, message) ->
-    @error = name:name, message:message, stack:@copy()
+    @error = name:name, message:message, stack:@callStack()
     @interrupt = 'error'
 
   return: (result) ->
@@ -189,18 +192,6 @@ JThread = @JThread = clazz 'JThread', ->
     throw new Error 'TODO determine permissing using ACL'
 
   toString: -> "[JThread]"
-
-# A function gets bound to the runtime context upon declaration.
-JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', ->
-  # func:    The joe.Func node.
-  # creator: The owner of the process that declared above function.
-  # scope:   Runtime scope of process that declares above function.
-  init: ({@func, @creator, @scope}) ->
-    assert.ok @func instanceof joe.Func, "func not Func"
-    assert.ok @scope? and @scope instanceof Object, "scope not an object"
-    assert.ok @creator instanceof JUser, "creator not JUser"
-
-  toString: -> "[JBoundFunc]"
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   # who:  User or JArray of users
@@ -274,14 +265,29 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
   __bool__: ($, other) -> yes
   __str__: ($) ->
-    arrayItems = (item.__str__($) for item in @array).join(',')
-    dataItems  = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
-    return "[#{arrayItems}#{if dataItems? then ' '+dataItems else ''}]"
+    arrayPart = (item.__str__($) for item in @array).join(',')
+    dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
+    return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
   jsValue$: get: ->
     tmp = @array[...]
     tmp[key] = value.jsValue for key, value of @data
     return tmp
   toString: -> "[JArray]"
+
+JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
+  # func:    The joe.Func node.
+  # creator: The owner of the process that declared above function.
+  # scope:   Runtime scope of process that declares above function.
+  init: ({creator, acl, @func, @scope}) ->
+    @super.init.call @, {creator, acl}
+    assert.ok @func instanceof joe.Func, "func not Func"
+    assert.ok @scope? and @scope instanceof Object, "scope not an object"
+  __str__: ($) ->
+    funcPart = "JBoundFunc"
+    dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
+    return "[#{funcPart}#{if dataPart? then ' '+dataPart else ''}]"
+  toString: -> "[JBoundFunc]"
+
 
 SimpleIterator = clazz 'SimpleIterator', ->
   init: (@items) ->
@@ -366,19 +372,26 @@ unless joe.Node::interpret? then do =>
       return
 
   joe.Assign::extend
-    interpret: ($) ->
-      $.pop()
-      $.push this:this,    func:joe.Assign::interpret2
+    interpret: ($, i9n) ->
+      i9n.func = joe.Assign::interpret2
       $.push this:@value,  func:@value.interpret
+      if @target instanceof joe.Index
+        {obj:targetObj, key} = @target
+        $.push this:targetObj, func:targetObj.interpret, target:i9n, targetKey:'targetObj'
+        if key instanceof joe.Word
+          i9n.key = key
+        else if key instanceof joe.Str
+          $.push this:key, func:key.interpret, target:i9n, targetKey:'key'
+        else throw new Error "Unexpected object key of type #{key?.constructor.name}"
       return
     interpret2: ($, i9n, value) ->
       $.pop()
       if isVariable @target
         $.scopeUpdate @target, value
       else if @target instanceof joe.Index
-        throw new Error "Implement me"
+        i9n.targetObj.__set__($, i9n.key, value)
       else
-        throw new Error "Dunnow how to assign to #{@target} (#{@target.constructor.name})"
+        throw new Error "Dunno how to assign to #{@target} (#{@target.constructor.name})"
       return value
 
   joe.Obj::extend
@@ -419,8 +432,8 @@ unless joe.Node::interpret? then do =>
       if @left?
         $.push this:@left, func:@left.interpret, target:i9n, targetKey:'left'
         if @left instanceof joe.Index and @op in ['--', '++']
-          {target, key} = @left
-          $.push this:target, func:target.interpret, target:i9n, targetKey:'target'
+          {obj:targetObj, key} = @left
+          $.push this:targetObj, func:targetObj.interpret, target:i9n, targetKey:'targetObj'
           if key instanceof joe.Word
             i9n.key = key
           else if key instanceof joe.Str
@@ -453,12 +466,12 @@ unless joe.Node::interpret? then do =>
           if isVariable left
             $.scopeUpdate left, value
           else if left instanceof joe.Index
-            i9n.target.__set__ $, i9n.key, value
+            i9n.targetObj.__set__ $, i9n.key, value
           else
             throw new Error "Dunno how to increment #{left} (#{left.constructor.name})"
           return value
       else
-        throw new Error "implement me"
+        throw new Error "implement me!"
 
   joe.Null::extend
     interpret: ($) ->
@@ -601,7 +614,7 @@ unless joe.Node::interpret? then do =>
     __set__: ($, key, value) -> # pass
     __keys__:       ($) -> $.throw 'TypeError', "Object.keys called on non-object"
     __iterator__:   ($) -> new SimpleIterator @valueOf()
-    __str__:        ($) -> @valueOf()
+    __str__:        ($) -> "'#{escape @valueOf()}'"
     __add__: ($, other) -> @valueOf() + other.__str__($)
     __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
     __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
@@ -654,6 +667,7 @@ Object.freeze GLOBAL_
       if typeof 'code' is 'string'
         node = require('joeson/src/joescript').parse code
         node = node.toJSNode().installScope().determine()
+        info "Kernel.run parsed node.\n" + node.serialize()
       else
         node = code
       thread = new JThread start:node, user:user, global:GLOBAL_, stdin:stdin, stdout:stdout, stderr:stderr
@@ -662,7 +676,7 @@ Object.freeze GLOBAL_
         @index = 0 # might have been NaN
         @runloop()
     catch error
-      console.log "QWE"
+      warn "Error in user code start:", error.stack
       stderr(error)
 
   runloop$: ->
@@ -670,25 +684,24 @@ Object.freeze GLOBAL_
     debug "tick"
     try
       resCode = thread.runStep()
-    catch error
-      warn "error in runStep", error
-      console.log "QWE2"
-      thread.stderr inspect error
-      return
-    try
       if resCode?
         if resCode is 'error'
           stackTrace = ''
-          stackTrace = thread.error.stack.map((x)->''+x).join('\n') if thread.error.stack
-          console.log "QWE3"
+          stackTrace = thread.error.stack.map((x)->inspect(x)).join('\n') if thread.error.stack
           thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n#{stackTrace}")
         else if resCode is 'return'
           thread.stdout(thread.last.__str__(thread))
         info "thread #{thread} finished with rescode #{resCode}."
         @threads[@index..@index] = [] # splice out
         @index = @index % @threads.length # oops, sometimes NaN
+        process.nextTick @runloop if @threads.length > 0
       else
-        process.nextTick @runloop
         @index = (@index + 1) % @threads.length
+        process.nextTick @runloop
     catch error
-      fatal error
+      fatal "Error in runStep. Stopping execution.", error.stack
+      thread.stderr 'InternalError:'+error
+      @threads[@index..@index] = [] # splice out
+      @index = @index % @threads.length # oops, sometimes NaN
+      process.nextTick @runloop if @threads.length > 0
+      return
