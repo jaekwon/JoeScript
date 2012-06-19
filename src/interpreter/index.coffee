@@ -16,6 +16,7 @@ _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
 {pad, escape} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
+{debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 isInteger = (n) -> n%1 is 0
 
@@ -48,7 +49,8 @@ JThread = @JThread = clazz 'JThread', ->
   # global: Global lexical scope object
   # stdin:  Native function, () -> "user input string" or null if EOL
   # stdout: Native function, (str) -> # prints to user console
-  init: ({@start, @user, global, @stdin, @stdout}) ->
+  # stderr: Native function, (str) -> # prints to user console
+  init: ({@start, @user, global, @stdin, @stdout, @stderr}) ->
     assert.ok @start instanceof joe.Node, "Start must be a function node"
     assert.ok @user instanceof JObject, "A JThread must have an associated user object."
     assert.ok Object.isFrozen(global), "Global object must be pre-frozen" if global
@@ -230,11 +232,13 @@ JObject = @JObject = clazz 'JObject', ->
   __iterator__: ($) ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
-  __add__:  ($, other) -> $.throw 'TypeError', "Can't add to object yet"
-  __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
-  __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
-  __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __add__: ($, other) -> $.throw 'TypeError', "Can't add to object yet"
+  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
+  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
+  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
   __bool__: ($, other) -> yes
+  __str__: ($) ->
+    "{#{ ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') }}"
   jsValue$: get: ->
     tmp = {}
     tmp[key] = value.jsValue for key, value of @data
@@ -269,6 +273,10 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
   __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
   __bool__: ($, other) -> yes
+  __str__: ($) ->
+    arrayItems = (item.__str__($) for item in @array).join(',')
+    dataItems  = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
+    return "[#{arrayItems}#{if dataItems? then ' '+dataItems else ''}]"
   jsValue$: get: ->
     tmp = @array[...]
     tmp[key] = value.jsValue for key, value of @data
@@ -654,20 +662,33 @@ Object.freeze GLOBAL_
         @index = 0 # might have been NaN
         @runloop()
     catch error
+      console.log "QWE"
       stderr(error)
 
   runloop$: ->
     thread = @threads[@index]
-    console.log "tick"
-    resCode = thread.runStep()
-    if resCode?
-      if resCode is 'error'
-        thread.stderr(thread.error)
-      else if resCode is 'return'
-        thread.stdout(thread.last.jsValue)
-      console.log "thread #{thread} finished with rescode #{resCode}."
-      @threads[@index..@index] = [] # splice out
-      @index = @index % @threads.length # oops, sometimes NaN
-    else
-      process.nextTick @runloop
-      @index = (@index + 1) % @threads.length
+    debug "tick"
+    try
+      resCode = thread.runStep()
+    catch error
+      warn "error in runStep", error
+      console.log "QWE2"
+      thread.stderr inspect error
+      return
+    try
+      if resCode?
+        if resCode is 'error'
+          stackTrace = ''
+          stackTrace = thread.error.stack.map((x)->''+x).join('\n') if thread.error.stack
+          console.log "QWE3"
+          thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n#{stackTrace}")
+        else if resCode is 'return'
+          thread.stdout(thread.last.__str__(thread))
+        info "thread #{thread} finished with rescode #{resCode}."
+        @threads[@index..@index] = [] # splice out
+        @index = @index % @threads.length # oops, sometimes NaN
+      else
+        process.nextTick @runloop
+        @index = (@index + 1) % @threads.length
+    catch error
+      fatal error

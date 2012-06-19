@@ -50,7 +50,7 @@
         console.log("where'd that thing go?");
       }
       ixid = 'ixid' + randid();
-      cloned.find('.CodeMirror-lines').append("&gt;&gt; <span id='" + ixid + "'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span>");
+      cloned.find('.CodeMirror-lines').append("<span class=\"stdout\">-&gt; <span id='" + ixid + "'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>");
       $('.CodeMirror:last').before(cloned);
       return Telecode.pushCode({
         code: this.getValue(),

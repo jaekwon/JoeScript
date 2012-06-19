@@ -3,6 +3,7 @@
 .cm-s-joeson { background: #0a001f; color: #f8f8f8;
   font-family: 'Anonymous Pro', sans-serif;
 }
+.cm-s-joeson .stdout { display:block; margin-top: 0.4em; }
 .cm-s-joeson div.CodeMirror-selected { background: #a8f !important; }
 .cm-s-joeson .CodeMirror-gutter { background: #0a001f; border-right: 1px solid #aaa; }
 .cm-s-joeson .CodeMirror-gutter-text { color: #f8f8f8; }

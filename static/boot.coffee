@@ -35,7 +35,7 @@ $('document').ready ->
     # insert response box
     ixid = 'ixid'+randid()
     cloned.find('.CodeMirror-lines').append("""
-      &gt;&gt; <span id='#{ixid}'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span>
+      <span class="stdout">-&gt; <span id='#{ixid}'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>
     """)
     $('.CodeMirror:last').before(cloned)
     Telecode.pushCode code:@getValue(), ixid:ixid

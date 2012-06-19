@@ -1,5 +1,7 @@
 http = require 'http'
 connect = require 'connect'
+{debug, info, warn, error:fatal} = require('nogg').logger 'server'
+assert = require 'assert'
 
 c = connect()
   .use(connect.logger())
@@ -24,25 +26,36 @@ c.use (req, res) ->
 </html>
 """
 
+process.on 'uncaughtException', (err) ->
+  warn """\n
+^^^^^^^^^^^^^^^^^
+http://debuggable.com/posts/node-js-dealing-with-uncaught-exceptions:4c933d54-1428-443c-928d-4e1ecbdd56cb
+#{err.message}
+#{err.stack}
+vvvvvvvvvvvvvvvvv
+"""
+
 app = http.createServer(c)
 io = require('socket.io').listen app
 app.listen 1337
 
 {JKernel, SYSTEM} = require 'joeson/src/interpreter'
 kern = new JKernel
-console.log "initialized kernel runloop"
+info "initialized kernel runloop"
 
 io.sockets.on 'connection', (socket) ->
   socket.emit '_', {hello:'world'}
   socket.on 'code', ({code,ixid}) ->
-    console.log "received code #{code}, ixid #{ixid}"
+    info "received code #{code}, ixid #{ixid}"
     kern.run
       user:   SYSTEM.user,
       code:   code,
       stdout: (str) ->
-        console.log "stdout", str, ixid
+        assert.ok typeof str is 'string', "stdout can only print strings"
+        info "stdout", str, ixid
         socket.emit 'stdout', text:str, ixid:ixid
       stderr: (str) ->
-        console.log "stderr", str, ixid
+        assert.ok typeof str is 'string', "stderr can only print strings"
+        info "stderr", str, ixid
         socket.emit 'stderr', text:str, ixid:ixid
       stdin:  undefined # not implemented
