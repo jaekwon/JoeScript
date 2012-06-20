@@ -52,6 +52,7 @@
       ixid = 'ixid' + randid();
       cloned.find('.CodeMirror-lines').append("<span class=\"stdout\">-&gt; <span id='" + ixid + "'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>");
       $('.CodeMirror:last').before(cloned);
+      window.scroll(0, document.body.offsetHeight);
       return Telecode.pushCode({
         code: this.getValue(),
         ixid: ixid

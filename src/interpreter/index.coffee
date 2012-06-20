@@ -111,7 +111,7 @@ JThread = @JThread = clazz 'JThread', ->
           if not i9n?
             return 'return'
           else if i9n.this instanceof joe.Invocation
-            assert.ok i9n.func is joe.Invocation::interpretFinish
+            assert.ok i9n.func is joe.Invocation::interpretFinal
             return null
       else
         console.log "             #{blue 'last ->'} #{@last}"
@@ -179,8 +179,8 @@ JThread = @JThread = clazz 'JThread', ->
     @interrupt = 'error'
 
   return: (result) ->
-    @last = result
     @interrupt = 'return'
+    return result # return the result of this to set @last.
 
   ### ACCESS CONTROL ###
 
@@ -230,6 +230,8 @@ JObject = @JObject = clazz 'JObject', ->
   __bool__: ($, other) -> yes
   __str__: ($) ->
     "{#{ ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') }}"
+  __html__: ($) ->
+    "{#{ ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data).join(', ') }}"
   jsValue$: get: ->
     tmp = {}
     tmp[key] = value.jsValue for key, value of @data
@@ -268,6 +270,10 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     arrayPart = (item.__str__($) for item in @array).join(',')
     dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
     return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
+  __html__: ($) ->
+    arrayPart = (item.__html__($) for item in @array).join(',')
+    dataPart = ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data).join(', ') or null
+    return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
   jsValue$: get: ->
     tmp = @array[...]
     tmp[key] = value.jsValue for key, value of @data
@@ -285,6 +291,10 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   __str__: ($) ->
     funcPart = "JBoundFunc"
     dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
+    return "[#{funcPart}#{if dataPart? then ' '+dataPart else ''}]"
+  __html__: ($) ->
+    funcPart = "JBoundFunc"
+    dataPart = ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data).join(', ') or null
     return "[#{funcPart}#{if dataPart? then ' '+dataPart else ''}]"
   toString: -> "[JBoundFunc]"
 
@@ -319,7 +329,7 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
 
 JNull       = @JNull      = new JSingleton 'null', null
 JUndefined  = @JUndefined = new JSingleton 'undefined', undefined
-JNaN        = @JNaN       = new JSingleton 'NaN', NaN
+JNaN        = @JNaN       = new Number NaN
 # JFalse/JTrue don't exist, just use native booleans.
 
 ## SETUP
@@ -330,6 +340,17 @@ unless joe.Node::interpret? then do =>
   require('joeson/src/translators/scope').install() # dependency
   require('joeson/src/translators/javascript').install() # dependency
 
+  # simple instruction to write the last value.
+  setLast = ($, i9n, last) ->
+    $.pop()
+    assert.ok i9n.key?, "setLast requires set key."
+    if i9n.index?
+      @[i9n.key][i9n.index] = last
+    else
+      @[i9n.key] = last
+    return last
+  setLast._name = "setLast"
+
   joe.Node::extend
     interpret: ($) ->
       throw new Error "Dunno how to evaluate a #{this.constructor.name}."
@@ -338,7 +359,8 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return $.scopeGet @
-    __str__: joe.Word::toString
+    __str__: ($) -> @key
+    __html__: ($) -> "`#{escape @key}"
 
   joe.Block::extend
     interpret: ($) ->
@@ -377,11 +399,13 @@ unless joe.Node::interpret? then do =>
       $.push this:@value,  func:@value.interpret
       if @target instanceof joe.Index
         {obj:targetObj, key} = @target
-        $.push this:targetObj, func:targetObj.interpret, target:i9n, targetKey:'targetObj'
+        $.push this:i9n, func:setLast, key:'targetObj'
+        $.push this:targetObj, func:targetObj.interpret
         if key instanceof joe.Word
           i9n.key = key
         else if key instanceof joe.Str
-          $.push this:key, func:key.interpret, target:i9n, targetKey:'key'
+          $.push this:i9n, func:setLast, key:'key'
+          $.push this:key, func:key.interpret
         else throw new Error "Unexpected object key of type #{key?.constructor.name}"
       return
     interpret2: ($, i9n, value) ->
@@ -417,10 +441,12 @@ unless joe.Node::interpret? then do =>
         if key instanceof joe.Word
           i9n.key = key
         else if key instanceof joe.Str
-          $.push this:key, func:key.interpret, target:i9n, targetKey:'key'
+          $.push this:i9n, func:setLast, key:'key'
+          $.push this:key, func:key.interpret
         else throw new Error "Unexpected object key of type #{key?.constructor.name}"
         # setup value
-        $.push this:value, func:value.interpret, target:i9n, targetKey:'value'
+        $.push this:i9n, func:setLast, key:'value'
+        $.push this:value, func:value.interpret
         i9n.idx++
       else
         $.pop()
@@ -430,17 +456,21 @@ unless joe.Node::interpret? then do =>
     interpret: ($, i9n) ->
       i9n.func = joe.Operation::interpret2
       if @left?
-        $.push this:@left, func:@left.interpret, target:i9n, targetKey:'left'
+        $.push this:i9n, func:setLast, key:'left'
+        $.push this:@left, func:@left.interpret
         if @left instanceof joe.Index and @op in ['--', '++']
           {obj:targetObj, key} = @left
-          $.push this:targetObj, func:targetObj.interpret, target:i9n, targetKey:'targetObj'
+          $.push this:i9n, func:setLast, key:'targetObj'
+          $.push this:targetObj, func:targetObj.interpret
           if key instanceof joe.Word
             i9n.key = key
           else if key instanceof joe.Str
-            $.push this:key, func:key.interpret, target:i9n, targetKey:'key'
+            $.push this:i9n, func:setLast, key:'key'
+            $.push this:key, func:key.interpret
           else throw new Error "Unexpected object key of type #{key?.constructor.name}"
       if @right?
-        $.push this:@right, func:@right.interpret, target:i9n, targetKey:'right'
+        $.push this:i9n, func:setLast, key:'right'
+        $.push this:@right, func:@right.interpret
       return
     interpret2: ($, i9n) ->
       $.pop()
@@ -516,14 +546,15 @@ unless joe.Node::interpret? then do =>
     interpretParams: ($, i9n, func) ->
       i9n.invokedFunction = func
       # interpret the parameters
-      i9n.paramValeus = []
+      i9n.paramValues = []
       for param, i in @params
-        $.push this:param, func:param.interpret, target:i9n, targetKey:'paramValues', targetIndex:i
+        $.push this:i9n, func:setLast, key:'paramValues', index:i
+        $.push this:param, func:param.interpret
       i9n.func = joe.Invocation::interpretCall
       return
     interpretCall: ($, i9n) ->
       i9n.func = joe.Invocation::interpretFinal
-      if i9n.invokedFunction instanceof joe.BoundFunc
+      if i9n.invokedFunction instanceof JBoundFunc
         i9n.oldScope = $.scope
         {func:{block,params}, scope} = i9n.invokedFunction
         paramValues = i9n.paramValues
@@ -592,11 +623,14 @@ unless joe.Node::interpret? then do =>
     interpret: ($, i9n) ->
       i9n.func = joe.Range::interpret2
       if @start?
-        $.push this:@start, func:@start.interpret, target:i9n, targetKey:'start'
+        $.push this:i9n, func:setLast, key:'start'
+        $.push this:@start, func:@start.interpret
       if @end?
-        $.push this:@end, func:@end.interpret, target:i9n, targetKey:'end'
+        $.push this:i9n, func:setLast, key:'end'
+        $.push this:@end, func:@end.interpret
       if @by?
-        $.push this:@by, func:@by.interpret, target:i9n, targetKey:'by'
+        $.push this:i9n, func:setLast, key:'by'
+        $.push this:@by, func:@by.interpret
     interpret2: ($, i9n) ->
       # TODO Make range an iterator
       $.pop()
@@ -614,7 +648,9 @@ unless joe.Node::interpret? then do =>
     __set__: ($, key, value) -> # pass
     __keys__:       ($) -> $.throw 'TypeError', "Object.keys called on non-object"
     __iterator__:   ($) -> new SimpleIterator @valueOf()
-    __str__:        ($) -> "'#{escape @valueOf()}'"
+    __str__:        ($) -> @valueOf()
+    __html__:       ($) -> "'#{escape @valueOf()}'"
+    __num__:        ($) -> JNaN
     __add__: ($, other) -> @valueOf() + other.__str__($)
     __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
     __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
@@ -626,6 +662,7 @@ unless joe.Node::interpret? then do =>
       $.pop()
       return @valueOf()
     __str__:        ($) -> ''+@valueOf()
+    __html__:       ($) -> ''+@valueOf()
     __num__:        ($) -> @valueOf()
     __add__: ($, other) -> @valueOf() + other.__num__()
     __sub__: ($, other) -> @valueOf() - other.__num__()
@@ -640,6 +677,7 @@ unless joe.Node::interpret? then do =>
       $.pop()
       return @valueOf()
     __str__:        ($) -> ''+@valueOf()
+    __html__:       ($) -> ''+@valueOf()
     __num__:        ($) -> JNaN
     __add__: ($, other) -> JNaN
     __sub__: ($, other) -> JNaN
@@ -690,7 +728,7 @@ Object.freeze GLOBAL_
           stackTrace = thread.error.stack.map((x)->inspect(x)).join('\n') if thread.error.stack
           thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n#{stackTrace}")
         else if resCode is 'return'
-          thread.stdout(thread.last.__str__(thread))
+          thread.stdout(thread.last.__html__(thread))
         info "thread #{thread} finished with rescode #{resCode}."
         @threads[@index..@index] = [] # splice out
         @index = @index % @threads.length # oops, sometimes NaN

@@ -7,7 +7,7 @@ $('document').ready ->
   console.log "booting..."
   Telecode.connect()
 
-  console.log "marquee..."
+  console.log "marquee..." # don't worry it's just for elipses.
   marqueeLevel = 0
   setInterval (->
     m4Off = marqueeLevel%4
@@ -15,8 +15,8 @@ $('document').ready ->
     m4On = (++marqueeLevel)%4
     $(".marq#{m4On}m4").css  opacity:0.7
   ), 300
-    
-  
+
+  # Setup CodeMirror instance which lives on the bottom of the page.
   mirror = CodeMirror document.body,
     value:      ''
     mode:       'coffeescript'
@@ -38,6 +38,9 @@ $('document').ready ->
       <span class="stdout">-&gt; <span id='#{ixid}'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>
     """)
     $('.CodeMirror:last').before(cloned)
+    # scroll to bottom.
+    window.scroll(0, document.body.offsetHeight)
+    # push code to server
     Telecode.pushCode code:@getValue(), ixid:ixid
   console.log "code mirror:", mirror
 
