@@ -1,6 +1,6 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
-{equal, ok} = require 'assert'
+{equal, deepEqual, ok} = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
 {JThread, SYSTEM} = require 'joeson/src/interpreter'
@@ -11,7 +11,7 @@ counter = 0
 test = (code, cb) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = require('joeson/src/joescript').parse code
-  node = node.toJSNode().installScope().determine()
+  node = node.toJSNode(toValue:yes).installScope().determine()
   #console.log node.serialize()
   $ = new JThread start:node, user:SYSTEM.user
   try
@@ -85,6 +85,12 @@ func = outer(1)
 a = func() for i in [1..5]
 a
 ''',                                      -> equal @it, 6
+test '''
+a = [1,2,3]
+a[3] = 4
+a
+''',                                      -> deepEqual @it, [1,2,3,4]
+test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
 
 ###
 test "Array", Array

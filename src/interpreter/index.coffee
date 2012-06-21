@@ -14,28 +14,13 @@ i9n: short for instruction
 assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
-{pad, escape} = require 'joeson/lib/helpers'
+{pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 isInteger = (n) -> n%1 is 0
 
 # ERRORS = [ 'RangeError', 'EvalError', 'SyntaxError', 'URIError', 'ReferenceError', 'Error', 'TypeError' ]
-
-printStack = (stack) ->
-  for i9n, i in stack
-    i9nCopy = _.clone i9n
-    delete i9nCopy.this
-    delete i9nCopy.func
-    console.log "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
-               }.#{ yellow i9n.func?._name
-           }($, {#{ white _.keys(i9nCopy).join ','
-          }}, _) #{ black escape i9n.this }"
-
-printScope = (scope, lvl=0) ->
-  for key, value of scope when key isnt '__parent__'
-    console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{value}"
-  printScope scope.__parent__, lvl+1 if scope.__parent__?
 
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process
@@ -78,8 +63,8 @@ JThread = @JThread = clazz 'JThread', ->
     return 'return' if @i9ns.length is 0
     {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
     console.log blue "             -- runStep --"
-    printScope @scope
-    printStack @i9ns
+    @printScope @scope
+    @printStack()
     throw new Error "Last i9n.func undefined!" if not func?
     throw new Error "Last i9n.this undefined!" if not that?
     throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
@@ -95,7 +80,7 @@ JThread = @JThread = clazz 'JThread', ->
             # just print error here
             console.log "#{@error.name}: #{@error.message}"
             # print stack
-            printStack @error.stack
+            @printStack @error.stack
             return 'error'
           else if i9n.this instanceof joe.Try and not i9n.isHandlingError
             i9n.isHandlingError = true
@@ -193,6 +178,23 @@ JThread = @JThread = clazz 'JThread', ->
 
   toString: -> "[JThread]"
 
+  ### DEBUG ###
+
+  printStack: (stack=@i9ns) ->
+    for i9n, i in stack
+      i9nCopy = _.clone i9n
+      delete i9nCopy.this
+      delete i9nCopy.func
+      console.log "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
+                 }.#{ yellow i9n.func?._name
+             }($, {#{ white _.keys(i9nCopy).join ','
+            }}, _) #{ black escape i9n.this }"
+
+  printScope: (scope, lvl=0) ->
+    for key, value of scope when key isnt '__parent__'
+      console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{value.__str__(@)}"
+    @printScope scope.__parent__, lvl+1 if scope.__parent__?
+
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   # who:  User or JArray of users
   # what: Action or JArray of actions
@@ -208,11 +210,15 @@ JObject = @JObject = clazz 'JObject', ->
                         "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
                         # Everything has a creator. Wait a minute...
     @data ?= {}
+    @data.__proto__ = null # detatch prototype
   __get__: ($, key) ->
     $.will('read', this)
     value = @data[key.__str__($)]
     return value if value?
-    return @proto.__get__($, key)
+    if @proto?
+      return @proto.__get__($, key)
+    else if starts(keyStr, '__') and ends(keyStr, '__')
+      return @[keyStr] ? JUndefined
   __set__: ($, key, value) ->
     $.will('write', this)
     @data[key.__str__($)] = value
@@ -227,6 +233,7 @@ JObject = @JObject = clazz 'JObject', ->
   __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
   __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
   __bool__: ($, other) -> yes
   __str__: ($) ->
     "{#{ ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') }}"
@@ -239,53 +246,60 @@ JObject = @JObject = clazz 'JObject', ->
   toString: -> "[JObject]"
 
 JArray = @JArray = clazz 'JArray', ->
-  init: ({@creator, @data, @acl, @array}) ->
+  protoKeys = ['push']
+  init: ({@creator, @data, @acl}) ->
     assert.ok @creator? and @creator instanceof JObject,
                         "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
                         # Everything has a creator. Wait a minute...
-    @data ?= {}
-    @array ?= []
-    @data  ?= {}
+    @data ?= []
+    @data.__proto__ = null # detatch prototype
   __get__: ($, key) ->
     $.will('read', this)
     if isInteger key
-      return @array[key]
+      return @data[key] ? JUndefined
     else
+      console.log "GET:", key
       keyStr = key.__str__($)
-      return @array.length if keyStr is 'length'
       value = @data[keyStr]
       return value if value?
+      return @[keyStr] ? JUndefined if starts(keyStr, '__') and ends(keyStr, '__')
+      return @[keyStr] if keyStr in protoKeys
+      return JUndefined
   __set__: ($, key, value) ->
     $.will('write', this)
     if isInteger key
-      @array[key] = value
+      @data[key] = value
       return
     keyStr = key.__str__($)
-    if keyStr is 'length'
-      @array.length = value
-      return
     @data[keyStr] = value
+    return
   __keys__: ($) ->
     $.will('read', this)
-    return _.keys(@array).concat _.keys(@data)
-  __add__:  ($, other) -> $.throw 'TypeError', "Can't add to array yet"
-  __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
-  __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
-  __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
+    return _.keys(@data)
+  __add__: ($, other) -> $.throw 'TypeError', "Can't add to array yet"
+  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
+  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
+  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
+  __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
   __str__: ($) ->
-    arrayPart = (item.__str__($) for item in @array).join(',')
-    dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
+    arrayPart = (item.__str__($) for item in @data).join(',')
+    dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data when not isInteger key).join(', ') or null
     return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
   __html__: ($) ->
-    arrayPart = (item.__html__($) for item in @array).join(',')
-    dataPart = ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data).join(', ') or null
+    arrayPart = (item.__html__($) for item in @data).join(',')
+    dataPart = ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data when not isInteger key).join(', ') or null
     return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
   jsValue$: get: ->
-    tmp = @array[...]
+    tmp = []
     tmp[key] = value.jsValue for key, value of @data
     return tmp
   toString: -> "[JArray]"
+
+  # protokeys
+  push: ($, [value]) ->
+    Array.prototype.push.call @data, value
+    return JUndefined
 
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   # func:    The joe.Func node.
@@ -322,16 +336,18 @@ JUser = @JUser = clazz 'JUser', JObject, ->
   toString: -> "[JUser #{@name}]"
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->
-  __init__: (@name, @jsValue) ->
-  __get__:    ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
+  init: (@name, @jsValue) ->
+  __get__: ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
   __set__: ($, key, value) -> $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
-  __keys__:        ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
-  __iterator__:    ($) -> $.throw 'TypeError', "Cannot get iterator of #{@name}"
-  __add__:  ($, other) -> JNaN
-  __sub__:  ($, other) -> JNaN
-  __mul__:  ($, other) -> JNaN
-  __div__:  ($, other) -> JNaN
+  __keys__: ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
+  __iterator__: ($) -> $.throw 'TypeError', "Cannot get iterator of #{@name}"
+  __add__: ($, other) -> JNaN
+  __sub__: ($, other) -> JNaN
+  __mul__: ($, other) -> JNaN
+  __div__: ($, other) -> JNaN
   __bool__: ($, other) -> no
+  __str__: ($) -> @name
+  __html__: ($) -> @name
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = new JSingleton 'null', null
@@ -405,15 +421,15 @@ unless joe.Node::interpret? then do =>
       i9n.func = joe.Assign::interpret2
       $.push this:@value,  func:@value.interpret
       if @target instanceof joe.Index
-        {obj:targetObj, key} = @target
+        {obj:targetObj, type, key} = @target
         $.push this:i9n, func:setLast, key:'targetObj'
         $.push this:targetObj, func:targetObj.interpret
-        if key instanceof joe.Word
+        if type is '.'
+          assert.ok key instanceof joe.Word, "Unexpected key of type #{key?.constructor.name}"
           i9n.key = key
-        else if key instanceof joe.Str
+        else
           $.push this:i9n, func:setLast, key:'key'
           $.push this:key, func:key.interpret
-        else throw new Error "Unexpected object key of type #{key?.constructor.name}"
       return
     interpret2: ($, i9n, value) ->
       $.pop()
@@ -556,7 +572,9 @@ unless joe.Node::interpret? then do =>
       $.push this:@obj, func:@obj.interpret
       return
     interpretTarget: ($, i9n, obj) ->
-      if @key instanceof joe.Word
+      i9n.setSource.source = obj if i9n.setSource? # for invocations.
+      if @type is '.'
+        assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
         $.pop()
         return obj.__get__ $, @key
       else
@@ -578,7 +596,10 @@ unless joe.Node::interpret? then do =>
       i9n.oldScope = $.scope # remember
       # interpret the func synchronously.
       i9n.func = joe.Invocation::interpretParams
-      $.push this:@func, func:@func.interpret
+      # setSource is a trick to set i9n.source to the
+      # 'obj' part of an index, if @func is indeed an object.
+      # That way we can bind 'this' correctly.
+      $.push this:@func, func:@func.interpret, setSource:i9n
       return
     interpretParams: ($, i9n, func) ->
       unless func instanceof JBoundFunc or func instanceof Function
@@ -597,7 +618,10 @@ unless joe.Node::interpret? then do =>
         i9n.oldScope = $.scope
         {func:{block,params}, scope} = i9n.invokedFunction
         paramValues = i9n.paramValues
-        $.scope = {__parent__:scope} # spawn new scope.
+        if i9n.source?
+          $.scope = {__parent__:scope, this:i9n.source}
+        else
+          $.scope = {__parent__:scope} # ala douglass crockford's good parts.
         if params?
           # Though params is an AssignList,
           assert.ok params instanceof joe.AssignList
@@ -611,7 +635,7 @@ unless joe.Node::interpret? then do =>
         try
           # NOTE: i9n is unavailable to native functions
           # me don't see why it should be needed.
-          return i9n.invokedFunction.apply $, i9n.paramValues
+          return i9n.invokedFunction.call i9n.source, $, i9n.paramValues
         catch error
           return $.throw error?.name ? 'UnknownError', error?.message ? ''+error
     interpretFinal: ($, i9n, result) ->
@@ -689,31 +713,29 @@ unless joe.Node::interpret? then do =>
           array = [i9n.start..i9n.end]
         else
           array = [i9n.start...i9n.end]
-      return JArray creator:SYSTEM.user, array:array
+      return JArray creator:SYSTEM.user, data:array
       
   clazz.extend String,
     interpret: ($) ->
       $.pop()
       return @valueOf()
-    __get__: ($, key) -> # pass
+    __get__: ($, key) -> JUndefined
     __set__: ($, key, value) -> # pass
     __keys__:       ($) -> $.throw 'TypeError', "Object.keys called on non-object"
     __iterator__:   ($) -> new SimpleIterator @valueOf()
-    __str__:        ($) -> @valueOf()
-    __html__:       ($) -> "'#{escape @valueOf()}'"
     __num__:        ($) -> JNaN
     __add__: ($, other) -> @valueOf() + other.__str__($)
     __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
     __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
     __div__: ($, other) -> $.throw 'TypeError', "Can't divide strings yet"
+    __str__:        ($) -> @valueOf()
+    __html__:       ($) -> "'#{escape @valueOf()}'"
     jsValue$: get: -> @valueOf()
 
   clazz.extend Number,
     interpret: ($) ->
       $.pop()
       return @valueOf()
-    __str__:        ($) -> ''+@valueOf()
-    __html__:       ($) -> ''+@valueOf()
     __num__:        ($) -> @valueOf()
     __add__: ($, other) -> @valueOf() + other.__num__()
     __sub__: ($, other) -> @valueOf() - other.__num__()
@@ -721,14 +743,14 @@ unless joe.Node::interpret? then do =>
     __div__: ($, other) -> @valueOf() / other.__num__()
     __cmp__: ($, other) -> @valueOf() - other.__num__()
     __bool__:       ($) -> @valueOf() isnt 0
+    __str__:        ($) -> ''+@valueOf()
+    __html__:       ($) -> ''+@valueOf()
     jsValue$: get: -> @valueOf()
 
   clazz.extend Boolean,
     interpret: ($) ->
       $.pop()
       return @valueOf()
-    __str__:        ($) -> ''+@valueOf()
-    __html__:       ($) -> ''+@valueOf()
     __num__:        ($) -> JNaN
     __add__: ($, other) -> JNaN
     __sub__: ($, other) -> JNaN
@@ -736,7 +758,32 @@ unless joe.Node::interpret? then do =>
     __div__: ($, other) -> JNaN
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> @valueOf()
+    __str__:        ($) -> ''+@valueOf()
+    __html__:       ($) -> ''+@valueOf()
     jsValue$: get: -> @valueOf()
+
+  clazz.extend Function, # native functions
+    __num__:        ($) -> JNaN
+    __add__: ($, other) -> JNaN
+    __sub__: ($, other) -> JNaN
+    __mul__: ($, other) -> JNaN
+    __div__: ($, other) -> JNaN
+    __cmp__: ($, other) -> JNaN
+    __bool__:       ($) -> yes
+    __str__:        ($) ->
+      name = @name ? @_name
+      if name
+        "[NativeFunction: #{name}]"
+      else
+        "[NativeFunction]"
+    __html__:       ($) ->
+      name = @name ? @_name
+      if name
+        "[NativeFunction: #{name}]"
+      else
+        "[NativeFunction]"
+    jsValue$: get: -> @valueOf()
+    
 
 # Global objects available in everybody's scope.
 GLOBAL_ =
