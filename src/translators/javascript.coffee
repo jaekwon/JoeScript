@@ -110,7 +110,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         # while(@cond) {
         #   <Variable>.push(@block)
         # }
-        @block = joe.Invocation(func:joe.Index(obj:target,key:'push'), params:[@block]).toJSNode()
+        @block = joe.Invocation(func:joe.Index(obj:target,key:joe.Word('push')), params:[@block]).toJSNode()
         lines.push this
         # <Variable>
         lines.push target.toJSNode({toReturn})
@@ -157,7 +157,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             else
               @block
           ]
-          node = joe.JSForC label:@label, block:@block, setup:setup, cond:cond, counter:counter
+          node = joe.JSForC label:@label, block:block, setup:setup, cond:cond, counter:counter
           return node.childrenToJSNode()
 
         when 'of' # Object iteration

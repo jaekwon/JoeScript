@@ -18,15 +18,22 @@ indent = (c) -> Array(c+1).join('  ')
     skipUndefined = options?.skipUndefined ? yes
     for key, desc of @children||{}
       value = this[key]
-      if desc.type instanceof Array
-        assert.ok value instanceof Array, "Expected (#{this})[#{red key}] to be an Array"
+      # value is undefined
+      if not value? and not desc.required
+        continue
+      # value is an array of stuff (desc.type[0])
+      else if desc.type instanceof Array
+        assert.ok value instanceof Array, "Expected ( #{this} (#{this.constructor.name}) ).#{key} to be an Array but got #{value} (#{value?.constructor.name})"
         for item, i in value when item?
           cb(item, this, key, desc.type[0], i)
+      # value is an object of value := desc.type.value
       else if desc.type instanceof Object and desc.type.value?
         for _key, _value of value when _value?
           cb(_value, this, key, desc.type.value, _key)
+      # all other cases
       else if value? or not skipUndefined
         cb(value, this, key, desc)
+    return
 
   # Depth first walk of entire tree.
   # parent, key, desc, key2: One-time use values for the root node.
@@ -53,8 +60,8 @@ indent = (c) -> Array(c+1).join('  ')
     if @ownScope?.variables?.length > 0
       valueStr += yellow (@ownScope.variables.join ' ')
     str = "#{green @constructor.name} #{valueStr}\n"
-    @withChildren (child, parent, key, desc) ->
-      str += "#{indent _indent+1}#{red "@"+key}: " ##{blue inspect desc}\n"
+    @withChildren (child, parent, key, desc, key2) ->
+      str += "#{indent _indent+1}#{red '@'+key}#{if key2? then red '['+key2+']' else ''}: " ##{blue inspect desc}\n"
       if child.serialize?
         str += "#{child.serialize(_indent+1)}\n"
       else
@@ -72,7 +79,7 @@ validateType = (obj, descriptor) ->
     assert.ok descriptor.type.length is 1, "Dunno how to handle cases where the type is an Array of length != 1"
     type = descriptor.type[0]
     if not obj instanceof Array
-      return "Expected an array of #{inspect type}, got #{obj.constructor.name}."
+      return "Expected #{obj} to be an Array of #{inspect type} but got #{obj?.constructor.name}"
     for item in obj
       error = validateType item, type
       return error if error?

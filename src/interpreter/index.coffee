@@ -238,16 +238,23 @@ JObject = @JObject = clazz 'JObject', ->
     return tmp
   toString: -> "[JObject]"
 
-JArray = @JArray = clazz 'JArray', JObject, ->
-  init: ({creator, data, acl, array}) ->
-    @array = array ? []
-    @super.init.call @, {creator, data, acl}
+JArray = @JArray = clazz 'JArray', ->
+  init: ({@creator, @data, @acl, @array}) ->
+    assert.ok @creator? and @creator instanceof JObject,
+                        "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
+                        # Everything has a creator. Wait a minute...
+    @data ?= {}
+    @array ?= []
+    @data  ?= {}
   __get__: ($, key) ->
     $.will('read', this)
-    return @array[key] if isInteger key
-    keyStr = key.__str__($)
-    return @array.length if keyStr is 'length'
-    return @data[keyStr]
+    if isInteger key
+      return @array[key]
+    else
+      keyStr = key.__str__($)
+      return @array.length if keyStr is 'length'
+      value = @data[keyStr]
+      return value if value?
   __set__: ($, key, value) ->
     $.will('write', this)
     if isInteger key
@@ -421,12 +428,13 @@ unless joe.Node::interpret? then do =>
   joe.Obj::extend
     interpret: ($, i9n) ->
       # setup
-      length = @items.length
+      length = @items?.length ? 0
       if length > 0
         i9n.obj = new JObject(creator:$.user)
         i9n.idx = 0
         i9n.length = @items.length
         i9n.func = joe.Obj::interpretKV
+        return
       else
         $.pop()
         return new JObject(creator:$.user)
@@ -448,9 +456,38 @@ unless joe.Node::interpret? then do =>
         $.push this:i9n, func:setLast, key:'value'
         $.push this:value, func:value.interpret
         i9n.idx++
+        return
       else
         $.pop()
         return i9n.obj
+
+  joe.Arr::extend
+    interpret: ($, i9n) ->
+      # setup
+      length = @items?.length ? 0
+      if length > 0
+        i9n.arr = new JArray(creator:$.user)
+        i9n.idx = 0
+        i9n.length = @items.length
+        i9n.func = joe.Arr::interpretKV
+        return
+      else
+        $.pop()
+        return new JArray(creator:$.user)
+    interpretKV: ($, i9n, value) ->
+      # store prior item
+      if 0 < i9n.idx
+        i9n.arr.__set__($, i9n.idx-1, value)
+      # push next item evaluation
+      if i9n.idx < i9n.length
+        value = @items[i9n.idx]
+        # setup value
+        $.push this:value, func:value.interpret
+        i9n.idx++
+        return
+      else
+        $.pop()
+        return i9n.arr
 
   joe.Operation::extend
     interpret: ($, i9n) ->
@@ -493,12 +530,12 @@ unless joe.Node::interpret? then do =>
             when '++' then value = left.__add__ $, 1
             when '--' then value = left.__sub__ $, 1
             else throw new Error "Unexpected operation #{@op}"
-          if isVariable left
-            $.scopeUpdate left, value
-          else if left instanceof joe.Index
+          if isVariable @left
+            $.scopeUpdate @left, value
+          else if @left instanceof joe.Index
             i9n.targetObj.__set__ $, i9n.key, value
           else
-            throw new Error "Dunno how to increment #{left} (#{left.constructor.name})"
+            throw new Error "Dunno how to operate with #{left} (#{left.constructor.name})"
           return value
       else
         throw new Error "implement me!"
@@ -544,6 +581,8 @@ unless joe.Node::interpret? then do =>
       $.push this:@func, func:@func.interpret
       return
     interpretParams: ($, i9n, func) ->
+      unless func instanceof JBoundFunc or func instanceof Function
+        return $.throw 'TypeError', "#{@func} cannot be called."
       i9n.invokedFunction = func
       # interpret the parameters
       i9n.paramValues = []
@@ -583,6 +622,7 @@ unless joe.Node::interpret? then do =>
   joe.AssignObj::extend
     interpret: ($, i9n, rhs) ->
       assert.ok no, "AssignObjs aren't part of javascript. Why didn't they get transformed away?"
+      return
 
   joe.Statement::extend
     interpret: ($, i9n) ->
@@ -598,6 +638,7 @@ unless joe.Node::interpret? then do =>
   joe.Loop::extend
     interpret: ($, i9n) ->
       $.push this:@block, func:@block.interpret
+      return
 
   joe.JSForC::extend
     interpret: ($, i9n) ->
@@ -608,6 +649,7 @@ unless joe.Node::interpret? then do =>
         i9n.func = joe.JSForC::interpretUnconditionalLoop
       if @setup?
         $.push this:@setup, func:@setup.interpret
+      return
     interpretConditionalLoop: ($, i9n, cond) ->
       if cond.__bool__().jsValue
         $.push this:@cond,    func:@cond.interpret
@@ -615,9 +657,11 @@ unless joe.Node::interpret? then do =>
         $.push this:@counter, func:@counter.interpret
       else
         $.pop()
+        return
     interpretUnconditionalLoop: ($, i9n) ->
       $.push this:@block,   func:@block.interpret
       $.push this:@counter, func:@counter.interpret
+      return
 
   joe.Range::extend
     interpret: ($, i9n) ->
@@ -631,13 +675,20 @@ unless joe.Node::interpret? then do =>
       if @by?
         $.push this:i9n, func:setLast, key:'by'
         $.push this:@by, func:@by.interpret
+      return
     interpret2: ($, i9n) ->
       # TODO Make range an iterator
       $.pop()
       if i9n.by?
-        array = (x for x in [i9n.start...i9n.end] by i9n.by)
+        if @type is '..'
+          array = (x for x in [i9n.start..i9n.end] by i9n.by)
+        else
+          array = (x for x in [i9n.start...i9n.end] by i9n.by)
       else
-        array = [i9n.start...i9n.end]
+        if @type is '..'
+          array = [i9n.start..i9n.end]
+        else
+          array = [i9n.start...i9n.end]
       return JArray creator:SYSTEM.user, array:array
       
   clazz.extend String,
@@ -655,7 +706,7 @@ unless joe.Node::interpret? then do =>
     __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
     __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
     __div__: ($, other) -> $.throw 'TypeError', "Can't divide strings yet"
-    jsValue$: get: -> @
+    jsValue$: get: -> @valueOf()
 
   clazz.extend Number,
     interpret: ($) ->
@@ -669,8 +720,8 @@ unless joe.Node::interpret? then do =>
     __mul__: ($, other) -> @valueOf() * other.__num__()
     __div__: ($, other) -> @valueOf() / other.__num__()
     __cmp__: ($, other) -> @valueOf() - other.__num__()
-    __bool__:       ($) -> this isnt 0
-    jsValue$: get: -> @
+    __bool__:       ($) -> @valueOf() isnt 0
+    jsValue$: get: -> @valueOf()
 
   clazz.extend Boolean,
     interpret: ($) ->
@@ -684,8 +735,8 @@ unless joe.Node::interpret? then do =>
     __mul__: ($, other) -> JNaN
     __div__: ($, other) -> JNaN
     __cmp__: ($, other) -> JNaN
-    __bool__:       ($) -> @
-    jsValue$: get: -> @
+    __bool__:       ($) -> @valueOf()
+    jsValue$: get: -> @valueOf()
 
 # Global objects available in everybody's scope.
 GLOBAL_ =
@@ -704,7 +755,7 @@ Object.freeze GLOBAL_
     try
       if typeof 'code' is 'string'
         node = require('joeson/src/joescript').parse code
-        node = node.toJSNode().installScope().determine()
+        node = node.toJSNode(toValue:yes).installScope().determine()
         info "Kernel.run parsed node.\n" + node.serialize()
       else
         node = code

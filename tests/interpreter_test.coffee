@@ -74,6 +74,8 @@ func = outer(1)
 func()
 func()
 ''',                                      -> ok isNaN @it
+test ' [1..5].length ',                   -> equal @it, 5
+test ' [1...5].length ',                  -> equal @it, 4
 test '''
 outer = (foo) ->
   bar = foo
