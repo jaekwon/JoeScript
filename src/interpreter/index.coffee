@@ -40,7 +40,7 @@ JThread = @JThread = clazz 'JThread', ->
     assert.ok @user instanceof JObject, "A JThread must have an associated user object."
     assert.ok Object.isFrozen(global), "Global object must be pre-frozen" if global
     @scope = if global then {__parent__:global} else {}
-    if @user is SYSTEM.user then @will = -> yes
+    if @user is GOD then @will = -> yes
     @i9ns = [] # i9n stack
     @last = JUndefined # last return value.
     @interrupt = null
@@ -229,6 +229,7 @@ JObject = @JObject = clazz 'JObject', ->
   __iterator__: ($) ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
+  __num__:        ($) -> JNaN
   __add__: ($, other) -> $.throw 'TypeError', "Can't add to object yet"
   __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
   __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
@@ -276,6 +277,7 @@ JArray = @JArray = clazz 'JArray', ->
   __keys__: ($) ->
     $.will('read', this)
     return _.keys(@data)
+  __num__:        ($) -> JNaN
   __add__: ($, other) -> $.throw 'TypeError', "Can't add to array yet"
   __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
   __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
@@ -357,7 +359,8 @@ JNaN        = @JNaN       = new Number NaN
 
 ## SETUP
 
-SYSTEM = @SYSTEM = user: new JUser name:'root'
+GOD = @GOD = new JUser name:'god'
+WORLD = @WORLD = new JObject creator:GOD
 
 unless joe.Node::interpret? then do =>
   require('joeson/src/translators/scope').install() # dependency
@@ -713,7 +716,7 @@ unless joe.Node::interpret? then do =>
           array = [i9n.start..i9n.end]
         else
           array = [i9n.start...i9n.end]
-      return JArray creator:SYSTEM.user, data:array
+      return JArray creator:GOD, data:array
       
   clazz.extend String,
     interpret: ($) ->
@@ -795,10 +798,19 @@ Object.freeze GLOBAL_
 
   init: ->
     @threads = []
+    @userScopes = {}
     @index = 0
 
-  # start processing another thread
-  run: ({user, code, stdin, stdout, stderr}) ->
+  login: ({name, password}) -> # session
+    unless name in @userScopes
+      # create...
+      @userScopes[name] = {}
+    return {type:'user', name:name}
+
+  # Start processing another thread
+  # either user or session must be provided.
+  run: ({user, session, code, stdin, stdout, stderr}) ->
+    assert.ok user? or session?, "Either user or session must be provided."
     try
       if typeof 'code' is 'string'
         node = require('joeson/src/joescript').parse code

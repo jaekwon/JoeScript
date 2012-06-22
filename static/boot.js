@@ -42,6 +42,9 @@
     mirror.submit = function() {
       var cloned, ixid, thing;
       cloned = $('.CodeMirror:last').clone(false);
+      cloned.css({
+        marginBottom: 10
+      });
       cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
       thing = cloned.find('.CodeMirror-lines>div:first>div:first');
       if (thing.css('visibility') === 'hidden') {
@@ -58,7 +61,10 @@
         ixid: ixid
       });
     };
-    return console.log("code mirror:", mirror);
+    console.log("code mirror:", mirror);
+    return $(document).click(function() {
+      return mirror.focus();
+    });
   });
 
   writeTo = function(ixid, text) {

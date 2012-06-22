@@ -5,7 +5,7 @@ randid = (len=12) ->
 $('document').ready ->
 
   console.log "booting..."
-  Telecode.connect()
+  Client.connect()
 
   console.log "marquee..." # don't worry it's just for elipses.
   marqueeLevel = 0
@@ -16,6 +16,8 @@ $('document').ready ->
     $(".marq#{m4On}m4").css  opacity:0.7
   ), 300
 
+  # Login to the system
+
   # Setup CodeMirror instance which lives on the bottom of the page.
   mirror = CodeMirror document.body,
     value:      ''
@@ -25,6 +27,7 @@ $('document').ready ->
     keyMap:     'vim'
   mirror.submit = ->
     cloned = $('.CodeMirror:last').clone(no)
+    cloned.css(marginBottom:10)
     # remove some elements
     cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove()
     thing = cloned.find('.CodeMirror-lines>div:first>div:first')
@@ -41,8 +44,12 @@ $('document').ready ->
     # scroll to bottom.
     window.scroll(0, document.body.offsetHeight)
     # push code to server
-    Telecode.pushCode code:@getValue(), ixid:ixid
+    Client.pushCode code:@getValue(), ixid:ixid
   console.log "code mirror:", mirror
+
+  # When you click on the page, you focus.
+  $(document).click ->
+    mirror.focus()
 
 writeTo = (ixid, text) ->
   span = $('#'+ixid)
@@ -51,12 +58,16 @@ writeTo = (ixid, text) ->
     console.log textElement
     span.replaceWith(textElement)
 
-Telecode =
+Client =
   connect: ->
     @socket = io.connect 'http://localhost:1337/'
     @socket.on 'stdout', (data) => writeTo data.ixid, data.text
     @socket.on 'stderr', (data) => writeTo data.ixid, data.text
-    console.log "Telecode socket:", @socket
+    console.log "Client socket:", @socket
+
+  login: ->
+    @socket.emit 'login', user:'joe', password:'dontcare'
+    @socket.on 'user', (user) => window.user = user
 
   pushCode: ({ixid, code}) ->
     @socket.emit 'code', code:code, ixid:ixid

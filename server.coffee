@@ -39,23 +39,36 @@ app = http.createServer(c)
 io = require('socket.io').listen app
 app.listen 1337
 
-{JKernel, SYSTEM} = require 'joeson/src/interpreter'
+{JKernel, GOD} = require 'joeson/src/interpreter'
 kern = new JKernel
 info "initialized kernel runloop"
 
 io.sockets.on 'connection', (socket) ->
   socket.emit '_', {hello:'world'}
-  socket.on 'code', ({code,ixid}) ->
+
+  # login
+  socket.on 'login', ({name,password}) ->
+    info "login of user w/ name #{name} with password #{password}"
+    user = kern.login name, password
+    socket.set 'user', user, ->
+      socket.emit 'user', user
+    
+  # code
+  socket.on 'code', ({code,ixid} ->
     info "received code #{code}, ixid #{ixid}"
-    kern.run
-      user:   SYSTEM.user,
-      code:   code,
-      stdout: (str) ->
-        assert.ok typeof str is 'string', "stdout can only print strings"
-        info "stdout", str, ixid
-        socket.emit 'stdout', text:str, ixid:ixid
-      stderr: (str) ->
-        assert.ok typeof str is 'string', "stderr can only print strings"
-        info "stderr", str, ixid
-        socket.emit 'stderr', text:str, ixid:ixid
-      stdin:  undefined # not implemented
+    socket.get 'user', (err, user) ->
+      if err?
+        console.log "wtf?", err
+        return
+      kern.run
+        user: user,
+        code: code,
+        stdout: (str) ->
+          assert.ok typeof str is 'string', "stdout can only print strings"
+          info "stdout", str, ixid
+          socket.emit 'stdout', text:str, ixid:ixid
+        stderr: (str) ->
+          assert.ok typeof str is 'string', "stderr can only print strings"
+          info "stderr", str, ixid
+          socket.emit 'stderr', text:str, ixid:ixid
+        stdin:  undefined # not implemented
