@@ -135,8 +135,8 @@ JThread = @JThread = clazz 'JThread', ->
   # Error if name already exists... all updates should happen w/ scopeUpdate.
   scopeDefine: (name, value) ->
     name = name.toKey()
-    alreadyDefined = `name in this.scope` # coffeescript but, can't say "not `...`"
-    assert.ok not alreadyDefined, "Already defined in scope: #{name}"
+    #alreadyDefined = `name in this.scope` # coffeescript but, can't say "not `...`"
+    #assert.ok not alreadyDefined, "Already defined in scope: #{name}"
     @scope[name] = value
     return
 
