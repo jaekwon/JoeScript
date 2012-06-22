@@ -49,18 +49,24 @@ $('document').ready ->
   $(document).click ->
     mirror.focus()
 
-writeTo = (ixid, text) ->
+writeTo = (ixid, html) ->
   span = $('#'+ixid)
+  console.log ixid
+  unless span.data('initialized')
+    span.data('initialized', true)
+    span.empty()
   if span.length > 0
-    textElement = $('<span/>').text(text)
-    console.log textElement
-    span.replaceWith(textElement)
+    outputElement = $('<span/>').html(html)
+    console.log "stdout:", outputElement
+    span.append(outputElement)
+    # scroll to bottom.
+    window.scroll(0, document.body.offsetHeight)
 
 Client =
   connect: ->
-    @socket = io.connect 'http://localhost:1337/'
-    @socket.on 'stdout', (data) => writeTo data.ixid, data.text
-    @socket.on 'stderr', (data) => writeTo data.ixid, data.text
+    @socket = io.connect()
+    @socket.on 'stdout', (data) => writeTo data.ixid, data.html
+    @socket.on 'stderr', (data) => writeTo data.ixid, data.html
     @socket.on '_', =>
       # Login to the system
       # TODO obviously this is buggy wrt asynchronicity. TODO fix.

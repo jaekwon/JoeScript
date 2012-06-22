@@ -37,7 +37,7 @@ vvvvvvvvvvvvvvvvv
 
 app = http.createServer(c)
 io = require('socket.io').listen app
-app.listen 1337
+app.listen 8080
 
 {JKernel, GOD} = require 'joeson/src/interpreter'
 kern = new JKernel
@@ -62,12 +62,12 @@ io.sockets.on 'connection', (socket) ->
       kern.run
         user: user,
         code: code,
-        stdout: (str) ->
-          assert.ok typeof str is 'string', "stdout can only print strings"
-          info "stdout", str, ixid
-          socket.emit 'stdout', text:str, ixid:ixid
-        stderr: (str) ->
-          assert.ok typeof str is 'string', "stderr can only print strings"
-          info "stderr", str, ixid
-          socket.emit 'stderr', text:str, ixid:ixid
+        stdout: (html) ->
+          assert.ok typeof html is 'string', "stdout can only print html strings"
+          info "stdout", html, ixid
+          socket.emit 'stdout', html:html, ixid:ixid
+        stderr: (html) ->
+          assert.ok typeof html is 'string', "stderr can only print html strings"
+          info "stderr", html, ixid
+          socket.emit 'stderr', html:html, ixid:ixid
         stdin:  undefined # not implemented

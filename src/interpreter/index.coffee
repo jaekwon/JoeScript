@@ -787,11 +787,6 @@ unless joe.Node::interpret? then do =>
     jsValue$: get: -> @valueOf()
     
 
-# Global objects available in everybody's scope.
-GLOBAL_ =
-  print: ($, str) -> $.stdout(str)
-Object.freeze GLOBAL_
-
 # Multi-user time-shared interpreter.
 @JKernel = JKernel = clazz 'JKernel', ->
 
@@ -806,7 +801,9 @@ Object.freeze GLOBAL_
     unless user?
       user = new JUser name:name
       @users[name] = user
-      @userScopes[name] = {}
+      @userScopes[name] =
+        print: ($, [obj]) ->
+          $.stdout(obj.__html__($))
     return user
 
   # Start processing another thread
@@ -830,7 +827,7 @@ Object.freeze GLOBAL_
         @runloop()
     catch error
       warn "Error in user code start:", error.stack
-      stderr(error)
+      stderr('InternalError:'+error)
 
   runloop$: ->
     thread = @threads[@index]

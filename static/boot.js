@@ -67,25 +67,31 @@
     });
   });
 
-  writeTo = function(ixid, text) {
-    var span, textElement;
+  writeTo = function(ixid, html) {
+    var outputElement, span;
     span = $('#' + ixid);
+    console.log(ixid);
+    if (!span.data('initialized')) {
+      span.data('initialized', true);
+      span.empty();
+    }
     if (span.length > 0) {
-      textElement = $('<span/>').text(text);
-      console.log(textElement);
-      return span.replaceWith(textElement);
+      outputElement = $('<span/>').html(html);
+      console.log("stdout:", outputElement);
+      span.append(outputElement);
+      return window.scroll(0, document.body.offsetHeight);
     }
   };
 
   Client = {
     connect: function() {
       var _this = this;
-      this.socket = io.connect('http://localhost:1337/');
+      this.socket = io.connect();
       this.socket.on('stdout', function(data) {
-        return writeTo(data.ixid, data.text);
+        return writeTo(data.ixid, data.html);
       });
       this.socket.on('stderr', function(data) {
-        return writeTo(data.ixid, data.text);
+        return writeTo(data.ixid, data.html);
       });
       this.socket.on('_', function() {
         return _this.login();
