@@ -49,12 +49,11 @@ io.sockets.on 'connection', (socket) ->
   # login
   socket.on 'login', ({name,password}) ->
     info "login of user w/ name #{name} with password #{password}"
-    user = kern.login name, password
-    socket.set 'user', user, ->
-      socket.emit 'user', user
+    user = kern.login name:name, password:password
+    socket.set 'user', user, -> # do nothing.
     
   # code
-  socket.on 'code', ({code,ixid} ->
+  socket.on 'code', ({code,ixid}) ->
     info "received code #{code}, ixid #{ixid}"
     socket.get 'user', (err, user) ->
       if err?

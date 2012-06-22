@@ -1,5 +1,5 @@
 (function() {
-  var Telecode, randid, writeTo;
+  var Client, randid, writeTo;
 
   randid = function(len) {
     var i, possible;
@@ -18,7 +18,7 @@
   $('document').ready(function() {
     var marqueeLevel, mirror;
     console.log("booting...");
-    Telecode.connect();
+    Client.connect();
     console.log("marquee...");
     marqueeLevel = 0;
     setInterval((function() {
@@ -56,7 +56,7 @@
       cloned.find('.CodeMirror-lines').append("<span class=\"stdout\"><span class='cm-bracket'>&gt;&gt;</span> <span id='" + ixid + "'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>");
       $('.CodeMirror:last').before(cloned);
       window.scroll(0, document.body.offsetHeight);
-      return Telecode.pushCode({
+      return Client.pushCode({
         code: this.getValue(),
         ixid: ixid
       });
@@ -77,7 +77,7 @@
     }
   };
 
-  Telecode = {
+  Client = {
     connect: function() {
       var _this = this;
       this.socket = io.connect('http://localhost:1337/');
@@ -87,7 +87,16 @@
       this.socket.on('stderr', function(data) {
         return writeTo(data.ixid, data.text);
       });
-      return console.log("Telecode socket:", this.socket);
+      this.socket.on('_', function() {
+        return _this.login();
+      });
+      return console.log("Client socket:", this.socket);
+    },
+    login: function() {
+      return this.socket.emit('login', {
+        name: 'joe',
+        password: 'dontcare'
+      });
     },
     pushCode: function(_arg) {
       var code, ixid;

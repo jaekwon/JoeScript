@@ -16,8 +16,6 @@ $('document').ready ->
     $(".marq#{m4On}m4").css  opacity:0.7
   ), 300
 
-  # Login to the system
-
   # Setup CodeMirror instance which lives on the bottom of the page.
   mirror = CodeMirror document.body,
     value:      ''
@@ -63,11 +61,15 @@ Client =
     @socket = io.connect 'http://localhost:1337/'
     @socket.on 'stdout', (data) => writeTo data.ixid, data.text
     @socket.on 'stderr', (data) => writeTo data.ixid, data.text
+    @socket.on '_', =>
+      # Login to the system
+      # TODO obviously this is buggy wrt asynchronicity. TODO fix.
+      @login()
     console.log "Client socket:", @socket
 
   login: ->
-    @socket.emit 'login', user:'joe', password:'dontcare'
-    @socket.on 'user', (user) => window.user = user
+    @socket.emit 'login', name:'joe', password:'dontcare'
+    #@socket.on 'user', (user) => window.user = user
 
   pushCode: ({ixid, code}) ->
     @socket.emit 'code', code:code, ixid:ixid

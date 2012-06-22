@@ -31,15 +31,14 @@ JThread = @JThread = clazz 'JThread', ->
 
   # start:  The start node of program to run
   # user:   The user associated with this thread
-  # global: Global lexical scope object
+  # scope:  Immediate local lexical scope object
   # stdin:  Native function, () -> "user input string" or null if EOL
   # stdout: Native function, (str) -> # prints to user console
   # stderr: Native function, (str) -> # prints to user console
-  init: ({@start, @user, global, @stdin, @stdout, @stderr}) ->
+  init: ({@start, @user, @scope, @stdin, @stdout, @stderr}) ->
     assert.ok @start instanceof joe.Node, "Start must be a function node"
     assert.ok @user instanceof JObject, "A JThread must have an associated user object."
-    assert.ok Object.isFrozen(global), "Global object must be pre-frozen" if global
-    @scope = if global then {__parent__:global} else {}
+    @scope ?= {}
     if @user is GOD then @will = -> yes
     @i9ns = [] # i9n stack
     @last = JUndefined # last return value.
@@ -798,19 +797,25 @@ Object.freeze GLOBAL_
 
   init: ->
     @threads = []
-    @userScopes = {}
+    @users = {}       # name -> user
+    @userScopes = {}  # name -> scope 
     @index = 0
 
-  login: ({name, password}) -> # session
-    unless name in @userScopes
-      # create...
+  login: ({name, password}) -> # user JSON
+    user = @users[name]
+    unless user?
+      user = new JUser name:name
+      @users[name] = user
       @userScopes[name] = {}
-    return {type:'user', name:name}
+    return user
 
   # Start processing another thread
-  # either user or session must be provided.
-  run: ({user, session, code, stdin, stdout, stderr}) ->
-    assert.ok user? or session?, "Either user or session must be provided."
+  # user: the same user object as returned by login.
+  run: ({user, code, stdin, stdout, stderr}) ->
+    assert.ok user?, "User must be provided."
+    assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
+    scope = @userScopes[user.name]
+    assert.ok scope?, "Scope missing for user #{user.name}"
     try
       if typeof 'code' is 'string'
         node = require('joeson/src/joescript').parse code
@@ -818,7 +823,7 @@ Object.freeze GLOBAL_
         info "Kernel.run parsed node.\n" + node.serialize()
       else
         node = code
-      thread = new JThread start:node, user:user, global:GLOBAL_, stdin:stdin, stdout:stdout, stderr:stderr
+      thread = new JThread start:node, user:user, scope:scope, stdin:stdin, stdout:stdout, stderr:stderr
       @threads.push thread
       if @threads.length is 1
         @index = 0 # might have been NaN
