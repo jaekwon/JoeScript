@@ -3,7 +3,7 @@
 {equal, deepEqual, ok} = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
-{JThread, SYSTEM} = require 'joeson/src/interpreter'
+{JThread, GOD} = require 'joeson/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 
@@ -13,7 +13,7 @@ test = (code, cb) ->
   node = require('joeson/src/joescript').parse code
   node = node.toJSNode(toValue:yes).installScope().determine()
   #console.log node.serialize()
-  $ = new JThread start:node, user:SYSTEM.user
+  $ = new JThread start:node, user:GOD
   try
     res = $.run()
     cb.call context:$, it:res, node:node
