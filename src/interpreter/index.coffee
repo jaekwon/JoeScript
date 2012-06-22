@@ -677,14 +677,14 @@ unless joe.Node::interpret? then do =>
     interpretConditionalLoop: ($, i9n, cond) ->
       if cond.__bool__().jsValue
         $.push this:@cond,    func:@cond.interpret
-        $.push this:@block,   func:@block.interpret
         $.push this:@counter, func:@counter.interpret
+        $.push this:@block,   func:@block.interpret
       else
         $.pop()
         return
     interpretUnconditionalLoop: ($, i9n) ->
-      $.push this:@block,   func:@block.interpret
       $.push this:@counter, func:@counter.interpret
+      $.push this:@block,   func:@block.interpret
       return
 
   joe.Range::extend
