@@ -45,9 +45,9 @@ JObject = @JObject = clazz 'JObject', ->
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
   __bool__: ($, other) -> yes
   __str__: ($) ->
-    "{#{ ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') }}"
-  __html__: ($) ->
-    "{#{ ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data).join(', ') }}"
+    @__repr__($).__str__($)
+  __repr__: ($) ->
+    ['{', ([key.__str__($), ':', value.__repr__($)] for key, value of @data).times(', '), '}']
   jsValue$: get: ->
     tmp = {}
     tmp[key] = value.jsValue for key, value of @data
@@ -92,14 +92,13 @@ JArray = @JArray = clazz 'JArray', ->
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
-  __str__: ($) ->
-    arrayPart = (item.__str__($) for item in @data).join(',')
-    dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data when not isInteger key).join(', ') or null
-    return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
-  __html__: ($) ->
-    arrayPart = (item.__html__($) for item in @data).join(',')
-    dataPart = ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data when not isInteger key).join(', ') or null
-    return "[#{arrayPart}#{if dataPart? then ' '+dataPart else ''}]"
+  __repr__: ($) ->
+    arrayPart = (item.__repr__($) for item in @data).times(',')
+    dataPart = ([key.__str__($), ':', value.__repr__($)] for key, value of @data when not isInteger key).times(', ') or null
+    if dataPart.length > 0
+      return ['[',arrayPart,' ',dataPart,']']
+    else
+      return ['[',arrayPart,']']
   jsValue$: get: ->
     tmp = []
     tmp[key] = value.jsValue for key, value of @data
@@ -123,6 +122,9 @@ JUser = @JUser = clazz 'JUser', JObject, ->
     @super.init.call @, creator:this, data:{name:@name}
   toString: -> "[JUser #{@name}]"
 
+JTMLElement = @JTMLElement = clazz 'JTMLElement', ->
+  init: ({@
+
 JSingleton = @JSingleton = clazz 'JSingleton', ->
   init: (@name, @jsValue) ->
   __get__: ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
@@ -134,8 +136,7 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   __mul__: ($, other) -> JNaN
   __div__: ($, other) -> JNaN
   __bool__: ($, other) -> no
-  __str__: ($) -> @name
-  __html__: ($) -> @name
+  __repr__: ($) -> @name
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = new JSingleton 'null', null
@@ -151,14 +152,13 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     @super.init.call @, {creator, acl}
     assert.ok @func instanceof joe.Func, "func not Func"
     assert.ok @scope? and @scope instanceof Object, "scope not an object"
-  __str__: ($) ->
+  __repr__: ($) ->
     funcPart = "JBoundFunc"
-    dataPart = ("#{key.__str__($)}:#{value.__str__($)}" for key, value of @data).join(', ') or null
-    return "[#{funcPart}#{if dataPart? then ' '+dataPart else ''}]"
-  __html__: ($) ->
-    funcPart = "JBoundFunc"
-    dataPart = ("#{key.__str__($)}:#{value.__html__($)}" for key, value of @data).join(', ') or null
-    return "[#{funcPart}#{if dataPart? then ' '+dataPart else ''}]"
+    dataPart = ([key.__str__($), ':', value.__repr__($)] for key, value of @data).times(', ') or null
+    if dataPart.length > 0
+      return ['[',arrayPart,' ',dataPart,']']
+    else
+      return ['[',arrayPart,']']
   toString: -> "[JBoundFunc]"
 
 SimpleIterator = clazz 'SimpleIterator', ->
@@ -194,7 +194,7 @@ unless joe.Node::interpret? then do =>
       $.pop()
       return $.scopeGet @
     __str__: ($) -> @key
-    __html__: ($) -> "`#{escape @key}"
+    __repr__: ($) -> "`#{escape @key}"
 
   joe.Block::extend
     interpret: ($) ->
@@ -540,7 +540,7 @@ unless joe.Node::interpret? then do =>
     __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
     __div__: ($, other) -> $.throw 'TypeError', "Can't divide strings yet"
     __str__:        ($) -> @valueOf()
-    __html__:       ($) -> "'#{escape @valueOf()}'"
+    __repr__:       ($) -> "'#{escape @valueOf()}'"
     jsValue$: get: -> @valueOf()
 
   clazz.extend Number,
@@ -555,7 +555,7 @@ unless joe.Node::interpret? then do =>
     __cmp__: ($, other) -> @valueOf() - other.__num__()
     __bool__:       ($) -> @valueOf() isnt 0
     __str__:        ($) -> ''+@valueOf()
-    __html__:       ($) -> ''+@valueOf()
+    __repr__:       ($) -> ''+@valueOf()
     jsValue$: get: -> @valueOf()
 
   clazz.extend Boolean,
@@ -570,7 +570,7 @@ unless joe.Node::interpret? then do =>
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> @valueOf()
     __str__:        ($) -> ''+@valueOf()
-    __html__:       ($) -> ''+@valueOf()
+    __repr__:       ($) -> ''+@valueOf()
     jsValue$: get: -> @valueOf()
 
   clazz.extend Function, # native functions
@@ -587,7 +587,7 @@ unless joe.Node::interpret? then do =>
         "[NativeFunction: #{name}]"
       else
         "[NativeFunction]"
-    __html__:       ($) ->
+    __repr__:       ($) ->
       name = @name ? @_name
       if name
         "[NativeFunction: #{name}]"

@@ -2,6 +2,26 @@ randid = (len=12) ->
   possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''
 
+# replace all tabs with spaces
+tabSize = 4
+tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
+replaceTabs = (str) ->
+  accum = []
+  lines = str.split '\n'
+  for line, i1 in lines
+    parts = line.split('\t')
+    col = 0
+    for part, i2 in parts
+      col += part.length
+      accum.push part
+      if i2 < parts.length-1
+        insertWs = tabSize - col%tabSize
+        col += insertWs
+        accum.push tabCache[insertWs]
+    if i1 < lines.length-1
+      accum.push '\n'
+  return accum.join ''
+
 $('document').ready ->
 
   console.log "booting..."
@@ -22,8 +42,14 @@ $('document').ready ->
     mode:       'coffeescript'
     theme:      'joeson'
     autofocus:  yes
+    tabSize:    2
     keyMap:     'vim'
+
+  mirror.replaceTabs = ->
+    mirror.setValue replaceTabs mirror.getValue()
+
   mirror.submit = ->
+    mirror.replaceTabs()
     cloned = $('.CodeMirror:last').clone(no)
     cloned.css(marginBottom:10)
     # remove some elements

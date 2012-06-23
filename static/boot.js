@@ -1,5 +1,5 @@
 (function() {
-  var Client, randid, writeTo;
+  var Client, randid, replaceTabs, tabCache, tabSize, writeTo, x;
 
   randid = function(len) {
     var i, possible;
@@ -13,6 +13,40 @@
       }
       return _results;
     })()).join('');
+  };
+
+  tabSize = 4;
+
+  tabCache = (function() {
+    var _i, _results;
+    _results = [];
+    for (x = _i = 0; 0 <= tabSize ? _i <= tabSize : _i >= tabSize; x = 0 <= tabSize ? ++_i : --_i) {
+      _results.push(Array(x + 1).join(' '));
+    }
+    return _results;
+  })();
+
+  replaceTabs = function(str) {
+    var accum, col, i1, i2, insertWs, line, lines, part, parts, _i, _j, _len, _len2;
+    accum = [];
+    lines = str.split('\n');
+    for (i1 = _i = 0, _len = lines.length; _i < _len; i1 = ++_i) {
+      line = lines[i1];
+      parts = line.split('\t');
+      col = 0;
+      for (i2 = _j = 0, _len2 = parts.length; _j < _len2; i2 = ++_j) {
+        part = parts[i2];
+        col += part.length;
+        accum.push(part);
+        if (i2 < parts.length - 1) {
+          insertWs = tabSize - col % tabSize;
+          col += insertWs;
+          accum.push(tabCache[insertWs]);
+        }
+      }
+      if (i1 < lines.length - 1) accum.push('\n');
+    }
+    return accum.join('');
   };
 
   $('document').ready(function() {
@@ -37,10 +71,15 @@
       mode: 'coffeescript',
       theme: 'joeson',
       autofocus: true,
+      tabSize: 2,
       keyMap: 'vim'
     });
+    mirror.replaceTabs = function() {
+      return mirror.setValue(replaceTabs(mirror.getValue()));
+    };
     mirror.submit = function() {
       var cloned, ixid, thing;
+      mirror.replaceTabs();
       cloned = $('.CodeMirror:last').clone(false);
       cloned.css({
         marginBottom: 10

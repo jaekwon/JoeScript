@@ -19,6 +19,11 @@ joe = require('joeson/src/joescript').NODES
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
+defaultGlobal = require 'joeson/src/interpreter/global'
+
+## Universe
+GOD = @GOD = new JUser name:'god'
+WORLD = @WORLD = new JObject creator:GOD
 
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process
@@ -207,9 +212,7 @@ JThread = @JThread = clazz 'JThread', ->
     unless user?
       user = new JUser name:name
       @users[name] = user
-      @userScopes[name] =
-        print: ($, [obj]) ->
-          $.stdout(obj.__html__($))
+      @userScopes[name] = {__parent__:defaultGlobal}
     return user
 
   # Start processing another thread
@@ -261,7 +264,3 @@ JThread = @JThread = clazz 'JThread', ->
       @index = @index % @threads.length # oops, sometimes NaN
       process.nextTick @runloop if @threads.length > 0
       return
-
-## SETUP
-GOD = @GOD = new JUser name:'god'
-WORLD = @WORLD = new JObject creator:GOD
