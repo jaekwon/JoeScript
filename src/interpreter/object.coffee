@@ -3,11 +3,20 @@
 assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
-{pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 isInteger = (n) -> n%1 is 0
+jml = ($, attributes, elements) ->
+  if attributes?
+    assert.ok attributes instanceof Object, "Attributes should be a simple object if present"
+  assert.ok elements instanceof Array, "Elements should be an instance of array"
+  if attributes?
+    for key, value of attributes
+      elements[''+key] = value
+  jarr = new JArray creator:$.user, data:elements
+  return jarr
 
 JObject = @JObject = clazz 'JObject', ->
   # data: An Object
@@ -21,7 +30,7 @@ JObject = @JObject = clazz 'JObject', ->
     @data.__proto__ = null # detatch prototype
   __get__: ($, key) ->
     $.will('read', this)
-    value = @data[key.__str__($)]
+    value = @data[key]
     return value if value?
     if @proto?
       return @proto.__get__($, key)
@@ -29,12 +38,12 @@ JObject = @JObject = clazz 'JObject', ->
       return @[keyStr] ? JUndefined
   __set__: ($, key, value) ->
     $.will('write', this)
-    @data[key.__str__($)] = value
+    @data[key] = value
     return
   __keys__: ($) ->
     $.will('read', this)
     return _.keys @data
-  __iterator__: ($) ->
+  __iter__: ($) ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
   __num__:        ($) -> JNaN
@@ -44,10 +53,16 @@ JObject = @JObject = clazz 'JObject', ->
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
   __bool__: ($, other) -> yes
-  __str__: ($) ->
-    @__repr__($).__str__($)
+  __str__:  ($) -> @__repr__($).__str__($)
+  __html__: ($) -> @__repr__($).__html__($)
   __repr__: ($) ->
-    ['{', ([key.__str__($), ':', value.__repr__($)] for key, value of @data).times(', '), '}']
+    # this is what it would look like in joescript
+    # <"{#< ([key.__str__(),':',value.__repr__()] for key, value of @data).weave ', ', flattenItems:yes >}">
+    jml($, {}, [
+      '{',
+      jml($, {}, ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)),
+      '}'
+    ])
   jsValue$: get: ->
     tmp = {}
     tmp[key] = value.jsValue for key, value of @data
@@ -56,6 +71,7 @@ JObject = @JObject = clazz 'JObject', ->
 
 JArray = @JArray = clazz 'JArray', ->
   protoKeys = ['push']
+
   init: ({@creator, @data, @acl}) ->
     assert.ok @creator? and @creator instanceof JObject,
                         "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
@@ -68,7 +84,7 @@ JArray = @JArray = clazz 'JArray', ->
       return @data[key] ? JUndefined
     else
       console.log "GET:", key
-      keyStr = key.__str__($)
+      keyStr = ''+key
       value = @data[keyStr]
       return value if value?
       return @[keyStr] ? JUndefined if starts(keyStr, '__') and ends(keyStr, '__')
@@ -79,7 +95,7 @@ JArray = @JArray = clazz 'JArray', ->
     if isInteger key
       @data[key] = value
       return
-    keyStr = key.__str__($)
+    keyStr = ''+key
     @data[keyStr] = value
     return
   __keys__: ($) ->
@@ -92,13 +108,18 @@ JArray = @JArray = clazz 'JArray', ->
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
+  __str__:  ($) -> (item.__str__($) for item in @data).join ''
+  __html__: ($) ->
+    arrayPart = (item.__html__($) for item in @data).join '\n'
+    dataPart = ("#{htmlEscape key}=\"#{htmlEscape value.__str__($)}\"" for key, value of @data when not isInteger key).join(' ')
+    "<span #{dataPart}>#{arrayPart}</span>"
   __repr__: ($) ->
-    arrayPart = (item.__repr__($) for item in @data).times(',')
-    dataPart = ([key.__str__($), ':', value.__repr__($)] for key, value of @data when not isInteger key).times(', ') or null
+    arrayPart = (item.__repr__($) for item in @data).weave(',')
+    dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
     if dataPart.length > 0
-      return ['[',arrayPart,' ',dataPart,']']
+      return jml $, {}, ['[',arrayPart,' ',dataPart,']']
     else
-      return ['[',arrayPart,']']
+      return jml $, {}, ['[',arrayPart,']']
   jsValue$: get: ->
     tmp = []
     tmp[key] = value.jsValue for key, value of @data
@@ -122,21 +143,21 @@ JUser = @JUser = clazz 'JUser', JObject, ->
     @super.init.call @, creator:this, data:{name:@name}
   toString: -> "[JUser #{@name}]"
 
-JTMLElement = @JTMLElement = clazz 'JTMLElement', ->
-  init: ({@
-
 JSingleton = @JSingleton = clazz 'JSingleton', ->
   init: (@name, @jsValue) ->
-  __get__: ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
+  __get__:    ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
   __set__: ($, key, value) -> $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
-  __keys__: ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
-  __iterator__: ($) -> $.throw 'TypeError', "Cannot get iterator of #{@name}"
-  __add__: ($, other) -> JNaN
-  __sub__: ($, other) -> JNaN
-  __mul__: ($, other) -> JNaN
-  __div__: ($, other) -> JNaN
+  __keys__:        ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
+  __iter__:        ($) -> $.throw 'TypeError', "Cannot get iterator of #{@name}"
+  __num__:         ($) -> JNaN
+  __add__:  ($, other) -> JNaN
+  __sub__:  ($, other) -> JNaN
+  __mul__:  ($, other) -> JNaN
+  __div__:  ($, other) -> JNaN
   __bool__: ($, other) -> no
-  __repr__: ($) -> @name
+  __str__:         ($) -> @__repr__($).__str__($)
+  __html__:        ($) -> @__repr__($).__html__($)
+  __repr__:        ($) -> @name
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = new JSingleton 'null', null
@@ -154,11 +175,11 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok @scope? and @scope instanceof Object, "scope not an object"
   __repr__: ($) ->
     funcPart = "JBoundFunc"
-    dataPart = ([key.__str__($), ':', value.__repr__($)] for key, value of @data).times(', ') or null
+    dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0
-      return ['[',arrayPart,' ',dataPart,']']
+      return jml $, {}, ['[',funcPart,' ',dataPart,']']
     else
-      return ['[',arrayPart,']']
+      return jml $, {}, ['[',funcPart,']']
   toString: -> "[JBoundFunc]"
 
 SimpleIterator = clazz 'SimpleIterator', ->
@@ -193,8 +214,6 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return $.scopeGet @
-    __str__: ($) -> @key
-    __repr__: ($) -> "`#{escape @key}"
 
   joe.Block::extend
     interpret: ($) ->
@@ -530,23 +549,30 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return @valueOf()
-    __get__: ($, key) -> JUndefined
+    __get__:    ($, key) -> JUndefined
     __set__: ($, key, value) -> # pass
-    __keys__:       ($) -> $.throw 'TypeError', "Object.keys called on non-object"
-    __iterator__:   ($) -> new SimpleIterator @valueOf()
-    __num__:        ($) -> JNaN
-    __add__: ($, other) -> @valueOf() + other.__str__($)
-    __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract strings yet"
-    __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply strings yet"
-    __div__: ($, other) -> $.throw 'TypeError', "Can't divide strings yet"
-    __str__:        ($) -> @valueOf()
-    __repr__:       ($) -> "'#{escape @valueOf()}'"
+    __keys__:        ($) -> $.throw 'TypeError', "Object.keys called on non-object"
+    __iter__:        ($) -> new SimpleIterator @valueOf()
+    __num__:         ($) -> JNaN
+    __add__:  ($, other) -> @valueOf() + other.__str__($)
+    __sub__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+    __mul__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+    __div__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+    __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+    __bool__:        ($) -> @length > 0
+    __str__:         ($) -> @valueOf()
+    __html__:        ($) -> htmlEscape @valueOf()
+    __repr__:        ($) -> "'#{escape @valueOf()}'"
     jsValue$: get: -> @valueOf()
 
   clazz.extend Number,
     interpret: ($) ->
       $.pop()
       return @valueOf()
+    __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+    __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+    __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+    __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
     __num__:        ($) -> @valueOf()
     __add__: ($, other) -> @valueOf() + other.__num__()
     __sub__: ($, other) -> @valueOf() - other.__num__()
@@ -555,6 +581,7 @@ unless joe.Node::interpret? then do =>
     __cmp__: ($, other) -> @valueOf() - other.__num__()
     __bool__:       ($) -> @valueOf() isnt 0
     __str__:        ($) -> ''+@valueOf()
+    __html__:       ($) -> ''+@valueOf()
     __repr__:       ($) -> ''+@valueOf()
     jsValue$: get: -> @valueOf()
 
@@ -562,6 +589,10 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return @valueOf()
+    __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+    __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+    __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+    __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
     __num__:        ($) -> JNaN
     __add__: ($, other) -> JNaN
     __sub__: ($, other) -> JNaN
@@ -570,10 +601,15 @@ unless joe.Node::interpret? then do =>
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> @valueOf()
     __str__:        ($) -> ''+@valueOf()
+    __html__:       ($) -> ''+@valueOf()
     __repr__:       ($) -> ''+@valueOf()
     jsValue$: get: -> @valueOf()
 
   clazz.extend Function, # native functions
+    __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+    __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+    __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+    __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
     __num__:        ($) -> JNaN
     __add__: ($, other) -> JNaN
     __sub__: ($, other) -> JNaN
@@ -581,12 +617,8 @@ unless joe.Node::interpret? then do =>
     __div__: ($, other) -> JNaN
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> yes
-    __str__:        ($) ->
-      name = @name ? @_name
-      if name
-        "[NativeFunction: #{name}]"
-      else
-        "[NativeFunction]"
+    __str__:        ($) -> @__repr__($).__str__($)
+    __html__:       ($) -> @__repr__($).__html__($)
     __repr__:       ($) ->
       name = @name ? @_name
       if name

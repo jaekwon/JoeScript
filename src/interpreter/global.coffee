@@ -10,7 +10,4 @@ joe = require('joeson/src/joescript').NODES
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
 
 @print = ($, [obj]) ->
-  if obj instanceof String
-    $.stdout(obj.__str__($) + '<br/>')
-  else
-    $.stdout(obj.__html__($) + '<br/>')
+  $.stdout(obj.__html__($) + '<br/>')

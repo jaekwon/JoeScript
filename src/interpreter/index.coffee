@@ -249,7 +249,7 @@ JThread = @JThread = clazz 'JThread', ->
           stackTrace = thread.error.stack.map((x)->inspect(x)).join('\n') if thread.error.stack
           thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n#{stackTrace}")
         else if resCode is 'return'
-          thread.stdout(thread.last.__html__(thread))
+          thread.stdout(thread.last.__repr__(thread))
         info "thread #{thread} finished with rescode #{resCode}."
         @threads[@index..@index] = [] # splice out
         @index = @index % @threads.length # oops, sometimes NaN

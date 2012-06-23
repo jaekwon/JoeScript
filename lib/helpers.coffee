@@ -58,6 +58,13 @@
 # Escape a string into javascript string code.
 @escape = (str) -> (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
 
+# Escape HTML special characters. Result must be valid HTML text
+@htmlEscape = (txt) ->
+  String(txt).replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+
 @pad = ({left,right}, str) ->
   str = ''+str
   if right? and right > str.length
@@ -69,3 +76,29 @@
 @randid = (len=12) ->
   possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''
+
+@weave = (items, join, options) ->
+  result = []
+  itemsLength = items.length
+  for item, i in items
+    if options?.flattenItems
+      result[result.length...] = item
+    else
+      result.push item
+    if i < itemsLength-1
+      result.push join
+  return result
+
+# why not
+unless Array::weave?
+  Array::weave = (join, options) ->
+    result = []
+    length = @length
+    for item, i in this
+      if options?.flattenItems
+        result[result.length...] = item
+      else
+        result.push item
+      if i < length-1
+        result.push join
+    return result
