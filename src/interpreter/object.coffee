@@ -117,9 +117,9 @@ JArray = @JArray = clazz 'JArray', ->
     arrayPart = (item.__repr__($) for item in @data).weave(',')
     dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
     if dataPart.length > 0
-      return jml $, {}, ['[',arrayPart,' ',dataPart,']']
+      return jml $, {}, ['[',arrayPart...,' ',dataPart,']']
     else
-      return jml $, {}, ['[',arrayPart,']']
+      return jml $, {}, ['[',arrayPart...,']']
   jsValue$: get: ->
     tmp = []
     tmp[key] = value.jsValue for key, value of @data

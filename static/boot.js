@@ -15,7 +15,7 @@
     })()).join('');
   };
 
-  tabSize = 4;
+  tabSize = 2;
 
   tabCache = (function() {
     var _i, _results;
@@ -75,7 +75,9 @@
       keyMap: 'vim'
     });
     mirror.replaceTabs = function() {
-      return mirror.setValue(replaceTabs(mirror.getValue()));
+      var orig, tabReplaced;
+      tabReplaced = replaceTabs(orig = mirror.getValue());
+      return mirror.setValue(tabReplaced);
     };
     mirror.submit = function() {
       var cloned, ixid, thing;

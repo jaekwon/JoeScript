@@ -3,7 +3,7 @@ randid = (len=12) ->
   return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''
 
 # replace all tabs with spaces
-tabSize = 4
+tabSize = 2
 tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
 replaceTabs = (str) ->
   accum = []
@@ -48,7 +48,8 @@ $('document').ready ->
 
   # Before submitting, replace all tabs with spaces
   mirror.replaceTabs = ->
-    mirror.setValue replaceTabs mirror.getValue()
+    tabReplaced = replaceTabs orig=mirror.getValue()
+    mirror.setValue tabReplaced
 
   # Submitting...
   mirror.submit = ->

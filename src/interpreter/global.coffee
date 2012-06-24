@@ -11,3 +11,4 @@ joe = require('joeson/src/joescript').NODES
 
 @print = ($, [obj]) ->
   $.stdout(obj.__html__($) + '<br/>')
+  return JUndefined
