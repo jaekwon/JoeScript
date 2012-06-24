@@ -21,6 +21,8 @@ joe = require('joeson/src/joescript').NODES
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = require 'joeson/src/interpreter/object'
 defaultGlobal = require 'joeson/src/interpreter/global'
 
+trace = debug:no
+
 ## Universe
 GOD = @GOD = new JUser name:'god'
 WORLD = @WORLD = new JObject creator:GOD
@@ -72,16 +74,16 @@ JThread = @JThread = clazz 'JThread', ->
   runStep: ->
     return 'return' if @i9ns.length is 0
     {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
-    console.log blue "             -- runStep --"
-    @printScope @scope
-    @printStack()
+    console.log blue "             -- runStep --" if trace.debug
+    @printScope @scope if trace.debug
+    @printStack() if trace.debug
     throw new Error "Last i9n.func undefined!" if not func?
     throw new Error "Last i9n.this undefined!" if not that?
     throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
     @last = func.call that, this, i9n, @last
     switch @interrupt
       when 'error'
-        console.log "             #{red 'throw ->'} #{@last}"
+        console.log "             #{red 'throw ->'} #{@last}" if trace.debug
         @interrupt = null
         loop # unwind loop
           dontcare = @pop()
@@ -98,7 +100,7 @@ JThread = @JThread = clazz 'JThread', ->
             last = @error
             return null
       when 'return'
-        console.log "             #{yellow 'return ->'} #{@last}"
+        console.log "             #{yellow 'return ->'} #{@last}" if trace.debug
         @interrupt = null
         loop # unwind loop
           dontcare = @pop()
@@ -109,7 +111,7 @@ JThread = @JThread = clazz 'JThread', ->
             assert.ok i9n.func is joe.Invocation::interpretFinal
             return null
       else
-        console.log "             #{blue 'last ->'} #{@last}"
+        console.log "             #{blue 'last ->'} #{@last}" if trace.debug
         if targetIndex?
           target[targetKey][targetIndex] = @last
         else if target?
@@ -237,7 +239,7 @@ JThread = @JThread = clazz 'JThread', ->
       if typeof 'code' is 'string'
         node = require('joeson/src/joescript').parse code
         node = node.toJSNode(toValue:yes).installScope().determine()
-        info "Kernel.run parsed node.\n" + node.serialize()
+        info "Kernel.run parsed node.\n" + node.serialize() if trace.debug
       else
         node = code
       thread = new JThread start:node, user:user, scope:scope, stdin:stdin, stdout:stdout, stderr:stderr
@@ -254,7 +256,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   runloop$: ->
     thread = @threads[@index]
-    debug "tick"
+    debug "tick" if trace.debug
     try
       resCode = thread.runStep()
       if resCode?

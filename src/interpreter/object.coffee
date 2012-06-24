@@ -83,7 +83,7 @@ JArray = @JArray = clazz 'JArray', ->
     if isInteger key
       return @data[key] ? JUndefined
     else
-      console.log "GET:", key
+      #console.log "GET:", key
       keyStr = ''+key
       value = @data[keyStr]
       return value if value?
