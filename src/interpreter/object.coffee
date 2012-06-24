@@ -110,7 +110,7 @@ JArray = @JArray = clazz 'JArray', ->
   __bool__: ($, other) -> yes
   __str__:  ($) -> (item.__str__($) for item in @data).join ''
   __html__: ($) ->
-    arrayPart = (item.__html__($) for item in @data).join '\n'
+    arrayPart = (item.__html__($) for item in @data).join ''
     dataPart = ("#{htmlEscape key}=\"#{htmlEscape value.__str__($)}\"" for key, value of @data when not isInteger key).join(' ')
     "<span #{dataPart}>#{arrayPart}</span>"
   __repr__: ($) ->
