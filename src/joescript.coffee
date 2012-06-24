@@ -38,6 +38,7 @@ Block = clazz 'Block', Node, ->
   children:
     lines:      {type:[type:EXPR]}
   init: (lines) ->
+    assert.ok lines, "lines must be defined"
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
     (''+line for line in @lines).join ';\n'
@@ -264,7 +265,6 @@ Func = clazz 'Func', Node, ->
     params:     {type:AssignList}
     block:      {type:Block}
   init: ({@params, @type, @block}) ->
-    @block ?= Block()
   toString: ->
     "#{ if @params? then '('+@params.toString(no)+')' else '()'
     }#{ @type
@@ -447,7 +447,7 @@ resetIndent = (ws, $) ->
 @GRAMMAR = GRAMMAR = Grammar ({o, i, tokens, make}) -> [
   o                                 " _SETUP _BLANKLINE* LINES ___ "
   i _SETUP:                         " '' ", (dontcare, $) -> $.stack[0].indent = ''
-  i LINES:                          " LINE*(_NEWLINE | _ _SEMICOLON) ", make Block
+  i LINES:                          " LINE*_NEWLINE _ _SEMICOLON? ", make Block
   i LINE: [
     o HEREDOC:                      " _ '###' !'#' (!'###' .)* '###' ", (it) -> Heredoc it.join ''
     o LINEEXPR: [
@@ -614,8 +614,8 @@ resetIndent = (ws, $) ->
   i _INDENT:        " _BLANKLINE+ &:_ ", checkIndent, skipCache:yes
   i _RESETINDENT:   " _BLANKLINE* &:_ ", resetIndent, skipCache:yes
   i _NEWLINE: [
-    o               " _BLANKLINE+ &:_ ", checkNewline, skipCache:yes
-    o               " _ ';'           "
+    o _NEWLINE_STRICT: " _BLANKLINE+ &:_ ", checkNewline, skipCache:yes
+    o               " _ _SEMICOLON _NEWLINE_STRICT? ", skipCache:yes
   ], skipCache:yes
   i _SOFTLINE:      " _BLANKLINE+ &:_ ", checkSoftline, skipCache:yes
   i _COMMA:         " beforeBlanks:_BLANKLINE* beforeWS:_ ','

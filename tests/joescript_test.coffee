@@ -30,6 +30,20 @@ test  " a * b++ / c + d ", "(((a*(b++))/c)+d)"
 test  "return foo", 'return(foo);'
 test  "foo if bar if baz", "if(baz){if(bar){foo}}"
 test  """
+      a = 1; b = 2;
+      """, "a = (1);b = (2)"
+test  """
+      a = 1; b = 2
+      """, "a = (1);b = (2)"
+test  """
+      a = 1;
+      b = 2
+      """, "a = (1);b = (2)"
+test  """
+      a = 1
+      b = 2
+      """, "a = (1);b = (2)"
+test  """
       if condition
         func true
       """, "if(condition){func(true)}"

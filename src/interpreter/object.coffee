@@ -174,12 +174,11 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok @func instanceof joe.Func, "func not Func"
     assert.ok @scope? and @scope instanceof Object, "scope not an object"
   __repr__: ($) ->
-    funcPart = "JBoundFunc"
     dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0
-      return jml $, {}, ['[',funcPart,' ',dataPart,']']
+      return jml $, {}, ['[JBoundFunc ',dataPart,']']
     else
-      return jml $, {}, ['[',funcPart,']']
+      return "[JBoundFunc]"
   toString: -> "[JBoundFunc]"
 
 SimpleIterator = clazz 'SimpleIterator', ->
@@ -426,7 +425,8 @@ unless joe.Node::interpret? then do =>
       i9n.oldScope = $.scope # remember
       # interpret the func synchronously.
       i9n.func = joe.Invocation::interpretParams
-      # setSource is a trick to set i9n.source to the
+      i9n.invokedFunctionRepr = ''+@func
+      # setSource is a hack/trick to set i9n.source to the
       # 'obj' part of an index, if @func is indeed an object.
       # That way we can bind 'this' correctly.
       $.push this:@func, func:@func.interpret, setSource:i9n
@@ -458,8 +458,11 @@ unless joe.Node::interpret? then do =>
           # ... we'll manually bind values to param names.
           for {target:argName}, i in params.items
             assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
-            $.scopeDefine argName, paramValues[i]
-        $.push this:block, func:block.interpret
+            $.scopeDefine argName, paramValues[i] ? JUndefined
+        if block?
+          $.push this:block, func:block.interpret
+        else
+          return JUndefined
         return
       else if i9n.invokedFunction instanceof Function # native function
         try

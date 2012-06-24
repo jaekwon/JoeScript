@@ -71,6 +71,7 @@ _loopStack = [] # trace stack
                         black ']'}"
       console.log "#{codeSgmnt} #{cyan Array(@stackLength).join '| '}#{message}"
 
+  stackPeek: -> @stack[@stackLength-1]
   stackPush: (node) -> @stack[@stackLength++] = @getFrame(node)
   stackPop: (node) -> --@stackLength
 
@@ -157,7 +158,6 @@ _loopStack = [] # trace stack
           when 1 # non-recursive (done)
             frame.loopStage = 0
             frame.cacheSet result, $.code.pos
-            frame.stackLength = $.stackLength if result is null # para parse error message
             $.log "#{cyan "`-set:"} #{escape result} #{black typeof result}" if trace.stack
             return result
 
@@ -240,10 +240,15 @@ _loopStack = [] # trace stack
         # syntax proposal:
         # result = ( it <- (it={})[@label] = result )
         result = ( (it={})[@label] = result; it )
+      # if result is an object, set the line/startpos on it
+      if result instanceof Object
+        resultPos = $.stackPeek().pos
+        result._origin = line:$.code.posToLine(resultPos), col:$.code.posToLine(resultPos)
       result = @cb.call this, result, $ if @cb?
     return result
 
   @$wrap = (fn) ->
+    # optimizations...
     wrapped1 = @$stack @$loopify @$prepareResult fn
     wrapped2 = @$prepareResult fn
     ($) ->
@@ -569,47 +574,25 @@ _loopStack = [] # trace stack
 
     if $.code.pos isnt $.code.text.length
 
-      # TODO... improve.
-      # Find the rightmost position with null results in the cache,
-      # and get the frame(s) with the least stackLength.
-      maxPos = undefined
-      maxPosMinStackLength = undefined
-      maxPosMinStackLengthRules = undefined
+      # find the maximum parsed entity
+      maxAttempt = $.code.pos
+      maxSuccess = $.code.pos
       for posFrames, pos in $.frames[$.code.pos...]
-        continue if pos < maxPos
-        if not maxPos? or maxPos < pos
-          maxPos = pos
-          maxPosMinStackLength = undefined
-          maxPosMinStackLengthRules = []
-        for frame, id in posFrames when frame
-          continue unless frame.stackLength?
-          continue if frame.result isnt null
-          if maxPosMinStackLength < frame.stackLength
-            continue
-          else if not maxPosMinStackLength? or frame.stackLength < maxPosMinStackLength
-            maxPosMinStackLength = frame.stackLength
-            maxPosMinStackLengthRules = [@id2Rule[frame.id].name]
-          else
-            maxPosMinStackLengthRules.push @id2Rule[frame.id].name
-      if maxPosMinStackLengthRules.length > 0
-        throw new Error "Error parsing at char:#{maxPos}=(line:#{$.code.posToLine(maxPos)},col:#{$.code.posToCol(maxPos)}). Expected #{maxPosMinStackLengthRules.join '|'}"
-      else
-        # find the maximum parsed entity
-        maxAttempt = $.code.pos
-        maxSuccess = $.code.pos
-        for posFrames, pos in $.frames[$.code.pos...]
-          continue if pos < maxAttempt
-          for frame, id in posFrames
-            if frame
-              maxAttempt = pos
-              if frame.result isnt null
-                maxSuccess = pos
-                break
-        throw new Error "Error parsing at char:#{maxSuccess}=(line:#{$.code.posToLine(maxSuccess)},col:#{$.code.posToCol(maxSuccess)}). #{green 'OK'}/#{yellow 'Parsing'}/#{red 'Suspect'}/#{white 'Unknown'})\n\n#{
-              green  $.code.peek beforeLines:2
-          }#{ yellow $.code.peek afterChars:(maxSuccess-$.code.pos)
-          }#{ $.code.pos = maxSuccess; red $.code.peek afterChars:(maxAttempt-$.code.pos)
-          }#{ $.code.pos = maxAttempt; white $.code.peek afterLines:2}\n"
+        continue if pos < maxAttempt
+        for frame, id in posFrames
+          if frame
+            maxAttempt = pos
+            if frame.result isnt null
+              maxSuccess = pos
+              break
+      parseError = new Error "Error parsing at char:#{maxSuccess}=(line:#{$.code.posToLine(maxSuccess)},col:#{$.code.posToCol(maxSuccess)})."
+      parseError.details =
+        "#{green 'OK'}/#{yellow 'Parsing'}/#{red 'Suspect'}/#{white 'Unknown'})\n\n#{
+            green  $.code.peek beforeLines:2
+        }#{ yellow $.code.peek afterChars:(maxSuccess-$.code.pos)
+        }#{ $.code.pos = maxSuccess; red $.code.peek afterChars:(maxAttempt-$.code.pos)
+        }#{ $.code.pos = maxAttempt; white $.code.peek afterLines:2}\n"
+      throw parseError
 
     if returnContext
       return $

@@ -22,6 +22,7 @@ replaceTabs = (str) ->
       accum.push '\n'
   return accum.join ''
 
+# init
 $('document').ready ->
 
   console.log "booting..."
@@ -45,10 +46,14 @@ $('document').ready ->
     tabSize:    2
     keyMap:     'vim'
 
+  # Before submitting, replace all tabs with spaces
   mirror.replaceTabs = ->
     mirror.setValue replaceTabs mirror.getValue()
 
+  # Submitting...
   mirror.submit = ->
+    return if @getValue().trim().length is 0
+    # sanitize
     mirror.replaceTabs()
     cloned = $('.CodeMirror:last').clone(no)
     cloned.css(marginBottom:10)

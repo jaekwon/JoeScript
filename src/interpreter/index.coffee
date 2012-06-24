@@ -18,12 +18,20 @@ joe = require('joeson/src/joescript').NODES
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
-{JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
+{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = require 'joeson/src/interpreter/object'
 defaultGlobal = require 'joeson/src/interpreter/global'
 
 ## Universe
 GOD = @GOD = new JUser name:'god'
 WORLD = @WORLD = new JObject creator:GOD
+
+JStackItem = @JStackItem = clazz 'JStackItem', ->
+  init: ({@node}) ->
+    # figure out which function this node is declared in
+    declaringFunc = @node.parent
+    declaringFunc = declaringFunc.parent while declaringFunc? and declaringFunc not instanceof joe.Func
+    @declaringFunc = declaringFunc
+  toString: -> "'#{@node}' (source:#{@declaringFunc}, line:#{@node._origin?.line}, col:#{@node._origin?.col})"
 
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process
@@ -119,7 +127,10 @@ JThread = @JThread = clazz 'JThread', ->
   copy: -> @i9ns[...]
 
   callStack: ->
-    (item for item in @i9ns when item.this instanceof joe.Invocation)
+    stack = []
+    for item in @i9ns when item.this instanceof joe.Invocation
+      stack.push JStackItem node:item.this
+    return stack
 
   ### SCOPE ###
 
@@ -235,7 +246,10 @@ JThread = @JThread = clazz 'JThread', ->
         @index = 0 # might have been NaN
         @runloop()
     catch error
-      warn "Error in user code start:", error.stack
+      if node?
+        warn "Error in user code start:", error.stack, "\nfor node:\n", node.serialize()
+      else
+        warn "Error parsing code:", error.stack, "\nfor code text:\n", code
       stderr('InternalError:'+error)
 
   runloop$: ->
@@ -245,9 +259,11 @@ JThread = @JThread = clazz 'JThread', ->
       resCode = thread.runStep()
       if resCode?
         if resCode is 'error'
-          stackTrace = ''
-          stackTrace = thread.error.stack.map((x)->inspect(x)).join('\n') if thread.error.stack
-          thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n#{stackTrace}")
+          if thread.error.stack?
+            stackTrace = thread.error.stack.map((x)->'        at '+x).join('\n')
+            thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n        Most recent call last:\n#{stackTrace}")
+          else
+            thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}")
         else if resCode is 'return'
           thread.stdout(thread.last.__repr__(thread))
         info "thread #{thread} finished with rescode #{resCode}."

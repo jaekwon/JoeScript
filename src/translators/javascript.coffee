@@ -285,10 +285,10 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             param.destructLines arg, destructs
         @block.lines[...0] = destructs
       ## make last line return
-      @block = @block.toJSNode(toValue:yes, toReturn:yes)
+      @block = @block?.toJSNode(toValue:yes, toReturn:yes)
       return this
     toJavascript: ->
-      "function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{js @block}}"
+      "function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}}"
 
   joe.NativeExpression::extend
     toJavascript: -> @exprStr

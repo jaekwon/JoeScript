@@ -79,6 +79,7 @@
     };
     mirror.submit = function() {
       var cloned, ixid, thing;
+      if (this.getValue().trim().length === 0) return;
       mirror.replaceTabs();
       cloned = $('.CodeMirror:last').clone(false);
       cloned.css({
