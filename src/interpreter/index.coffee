@@ -94,6 +94,7 @@ JThread = @JThread = clazz 'JThread', ->
     throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
     #key = "#{that.constructor.name}.#{func._name}"
     #timeit key, =>
+    #  @last = func.call that, this, i9n, @last
     @last = func.call that, this, i9n, @last
     switch @interrupt
       when null
@@ -272,23 +273,26 @@ JThread = @JThread = clazz 'JThread', ->
     thread = @threads[@index]
     debug "tick" if trace.debug
     try
-      resCode = thread.runStep()
-      if resCode?
-        if resCode is 'error'
-          if thread.error.stack?
-            stackTrace = thread.error.stack.map((x)->'        at '+x).join('\n')
-            thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n      Most recent call last:\n#{stackTrace}")
-          else
-            thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}")
-        else if resCode is 'return'
-          thread.stdout(thread.last.__repr__(thread).__html__(thread))
-        info "thread #{thread} finished with rescode #{resCode}."
-        @threads[@index..@index] = [] # splice out
-        @index = @index % @threads.length # oops, sometimes NaN
-        process.nextTick @runloop if @threads.length > 0
-      else
-        @index = (@index + 1) % @threads.length
-        process.nextTick @runloop
+      # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
+      # kinda like a linux "tick", values is adjustable.
+      for i in [0..20]
+        resCode = thread.runStep()
+        if resCode?
+          if resCode is 'error'
+            if thread.error.stack?
+              stackTrace = thread.error.stack.map((x)->'        at '+x).join('\n')
+              thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}\n      Most recent call last:\n#{stackTrace}")
+            else
+              thread.stderr("#{thread.error.name ? 'UnknownError'}: #{thread.error.message ? ''}")
+          else if resCode is 'return'
+            thread.stdout(thread.last.__repr__(thread).__html__(thread))
+          info "thread #{thread} finished with rescode #{resCode}."
+          @threads[@index..@index] = [] # splice out
+          @index = @index % @threads.length # oops, sometimes NaN
+          process.nextTick @runloop if @threads.length > 0
+          return
+      @index = (@index + 1) % @threads.length
+      process.nextTick @runloop
     catch error
       fatal "Error in runStep. Stopping execution.", error.stack
       thread.stderr 'InternalError:'+error

@@ -22,6 +22,16 @@ test = (code, cb) ->
     console.log red err.stack
     process.exit(1)
 
+test '''
+foo = ->
+  a = 0
+  loop
+    a++
+    return a if a > 1000000
+  return 1
+    
+foo()
+''', -> ok true
 test ' null ',                            -> equal @it, null
 test ' undefined ',                       -> equal @it, undefined
 test ' null * undefined ',                -> ok isNaN @it
