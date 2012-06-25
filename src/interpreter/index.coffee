@@ -23,6 +23,18 @@ defaultGlobal = require 'joeson/src/interpreter/global'
 
 trace = debug:no
 
+times = {}
+counter = 0
+timeit = (name, fn) ->
+  start = (new Date()).valueOf()
+  result = fn()
+  times[name] ?= durations:0, hits:0
+  times[name].durations += (new Date()).valueOf() - start
+  times[name].hits++
+  if counter++ % 100 is 0
+    console.log "times:", times
+  return result
+
 ## Universe
 GOD = @GOD = new JUser name:'god'
 WORLD = @WORLD = new JObject creator:GOD
@@ -80,8 +92,17 @@ JThread = @JThread = clazz 'JThread', ->
     throw new Error "Last i9n.func undefined!" if not func?
     throw new Error "Last i9n.this undefined!" if not that?
     throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
+    #key = "#{that.constructor.name}.#{func._name}"
+    #timeit key, =>
     @last = func.call that, this, i9n, @last
     switch @interrupt
+      when null
+        console.log "             #{blue 'last ->'} #{@last}" if trace.debug
+        if targetIndex?
+          target[targetKey][targetIndex] = @last
+        else if target?
+          target[targetKey] = @last
+        return null
       when 'error'
         console.log "             #{red 'throw ->'} #{@last}" if trace.debug
         @interrupt = null
@@ -111,12 +132,7 @@ JThread = @JThread = clazz 'JThread', ->
             assert.ok i9n.func is joe.Invocation::interpretFinal
             return null
       else
-        console.log "             #{blue 'last ->'} #{@last}" if trace.debug
-        if targetIndex?
-          target[targetKey][targetIndex] = @last
-        else if target?
-          target[targetKey] = @last
-        return null
+        throw new Error "Unexpected interrupt #{@interrupt}"
 
   ### STACKS ###
 
@@ -125,8 +141,6 @@ JThread = @JThread = clazz 'JThread', ->
   peek: -> @i9ns[@i9ns.length-1]
 
   push: (i9n) -> @i9ns.push i9n
-
-  copy: -> @i9ns[...]
 
   callStack: ->
     stack = []
