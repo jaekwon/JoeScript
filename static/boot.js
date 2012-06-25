@@ -1,5 +1,5 @@
 (function() {
-  var Client, randid, replaceTabs, tabCache, tabSize, writeTo, x;
+  var Client, outBox, randid, replaceTabs, tabCache, tabSize, x;
 
   randid = function(len) {
     var i, possible;
@@ -14,6 +14,8 @@
       return _results;
     })()).join('');
   };
+
+  outBox = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-stdout'>\n    <span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span>\n  </div>\n</div>";
 
   tabSize = 2;
 
@@ -50,10 +52,8 @@
   };
 
   $('document').ready(function() {
-    var marqueeLevel, mirror;
+    var client, marqueeLevel;
     console.log("booting...");
-    Client.connect();
-    console.log("marquee...");
     marqueeLevel = 0;
     setInterval((function() {
       var m4Off, m4On;
@@ -66,94 +66,115 @@
         opacity: 0.7
       });
     }), 300);
-    mirror = CodeMirror(document.body, {
-      value: '',
-      mode: 'coffeescript',
-      theme: 'joeson',
-      autofocus: true,
-      tabSize: 2,
-      keyMap: 'vim'
-    });
-    mirror.replaceTabs = function() {
-      var orig, tabReplaced;
-      tabReplaced = replaceTabs(orig = mirror.getValue());
-      return mirror.setValue(tabReplaced);
-    };
-    mirror.submit = function() {
-      var cloned, ixid, thing;
-      if (this.getValue().trim().length === 0) return;
-      mirror.replaceTabs();
-      cloned = $('.CodeMirror:last').clone(false);
-      cloned.css({
-        marginBottom: 10
-      });
-      cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
-      thing = cloned.find('.CodeMirror-lines>div:first>div:first');
-      if (thing.css('visibility') === 'hidden') {
-        thing.remove();
-      } else {
-        console.log("where'd that thing go?");
-      }
-      ixid = 'ixid' + randid();
-      cloned.find('.CodeMirror-lines').append("<span class=\"stdout\"><span class='cm-bracket'>&gt;&gt;</span> <span id='" + ixid + "'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>");
-      $('.CodeMirror:last').before(cloned);
-      window.scroll(0, document.body.offsetHeight);
-      return Client.pushCode({
-        code: this.getValue(),
-        ixid: ixid
-      });
-    };
-    console.log("code mirror:", mirror);
+    window.client = client = new Client();
     return $(document).click(function() {
-      return mirror.focus();
+      return client.mirror.focus();
     });
   });
 
-  writeTo = function(ixid, html) {
-    var outputElement, span;
-    span = $('#' + ixid);
-    console.log(ixid);
-    if (!span.data('initialized')) {
-      span.data('initialized', true);
-      span.empty();
-    }
-    if (span.length > 0) {
-      outputElement = $('<span/>').html(html);
-      console.log("stdout:", outputElement);
-      span.append(outputElement);
-      return window.scroll(0, document.body.offsetHeight);
-    }
-  };
-
-  Client = {
-    connect: function() {
-      var _this = this;
-      this.socket = io.connect();
-      this.socket.on('stdout', function(data) {
-        return writeTo(data.ixid, data.html);
-      });
-      this.socket.on('stderr', function(data) {
-        return writeTo(data.ixid, data.html);
-      });
-      this.socket.on('_', function() {
-        return _this.login();
-      });
-      return console.log("Client socket:", this.socket);
-    },
-    login: function() {
-      return this.socket.emit('login', {
-        name: 'joe',
-        password: 'dontcare'
-      });
-    },
-    pushCode: function(_arg) {
-      var code, ixid;
-      ixid = _arg.ixid, code = _arg.code;
-      return this.socket.emit('code', {
-        code: code,
-        ixid: ixid
-      });
-    }
-  };
+  Client = clazz('Client', function() {
+    return {
+      init: function() {
+        this.threads = {};
+        this.mirror = this.makeMirror();
+        this.mirror.submit = this.onSave;
+        this.socket = io.connect();
+        this.socket.on('stdout', this.onStdout);
+        this.socket.on('stderr', this.onStderr);
+        console.log("Client socket:", this.socket);
+        return this.start({
+          code: 'help()'
+        });
+      },
+      makeMirror: function() {
+        var mirror;
+        mirror = CodeMirror(document.body, {
+          value: '',
+          mode: 'coffeescript',
+          theme: 'joeson',
+          keyMap: 'vim',
+          autofocus: true,
+          gutter: true,
+          fixedGutter: true,
+          tabSize: 2
+        });
+        mirror.sanitize = function() {
+          var orig, tabReplaced;
+          tabReplaced = replaceTabs(orig = mirror.getValue());
+          mirror.setValue(tabReplaced);
+          return tabReplaced;
+        };
+        mirror.setMarker(0, '●&nbsp;', 'cm-bracket');
+        return mirror;
+      },
+      start: function(_arg) {
+        var code, stdout, threadId;
+        code = _arg.code;
+        threadId = randid();
+        stdout = this.makeStdout();
+        this.threads[threadId] = {
+          stdout: stdout
+        };
+        return this.socket.emit('start', {
+          code: code,
+          thread: threadId
+        });
+      },
+      onSave$: function() {
+        var value;
+        value = this.mirror.sanitize();
+        if (value.trim().length === 0) return;
+        return this.start({
+          code: value
+        });
+      },
+      onStdout$: function(_arg) {
+        var html, stdout, thread;
+        html = _arg.html, thread = _arg.thread;
+        stdout = this.threads[thread].stdout;
+        return this.write({
+          html: html,
+          out: stdout
+        });
+      },
+      onStderr$: function(_arg) {
+        var html, stderr, stdout, thread, _ref;
+        html = _arg.html, thread = _arg.thread;
+        _ref = this.threads[thread], stderr = _ref.stderr, stdout = _ref.stdout;
+        if (stderr == null) stderr = stdout;
+        return this.write({
+          html: html,
+          out: stderr
+        });
+      },
+      write: function(_arg) {
+        var html, out;
+        html = _arg.html, out = _arg.out;
+        if (!out.data('initialized')) {
+          out.data('initialized', true);
+          out.empty();
+        }
+        out.append($('<span/>').html(html));
+        return window.scroll(0, document.body.offsetHeight);
+      },
+      makeStdout: function() {
+        var cloned, mirrorElement, stdoutBox, thing;
+        mirrorElement = $(this.mirror.getWrapperElement());
+        cloned = mirrorElement.clone(false);
+        cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
+        thing = cloned.find('.CodeMirror-lines>div:first>div:first');
+        if (thing.css('visibility') === 'hidden') {
+          thing.remove();
+        } else {
+          console.log("where'd that thing go?");
+        }
+        mirrorElement.before(cloned);
+        stdoutBox = $(outBox);
+        cloned.after(stdoutBox);
+        window.scroll(0, document.body.offsetHeight);
+        return stdoutBox.find('.outbox-stdout');
+      }
+    };
+  });
 
 }).call(this);

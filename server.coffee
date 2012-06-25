@@ -3,7 +3,8 @@ connect = require 'connect'
 {debug, info, warn, error:fatal} = (nogg=require('nogg')).logger 'server'
 assert = require 'assert'
 
-# configure logging first.
+
+# logging
 nogg.configure
   'default': [
     {file: 'logs/app.log',    level: 'debug'},
@@ -14,6 +15,17 @@ nogg.configure
   'access': [
     {file: 'logs/access.log', formatter: null}]
 
+# uncaught exceptions
+process.on 'uncaughtException', (err) ->
+  warn """\n
+^^^^^^^^^^^^^^^^^
+http://debuggable.com/posts/node-js-dealing-with-uncaught-exceptions:4c933d54-1428-443c-928d-4e1ecbdd56cb
+#{err.message}
+#{err.stack}
+vvvvvvvvvvvvvvvvv
+"""
+
+# server
 c = connect()
   .use(connect.logger())
   #.use(connect.staticCache())
@@ -37,48 +49,36 @@ c.use (req, res) ->
 </html>
 """
 
-process.on 'uncaughtException', (err) ->
-  warn """\n
-^^^^^^^^^^^^^^^^^
-http://debuggable.com/posts/node-js-dealing-with-uncaught-exceptions:4c933d54-1428-443c-928d-4e1ecbdd56cb
-#{err.message}
-#{err.stack}
-vvvvvvvvvvvvvvvvv
-"""
-
+# server app
 app = http.createServer(c)
 io = require('socket.io').listen app
 app.listen 8080
 
+# kernel
 {JKernel, GOD} = require 'joeson/src/interpreter'
 kern = new JKernel
 info "initialized kernel runloop"
 
+# connect.io <-> kernel
 io.sockets.on 'connection', (socket) ->
-  socket.emit '_', {hello:'world'}
 
-  # login
-  socket.on 'login', ({name,password}) ->
-    info "login of user w/ name #{name} with password #{password}"
-    user = kern.login name:name, password:password
-    socket.set 'user', user, -> # do nothing.
-    
-  # code
-  socket.on 'code', ({code,ixid}) ->
-    info "received code #{code}, ixid #{ixid}"
+  # start code
+  socket.on 'start', ({code,thread}) ->
+    info "received code #{code}, thread id #{thread}"
     socket.get 'user', (err, user) ->
+      # note: user may be null for new users.
       if err?
-        console.log "wtf?", err
+        fatal "Couldn't get the user of the socket", err, err.stack
         return
       kern.run
         user: user,
         code: code,
         stdout: (html) ->
           assert.ok typeof html is 'string', "stdout can only print html strings"
-          info "stdout", html, ixid
-          socket.emit 'stdout', html:html, ixid:ixid
+          info "stdout", html, thread
+          socket.emit 'stdout', html:html, thread:thread
         stderr: (html) ->
           assert.ok typeof html is 'string', "stderr can only print html strings"
-          info "stderr", html, ixid
-          socket.emit 'stderr', html:html, ixid:ixid
+          info "stderr", html, thread
+          socket.emit 'stderr', html:html, thread:thread
         stdin:  undefined # not implemented

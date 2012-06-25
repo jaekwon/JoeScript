@@ -2,6 +2,17 @@ randid = (len=12) ->
   possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''
 
+outBox = """
+<div class='outbox'>
+  <div class='outbox-gutter'>
+    <div class='outbox-gutter-text'>→ </div>
+  </div>
+  <div class='outbox-stdout'>
+    <span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span>
+  </div>
+</div>
+"""
+
 # replace all tabs with spaces
 tabSize = 2
 tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
@@ -26,9 +37,6 @@ replaceTabs = (str) ->
 $('document').ready ->
 
   console.log "booting..."
-  Client.connect()
-
-  console.log "marquee..." # don't worry it's just for elipses.
   marqueeLevel = 0
   setInterval (->
     m4Off = marqueeLevel%4
@@ -37,77 +45,88 @@ $('document').ready ->
     $(".marq#{m4On}m4").css  opacity:0.7
   ), 300
 
-  # Setup CodeMirror instance which lives on the bottom of the page.
-  mirror = CodeMirror document.body,
-    value:      ''
-    mode:       'coffeescript'
-    theme:      'joeson'
-    autofocus:  yes
-    tabSize:    2
-    keyMap:     'vim'
+  # connect to client.
+  window.client = client = new Client()
+  # click page to focus
+  $(document).click -> client.mirror.focus()
 
-  # Before submitting, replace all tabs with spaces
-  mirror.replaceTabs = ->
-    tabReplaced = replaceTabs orig=mirror.getValue()
-    mirror.setValue tabReplaced
+Client = clazz 'Client', ->
+  init: ->
+    @threads = {}
+    @mirror = @makeMirror()
+    @mirror.submit = @onSave
+    # connect
+    @socket = io.connect()
+    @socket.on 'stdout', @onStdout
+    @socket.on 'stderr', @onStderr
+    console.log "Client socket:", @socket
+    # run help()
+    @start code:'help()'
 
-  # Submitting...
-  mirror.submit = ->
-    return if @getValue().trim().length is 0
-    # sanitize
-    mirror.replaceTabs()
-    cloned = $('.CodeMirror:last').clone(no)
-    cloned.css(marginBottom:10)
-    # remove some elements
+  makeMirror: ->
+    # Setup CodeMirror instance.
+    mirror = CodeMirror document.body,
+      value:      ''
+      mode:       'coffeescript'
+      theme:      'joeson'
+      keyMap:     'vim'
+      autofocus:  yes
+      gutter:     yes
+      fixedGutter:yes
+      tabSize:    2
+    # Sanitization.
+    mirror.sanitize = ->
+      tabReplaced = replaceTabs orig=mirror.getValue()
+      mirror.setValue tabReplaced
+      return tabReplaced
+    # Gutter
+    mirror.setMarker 0, '●&nbsp;', 'cm-bracket'
+    return mirror
+
+  start: ({code}) ->
+    threadId = randid()
+    stdout = @makeStdout()
+    @threads[threadId] = stdout:stdout
+    @socket.emit 'start', code:code, thread:threadId
+
+  onSave$: ->
+    value = @mirror.sanitize()
+    return if value.trim().length is 0
+    @start code:value
+
+  onStdout$: ({html, thread}) ->
+    {stdout} = @threads[thread]
+    @write html:html, out:stdout
+
+  onStderr$: ({html, thread}) ->
+    {stderr,stdout} = @threads[thread]
+    stderr ?= stdout
+    @write html:html, out:stderr
+
+  write: ({html, out}) ->
+    unless out.data('initialized')
+      out.data('initialized', yes)
+      out.empty()
+    out.append $('<span/>').html(html)
+    # hack
+    window.scroll 0, document.body.offsetHeight
+
+  makeStdout: ->
+    # TODO I'm sure there's a better way using the CM API
+    mirrorElement = $(@mirror.getWrapperElement())
+    cloned = mirrorElement.clone no
     cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove()
     thing = cloned.find('.CodeMirror-lines>div:first>div:first')
     if thing.css('visibility') is 'hidden'
       thing.remove()
     else
       console.log "where'd that thing go?"
-    # insert response box
-    ixid = 'ixid'+randid()
-    cloned.find('.CodeMirror-lines').append("""
-      <span class="stdout"><span class='cm-bracket'>&gt;&gt;</span> <span id='#{ixid}'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></span></span>
-    """)
-    $('.CodeMirror:last').before(cloned)
-    # scroll to bottom.
+    # Insert cloned before mirror
+    mirrorElement.before cloned
+    # Insert response box
+    stdoutBox = $(outBox)
+    cloned.after(stdoutBox) #find('.CodeMirror-lines').append(outBox)
+    # Scroll to bottom.
     window.scroll(0, document.body.offsetHeight)
-    # push code to server
-    Client.pushCode code:@getValue(), ixid:ixid
-  console.log "code mirror:", mirror
-
-  # When you click on the page, you focus.
-  $(document).click ->
-    mirror.focus()
-
-writeTo = (ixid, html) ->
-  span = $('#'+ixid)
-  console.log ixid
-  unless span.data('initialized')
-    span.data('initialized', true)
-    span.empty()
-  if span.length > 0
-    outputElement = $('<span/>').html(html)
-    console.log "stdout:", outputElement
-    span.append(outputElement)
-    # scroll to bottom.
-    window.scroll(0, document.body.offsetHeight)
-
-Client =
-  connect: ->
-    @socket = io.connect()
-    @socket.on 'stdout', (data) => writeTo data.ixid, data.html
-    @socket.on 'stderr', (data) => writeTo data.ixid, data.html
-    @socket.on '_', =>
-      # Login to the system
-      # TODO obviously this is buggy wrt asynchronicity. TODO fix.
-      @login()
-    console.log "Client socket:", @socket
-
-  login: ->
-    @socket.emit 'login', name:'joe', password:'dontcare'
-    #@socket.on 'user', (user) => window.user = user
-
-  pushCode: ({ixid, code}) ->
-    @socket.emit 'code', code:code, ixid:ixid
+    # Return the inner span
+    return stdoutBox.find '.outbox-stdout'

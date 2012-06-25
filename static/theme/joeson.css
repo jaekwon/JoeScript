@@ -1,12 +1,13 @@
 /* Loosely based on the Midnight Textmate theme */
 
-.cm-s-joeson { background: #0a001f; color: #f8f8f8;
-  font-family: 'Anonymous Pro', sans-serif;
+.cm-s-joeson {
+  background: #0a001f;
+  color: #f8f8f8;
+  font-family: 'Anonymous Pro', monospace;
 }
-.cm-s-joeson .stdout { display:block; margin-top: 0.4em; }
 .cm-s-joeson div.CodeMirror-selected { background: #a8f !important; }
-.cm-s-joeson .CodeMirror-gutter { background: #0a001f; border-right: 1px solid #aaa; }
-.cm-s-joeson .CodeMirror-gutter-text { color: #f8f8f8; }
+.cm-s-joeson .CodeMirror-gutter { background: #0a001f; border-right: 1px solid #8da6ce; }
+.cm-s-joeson .CodeMirror-gutter-text { color: #8da6ce; }
 .cm-s-joeson .CodeMirror-cursor { border-left: 1px solid white !important; }
 
 .cm-s-joeson span.cm-comment { color: #6900a1; }
@@ -22,3 +23,27 @@
 .cm-s-joeson span.cm-comment { color: #6900a1; }
 .cm-s-joeson span.cm-builtin, .cm-s-joeson span.cm-special { color: #ff9e59; }
 .cm-s-joeson span.cm-link { color: #845dc4; }
+
+.outbox {
+  margin: 0;
+  line-height: 1.2em;
+  position: relative;
+  overflow: hidden;
+}
+.outbox-stdout {
+  margin-left: 2em;
+  padding: .4em;
+}
+.outbox-gutter {
+  position: absolute; left: 0; top: 0;
+  border-right: 1px solid #8da6ce;
+  z-index: 10;
+  width: 2em;
+  height: 100%;
+}
+.outbox-gutter-text {
+  text-align: right;
+  padding: .4em .2em .4em .4em;
+  white-space: pre !important;
+  color: #8da6ce;
+}

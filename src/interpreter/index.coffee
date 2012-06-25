@@ -37,6 +37,7 @@ timeit = (name, fn) ->
 
 ## Universe
 GOD = @GOD = new JUser name:'god'
+GUEST = @GUEST = new JUser name:'guest'
 WORLD = @WORLD = new JObject creator:GOD
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
@@ -235,6 +236,7 @@ JThread = @JThread = clazz 'JThread', ->
     @userScopes = {}  # name -> scope 
     @index = 0
     @ticker = 0
+    @login name:'guest'
 
   login: ({name, password}) -> # user JSON
     user = @users[name]
@@ -247,6 +249,7 @@ JThread = @JThread = clazz 'JThread', ->
   # Start processing another thread
   # user: the same user object as returned by login.
   run: ({user, code, stdin, stdout, stderr}) ->
+    user ?= GUEST
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
     scope = @userScopes[user.name]
