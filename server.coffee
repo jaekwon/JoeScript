@@ -1,7 +1,18 @@
 http = require 'http'
 connect = require 'connect'
-{debug, info, warn, error:fatal} = require('nogg').logger 'server'
+{debug, info, warn, error:fatal} = (nogg=require('nogg')).logger 'server'
 assert = require 'assert'
+
+# configure logging first.
+nogg.configure
+  'default': [
+    {file: 'logs/app.log',    level: 'debug'},
+    {file: 'stdout',          level: 'debug'}]
+  #'foo': [
+  #  {file: 'foo.log',    level: 'debug'},
+  #  {forward: 'default'}]
+  'access': [
+    {file: 'logs/access.log', formatter: null}]
 
 c = connect()
   .use(connect.logger())

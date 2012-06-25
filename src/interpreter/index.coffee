@@ -21,7 +21,7 @@ joe = require('joeson/src/joescript').NODES
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = require 'joeson/src/interpreter/object'
 defaultGlobal = require 'joeson/src/interpreter/global'
 
-trace = debug:no
+trace = debug:no, logCode:yes
 
 times = {}
 counter = 0
@@ -234,6 +234,7 @@ JThread = @JThread = clazz 'JThread', ->
     @users = {}       # name -> user
     @userScopes = {}  # name -> scope 
     @index = 0
+    @ticker = 0
 
   login: ({name, password}) -> # user JSON
     user = @users[name]
@@ -252,9 +253,11 @@ JThread = @JThread = clazz 'JThread', ->
     assert.ok scope?, "Scope missing for user #{user.name}"
     try
       if typeof 'code' is 'string'
+        info "received code:\n#{code}" if trace.debug or trace.logCode
         node = require('joeson/src/joescript').parse code
+        info "unparsed node:\n" + node.serialize() if trace.debug or trace.logCode
         node = node.toJSNode(toValue:yes).installScope().determine()
-        info "Kernel.run parsed node.\n" + node.serialize() if trace.debug
+        info "parsed node:\n" + node.serialize() if trace.debug or trace.logCode
       else
         node = code
       thread = new JThread start:node, user:user, scope:scope, stdin:stdin, stdout:stdout, stderr:stderr
@@ -270,8 +273,9 @@ JThread = @JThread = clazz 'JThread', ->
       stderr('InternalError:'+error)
 
   runloop$: ->
+    @ticker++
     thread = @threads[@index]
-    debug "tick" if trace.debug
+    debug "tick #{@ticker}. #{@threads.length} threads" if trace.debug
     try
       # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
