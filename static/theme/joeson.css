@@ -33,6 +33,7 @@
 .outbox-stdout {
   margin-left: 2em;
   padding: .4em;
+  white-space: pre;
 }
 .outbox-gutter {
   position: absolute; left: 0; top: 0;
@@ -44,6 +45,6 @@
 .outbox-gutter-text {
   text-align: right;
   padding: .4em .2em .4em .4em;
-  white-space: pre !important;
+  white-space: pre;
   color: #8da6ce;
 }

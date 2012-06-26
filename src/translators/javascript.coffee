@@ -247,7 +247,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       return
 
   joe.Str::extend
-    nodeParts$: get: ->
+    getParts: ->
       return [this] if typeof @parts is 'string'
       nodes = []
       for part in @parts
@@ -260,13 +260,13 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ->
       node = undefined
       # construct a '+' operation with the @parts.
-      for part in @nodeParts
+      for part in @getParts() when part
         if node is undefined
           node = part
           continue
         else
           node = joe.Operation left:node, op:'+', right:part
-      return node
+      return node or ''
         
     toJavascript: ->
       assert.ok typeof @parts is 'string', "Str.toJavascript can only handle a string part."

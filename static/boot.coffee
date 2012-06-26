@@ -7,9 +7,7 @@ outBox = """
   <div class='outbox-gutter'>
     <div class='outbox-gutter-text'>→ </div>
   </div>
-  <div class='outbox-stdout'>
-    <span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span>
-  </div>
+  <div class='outbox-stdout'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>
 </div>
 """
 
@@ -80,7 +78,7 @@ Client = clazz 'Client', ->
       mirror.setValue tabReplaced
       return tabReplaced
     # Gutter
-    mirror.setMarker 0, '●&nbsp;', 'cm-bracket'
+    mirror.setMarker 0, '● ', 'cm-bracket'
     return mirror
 
   start: ({code}) ->
@@ -92,6 +90,17 @@ Client = clazz 'Client', ->
   onSave$: ->
     value = @mirror.sanitize()
     return if value.trim().length is 0
+    # Clone the current mirror and prepare
+    # TODO find a better way to do this
+    mirrorElement = $(@mirror.getWrapperElement())
+    cloned = mirrorElement.clone no
+    cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove()
+    thing = cloned.find('.CodeMirror-lines>div:first>div:first')
+    if thing.css('visibility') is 'hidden'
+      thing.remove()
+    else
+      console.log "where'd that thing go?"
+    @append cloned
     @start code:value
 
   onStdout$: ({html, thread}) ->
@@ -112,21 +121,14 @@ Client = clazz 'Client', ->
     window.scroll 0, document.body.offsetHeight
 
   makeStdout: ->
-    # TODO I'm sure there's a better way using the CM API
-    mirrorElement = $(@mirror.getWrapperElement())
-    cloned = mirrorElement.clone no
-    cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove()
-    thing = cloned.find('.CodeMirror-lines>div:first>div:first')
-    if thing.css('visibility') is 'hidden'
-      thing.remove()
-    else
-      console.log "where'd that thing go?"
-    # Insert cloned before mirror
-    mirrorElement.before cloned
     # Insert response box
     stdoutBox = $(outBox)
-    cloned.after(stdoutBox) #find('.CodeMirror-lines').append(outBox)
+    @append stdoutBox
     # Scroll to bottom.
     window.scroll(0, document.body.offsetHeight)
     # Return the inner span
     return stdoutBox.find '.outbox-stdout'
+
+  append: (elem) ->
+    mirrorElement = $(@mirror.getWrapperElement())
+    mirrorElement.before elem

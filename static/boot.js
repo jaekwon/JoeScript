@@ -15,7 +15,7 @@
     })()).join('');
   };
 
-  outBox = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-stdout'>\n    <span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span>\n  </div>\n</div>";
+  outBox = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-stdout'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
 
   tabSize = 2;
 
@@ -104,7 +104,7 @@
           mirror.setValue(tabReplaced);
           return tabReplaced;
         };
-        mirror.setMarker(0, '●&nbsp;', 'cm-bracket');
+        mirror.setMarker(0, '● ', 'cm-bracket');
         return mirror;
       },
       start: function(_arg) {
@@ -121,9 +121,19 @@
         });
       },
       onSave$: function() {
-        var value;
+        var cloned, mirrorElement, thing, value;
         value = this.mirror.sanitize();
         if (value.trim().length === 0) return;
+        mirrorElement = $(this.mirror.getWrapperElement());
+        cloned = mirrorElement.clone(false);
+        cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
+        thing = cloned.find('.CodeMirror-lines>div:first>div:first');
+        if (thing.css('visibility') === 'hidden') {
+          thing.remove();
+        } else {
+          console.log("where'd that thing go?");
+        }
+        this.append(cloned);
         return this.start({
           code: value
         });
@@ -158,21 +168,16 @@
         return window.scroll(0, document.body.offsetHeight);
       },
       makeStdout: function() {
-        var cloned, mirrorElement, stdoutBox, thing;
-        mirrorElement = $(this.mirror.getWrapperElement());
-        cloned = mirrorElement.clone(false);
-        cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
-        thing = cloned.find('.CodeMirror-lines>div:first>div:first');
-        if (thing.css('visibility') === 'hidden') {
-          thing.remove();
-        } else {
-          console.log("where'd that thing go?");
-        }
-        mirrorElement.before(cloned);
+        var stdoutBox;
         stdoutBox = $(outBox);
-        cloned.after(stdoutBox);
+        this.append(stdoutBox);
         window.scroll(0, document.body.offsetHeight);
         return stdoutBox.find('.outbox-stdout');
+      },
+      append: function(elem) {
+        var mirrorElement;
+        mirrorElement = $(this.mirror.getWrapperElement());
+        return mirrorElement.before(elem);
       }
     };
   });
