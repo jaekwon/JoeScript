@@ -509,7 +509,7 @@ unless joe.Node::interpret? then do =>
         if i9n.source?
           $.scope = scope.__create__ $, {this:i9n.source}
         else
-          $.scope = scope.__create__ $, # this isnt bound to global
+          $.scope = scope.__create__ $ # this isnt bound to global
         if params?
           # Though params is an AssignList,
           assert.ok params instanceof joe.AssignList

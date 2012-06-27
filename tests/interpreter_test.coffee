@@ -20,6 +20,16 @@ foo = ->
     
 foo()
 ''', -> ok true
+test '''
+a = 'A'
+foo = ->
+  b = 'B'
+  bar = ->
+    c = 'C'
+    car = ->
+      a+b+c
+foo()()()
+''',                                      -> equal @it, 'ABC'
 test ' null ',                            -> equal @it, null
 test ' undefined ',                       -> equal @it, undefined
 test ' null * undefined ',                -> ok isNaN @it

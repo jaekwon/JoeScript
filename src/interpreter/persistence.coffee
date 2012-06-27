@@ -1,6 +1,6 @@
 ###
 
-1. change scopes into JObjects
+DONE 1. change scopes into JObjects
 2. add a changelog to JThread
 3.
 
