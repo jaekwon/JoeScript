@@ -18,28 +18,90 @@ jml = ($, attributes, elements) ->
   jarr = new JArray creator:$.user, data:elements
   return jarr
 
+### Simple Instructions: ###
+# Write last to `this`
+setLast = ($, i9n, last) ->
+  $.pop()
+  assert.ok i9n.key?, "setLast requires set key."
+  if i9n.index?
+    @[i9n.key][i9n.index] = last
+  else
+    @[i9n.key] = last
+  return last
+setLast._name = "setLast"
+
+JStub = @JStub = clazz 'JStub', ->
+  init: (@key) ->
+
 JObject = @JObject = clazz 'JObject', ->
-  # data: An Object
-  # acl:  A JArray of JAccessControlItems
-  #       NOTE: the acl has its own acl!
-  init: ({@creator, @data, @proto, @acl}) ->
-    assert.ok @creator? and @creator instanceof JObject,
-                        "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
-                        # Everything has a creator. Wait a minute...
+  # data:   An Object
+  # acl:    A JArray of JAccessControlItems
+  #         NOTE: the acl has its own acl!
+  # proto:  Both a workaround the native .__proto__ behavior,
+  #         and a convenient way to create new JObjects w/ their prototypes.
+  init: ({@creator, @data, @acl, @proto}) ->
+    assert.ok not @proto? or @proto instanceof JObject, "JObject wants JObject proto or null"
+    assert.ok @creator instanceof JObject, "JObject wants JObject creator"
     @data ?= {}
     @data.__proto__ = null # detatch prototype
-  __get__: ($, key) ->
+  __get__: ($, key, required=no) ->
+    assert.ok key=key.__str__?($), "Key couldn't be stringified"
     $.will('read', this)
-    value = @data[key]
-    return value if value?
-    if @proto?
-      return @proto.__get__($, key)
-    else if starts(keyStr, '__') and ends(keyStr, '__')
-      return @[keyStr] ? JUndefined
+    if key is '__proto__'
+      value = @proto
+    else
+      value = @data[key]
+    if value?
+      if value instanceof JStub
+        # TODO make a call to aynchronously fetch value
+        # TODO then replace stub with value in @data[key] (or @proto)
+        # TODO dont forget 'required'.
+        console.log "WORKING"
+        return $.wait value.key
+      else
+        return value
+    else if @proto?
+      if @proto instanceof JStub
+        $.push func:($, i9n, proto) ->
+          $.pop()
+          proto.__get__ $, key, required
+        return @__get__ $, '__proto__'
+      else
+        return @proto.__get__ $, key, required
+    else
+      if starts(key, '__') and ends(key, '__') and nativeValue=@[key]
+        return nativeValue
+      return $.throw 'ReferenceError', "#{key} is not defined" if required
+      return JUndefined
+  __create__: ($, newData) ->
+    new JObject creator:$.user, data:newData, proto:@
+  __hasOwn__: ($, key) ->
+    $.will('read', this)
+    return @data[key]?
   __set__: ($, key, value) ->
+    assert.ok key=key.__str__?($), "Key couldn't be stringified"
     $.will('write', this)
     @data[key] = value
     return
+  __update__: ($, key, value) ->
+    assert.ok key=key.__str__?($), "Key couldn't be stringified"
+    $.will('write', this)
+    if key is '__proto__'
+      @proto = value
+      return
+    else if @data[key]?
+      @data[key] = value
+      return
+    else if @proto?
+      if @proto instanceof JStub
+        $.push func:($, i9n, proto) ->
+          $.pop()
+          proto.__update__ $, key, value
+        return @__get__ $, '__proto__'
+      else
+        return @proto.__update__ $, key, value
+    else
+      $.throw 'ReferenceError', "#{key} is not defined, cannot update."
   __keys__: ($) ->
     $.will('read', this)
     return _.keys @data
@@ -83,20 +145,20 @@ JArray = @JArray = clazz 'JArray', ->
     if isInteger key
       return @data[key] ? JUndefined
     else
+      assert.ok key=key.__str__?($), "Key couldn't be stringified"
       #console.log "GET:", key
-      keyStr = ''+key
-      value = @data[keyStr]
+      value = @data[key]
       return value if value?
-      return @[keyStr] ? JUndefined if starts(keyStr, '__') and ends(keyStr, '__')
-      return @[keyStr] if keyStr in protoKeys
+      return @[key] ? JUndefined if starts(key, '__') and ends(key, '__')
+      return @[key] if key in protoKeys
       return JUndefined
   __set__: ($, key, value) ->
     $.will('write', this)
     if isInteger key
       @data[key] = value
       return
-    keyStr = ''+key
-    @data[keyStr] = value
+    assert.ok key=key.__str__?($), "Key couldn't be stringified"
+    @data[key] = value
     return
   __keys__: ($) ->
     $.will('read', this)
@@ -108,7 +170,7 @@ JArray = @JArray = clazz 'JArray', ->
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
-  __str__:  ($) -> (item.__str__($) for item in @data).join ''
+  __str__:  ($) -> (item.__str__($) for item in @data).join ','
   __html__: ($) ->
     arrayPart = (item.__html__($) for item in @data).join ''
     dataPart = ("#{htmlEscape key}=\"#{htmlEscape value.__str__($)}\"" for key, value of @data when not isInteger key).join(' ')
@@ -172,7 +234,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   init: ({creator, acl, @func, @scope}) ->
     @super.init.call @, {creator, acl}
     assert.ok @func instanceof joe.Func, "func not Func"
-    assert.ok @scope? and @scope instanceof Object, "scope not an object"
+    assert.ok @scope? and @scope instanceof JObject, "scope not a JObject"
   __repr__: ($) ->
     dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0
@@ -194,17 +256,6 @@ unless joe.Node::interpret? then do =>
   require('joeson/src/translators/scope').install() # dependency
   require('joeson/src/translators/javascript').install() # dependency
 
-  # simple instruction to write the last value.
-  setLast = ($, i9n, last) ->
-    $.pop()
-    assert.ok i9n.key?, "setLast requires set key."
-    if i9n.index?
-      @[i9n.key][i9n.index] = last
-    else
-      @[i9n.key] = last
-    return last
-  setLast._name = "setLast"
-
   joe.Node::extend
     interpret: ($) ->
       throw new Error "Dunno how to evaluate a #{this.constructor.name}."
@@ -212,12 +263,19 @@ unless joe.Node::interpret? then do =>
   joe.Word::extend
     interpret: ($) ->
       $.pop()
-      return $.scopeGet @
+      return $.scope.__get__ $, @, yes
+    __str__: ($) -> @key
+
+  joe.Undetermined::extend
+    __str__: ($) ->
+      assert.ok @word?, "Undetermined not yet determined!"
+      return @word.key
 
   joe.Block::extend
     interpret: ($) ->
       $.pop()
-      $.scopeDefine variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
+      # lucky us these can just be synchronous
+      $.scope.__set__ $, variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
       if (length=@lines.length) > 1
         $.push this:@, func:joe.Block::interpretLoop, length:length, idx:0
       firstLine = @lines[0]
@@ -263,7 +321,7 @@ unless joe.Node::interpret? then do =>
     interpret2: ($, i9n, value) ->
       $.pop()
       if isVariable @target
-        $.scopeUpdate @target, value
+        $.scope.__update__ $, @target, value
       else if @target instanceof joe.Index
         i9n.targetObj.__set__($, i9n.key, value)
       else
@@ -376,7 +434,7 @@ unless joe.Node::interpret? then do =>
             when '--' then value = left.__sub__ $, 1
             else throw new Error "Unexpected operation #{@op}"
           if isVariable @left
-            $.scopeUpdate @left, value
+            $.scope.__update__ $, @left, value
           else if @left instanceof joe.Index
             i9n.targetObj.__set__ $, i9n.key, value
           else
@@ -449,16 +507,16 @@ unless joe.Node::interpret? then do =>
         {func:{block,params}, scope} = i9n.invokedFunction
         paramValues = i9n.paramValues
         if i9n.source?
-          $.scope = {__parent__:scope, this:i9n.source}
+          $.scope = scope.__create__ $, {this:i9n.source}
         else
-          $.scope = {__parent__:scope} # ala douglass crockford's good parts.
+          $.scope = scope.__create__ $, # this isnt bound to global
         if params?
           # Though params is an AssignList,
           assert.ok params instanceof joe.AssignList
           # ... we'll manually bind values to param names.
           for {target:argName}, i in params.items
             assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
-            $.scopeDefine argName, paramValues[i] ? JUndefined
+            $.scope.__set__ $, argName, (paramValues[i] ? JUndefined)
         if block?
           $.push this:block, func:block.interpret
         else

@@ -5,6 +5,7 @@
   "author": "Jae Kwon <jkwon.work@gmail.com>",
   "repository": {"type": "git", "url": "git://github.com/jaekwon/joeson.git"},
   "dependencies": {
+      "async": "",
       "underscore": ">= 1.2.3",
       "coffee-script": ">= 1.3.0",
       "cardamom": ">= 0.0.8",

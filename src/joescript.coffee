@@ -22,17 +22,11 @@ Word = clazz 'Word', Node, ->
       when 'null'
         @_newOverride = Null.null
   toString: -> @key
-  toKey: -> @key
 
 # An undetermined variable.
 Undetermined = clazz 'Undetermined', Node, ->
   init: (@prefix) ->
   toString: -> "[Undetermined prefix:#{@prefix}]"
-  toKey: ->
-    assert.ok @word?, "Undetermined not yet determined!"
-    return @word.toKey()
-
-String::toKey = -> @
 
 Block = clazz 'Block', Node, ->
   children:
@@ -148,7 +142,7 @@ Invocation = clazz 'Invocation', Node, ->
     func:       {type:EXPR, isValue:yes}
     params:     {type:[type:EXPR,isValue:yes]}
   init: ({@func, @params}) ->
-    @type = if @func.toKey?() is 'new' then 'new'
+    @type = if @func.__str__?() is 'new' then 'new' # TODO doesnt do anything
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->

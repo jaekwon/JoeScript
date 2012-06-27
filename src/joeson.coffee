@@ -561,6 +561,7 @@ _loopStack = [] # trace stack
 
   parse$: (code, {returnContext,env,debug}={}) ->
     returnContext ?= no
+    assert.ok code, "Parser wants code"
     code = CodeStream code if code not instanceof CodeStream
     $ = ParseContext code:code, grammar:this, env:env
 

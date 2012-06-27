@@ -3,31 +3,19 @@
 {equal, deepEqual, ok} = require 'assert'
 _ = require 'underscore'
 joe = require 'joeson/src/joescript'
-{JThread, GOD} = require 'joeson/src/interpreter'
+{JThread, JKernel, GOD} = require 'joeson/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 
-counter = 0
-test = (code, cb) ->
-  console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  node = require('joeson/src/joescript').parse code
-  node = node.toJSNode(toValue:yes).installScope().determine()
-  #console.log node.serialize()
-  $ = new JThread start:node, user:GOD
-  try
-    res = $.run()
-    cb.call context:$, it:res, node:node
-  catch err
-    console.log red "TEST ERROR:"
-    console.log red err.stack
-    process.exit(1)
+tests = []
+test = (code, callback) -> tests.push code:code, callback:callback
 
 test '''
 foo = ->
   a = 0
   loop
     a++
-    return a if a > 1000000
+    return a if a > 10000
   return 1
     
 foo()
@@ -138,3 +126,36 @@ test """
 _ = require('underscore')
 _.keys(foo:1, bar:2, baz:3).join(',')""", 'foo,bar,baz'
 ###
+
+counter = 0
+runNextTest = ->
+  return if tests.length is 0
+  {code, callback} = tests.shift()
+  console.log "#{red "test #{counter++}:"}\n#{normal code}"
+  node = require('joeson/src/joescript').parse code
+  node = node.toJSNode(toValue:yes).installScope().determine()
+  #console.log node.serialize()
+  kernel = new JKernel()
+  try
+    kernel.run
+      code:node
+      stdin:undefined
+      stdout: (msg) -> process.stdout.write(msg)
+      stderr: (msg) -> process.stderr.write(msg)
+      callback: ->
+        try
+          console.log "callback!"
+          ok not @error?, "Thread errored out: ", @error
+          callback.call context:@, it:@last.jsValue, node:node
+          # callbacks are synchronous.
+          # if it didn't throw, it was successful.
+          runNextTest()
+        catch err
+          console.log red "TEST ERROR:"
+          console.log red err.stack
+          process.exit(1)
+  catch err
+    console.log red "KERNEL ERROR:"
+    console.log red err.stack
+    process.exit(1)
+runNextTest()

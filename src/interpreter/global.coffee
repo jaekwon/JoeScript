@@ -7,8 +7,11 @@ joe = require('joeson/src/joescript').NODES
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
+{GOD} = require 'joeson/src/interpreter'
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
 
 @print = ($, [obj]) ->
   $.stdout(obj.__html__($) + '<br/>')
   return JUndefined
+
+module.exports = new JObject creator:GOD, data:@
