@@ -11,7 +11,7 @@ joe = require('joeson/src/joescript').NODES
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
 
 @print = ($, [obj]) ->
-  $.stdout(obj.__html__($) + '<br/>')
+  $.output(obj.__html__($) + '<br/>')
   return JUndefined
 
 module.exports = new JObject creator:GOD, data:@

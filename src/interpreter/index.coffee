@@ -18,9 +18,9 @@ joe = require('joeson/src/joescript').NODES
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
-{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = require 'joeson/src/interpreter/object'
+{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 
-trace = debug:no, logCode:yes
+trace = debug:yes, logCode:yes
 
 times = {}
 counter = 0
@@ -58,10 +58,7 @@ JThread = @JThread = clazz 'JThread', ->
   # start:  The start node of program to run
   # user:   The user associated with this thread
   # scope:  Immediate local lexical scope object
-  # stdin:  Native function, () -> "user input string" or null if EOL
-  # stdout: Native function, (str) -> # prints to user console
-  # stderr: Native function, (str) -> # prints to user console
-  init: ({@kernel, @start, @user, @scope, @stdin, @stdout, @stderr, @callback}) ->
+  init: ({@kernel, @start, @user, @scope, @input, @output, @callback}) ->
     assert.ok @kernel instanceof JKernel,  "JThread wants kernel"
     assert.ok @start  instanceof joe.Node, "JThread wants function"
     assert.ok @user   instanceof JObject,  "JThread wants user"
@@ -80,7 +77,8 @@ JThread = @JThread = clazz 'JThread', ->
   #   'wait'      to wait for IO.
   #   null        all other intermediate cases.
   runStep: ->
-    return 'return' if @i9ns.length is 0
+    if @i9ns.length is 0
+      return @state='return'
     {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
     console.log blue "             -- runStep --" if trace.debug
     @printScope @scope if trace.debug
@@ -101,42 +99,28 @@ JThread = @JThread = clazz 'JThread', ->
         return null
       when 'error'
         console.log "             #{red 'throw ->'} #{@last}" if trace.debug
-        @state = null
         loop # unwind loop
           dontcare = @pop()
           i9n = @peek()
           if not i9n?
-            info "thread #{@} errored."
-            console.log "#{@error.name}: #{@error.message}"
-            if @error.stack?
-              @printStack @error.stack
-              stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
-              @stderr("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
-            else
-              @stderr("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
             return 'error'
           else if i9n.this instanceof joe.Try and not i9n.isHandlingError
             i9n.isHandlingError = true
             i9n.func = joe.Try::interpretCatch
             last = @error
-            return null
+            return @state=null
       when 'return'
         console.log "             #{yellow 'return ->'} #{@last}" if trace.debug
-        @state = null
         loop # unwind loop
           dontcare = @pop()
           i9n = @peek()
           if not i9n?
-            info "thread #{@} finished."
-            @stdout(@last.__repr__(@).__html__(@))
             return 'return'
           else if i9n.this instanceof joe.Invocation
             assert.ok i9n.func is joe.Invocation::interpretFinal
-            return null
+            return @state=null
       when 'wait'
         console.log "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace.debug
-        @state = null
-        info "thread #{@} waiting."
         existing = @kernel.waitlist[waitKey]
         if existing?
           @kernel.waitlist[waitKey].push thread
@@ -144,7 +128,7 @@ JThread = @JThread = clazz 'JThread', ->
           @kernel.waitlist[waitKey] = [thread]
         return 'wait'
       else
-        throw new Error "Unexpected interrupt #{@state}"
+        throw new Error "Unexpected state #{@state}"
 
   ### STACKS ###
 
@@ -159,43 +143,6 @@ JThread = @JThread = clazz 'JThread', ->
     for item in @i9ns when item.this instanceof joe.Invocation
       stack.push JStackItem node:item.this
     return stack
-
-  ### SCOPE ###
-
-  #
-  scopeGet: (name) ->
-    scope = @scope
-    loop
-      break if scope.__hasOwn__ @, name
-      scope = scope.proto
-      if not scope?
-        return @throw 'ReferenceError', "#{name} is not defined"
-    return scope[name]
-
-  # Set a name/value pair on the topmost scope of the chain
-  # Error if name already exists... all updates should happen w/ scopeUpdate.
-  scopeDefine: (name, value) ->
-    name = name.toKey()
-    #alreadyDefined = `name in this.scope` # coffeescript but, can't say "not `...`"
-    #assert.ok not alreadyDefined, "Already defined in scope: #{name}"
-    @scope[name] = value
-    return
-
-  # Find scope in prototype chain with name declared, set it there.
-  # NOTE on v8, you can't set __proto__. You can't even use it
-  # as a local variable. Same applies to the function below.
-  # It's just an expensive no-op.
-  scopeUpdate: (name, value) ->
-    scope = @scope
-    # while not `name in scope` TODO coffeesript bug
-    loop
-      nameInScope = `name in scope`
-      break if nameInScope
-      scope = scope.__parent__
-      if not scope?
-        return @throw 'ReferenceError', "#{name} is not defined"
-    scope[name] = value
-    return
 
   ### FLOW CONTROL ###
 
@@ -217,6 +164,16 @@ JThread = @JThread = clazz 'JThread', ->
     throw new Error "TODO"
     # set @last
     # reanimate from waitlist
+
+  exit: ->
+    if @callback?
+      @callback()
+    else
+      @cleanup()
+
+  cleanup: ->
+    @input?.close?()
+    @output?.close?()
 
   ### ACCESS CONTROL ###
 
@@ -272,7 +229,7 @@ JThread = @JThread = clazz 'JThread', ->
   # Start processing another thread
   # user:     The same user object as returned by login.
   # callback: Called with thread after it exits.
-  run: ({user, code, stdin, stdout, stderr, callback}) ->
+  run: ({user, code, input, output, callback}) ->
     user ?= GUEST
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
@@ -293,9 +250,8 @@ JThread = @JThread = clazz 'JThread', ->
         start:node
         user:user
         scope:scope
-        stdin:stdin
-        stdout:stdout
-        stderr:stderr
+        input:input
+        output:output
         callback:callback
       @threads.push thread
       if @threads.length is 1
@@ -306,7 +262,7 @@ JThread = @JThread = clazz 'JThread', ->
         warn "Error in user code start:", error.stack, "\nfor node:\n", node.serialize()
       else
         warn "Error parsing code:", error.stack, "\nfor code text:\n", code
-      stderr('InternalError:'+error)
+      output('InternalError:'+error)
 
   runloop$: ->
     @ticker++
@@ -321,14 +277,15 @@ JThread = @JThread = clazz 'JThread', ->
           @threads[@index..@index] = [] # splice out
           @index = @index % @threads.length # oops, sometimes NaN
           process.nextTick @runloop if @threads.length > 0
-          thread?.callback()
+          thread.exit()
           return
       @index = (@index + 1) % @threads.length
       process.nextTick @runloop
     catch error
       fatal "Error in runStep. Stopping execution.", error.stack
-      thread.stderr 'InternalError:'+error
+      thread.output 'InternalError:'+error
       @threads[@index..@index] = [] # splice out
       @index = @index % @threads.length # oops, sometimes NaN
       process.nextTick @runloop if @threads.length > 0
+      thread.exit()
       return

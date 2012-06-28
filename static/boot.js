@@ -1,5 +1,5 @@
 (function() {
-  var Client, outBox, randid, replaceTabs, tabCache, tabSize, x;
+  var Client, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x;
 
   randid = function(len) {
     var i, possible;
@@ -15,7 +15,7 @@
     })()).join('');
   };
 
-  outBox = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-stdout'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
+  outBoxHtml = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
 
   tabSize = 2;
 
@@ -79,8 +79,7 @@
         this.mirror = this.makeMirror();
         this.mirror.submit = this.onSave;
         this.socket = io.connect();
-        this.socket.on('stdout', this.onStdout);
-        this.socket.on('stderr', this.onStderr);
+        this.socket.on('output', this.onOutput);
         console.log("Client socket:", this.socket);
         return this.start({
           code: 'help()'
@@ -108,16 +107,16 @@
         return mirror;
       },
       start: function(_arg) {
-        var code, stdout, threadId;
+        var code, output, threadId;
         code = _arg.code;
         threadId = randid();
-        stdout = this.makeStdout();
+        output = this.makeOutput();
         this.threads[threadId] = {
-          stdout: stdout
+          output: output
         };
         return this.socket.emit('start', {
           code: code,
-          thread: threadId
+          threadId: threadId
         });
       },
       onSave$: function() {
@@ -138,41 +137,48 @@
           code: value
         });
       },
-      onStdout$: function(_arg) {
-        var html, stdout, thread;
-        html = _arg.html, thread = _arg.thread;
-        stdout = this.threads[thread].stdout;
-        return this.write({
-          html: html,
-          out: stdout
-        });
-      },
-      onStderr$: function(_arg) {
-        var html, stderr, stdout, thread, _ref;
-        html = _arg.html, thread = _arg.thread;
-        _ref = this.threads[thread], stderr = _ref.stderr, stdout = _ref.stdout;
-        if (stderr == null) stderr = stdout;
-        return this.write({
-          html: html,
-          out: stderr
-        });
+      onOutput$: function(_arg) {
+        var command, html, output, threadId;
+        command = _arg.command, html = _arg.html, threadId = _arg.threadId;
+        output = this.threads[threadId].output;
+        switch (command) {
+          case 'close':
+            return this.close({
+              output: output
+            });
+          case void 0:
+            return this.write({
+              output: output,
+              html: html
+            });
+          default:
+            throw new Error("Unexpected command " + command);
+        }
       },
       write: function(_arg) {
-        var html, out;
-        html = _arg.html, out = _arg.out;
-        if (!out.data('initialized')) {
-          out.data('initialized', true);
-          out.empty();
+        var html, output;
+        html = _arg.html, output = _arg.output;
+        if (!output.data('initialized')) {
+          output.data('initialized', true);
+          output.empty();
         }
-        out.append($('<span/>').html(html));
+        output.append($('<span/>').html(html));
         return window.scroll(0, document.body.offsetHeight);
       },
-      makeStdout: function() {
-        var stdoutBox;
-        stdoutBox = $(outBox);
-        this.append(stdoutBox);
+      close: function(_arg) {
+        var output;
+        output = _arg.output;
+        if (!output.data('initialized')) {
+          output.data('initialized', true);
+          return output.empty();
+        }
+      },
+      makeOutput: function() {
+        var outputBox;
+        outputBox = $(outBoxHtml);
+        this.append(outputBox);
         window.scroll(0, document.body.offsetHeight);
-        return stdoutBox.find('.outbox-stdout');
+        return outputBox.find('.outbox-lines');
       },
       append: function(elem) {
         var mirrorElement;

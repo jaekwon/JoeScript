@@ -2,12 +2,12 @@ randid = (len=12) ->
   possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''
 
-outBox = """
+outBoxHtml = """
 <div class='outbox'>
   <div class='outbox-gutter'>
     <div class='outbox-gutter-text'>→ </div>
   </div>
-  <div class='outbox-stdout'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>
+  <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>
 </div>
 """
 
@@ -55,8 +55,7 @@ Client = clazz 'Client', ->
     @mirror.submit = @onSave
     # connect
     @socket = io.connect()
-    @socket.on 'stdout', @onStdout
-    @socket.on 'stderr', @onStderr
+    @socket.on 'output', @onOutput
     console.log "Client socket:", @socket
     # run help()
     @start code:'help()'
@@ -83,9 +82,9 @@ Client = clazz 'Client', ->
 
   start: ({code}) ->
     threadId = randid()
-    stdout = @makeStdout()
-    @threads[threadId] = stdout:stdout
-    @socket.emit 'start', code:code, thread:threadId
+    output = @makeOutput()
+    @threads[threadId] = output:output
+    @socket.emit 'start', code:code, threadId:threadId
 
   onSave$: ->
     value = @mirror.sanitize()
@@ -103,31 +102,37 @@ Client = clazz 'Client', ->
     @append cloned
     @start code:value
 
-  onStdout$: ({html, thread}) ->
-    {stdout} = @threads[thread]
-    @write html:html, out:stdout
+  onOutput$: ({command, html, threadId}) ->
+    {output} = @threads[threadId]
+    switch command
+      when 'close'
+        @close output:output
+      when undefined
+        @write output:output, html:html
+      else
+        throw new Error "Unexpected command #{command}"
 
-  onStderr$: ({html, thread}) ->
-    {stderr,stdout} = @threads[thread]
-    stderr ?= stdout
-    @write html:html, out:stderr
-
-  write: ({html, out}) ->
-    unless out.data('initialized')
-      out.data('initialized', yes)
-      out.empty()
-    out.append $('<span/>').html(html)
+  write: ({html, output}) ->
+    unless output.data('initialized')
+      output.data('initialized', yes)
+      output.empty()
+    output.append $('<span/>').html(html)
     # hack
     window.scroll 0, document.body.offsetHeight
 
-  makeStdout: ->
+  close: ({output}) ->
+    unless output.data('initialized')
+      output.data('initialized', yes)
+      output.empty()
+
+  makeOutput: ->
     # Insert response box
-    stdoutBox = $(outBox)
-    @append stdoutBox
+    outputBox = $(outBoxHtml)
+    @append outputBox
     # Scroll to bottom.
     window.scroll(0, document.body.offsetHeight)
     # Return the inner span
-    return stdoutBox.find '.outbox-stdout'
+    return outputBox.find '.outbox-lines'
 
   append: (elem) ->
     mirrorElement = $(@mirror.getWrapperElement())

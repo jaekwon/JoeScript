@@ -55,30 +55,48 @@ io = require('socket.io').listen app
 app.listen 8080
 
 # kernel
-{JKernel, GOD} = require 'joeson/src/interpreter'
+{JKernel, JTypes, GOD} = require 'joeson/src/interpreter'
 kern = new JKernel
 info "initialized kernel runloop"
+
+makeOut = (socket, threadId) ->
+  write = (html) ->
+    assert.ok typeof html is 'string', "makeOut/write wants a string, but got #{typeof html}"
+    info html, threadId
+    socket.emit 'output', html:html, threadId:threadId
+  write.close = ->
+    socket.emit 'output', command:'close', threadId:threadId
+  return write
 
 # connect.io <-> kernel
 io.sockets.on 'connection', (socket) ->
 
   # start code
-  socket.on 'start', ({code,thread}) ->
-    info "received code #{code}, thread id #{thread}"
+  socket.on 'start', ({code,threadId}) ->
+    info "received code #{code}, thread id #{threadId}"
     socket.get 'user', (err, user) ->
       # note: user may be null for new users.
       if err?
         fatal "Couldn't get the user of the socket", err, err.stack
         return
+      output = makeOut socket, threadId
       kern.run
-        user: user,
-        code: code,
-        stdout: (html) ->
-          assert.ok typeof html is 'string', "stdout can only print html strings"
-          info "stdout", html, thread
-          socket.emit 'stdout', html:html, thread:thread
-        stderr: (html) ->
-          assert.ok typeof html is 'string', "stderr can only print html strings"
-          info "stderr", html, thread
-          socket.emit 'stderr', html:html, thread:thread
-        stdin:  undefined # not implemented
+        user:   user
+        code:   code
+        output: output
+        input:  undefined # not implemented
+        callback: ->
+          switch @state
+            when 'return'
+              unless @last is JTypes.JUndefined
+                output(@last.__repr__(@).__html__(@))
+              #output.close()
+            when 'error'
+              console.log "#{@error.name}: #{@error.message}"
+              @printStack @error.stack
+              stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
+              output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
+              #output.close()
+            else
+              throw new Error "Unexpected state #{@state}"
+          @cleanup()

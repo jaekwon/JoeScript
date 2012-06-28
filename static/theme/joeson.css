@@ -30,7 +30,7 @@
   position: relative;
   overflow: hidden;
 }
-.outbox-stdout {
+.outbox-lines {
   margin-left: 2em;
   padding: .4em;
   white-space: pre;
