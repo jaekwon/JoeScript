@@ -14,7 +14,7 @@ i9n: short for instruction
 assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
-{pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
@@ -64,7 +64,8 @@ JThread = @JThread = clazz 'JThread', ->
     assert.ok @user   instanceof JObject,  "JThread wants user"
     @scope ?= new JObject creator:@user
     assert.ok @scope  instanceof JObject,  "JThread scope not JObject"
-    if @user is GOD then @will = -> yes
+    if @user is GOD then @will = -> yes # optimization
+    @id = randid()
     @i9ns = [] # i9n stack
     @last = JUndefined # last return value.
     @state = null
@@ -190,6 +191,7 @@ JThread = @JThread = clazz 'JThread', ->
   ### DEBUG ###
 
   printStack: (stack=@i9ns) ->
+    assert.ok stack instanceof Array
     for i9n, i in stack
       i9nCopy = _.clone i9n
       delete i9nCopy.this
@@ -201,9 +203,25 @@ JThread = @JThread = clazz 'JThread', ->
 
   printScope: (scope, lvl=0) ->
     for key, value of scope.data when key isnt '__proto__'
-      console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{value.__str__(@)}"
+      try
+        valueStr = value.__str__(@)
+      catch error
+        valueStr = "<ERROR IN __STR__: #{error}>"
+      console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{valueStr}"
     @printScope scope.data.__proto__, lvl+1 if scope.data.__proto__?
 
+  # for convenience, jml is available on a thread.
+  jml: (args...) ->
+    attributes = undefined
+    if args[0] instanceof Object and args[0] not instanceof JObject
+      attributes = args.shift()
+    if args.length is 1 and args[0] instanceof Array
+      elements = args[0]
+    else
+      elements = args
+    if attributes?
+      elements[''+key] = value for key, value of attributes
+    return new JArray creator:@user, data:elements
 
 # Multi-user time-shared interpreter.
 @JKernel = JKernel = clazz 'JKernel', ->
@@ -267,7 +285,7 @@ JThread = @JThread = clazz 'JThread', ->
   runloop$: ->
     @ticker++
     thread = @threads[@index]
-    debug "tick #{@ticker}. #{@threads.length} threads" if trace.debug
+    debug "tick #{@ticker}. #{@threads.length} threads, try #{thread.id}" if trace.debug
     try
       # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
@@ -282,8 +300,8 @@ JThread = @JThread = clazz 'JThread', ->
       @index = (@index + 1) % @threads.length
       process.nextTick @runloop
     catch error
-      fatal "Error in runStep. Stopping execution.", error.stack
-      thread.output 'InternalError:'+error
+      fatal "Error in runStep. Stopping execution, setting error.", error.stack ? error
+      thread.throw 'InternalError', "#{error.name}:#{error.message}"
       @threads[@index..@index] = [] # splice out
       @index = @index % @threads.length # oops, sometimes NaN
       process.nextTick @runloop if @threads.length > 0

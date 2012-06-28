@@ -1,6 +1,9 @@
 ###
 
 DONE 1. change scopes into JObjects
+1.1 pesist everything?
+1.2 give everyone a namespace?
+1.3 let people 
 2. add a changelog to JThread
 3.
 

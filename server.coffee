@@ -62,7 +62,7 @@ info "initialized kernel runloop"
 makeOut = (socket, threadId) ->
   write = (html) ->
     assert.ok typeof html is 'string', "makeOut/write wants a string, but got #{typeof html}"
-    info html, threadId
+    info "makeOut/write:", threadId:threadId, html
     socket.emit 'output', html:html, threadId:threadId
   write.close = ->
     socket.emit 'output', command:'close', threadId:threadId
@@ -92,11 +92,13 @@ io.sockets.on 'connection', (socket) ->
                 output(@last.__repr__(@).__html__(@))
               #output.close()
             when 'error'
-              console.log "#{@error.name}: #{@error.message}"
-              @printStack @error.stack
-              stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
-              output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
+              if @error.stack.length
+                @printStack @error.stack
+                stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
+                output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
+              else
+                output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
               #output.close()
             else
-              throw new Error "Unexpected state #{@state}"
+              throw new Error "Unexpected state #{@state} during kernel callback"
           @cleanup()

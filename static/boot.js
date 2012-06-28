@@ -77,7 +77,6 @@
       init: function() {
         this.threads = {};
         this.mirror = this.makeMirror();
-        this.mirror.submit = this.onSave;
         this.socket = io.connect();
         this.socket.on('output', this.onOutput);
         console.log("Client socket:", this.socket);
@@ -98,12 +97,16 @@
           tabSize: 2
         });
         mirror.sanitize = function() {
-          var orig, tabReplaced;
+          var cursor, orig, tabReplaced;
+          cursor = mirror.getCursor();
           tabReplaced = replaceTabs(orig = mirror.getValue());
           mirror.setValue(tabReplaced);
+          mirror.setCursor(cursor);
           return tabReplaced;
         };
         mirror.setMarker(0, '● ', 'cm-bracket');
+        $(mirror.getWrapperElement()).addClass('active');
+        mirror.submit = this.onSave;
         return mirror;
       },
       start: function(_arg) {
@@ -125,6 +128,7 @@
         if (value.trim().length === 0) return;
         mirrorElement = $(this.mirror.getWrapperElement());
         cloned = mirrorElement.clone(false);
+        cloned.removeClass('active');
         cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
         thing = cloned.find('.CodeMirror-lines>div:first>div:first');
         if (thing.css('visibility') === 'hidden') {

@@ -52,7 +52,6 @@ Client = clazz 'Client', ->
   init: ->
     @threads = {}
     @mirror = @makeMirror()
-    @mirror.submit = @onSave
     # connect
     @socket = io.connect()
     @socket.on 'output', @onOutput
@@ -73,11 +72,17 @@ Client = clazz 'Client', ->
       tabSize:    2
     # Sanitization.
     mirror.sanitize = ->
+      cursor = mirror.getCursor()
       tabReplaced = replaceTabs orig=mirror.getValue()
       mirror.setValue tabReplaced
+      mirror.setCursor cursor
       return tabReplaced
     # Gutter
     mirror.setMarker 0, '● ', 'cm-bracket'
+    # Blah
+    $(mirror.getWrapperElement()).addClass 'active'
+    # Events
+    mirror.submit = @onSave
     return mirror
 
   start: ({code}) ->
@@ -90,9 +95,9 @@ Client = clazz 'Client', ->
     value = @mirror.sanitize()
     return if value.trim().length is 0
     # Clone the current mirror and prepare
-    # TODO find a better way to do this
     mirrorElement = $(@mirror.getWrapperElement())
     cloned = mirrorElement.clone no
+    cloned.removeClass 'active'
     cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove()
     thing = cloned.find('.CodeMirror-lines>div:first>div:first')
     if thing.css('visibility') is 'hidden'

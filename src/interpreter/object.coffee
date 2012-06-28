@@ -8,15 +8,6 @@ joe = require('joeson/src/joescript').NODES
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 isInteger = (n) -> n%1 is 0
-jml = ($, attributes, elements) ->
-  if attributes?
-    assert.ok attributes instanceof Object, "Attributes should be a simple object if present"
-  assert.ok elements instanceof Array, "Elements should be an instance of array"
-  if attributes?
-    for key, value of attributes
-      elements[''+key] = value
-  jarr = new JArray creator:$.user, data:elements
-  return jarr
 
 ### Simple Instructions: ###
 # Write last to `this`
@@ -120,11 +111,11 @@ JObject = @JObject = clazz 'JObject', ->
   __repr__: ($) ->
     # this is what it would look like in joescript
     # <"{#< ([key.__str__(),':',value.__repr__()] for key, value of @data).weave ', ', flattenItems:yes >}">
-    jml($, {}, [
+    $.jml(
       '{',
-      jml($, {}, ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)),
+      $.jml(([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)),
       '}'
-    ])
+    )
   jsValue$: get: ->
     tmp = {}
     tmp[key] = value.jsValue for key, value of @data
@@ -177,11 +168,11 @@ JArray = @JArray = clazz 'JArray', ->
     "<span #{dataPart}>#{arrayPart}</span>"
   __repr__: ($) ->
     arrayPart = (item.__repr__($) for item in @data).weave(',')
-    dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
+    dataPart = $.jml ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
     if dataPart.length > 0
-      return jml $, {}, ['[',arrayPart...,' ',dataPart,']']
+      return $.jml '[',arrayPart...,' ',dataPart,']'
     else
-      return jml $, {}, ['[',arrayPart...,']']
+      return $.jml '[',arrayPart...,']'
   jsValue$: get: ->
     tmp = []
     tmp[key] = value.jsValue for key, value of @data
@@ -236,9 +227,9 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok @func instanceof joe.Func, "func not Func"
     assert.ok @scope? and @scope instanceof JObject, "scope not a JObject"
   __repr__: ($) ->
-    dataPart = jml $, {}, ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
+    dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0
-      return jml $, {}, ['[JBoundFunc ',dataPart,']']
+      return $.jml('[JBoundFunc ', $.jml(dataPart), ']')
     else
       return "[JBoundFunc]"
   toString: -> "[JBoundFunc]"
