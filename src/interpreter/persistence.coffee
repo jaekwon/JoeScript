@@ -8,8 +8,9 @@ async = require 'async'
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JStub} = require 'joeson/src/interpreter/object'
 
-redis = require 'redis'
-client = redis.createClient()
+client = undefined
+getClient = ->
+  client ?= require('redis').createClient()
 
 NATIVE_FUNCTIONS = {}
 nativ = @nativ = (id, f) ->
@@ -34,11 +35,13 @@ saveJObject = @saveJObject = (jobj, cb) ->
   assert.ok jobj.id, "JObject needs an id for it to be saved."
   jobj._saving = yes # skip lock
 
-  client.hmset jobj.id+':meta',
-    type:jobj.constructor.name,
-    creator:jobj.creator.id,
-  , (err, res) ->
+  let user have history, but via userland setup code.
+  let userland setup code also handle appending code to history.
 
+  getClient().hmset jobj.id+':meta',
+    type:jobj.constructor.name,
+    creator:jobj.creator.id
+  , (err, res) ->
     dataKeys = _.keys jobj.data
     async.forEach dataKeys, (key, next) ->
       value = jobj.data[key]
@@ -53,7 +56,7 @@ saveJObjectItem = @saveJObjectItem = (jobj, key, value, cb) ->
   if value instanceof JObject
     return cb() if value._saving # skip
     saveJObject value, ->
-      client.hset jobj.id, key, 'o:'+value.id, cb
+      getClient().hset jobj.id, key, 'o:'+value.id, cb
     return
   # save a native value
   switch typeof value
@@ -68,14 +71,14 @@ saveJObjectItem = @saveJObjectItem = (jobj, key, value, cb) ->
       assert.ok value.id, "Cannot persist a JObject without id"
       value = 'o:'+value.id
     else throw new Error "dunno how to persist value #{value} (#{typeof value})"
-  client.hset jobj.id, key, value, cb
+  getClient().hset jobj.id, key, value, cb
 
 loadJObject = @loadJObject = (id, cb) ->
   console.log "loading #{id}"
   assert.ok id, "loadJObject wants an id to load"
   return cb(null, cached) if cached=OBJECTS[id]
 
-  client.hgetall id+':meta', (err, meta) ->
+  getClient().hgetall id+':meta', (err, meta) ->
     return cb(err) if err?
     assert.ok meta.creator?, "user had no creator?"
     assert.ok meta.creator isnt id, "heresy!"
@@ -88,7 +91,7 @@ loadJObject = @loadJObject = (id, cb) ->
         when 'JUser'   then obj = new JUser   name:id
         else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
 
-      client.hgetall id, (err, _data) ->
+      getClient().hgetall id, (err, _data) ->
         if meta.type is 'JArray'
           return cb("Loadded JArray had no length?") unless _data.length?
           data = new Array(data.length)

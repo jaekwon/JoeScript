@@ -142,13 +142,10 @@ runNextTest = ->
   return if tests.length is 0
   {code, callback} = tests.shift()
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  node = require('joeson/src/joescript').parse code
-  node = node.toJSNode(toValue:yes).installScope().determine()
-  #console.log node.serialize()
   kernel = new JKernel()
   try
     kernel.run
-      code:node
+      code:code
       stdin:undefined
       stdout: (msg) -> process.stdout.write(msg)
       stderr: (msg) -> process.stderr.write(msg)
@@ -156,7 +153,7 @@ runNextTest = ->
         try
           console.log "callback!"
           ok not @error?, "Thread errored out: ", @error
-          callback.call context:@, it:@last.jsValue, node:node
+          callback.call context:@, it:@last.jsValue
           # callbacks are synchronous.
           # if it didn't throw, it was successful.
           runNextTest()

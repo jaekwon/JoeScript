@@ -559,6 +559,7 @@ _loopStack = [] # trace stack
         # call prepare on all nodes
         node.prepare()
 
+  # MAIN PARSE FUNCTION
   parse$: (code, {returnContext,env,debug}={}) ->
     returnContext ?= no
     assert.ok code, "Parser wants code"
@@ -570,6 +571,7 @@ _loopStack = [] # trace stack
       oldTrace = _.clone trace
       trace.stack = yes
     $.result = @rank.parse $
+    $.result?.code = code
     if debug
       trace = oldTrace
 
