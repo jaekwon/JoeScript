@@ -30,7 +30,7 @@ JObject = @JObject = clazz 'JObject', ->
   #         NOTE: the acl has its own acl!
   # proto:  Both a workaround the native .__proto__ behavior,
   #         and a convenient way to create new JObjects w/ their prototypes.
-  init: ({@creator, @data, @acl, @proto}) ->
+  init: ({@id, @creator, @data, @acl, @proto}) ->
     assert.ok not @proto? or @proto instanceof JObject, "JObject wants JObject proto or null"
     assert.ok @creator instanceof JObject, "JObject wants JObject creator"
     @data ?= {}
@@ -122,10 +122,10 @@ JObject = @JObject = clazz 'JObject', ->
     return tmp
   toString: -> "[JObject]"
 
-JArray = @JArray = clazz 'JArray', ->
+JArray = @JArray = clazz 'JArray', JObject, ->
   protoKeys = ['push']
 
-  init: ({@creator, @data, @acl}) ->
+  init: ({@id, @creator, @data, @acl}) ->
     assert.ok @creator? and @creator instanceof JObject,
                         "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
                         # Everything has a creator. Wait a minute...
@@ -191,9 +191,9 @@ JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   toString: -> "[JAccessControlItem #{@who}: #{@what}]"
 
 JUser = @JUser = clazz 'JUser', JObject, ->
-  init: ({@name}) ->
+  init: ({id, @name}) ->
     assert.equal typeof @name, 'string', "@name not string"
-    @super.init.call @, creator:this, data:{name:@name}
+    @super.init.call @, id:id, creator:this, data:{name:@name}
   toString: -> "[JUser #{@name}]"
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->
@@ -222,8 +222,8 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   # func:    The joe.Func node.
   # creator: The owner of the process that declared above function.
   # scope:   Runtime scope of process that declares above function.
-  init: ({creator, acl, @func, @scope}) ->
-    @super.init.call @, {creator, acl}
+  init: ({id, creator, acl, @func, @scope}) ->
+    @super.init.call @, {id, creator, acl}
     assert.ok @func instanceof joe.Func, "func not Func"
     assert.ok @scope? and @scope instanceof JObject, "scope not a JObject"
   __repr__: ($) ->

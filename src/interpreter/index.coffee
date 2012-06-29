@@ -35,9 +35,7 @@ timeit = (name, fn) ->
   return result
 
 ## Universe
-GOD = @GOD = new JUser name:'god'
-GUEST = @GUEST = new JUser name:'guest'
-WORLD = @WORLD = new JObject creator:GOD
+{GOD, WORLD, GUEST} = {@GOD, @GUEST, @WORLD} = require 'joeson/src/interpreter/global'
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->
@@ -64,12 +62,12 @@ JThread = @JThread = clazz 'JThread', ->
     assert.ok @user   instanceof JObject,  "JThread wants user"
     @scope ?= new JObject creator:@user
     assert.ok @scope  instanceof JObject,  "JThread scope not JObject"
-    if @user is GOD then @will = -> yes # optimization
     @id = randid()
     @i9ns = [] # i9n stack
     @last = JUndefined # last return value.
     @state = null
     @push this:@start, func:@start.interpret
+    if @user is GOD then @will = -> yes # optimization
 
   # Main run loop iteration.
   # return:
@@ -239,8 +237,7 @@ JThread = @JThread = clazz 'JThread', ->
     unless user?
       user = new JUser name:name
       @users[name] = user
-      defaultGlobal = require 'joeson/src/interpreter/global'
-      scope = new JObject creator:user, proto:defaultGlobal
+      scope = new JObject creator:user, proto:WORLD
       @userScopes[name] = scope
     return user
 

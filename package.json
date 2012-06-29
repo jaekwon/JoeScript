@@ -11,7 +11,8 @@
       "cardamom": ">= 0.0.8",
       "connect": ">= 2.0.2",
       "nogg": ">= 0.0.5",
-      "socket.io": ""
+      "socket.io": "",
+      "redis": ""
     },
   "main": "./src/joeson",
   "keywords": [],
