@@ -7,14 +7,7 @@ async = require 'async'
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
-
-# A way to pretend that native functions have an id.
-NATIVE_FUNCTIONS = {}
-nativ = @nativ = (id, f) ->
-  assert.ok id?, "NaFu wants an id"
-  f.id = id
-  NATIVE_FUNCTIONS[id] = f
-  return f
+{nativ} = require 'joeson/src/interpreter/persistence'
 
 GOD   = @GOD   = new JUser   id:'god',   name:'god'
 GUEST = @GUEST = new JUser   id:'guest', name:'guest'
@@ -25,6 +18,12 @@ WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
     $.output(obj.__html__($) + '<br/>')
     return JUndefined
 
+# run this file to set up redis
 if require.main is module
-  {saveJObject} = require 'joeson/src/interpreter/persistence'
-  saveJObject WORLD
+  {saveJObject, loadJObject} = require 'joeson/src/interpreter/persistence'
+  saveJObject WORLD, (err) ->
+    return console.log "FAIL!"+err if err?
+    console.log "done saving globals"
+
+    loadJObject 'world', (err, it) ->
+      console.log "test loaded world:\n#{inspect it.data}"

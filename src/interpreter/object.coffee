@@ -22,7 +22,7 @@ setLast = ($, i9n, last) ->
 setLast._name = "setLast"
 
 JStub = @JStub = clazz 'JStub', ->
-  init: (@key) ->
+  init: (@id) ->
 
 JObject = @JObject = clazz 'JObject', ->
   # data:   An Object
@@ -193,7 +193,10 @@ JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
 JUser = @JUser = clazz 'JUser', JObject, ->
   init: ({id, @name}) ->
     assert.equal typeof @name, 'string', "@name not string"
-    @super.init.call @, id:id, creator:this, data:{name:@name}
+    {GOD} = require('joeson/src/interpreter/global')
+    assert.ok @name is 'god', "Who else could it be?" unless GOD?
+    GOD ?= this
+    @super.init.call @, id:id, creator:GOD, data:{name:@name}
   toString: -> "[JUser #{@name}]"
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->

@@ -20,7 +20,7 @@ joe = require('joeson/src/joescript').NODES
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 
-trace = debug:yes, logCode:yes
+trace = debug:no, logCode:yes
 
 times = {}
 counter = 0
