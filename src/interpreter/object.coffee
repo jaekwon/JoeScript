@@ -3,7 +3,7 @@
 assert = require 'assert'
 _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
-{pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
@@ -23,6 +23,7 @@ setLast._name = "setLast"
 
 JStub = @JStub = clazz 'JStub', ->
   init: (@id) ->
+    assert.ok @id?, "Stub wants id"
 
 JObject = @JObject = clazz 'JObject', ->
   # data:   An Object
@@ -33,6 +34,7 @@ JObject = @JObject = clazz 'JObject', ->
   init: ({@id, @creator, @data, @acl, @proto}) ->
     assert.ok not @proto? or @proto instanceof JObject, "JObject wants JObject proto or null"
     assert.ok @creator instanceof JObject, "JObject wants JObject creator"
+    @id ?= randid()
     @data ?= {}
     @data.__proto__ = null # detatch prototype
   __get__: ($, key, required=no) ->
@@ -108,12 +110,12 @@ JObject = @JObject = clazz 'JObject', ->
   __bool__: ($, other) -> yes
   __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
   __str__:  ($, $$={}) ->
-    if $$[@id]
+    if @id? and $$[@id]
       return "{<\##{@id}>}"
     else
       $$[@id] = yes
       dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
-      return "{\##{@id} #{dataPart}}"
+      return "{#{if @id then '#'+@id+' ' else ''}#{dataPart}}"
   __repr__: ($) ->
     # this is what it would look like in joescript
     # <"{#< ([key.__str__(),':',value.__repr__()] for key, value of @data).weave ', ', flattenItems:yes >}">
@@ -131,12 +133,10 @@ JObject = @JObject = clazz 'JObject', ->
 JArray = @JArray = clazz 'JArray', JObject, ->
   protoKeys = ['push']
 
-  init: ({@id, @creator, @data, @acl}) ->
-    assert.ok @creator? and @creator instanceof JObject,
-                        "#{@constructor.name}.init requires 'creator' (JObject) but got #{@creator} (#{@creator?.constructor.name})"
-                        # Everything has a creator. Wait a minute...
-    @data ?= []
-    @data.__proto__ = null # detatch prototype
+  init: ({id, creator, data, acl}) ->
+    data ?= []
+    data.__proto__ = null # detatch prototype
+    @super.init.call @, {id, creator, data, acl}
   __get__: ($, key) ->
     $.will('read', this)
     if isInteger key
@@ -169,16 +169,11 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __bool__: ($, other) -> yes
   __key__:        ($) -> $.throw 'TypeError', "Can't use an array as a key"
   __str__: ($, $$={}) ->
-    if $$[@id]
+    if @id? and $$[@id]
       return "[<\##{@id}>]"
     else
       $$[@id] = yes
-      arrayPart = (item.__str__($,$$) for item in @data).join ','
-      dataPart  = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
-      if dataPart
-        return "[\##{@id} .{#{dataPart}} #{arrayPart}]"
-      else
-        return "[\##{@id} #{arrayPart}]"
+      return "[#{if @id then '#'+@id+' ' else ''}#{("#{if isInteger key then ''+key else key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')}]"
   __repr__: ($) ->
     arrayPart = (item.__repr__($) for item in @data).weave(',')
     dataPart = $.jml ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
@@ -242,6 +237,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     @super.init.call @, {id, creator, acl}
     assert.ok @func instanceof joe.Func, "func not Func"
     assert.ok @scope? and @scope instanceof JObject, "scope not a JObject"
+  __str__: ($) -> "(<\##{@id}>)"
   __repr__: ($) ->
     dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0

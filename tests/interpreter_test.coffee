@@ -102,7 +102,22 @@ a
 ''',                                      -> deepEqual @it, [1,2,3,4]
 test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
 
-test ' ""+[1,2,3] ',                      -> equal @it, '[1,2,3]'
+canon = (str) -> str.replace /#[a-zA-Z0-9]{12}/g, '#'
+test " ''+[1,2,3] ",                      -> equal canon(@it), '[# 0:1,1:2,2:3]'
+test " ''+[] ",                           -> equal canon(@it), '[# ]'
+test " ''+{foo:'bar'} ",                  -> equal canon(@it), '{# "foo":"bar"}'
+test """
+foo = {}
+foo.bar = 1
+foo.baz = ->
+''+foo
+""",                                      -> equal canon(@it), '{# \"bar\":1,\"baz\":(<#>)}'
+test """
+foo = {}
+foo.bar = 1
+foo.foo = foo
+''+foo
+""",                                      -> equal canon(@it), '{# \"bar\":1,\"foo\":{<#>}}'
 
 ###
 test "Array", Array
@@ -162,10 +177,10 @@ runNextTest = ->
           runNextTest()
         catch err
           console.log red "TEST ERROR:"
-          console.log red err.stack
+          console.log red err.stack ? err
           process.exit(1)
   catch err
     console.log red "KERNEL ERROR:"
-    console.log red err.stack
+    console.log red err.stack ? err
     process.exit(1)
 runNextTest()
