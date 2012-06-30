@@ -1,3 +1,5 @@
+require './setup'
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
@@ -100,6 +102,8 @@ a
 ''',                                      -> deepEqual @it, [1,2,3,4]
 test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
 
+test ' ""+[1,2,3] ',                      -> equal @it, '[1,2,3]'
+
 ###
 test "Array", Array
 test """
@@ -151,8 +155,7 @@ runNextTest = ->
       stderr: (msg) -> process.stderr.write(msg)
       callback: ->
         try
-          console.log "callback!"
-          ok not @error?, "Thread errored out: ", @error
+          ok not @error?, "Thread errored out: #{inspect @error}"
           callback.call context:@, it:@last.jsValue
           # callbacks are synchronous.
           # if it didn't throw, it was successful.

@@ -35,9 +35,6 @@ saveJObject = @saveJObject = (jobj, cb) ->
   assert.ok jobj.id, "JObject needs an id for it to be saved."
   jobj._saving = yes # skip lock
 
-  let user have history, but via userland setup code.
-  let userland setup code also handle appending code to history.
-
   getClient().hmset jobj.id+':meta',
     type:jobj.constructor.name,
     creator:jobj.creator.id

@@ -16,7 +16,7 @@ _ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
 {randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
-{debug, info, warn, error:fatal} = require('nogg').logger 'server'
+{debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 

@@ -36,7 +36,7 @@ JObject = @JObject = clazz 'JObject', ->
     @data ?= {}
     @data.__proto__ = null # detatch prototype
   __get__: ($, key, required=no) ->
-    assert.ok key=key.__str__?($), "Key couldn't be stringified"
+    assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('read', this)
     if key is '__proto__'
       value = @proto
@@ -70,12 +70,12 @@ JObject = @JObject = clazz 'JObject', ->
     $.will('read', this)
     return @data[key]?
   __set__: ($, key, value) ->
-    assert.ok key=key.__str__?($), "Key couldn't be stringified"
+    assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
     @data[key] = value
     return
   __update__: ($, key, value) ->
-    assert.ok key=key.__str__?($), "Key couldn't be stringified"
+    assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
     if key is '__proto__'
       @proto = value
@@ -99,15 +99,21 @@ JObject = @JObject = clazz 'JObject', ->
   __iter__: ($) ->
     $.will('read', this)
     return new SimpleIterator _.keys @data
-  __num__:        ($) -> JNaN
-  __add__: ($, other) -> $.throw 'TypeError', "Can't add to object yet"
-  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
-  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
-  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
-  __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
+  __num__:         ($) -> JNaN
+  __add__:  ($, other) -> $.throw 'TypeError', "Can't add to object yet"
+  __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
+  __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
+  __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
   __bool__: ($, other) -> yes
-  __str__:  ($) -> @__repr__($).__str__($)
-  __html__: ($) -> @__repr__($).__html__($)
+  __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
+  __str__:  ($, $$={}) ->
+    if $$[@id]
+      return "{<\##{@id}>}"
+    else
+      $$[@id] = yes
+      dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
+      return "{\##{@id} #{dataPart}}"
   __repr__: ($) ->
     # this is what it would look like in joescript
     # <"{#< ([key.__str__(),':',value.__repr__()] for key, value of @data).weave ', ', flattenItems:yes >}">
@@ -136,7 +142,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     if isInteger key
       return @data[key] ? JUndefined
     else
-      assert.ok key=key.__str__?($), "Key couldn't be stringified"
+      assert.ok key=key.__key__?($), "Key couldn't be stringified"
       #console.log "GET:", key
       value = @data[key]
       return value if value?
@@ -148,7 +154,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     if isInteger key
       @data[key] = value
       return
-    assert.ok key=key.__str__?($), "Key couldn't be stringified"
+    assert.ok key=key.__key__?($), "Key couldn't be stringified"
     @data[key] = value
     return
   __keys__: ($) ->
@@ -161,11 +167,18 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
-  __str__:  ($) -> (item.__str__($) for item in @data).join ','
-  __html__: ($) ->
-    arrayPart = (item.__html__($) for item in @data).join ''
-    dataPart = ("#{htmlEscape key}=\"#{htmlEscape value.__str__($)}\"" for key, value of @data when not isInteger key).join(' ')
-    "<span #{dataPart}>#{arrayPart}</span>"
+  __key__:        ($) -> $.throw 'TypeError', "Can't use an array as a key"
+  __str__: ($, $$={}) ->
+    if $$[@id]
+      return "[<\##{@id}>]"
+    else
+      $$[@id] = yes
+      arrayPart = (item.__str__($,$$) for item in @data).join ','
+      dataPart  = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
+      if dataPart
+        return "[\##{@id} .{#{dataPart}} #{arrayPart}]"
+      else
+        return "[\##{@id} #{arrayPart}]"
   __repr__: ($) ->
     arrayPart = (item.__repr__($) for item in @data).weave(',')
     dataPart = $.jml ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
@@ -211,8 +224,8 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   __mul__:  ($, other) -> JNaN
   __div__:  ($, other) -> JNaN
   __bool__: ($, other) -> no
-  __str__:         ($) -> @__repr__($).__str__($)
-  __html__:        ($) -> @__repr__($).__html__($)
+  __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
+  __str__:         ($) -> @name
   __repr__:        ($) -> @name
   toString: -> "Singleton(#{@name})"
 
@@ -258,12 +271,14 @@ unless joe.Node::interpret? then do =>
     interpret: ($) ->
       $.pop()
       return $.scope.__get__ $, @, yes
-    __str__: ($) -> @key
+    __key__: ($) -> @key
+    __str__: ($) -> $.throw 'TypeError', "This shouldn't happen"
 
   joe.Undetermined::extend
-    __str__: ($) ->
+    __key__: ($) ->
       assert.ok @word?, "Undetermined not yet determined!"
       return @word.key
+    __str__: ($) -> $.throw 'TypeError', "This shouldn't happen"
 
   joe.Block::extend
     interpret: ($) ->
@@ -609,15 +624,19 @@ unless joe.Node::interpret? then do =>
     __keys__:        ($) -> $.throw 'TypeError', "Object.keys called on non-object"
     __iter__:        ($) -> new SimpleIterator @valueOf()
     __num__:         ($) -> JNaN
-    __add__:  ($, other) -> @valueOf() + other.__str__($)
+    __add__:  ($, other) ->
+      if typeof other is 'string' or other instanceof String
+        @ + other
+      else
+        @ + other.__str__($)
     __sub__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
     __mul__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
     __div__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
     __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
     __bool__:        ($) -> @length > 0
-    __str__:         ($) -> @valueOf()
-    __html__:        ($) -> htmlEscape @valueOf()
-    __repr__:        ($) -> "'#{escape @valueOf()}'"
+    __key__:         ($) -> @valueOf()
+    __str__:         ($) -> "\"#{escape @}\""
+    __repr__:        ($) -> "\"#{escape @}\""
     jsValue$: get: -> @valueOf()
 
   clazz.extend Number,
@@ -629,15 +648,15 @@ unless joe.Node::interpret? then do =>
     __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
     __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
     __num__:        ($) -> @valueOf()
-    __add__: ($, other) -> @valueOf() + other.__num__()
-    __sub__: ($, other) -> @valueOf() - other.__num__()
-    __mul__: ($, other) -> @valueOf() * other.__num__()
-    __div__: ($, other) -> @valueOf() / other.__num__()
-    __cmp__: ($, other) -> @valueOf() - other.__num__()
-    __bool__:       ($) -> @valueOf() isnt 0
-    __str__:        ($) -> ''+@valueOf()
-    __html__:       ($) -> ''+@valueOf()
-    __repr__:       ($) -> ''+@valueOf()
+    __add__: ($, other) -> @ + other.__num__()
+    __sub__: ($, other) -> @ - other.__num__()
+    __mul__: ($, other) -> @ * other.__num__()
+    __div__: ($, other) -> @ / other.__num__()
+    __cmp__: ($, other) -> @ - other.__num__()
+    __bool__:       ($) -> @ isnt 0
+    __key__:        ($) -> @valueOf()
+    __str__:        ($) -> ''+@
+    __repr__:       ($) -> ''+@
     jsValue$: get: -> @valueOf()
 
   clazz.extend Boolean,
@@ -655,9 +674,9 @@ unless joe.Node::interpret? then do =>
     __div__: ($, other) -> JNaN
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> @valueOf()
-    __str__:        ($) -> ''+@valueOf()
-    __html__:       ($) -> ''+@valueOf()
-    __repr__:       ($) -> ''+@valueOf()
+    __key__:        ($) -> $.throw 'TypeError', "Can't use a boolean as a key"
+    __str__:        ($) -> ''+@
+    __repr__:       ($) -> ''+@
     jsValue$: get: -> @valueOf()
 
   clazz.extend Function, # native functions
@@ -672,8 +691,8 @@ unless joe.Node::interpret? then do =>
     __div__: ($, other) -> JNaN
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> yes
-    __str__:        ($) -> @__repr__($).__str__($)
-    __html__:       ($) -> @__repr__($).__html__($)
+    __key__:        ($) -> $.throw 'TypeError', "Can't use a function as a key"
+    __str__:        ($) -> "(<\##{@id}>)"
     __repr__:       ($) ->
       name = @name ? @_name
       if name

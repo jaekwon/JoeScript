@@ -110,13 +110,10 @@
         return mirror;
       },
       start: function(_arg) {
-        var code, output, threadId;
+        var code, threadId;
         code = _arg.code;
         threadId = randid();
-        output = this.makeOutput();
-        this.threads[threadId] = {
-          output: output
-        };
+        this.makeOutputForThread(threadId);
         return this.socket.emit('start', {
           code: code,
           threadId: threadId
@@ -177,12 +174,14 @@
           return output.empty();
         }
       },
-      makeOutput: function() {
+      makeOutputForThread: function(threadId) {
         var outputBox;
         outputBox = $(outBoxHtml);
         this.append(outputBox);
-        window.scroll(0, document.body.offsetHeight);
-        return outputBox.find('.outbox-lines');
+        this.threads[threadId] = {
+          output: outputBox.find('.outbox-lines')
+        };
+        return window.scroll(0, document.body.offsetHeight);
       },
       append: function(elem) {
         var mirrorElement;

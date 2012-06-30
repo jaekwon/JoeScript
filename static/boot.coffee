@@ -87,8 +87,7 @@ Client = clazz 'Client', ->
 
   start: ({code}) ->
     threadId = randid()
-    output = @makeOutput()
-    @threads[threadId] = output:output
+    @makeOutputForThread(threadId)
     @socket.emit 'start', code:code, threadId:threadId
 
   onSave$: ->
@@ -130,14 +129,13 @@ Client = clazz 'Client', ->
       output.data('initialized', yes)
       output.empty()
 
-  makeOutput: ->
+  makeOutputForThread: (threadId) ->
     # Insert response box
     outputBox = $(outBoxHtml)
     @append outputBox
+    @threads[threadId] = output:outputBox.find '.outbox-lines'
     # Scroll to bottom.
     window.scroll(0, document.body.offsetHeight)
-    # Return the inner span
-    return outputBox.find '.outbox-lines'
 
   append: (elem) ->
     mirrorElement = $(@mirror.getWrapperElement())

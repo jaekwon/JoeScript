@@ -47,7 +47,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @
     toJavascript: ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
-        lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.__str__()).join(', ')}"), @lines...]
+        lines = [joe.NativeExpression("var #{toDeclare.map((x)->''+x).join(', ')}"), @lines...]
       else
         lines = @lines
       if @isValue and @lines.length > 1

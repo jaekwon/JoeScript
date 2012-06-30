@@ -17,6 +17,22 @@ WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
   print: nativ 'print', ($, [obj]) ->
     $.output(obj.__html__($) + '<br/>')
     return JUndefined
+###
+  login: joeson """
+    -> print [
+      "username:"
+
+      type:'string'
+      default:'louis'
+      enter: (text) -> print text
+
+      "\npassword:"
+
+      type:'password'
+      enter: (text) -> print text
+    ]
+    """
+###
 
 # run this file to set up redis
 if require.main is module

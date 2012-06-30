@@ -142,7 +142,7 @@ Invocation = clazz 'Invocation', Node, ->
     func:       {type:EXPR, isValue:yes}
     params:     {type:[type:EXPR,isValue:yes]}
   init: ({@func, @params}) ->
-    @type = if @func.__str__?() is 'new' then 'new' # TODO doesnt do anything
+    @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
   toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
 
 Assign = clazz 'Assign', Node, ->
