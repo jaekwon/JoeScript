@@ -1,19 +1,11 @@
 (function() {
-  var Client, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x;
+  var Client, clazz, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x;
 
-  randid = function(len) {
-    var i, possible;
-    if (len == null) len = 12;
-    possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    return ((function() {
-      var _i, _results;
-      _results = [];
-      for (i = _i = 0; 0 <= len ? _i < len : _i > len; i = 0 <= len ? ++_i : --_i) {
-        _results.push(possible.charAt(Math.floor(Math.random() * possible.length)));
-      }
-      return _results;
-    })()).join('');
-  };
+  this.require = require;
+
+  clazz = require('cardamom').clazz;
+
+  randid = require('joeson/lib/helpers').randid;
 
   outBoxHtml = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
 

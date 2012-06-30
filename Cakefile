@@ -25,12 +25,13 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'joeson/src/codestream', f:'src/codestream'}
       {           l:'joeson/src/joescript',  f:'src/joescript'}
       {           l:'joeson/src/node',       f:'src/node'}
+      {           l:'joeson/src/interpreter',             f:'src/interpreter/index'}
       {           l:'joeson/src/interpreter/global',      f:'src/interpreter/global'}
-      {           l:'joeson/src/interpreter/index',       f:'src/interpreter/index'}
       {           l:'joeson/src/interpreter/object',      f:'src/interpreter/object'}
       {           l:'joeson/src/interpreter/persistence', f:'src/interpreter/persistence'}
       {           l:'joeson/src/translators/javascript',  f:'src/translators/javascript'}
       {           l:'joeson/src/translators/scope',       f:'src/translators/scope'}
+      {           l:'joeson/src/client',                  f:'src/client/index'}
       # ./lib/*
       {           l:'joeson/lib/helpers',       f:'lib/helpers'}
       {           l:'assert',                   f:'lib/assert'}
@@ -79,7 +80,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
           return module;
         }
         #{code}
-        return require('joeson/src/interpreter/index');
+        return require('joeson/src/client');
       }();
 
       if (typeof define === 'function' && define.amd) {

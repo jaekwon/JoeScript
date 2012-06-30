@@ -8,7 +8,7 @@
       "async": "",
       "underscore": ">= 1.2.3",
       "coffee-script": ">= 1.3.0",
-      "cardamom": ">= 0.0.8",
+      "cardamom": ">= 0.0.9",
       "connect": ">= 2.0.2",
       "nogg": ">= 0.0.5",
       "socket.io": "",

@@ -1,6 +1,6 @@
-randid = (len=12) ->
-  possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  return (possible.charAt(Math.floor(Math.random() * possible.length)) for i in [0...len]).join ''
+@require = require
+{clazz} = require 'cardamom'
+{randid} = require 'joeson/lib/helpers'
 
 outBoxHtml = """
 <div class='outbox'>
@@ -140,3 +140,4 @@ Client = clazz 'Client', ->
   append: (elem) ->
     mirrorElement = $(@mirror.getWrapperElement())
     mirrorElement.before elem
+
