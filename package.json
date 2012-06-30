@@ -12,7 +12,8 @@
       "connect": ">= 2.0.2",
       "nogg": ">= 0.0.5",
       "socket.io": "",
-      "redis": ""
+      "redis": "",
+      "uglify-js": ""
     },
   "main": "./src/joeson",
   "keywords": [],
