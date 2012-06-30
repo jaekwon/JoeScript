@@ -91,7 +91,7 @@
 
 # why not
 unless Array::weave?
-  Array::weave = (join, options) ->
+  Object.defineProperty (Array::), 'weave', configurable:no, enumerable:no, value:(join, options) ->
     result = []
     length = @length
     for item, i in this

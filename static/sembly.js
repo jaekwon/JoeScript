@@ -5932,21 +5932,25 @@ require['joeson/src/translators/scope'].nonce = nonce;require['joeson/lib/helper
   };
 
   if (Array.prototype.weave == null) {
-    Array.prototype.weave = function(join, options) {
-      var i, item, length, result, _i, _len, _ref;
-      result = [];
-      length = this.length;
-      for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
-        item = this[i];
-        if (options != null ? options.flattenItems : void 0) {
-          [].splice.apply(result, [(_ref = result.length), 9e9].concat(item)), item;
-        } else {
-          result.push(item);
+    Object.defineProperty(Array.prototype, 'weave', {
+      configurable: false,
+      enumerable: false,
+      value: function(join, options) {
+        var i, item, length, result, _i, _len, _ref;
+        result = [];
+        length = this.length;
+        for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
+          item = this[i];
+          if (options != null ? options.flattenItems : void 0) {
+            [].splice.apply(result, [(_ref = result.length), 9e9].concat(item)), item;
+          } else {
+            result.push(item);
+          }
+          if (i < length - 1) result.push(join);
         }
-        if (i < length - 1) result.push(join);
+        return result;
       }
-      return result;
-    };
+    });
   }
 
 }).call(this);
