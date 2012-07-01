@@ -480,7 +480,7 @@
           node = node.toJSNode({
             toValue: true
           }).installScope().determine();
-          assert.ok(node.constructor.name === 'Func');
+          assert.ok(node.constructor.name === 'Func', "Expected Func, got " + node.constructor.name);
           return this.func = node;
         }
       },

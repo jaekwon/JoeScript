@@ -246,7 +246,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   func$: get: ->
     node = parse @_func
     node = node.toJSNode(toValue:yes).installScope().determine()
-    assert.ok node.constructor.name is 'Func'
+    assert.ok node.constructor.name is 'Func', "Expected Func, got #{node.constructor.name}"
     return @func=node
   __str__: ($) -> "(<\##{@id}>)"
   __repr__: ($) ->
