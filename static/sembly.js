@@ -2,19 +2,22 @@
   var Sembly = function() {
     function require(path){
       var module = require[path];
-      //console.log(path, Object.getOwnPropertyNames(require), module);
+      console.log("require:start", path);
       if (!module) {
         throw new Error("Can't find module "+path);
       }
       if (module.nonce === nonce) {
-        return module();
+        module = module();
+        console.log("require:end", path);
       }
+      console.log("require:cached", path);
       return module;
     }
     nonce = {nonce:'nonce'};require['joeson'] = function() {
   return new function() {
     var exports = require['joeson'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     
 /*
 JoeSon Parser
@@ -1350,10 +1353,13 @@ just admit that the current implementation is imperfect, and limit grammar usage
     require['joeson'] = module.exports;
   };
 };
-require['joeson'].nonce = nonce;require['joeson/src/codestream'] = function() {
+require['joeson'].nonce = nonce;
+
+require['joeson/src/codestream'] = function() {
   return new function() {
     var exports = require['joeson/src/codestream'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var CodeStream, assert, bisect_right, clazz, _ref, _ref2;
 
@@ -1457,12 +1463,15 @@ require['joeson'].nonce = nonce;require['joeson/src/codestream'] = function() {
     require['joeson/src/codestream'] = module.exports;
   };
 };
-require['joeson/src/codestream'].nonce = nonce;require['joeson/src/joescript'] = function() {
+require['joeson/src/codestream'].nonce = nonce;
+
+require['joeson/src/joescript'] = function() {
   return new function() {
     var exports = require['joeson/src/joescript'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
-  var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, fs, green, inspect, isVariable, magenta, normal, path, red, resetIndent, trace, white, yellow, _, _ref, _ref2, _ref3;
+  var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, green, inspect, isVariable, magenta, normal, red, resetIndent, trace, white, yellow, _, _ref, _ref2, _ref3;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow), (_ref3 = _ref.collections, Set = _ref3.Set);
 
@@ -1471,10 +1480,6 @@ require['joeson/src/codestream'].nonce = nonce;require['joeson/src/joescript'] =
   assert = require('assert');
 
   _ = require('underscore');
-
-  fs = require('fs');
-
-  path = require('path');
 
   Grammar = require('joeson').Grammar;
 
@@ -2759,25 +2764,18 @@ require['joeson/src/codestream'].nonce = nonce;require['joeson/src/joescript'] =
 
   this.parse = GRAMMAR.parse;
 
-  this.run = function(code, options) {
-    var mainModule;
-    if (options == null) options = {};
-    mainModule = require.main;
-    mainModule.filename = process.argv[1] = options.filename ? fs.realpathSync(options.filename) : '.';
-    mainModule.moduleCache && (mainModule.moduleCache = {});
-    mainModule.paths = require('module')._nodeModulePaths(path.dirname(fs.realpathSync(options.filename)));
-    throw new Error("Implement me!");
-  };
-
 }).call(this);
 
     require['joeson/src/joescript'] = module.exports;
   };
 };
-require['joeson/src/joescript'].nonce = nonce;require['joeson/src/node'] = function() {
+require['joeson/src/joescript'].nonce = nonce;
+
+require['joeson/src/node'] = function() {
   return new function() {
     var exports = require['joeson/src/node'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var Node, Set, assert, black, blue, clazz, cyan, green, indent, inspect, magenta, normal, red, validateType, white, yellow, _, _ref, _ref2, _ref3;
 
@@ -2924,10 +2922,13 @@ require['joeson/src/joescript'].nonce = nonce;require['joeson/src/node'] = funct
     require['joeson/src/node'] = module.exports;
   };
 };
-require['joeson/src/node'].nonce = nonce;require['joeson/src/interpreter'] = function() {
+require['joeson/src/node'].nonce = nonce;
+
+require['joeson/src/interpreter'] = function() {
   return new function() {
     var exports = require['joeson/src/interpreter'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     
 /*
 Concerns:
@@ -2941,7 +2942,7 @@ i9n: short for instruction
 */
 
 (function() {
-  var GOD, GUEST, JArray, JBoundFunc, JKernel, JNaN, JNull, JObject, JStackItem, JThread, JUndefined, JUser, WORLD, assert, black, blue, clazz, counter, cyan, debug, ends, escape, extend, fatal, green, info, inspect, isVariable, joe, magenta, normal, pad, randid, red, starts, timeit, times, trace, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8,
+  var GOD, GUEST, JArray, JBoundFunc, JKernel, JNaN, JNull, JObject, JStackItem, JThread, JUndefined, JUser, WORLD, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, info, inspect, isVariable, joe, magenta, normal, pad, randid, red, starts, trace, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7,
     __slice = Array.prototype.slice;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
@@ -2960,34 +2961,14 @@ i9n: short for instruction
 
   _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
 
-  _ref6 = this.JTypes = require('joeson/src/interpreter/object'), JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
-
   trace = {
     debug: false,
     logCode: true
   };
 
-  times = {};
+  _ref6 = this.JTypes = require('joeson/src/interpreter/object'), JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
 
-  counter = 0;
-
-  timeit = function(name, fn) {
-    var result, start;
-    start = (new Date()).valueOf();
-    result = fn();
-    if (times[name] == null) {
-      times[name] = {
-        durations: 0,
-        hits: 0
-      };
-    }
-    times[name].durations += (new Date()).valueOf() - start;
-    times[name].hits++;
-    if (counter++ % 100 === 0) console.log("times:", times);
-    return result;
-  };
-
-  _ref8 = (_ref7 = require('joeson/src/interpreter/global'), this.GOD = _ref7.GOD, this.GUEST = _ref7.GUEST, this.WORLD = _ref7.WORLD, _ref7), GOD = _ref8.GOD, WORLD = _ref8.WORLD, GUEST = _ref8.GUEST;
+  _ref7 = this.GLOBALS = require('joeson/src/interpreter/global'), GOD = _ref7.GOD, WORLD = _ref7.WORLD, GUEST = _ref7.GUEST;
 
   JStackItem = this.JStackItem = clazz('JStackItem', function() {
     return {
@@ -3001,8 +2982,8 @@ i9n: short for instruction
         return this.declaringFunc = declaringFunc;
       },
       toString: function() {
-        var _ref10, _ref9;
-        return "'" + this.node + "' (source:" + this.declaringFunc + ", line:" + ((_ref9 = this.node._origin) != null ? _ref9.line : void 0) + ", col:" + ((_ref10 = this.node._origin) != null ? _ref10.col : void 0) + ")";
+        var _ref8, _ref9;
+        return "'" + this.node + "' (source:" + this.declaringFunc + ", line:" + ((_ref8 = this.node._origin) != null ? _ref8.line : void 0) + ", col:" + ((_ref9 = this.node._origin) != null ? _ref9.col : void 0) + ")";
       }
     };
   });
@@ -3035,9 +3016,9 @@ i9n: short for instruction
         }
       },
       runStep: function() {
-        var dontcare, existing, func, i9n, last, target, targetIndex, targetKey, that, _ref9;
+        var dontcare, existing, func, i9n, last, target, targetIndex, targetKey, that, _ref8;
         if (this.i9ns.length === 0) return this.state = 'return';
-        _ref9 = i9n = this.i9ns[this.i9ns.length - 1], func = _ref9.func, that = _ref9["this"], target = _ref9.target, targetKey = _ref9.targetKey, targetIndex = _ref9.targetIndex;
+        _ref8 = i9n = this.i9ns[this.i9ns.length - 1], func = _ref8.func, that = _ref8["this"], target = _ref8.target, targetKey = _ref8.targetKey, targetIndex = _ref8.targetIndex;
         if (trace.debug) console.log(blue("             -- runStep --"));
         if (trace.debug) this.printScope(this.scope);
         if (trace.debug) this.printStack();
@@ -3116,11 +3097,11 @@ i9n: short for instruction
         return this.i9ns.push(i9n);
       },
       callStack: function() {
-        var item, stack, _i, _len, _ref9;
+        var item, stack, _i, _len, _ref8;
         stack = [];
-        _ref9 = this.i9ns;
-        for (_i = 0, _len = _ref9.length; _i < _len; _i++) {
-          item = _ref9[_i];
+        _ref8 = this.i9ns;
+        for (_i = 0, _len = _ref8.length; _i < _len; _i++) {
+          item = _ref8[_i];
           if (item["this"] instanceof joe.Invocation) {
             stack.push(JStackItem({
               node: item["this"]
@@ -3158,11 +3139,11 @@ i9n: short for instruction
         }
       },
       cleanup: function() {
-        var _ref10, _ref9;
-        if ((_ref9 = this.input) != null) {
-          if (typeof _ref9.close === "function") _ref9.close();
+        var _ref8, _ref9;
+        if ((_ref8 = this.input) != null) {
+          if (typeof _ref8.close === "function") _ref8.close();
         }
-        return (_ref10 = this.output) != null ? typeof _ref10.close === "function" ? _ref10.close() : void 0 : void 0;
+        return (_ref9 = this.output) != null ? typeof _ref9.close === "function" ? _ref9.close() : void 0 : void 0;
       },
       /* ACCESS CONTROL
       */
@@ -3175,7 +3156,7 @@ i9n: short for instruction
       /* DEBUG
       */
       printStack: function(stack) {
-        var i, i9n, i9nCopy, _i, _len, _ref10, _ref9, _results;
+        var i, i9n, i9nCopy, _i, _len, _ref8, _ref9, _results;
         if (stack == null) stack = this.i9ns;
         assert.ok(stack instanceof Array);
         _results = [];
@@ -3186,16 +3167,16 @@ i9n: short for instruction
           delete i9nCopy.func;
           _results.push(console.log("" + (blue(pad({
             right: 12
-          }, "" + ((_ref9 = i9n["this"]) != null ? _ref9.constructor.name : void 0)))) + "." + (yellow((_ref10 = i9n.func) != null ? _ref10._name : void 0)) + "($, {" + (white(_.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
+          }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(_.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
         return _results;
       },
       printScope: function(scope, lvl) {
-        var key, value, valueStr, _ref9;
+        var key, value, valueStr, _ref8;
         if (lvl == null) lvl = 0;
-        _ref9 = scope.data;
-        for (key in _ref9) {
-          value = _ref9[key];
+        _ref8 = scope.data;
+        for (key in _ref8) {
+          value = _ref8[key];
           if (!(key !== '__proto__')) continue;
           try {
             valueStr = value.__str__(this);
@@ -3314,7 +3295,7 @@ i9n: short for instruction
         }
       },
       runloop$: function() {
-        var exitCode, i, thread, _i, _ref10, _ref11, _ref12, _ref13, _ref9;
+        var exitCode, i, thread, _i, _ref10, _ref11, _ref12, _ref8, _ref9;
         this.ticker++;
         thread = this.threads[this.index];
         if (trace.debug) {
@@ -3324,7 +3305,7 @@ i9n: short for instruction
           for (i = _i = 0; _i <= 20; i = ++_i) {
             exitCode = thread.runStep();
             if (exitCode != null) {
-              [].splice.apply(this.threads, [(_ref9 = this.index), this.index - _ref9 + 1].concat(_ref10 = [])), _ref10;
+              [].splice.apply(this.threads, [(_ref8 = this.index), this.index - _ref8 + 1].concat(_ref9 = [])), _ref9;
               this.index = this.index % this.threads.length;
               if (this.threads.length > 0) process.nextTick(this.runloop);
               thread.exit();
@@ -3334,9 +3315,9 @@ i9n: short for instruction
           this.index = (this.index + 1) % this.threads.length;
           return process.nextTick(this.runloop);
         } catch (error) {
-          fatal("Error in runStep. Stopping execution, setting error.", (_ref11 = error.stack) != null ? _ref11 : error);
+          fatal("Error in runStep. Stopping execution, setting error.", (_ref10 = error.stack) != null ? _ref10 : error);
           thread["throw"]('InternalError', "" + error.name + ":" + error.message);
-          [].splice.apply(this.threads, [(_ref12 = this.index), this.index - _ref12 + 1].concat(_ref13 = [])), _ref13;
+          [].splice.apply(this.threads, [(_ref11 = this.index), this.index - _ref11 + 1].concat(_ref12 = [])), _ref12;
           this.index = this.index % this.threads.length;
           if (this.threads.length > 0) process.nextTick(this.runloop);
           thread.exit();
@@ -3350,12 +3331,15 @@ i9n: short for instruction
     require['joeson/src/interpreter'] = module.exports;
   };
 };
-require['joeson/src/interpreter'].nonce = nonce;require['joeson/src/interpreter/global'] = function() {
+require['joeson/src/interpreter'].nonce = nonce;
+
+require['joeson/src/interpreter/global'] = function() {
   return new function() {
     var exports = require['joeson/src/interpreter/global'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
-  var GOD, GUEST, JArray, JNaN, JNull, JObject, JUndefined, JUser, USERS, WORLD, assert, async, black, blue, clazz, cyan, debug, ends, escape, fatal, green, info, inspect, loadJObject, magenta, nativ, normal, pad, red, saveJObject, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
+  var GOD, GUEST, JArray, JNaN, JNull, JObject, JUndefined, JUser, USERS, WORLD, assert, async, black, blue, clazz, cyan, debug, ends, escape, fatal, green, info, inspect, joefn, loadJObject, magenta, nativ, normal, pad, red, saveJObject, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
 
@@ -3373,7 +3357,7 @@ require['joeson/src/interpreter'].nonce = nonce;require['joeson/src/interpreter/
 
   _ref5 = require('joeson/src/interpreter/object'), JObject = _ref5.JObject, JArray = _ref5.JArray, JUser = _ref5.JUser, JUndefined = _ref5.JUndefined, JNull = _ref5.JNull, JNaN = _ref5.JNaN;
 
-  nativ = require('joeson/src/interpreter/persistence').nativ;
+  _ref6 = require('joeson/src/interpreter/persistence'), joefn = _ref6.joefn, nativ = _ref6.nativ;
 
   GOD = this.GOD = new JUser({
     id: 'god',
@@ -3404,28 +3388,13 @@ require['joeson/src/interpreter'].nonce = nonce;require['joeson/src/interpreter/
         obj = _arg[0];
         $.output(obj.__html__($) + '<br/>');
         return JUndefined;
-      })
+      }),
+      login: joefn('login', GOD, "-> print [\n  \"username:\"\n\n  type:'string'\n  default:'louis'\n  enter: (text) -> print text\n\n  \"\npassword:\"\n\n  type:'password'\n  enter: (text) -> print text\n]")
     }
-    /*
-      login: joeson """
-        -> print [
-          "username:"
-    
-          type:'string'
-          default:'louis'
-          enter: (text) -> print text
-    
-          "\npassword:"
-    
-          type:'password'
-          enter: (text) -> print text
-        ]
-        """
-    */
   });
 
   if (require.main === module) {
-    _ref6 = require('joeson/src/interpreter/persistence'), saveJObject = _ref6.saveJObject, loadJObject = _ref6.loadJObject;
+    _ref7 = require('joeson/src/interpreter/persistence'), saveJObject = _ref7.saveJObject, loadJObject = _ref7.loadJObject;
     saveJObject(WORLD, function(err) {
       if (err != null) return console.log("FAIL!" + err);
       console.log("done saving globals");
@@ -3440,12 +3409,15 @@ require['joeson/src/interpreter'].nonce = nonce;require['joeson/src/interpreter/
     require['joeson/src/interpreter/global'] = module.exports;
   };
 };
-require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/interpreter/object'] = function() {
+require['joeson/src/interpreter/global'].nonce = nonce;
+
+require['joeson/src/interpreter/object'] = function() {
   return new function() {
     var exports = require['joeson/src/interpreter/object'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
-  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, randid, red, setLast, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5,
+  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __slice = Array.prototype.slice,
     _this = this;
@@ -3458,13 +3430,13 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
 
   _ = require('underscore');
 
-  joe = require('joeson/src/joescript').NODES;
+  _ref3 = require('joeson/src/joescript'), joe = _ref3.NODES, parse = _ref3.parse;
 
-  _ref3 = require('joeson/lib/helpers'), randid = _ref3.randid, pad = _ref3.pad, htmlEscape = _ref3.htmlEscape, escape = _ref3.escape, starts = _ref3.starts, ends = _ref3.ends;
+  _ref4 = require('joeson/lib/helpers'), randid = _ref4.randid, pad = _ref4.pad, htmlEscape = _ref4.htmlEscape, escape = _ref4.escape, starts = _ref4.starts, ends = _ref4.ends;
 
-  _ref4 = require('joeson/src/joescript').HELPERS, extend = _ref4.extend, isVariable = _ref4.isVariable;
+  _ref5 = require('joeson/src/joescript').HELPERS, extend = _ref5.extend, isVariable = _ref5.isVariable;
 
-  _ref5 = require('nogg').logger('server'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
+  _ref6 = require('nogg').logger('server'), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.error;
 
   isInteger = function(n) {
     return n % 1 === 0;
@@ -3623,11 +3595,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
         } else {
           $$[this.id] = true;
           dataPart = ((function() {
-            var _ref6, _results;
-            _ref6 = this.data;
+            var _ref7, _results;
+            _ref7 = this.data;
             _results = [];
-            for (key in _ref6) {
-              value = _ref6[key];
+            for (key in _ref7) {
+              value = _ref7[key];
               _results.push("" + (key.__str__($)) + ":" + (value.__str__($, $$)));
             }
             return _results;
@@ -3638,11 +3610,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       __repr__: function($) {
         var key, value;
         return $.jml('{', $.jml(((function() {
-          var _ref6, _results;
-          _ref6 = this.data;
+          var _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (key in _ref6) {
-            value = _ref6[key];
+          for (key in _ref7) {
+            value = _ref7[key];
             _results.push([key, ':', value.__repr__($)]);
           }
           return _results;
@@ -3652,11 +3624,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       },
       jsValue$: {
         get: function() {
-          var key, tmp, value, _ref6;
+          var key, tmp, value, _ref7;
           tmp = {};
-          _ref6 = this.data;
-          for (key in _ref6) {
-            value = _ref6[key];
+          _ref7 = this.data;
+          for (key in _ref7) {
+            value = _ref7[key];
             tmp[key] = value.jsValue;
           }
           return tmp;
@@ -3685,16 +3657,16 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
         });
       },
       __get__: function($, key) {
-        var value, _ref6, _ref7;
+        var value, _ref7, _ref8;
         $.will('read', this);
         if (isInteger(key)) {
-          return (_ref6 = this.data[key]) != null ? _ref6 : JUndefined;
+          return (_ref7 = this.data[key]) != null ? _ref7 : JUndefined;
         } else {
           assert.ok(key = typeof key.__key__ === "function" ? key.__key__($) : void 0, "Key couldn't be stringified");
           value = this.data[key];
           if (value != null) return value;
           if (starts(key, '__') && ends(key, '__')) {
-            return (_ref7 = this[key]) != null ? _ref7 : JUndefined;
+            return (_ref8 = this[key]) != null ? _ref8 : JUndefined;
           }
           if (__indexOf.call(protoKeys, key) >= 0) return this[key];
           return JUndefined;
@@ -3745,11 +3717,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
         } else {
           $$[this.id] = true;
           return "[" + (this.id ? '#' + this.id + ' ' : '') + (((function() {
-            var _ref6, _results;
-            _ref6 = this.data;
+            var _ref7, _results;
+            _ref7 = this.data;
             _results = [];
-            for (key in _ref6) {
-              value = _ref6[key];
+            for (key in _ref7) {
+              value = _ref7[key];
               _results.push("" + (isInteger(key) ? '' + key : key.__str__($)) + ":" + (value.__str__($, $$)));
             }
             return _results;
@@ -3759,21 +3731,21 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       __repr__: function($) {
         var arrayPart, dataPart, item, key, value;
         arrayPart = ((function() {
-          var _i, _len, _ref6, _results;
-          _ref6 = this.data;
+          var _i, _len, _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
-            item = _ref6[_i];
+          for (_i = 0, _len = _ref7.length; _i < _len; _i++) {
+            item = _ref7[_i];
             _results.push(item.__repr__($));
           }
           return _results;
         }).call(this)).weave(',');
         dataPart = $.jml(((function() {
-          var _ref6, _results;
-          _ref6 = this.data;
+          var _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (key in _ref6) {
-            value = _ref6[key];
+          for (key in _ref7) {
+            value = _ref7[key];
             if (!isInteger(key)) _results.push([key, ':', value.__repr__($)]);
           }
           return _results;
@@ -3786,11 +3758,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       },
       jsValue$: {
         get: function() {
-          var key, tmp, value, _ref6;
+          var key, tmp, value, _ref7;
           tmp = [];
-          _ref6 = this.data;
-          for (key in _ref6) {
-            value = _ref6[key];
+          _ref7 = this.data;
+          for (key in _ref7) {
+            value = _ref7[key];
             tmp[key] = value.jsValue;
           }
           return tmp;
@@ -3903,15 +3875,32 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
   JBoundFunc = this.JBoundFunc = clazz('JBoundFunc', JObject, function() {
     return {
       init: function(_arg) {
-        var acl, creator, id;
-        id = _arg.id, creator = _arg.creator, acl = _arg.acl, this.func = _arg.func, this.scope = _arg.scope;
+        var acl, creator, func, id;
+        id = _arg.id, creator = _arg.creator, acl = _arg.acl, func = _arg.func, this.scope = _arg.scope;
         this["super"].init.call(this, {
           id: id,
           creator: creator,
           acl: acl
         });
-        assert.ok(this.func instanceof joe.Func, "func not Func");
-        return assert.ok((this.scope != null) && this.scope instanceof JObject, "scope not a JObject");
+        assert.ok((this.scope === null) || this.scope instanceof JObject, "scope, if present, must be a JObject");
+        if (func instanceof joe.Func) {
+          return this.func = func;
+        } else if (typeof func === 'string') {
+          return this._func = func;
+        } else {
+          throw new Error("funky func");
+        }
+      },
+      func$: {
+        get: function() {
+          var node;
+          node = parse(this._func);
+          node = node.toJSNode({
+            toValue: true
+          }).installScope().determine();
+          assert.ok(node.constructor.name === 'Func');
+          return this.func = node;
+        }
       },
       __str__: function($) {
         return "(<\#" + this.id + ">)";
@@ -3919,11 +3908,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       __repr__: function($) {
         var dataPart, key, value;
         dataPart = ((function() {
-          var _ref6, _results;
-          _ref6 = this.data;
+          var _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (key in _ref6) {
-            value = _ref6[key];
+          for (key in _ref7) {
+            value = _ref7[key];
             _results.push([key, ':', value.__repr__($)]);
           }
           return _results;
@@ -3991,12 +3980,12 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       });
       joe.Block.prototype.extend({
         interpret: function($) {
-          var firstLine, length, variable, _i, _len, _ref6;
+          var firstLine, length, variable, _i, _len, _ref7;
           $.pop();
           if (this.ownScope != null) {
-            _ref6 = this.ownScope.nonparameterVariables;
-            for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
-              variable = _ref6[_i];
+            _ref7 = this.ownScope.nonparameterVariables;
+            for (_i = 0, _len = _ref7.length; _i < _len; _i++) {
+              variable = _ref7[_i];
               $.scope.__set__($, variable, JUndefined);
             }
           }
@@ -4054,14 +4043,14 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       });
       joe.Assign.prototype.extend({
         interpret: function($, i9n) {
-          var key, targetObj, type, _ref6;
+          var key, targetObj, type, _ref7;
           i9n.func = joe.Assign.prototype.interpret2;
           $.push({
             "this": this.value,
             func: this.value.interpret
           });
           if (this.target instanceof joe.Index) {
-            _ref6 = this.target, targetObj = _ref6.obj, type = _ref6.type, key = _ref6.key;
+            _ref7 = this.target, targetObj = _ref7.obj, type = _ref7.type, key = _ref7.key;
             $.push({
               "this": i9n,
               func: setLast,
@@ -4101,8 +4090,8 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       });
       joe.Obj.prototype.extend({
         interpret: function($, i9n) {
-          var length, _ref6, _ref7;
-          length = (_ref6 = (_ref7 = this.items) != null ? _ref7.length : void 0) != null ? _ref6 : 0;
+          var length, _ref7, _ref8;
+          length = (_ref7 = (_ref8 = this.items) != null ? _ref8.length : void 0) != null ? _ref7 : 0;
           if (length > 0) {
             i9n.obj = new JObject({
               creator: $.user
@@ -4118,10 +4107,10 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
           }
         },
         interpretKV: function($, i9n) {
-          var key, value, _ref6;
+          var key, value, _ref7;
           if (0 < i9n.idx) i9n.obj.__set__($, i9n.key, i9n.value);
           if (i9n.idx < i9n.length) {
-            _ref6 = this.items[i9n.idx], key = _ref6.key, value = _ref6.value;
+            _ref7 = this.items[i9n.idx], key = _ref7.key, value = _ref7.value;
             if (key instanceof joe.Word) {
               i9n.key = key;
             } else if (key instanceof joe.Str) {
@@ -4155,8 +4144,8 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       });
       joe.Arr.prototype.extend({
         interpret: function($, i9n) {
-          var length, _ref6, _ref7;
-          length = (_ref6 = (_ref7 = this.items) != null ? _ref7.length : void 0) != null ? _ref6 : 0;
+          var length, _ref7, _ref8;
+          length = (_ref7 = (_ref8 = this.items) != null ? _ref8.length : void 0) != null ? _ref7 : 0;
           if (length > 0) {
             i9n.arr = new JArray({
               creator: $.user
@@ -4188,7 +4177,7 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
       });
       joe.Operation.prototype.extend({
         interpret: function($, i9n) {
-          var key, targetObj, _ref6, _ref7;
+          var key, targetObj, _ref7, _ref8;
           i9n.func = joe.Operation.prototype.interpret2;
           if (this.left != null) {
             $.push({
@@ -4200,8 +4189,8 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
               "this": this.left,
               func: this.left.interpret
             });
-            if (this.left instanceof joe.Index && ((_ref6 = this.op) === '--' || _ref6 === '++')) {
-              _ref7 = this.left, targetObj = _ref7.obj, key = _ref7.key;
+            if (this.left instanceof joe.Index && ((_ref7 = this.op) === '--' || _ref7 === '++')) {
+              _ref8 = this.left, targetObj = _ref8.obj, key = _ref8.key;
               $.push({
                 "this": i9n,
                 func: setLast,
@@ -4313,10 +4302,10 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
           });
         },
         interpretTarget: function($, i9n, obj) {
-          var _ref6;
+          var _ref7;
           if (i9n.setSource != null) i9n.setSource.source = obj;
           if (this.type === '.') {
-            assert.ok(this.key instanceof joe.Word, "Unexpected key of type " + ((_ref6 = this.key) != null ? _ref6.constructor.name : void 0));
+            assert.ok(this.key instanceof joe.Word, "Unexpected key of type " + ((_ref7 = this.key) != null ? _ref7.constructor.name : void 0));
             $.pop();
             return obj.__get__($, this.key);
           } else {
@@ -4355,15 +4344,15 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
           });
         },
         interpretParams: function($, i9n, func) {
-          var i, param, _i, _len, _ref6;
+          var i, param, _i, _len, _ref7;
           if (!(func instanceof JBoundFunc || func instanceof Function)) {
             return $["throw"]('TypeError', "" + this.func + " cannot be called.");
           }
           i9n.invokedFunction = func;
           i9n.paramValues = [];
-          _ref6 = this.params;
-          for (i = _i = 0, _len = _ref6.length; _i < _len; i = ++_i) {
-            param = _ref6[i];
+          _ref7 = this.params;
+          for (i = _i = 0, _len = _ref7.length; _i < _len; i = ++_i) {
+            param = _ref7[i];
             $.push({
               "this": i9n,
               func: setLast,
@@ -4378,11 +4367,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
           i9n.func = joe.Invocation.prototype.interpretCall;
         },
         interpretCall: function($, i9n) {
-          var argName, block, i, paramValues, params, scope, _i, _len, _ref10, _ref11, _ref6, _ref7, _ref8, _ref9;
+          var argName, block, i, paramValues, params, scope, _i, _len, _ref10, _ref11, _ref12, _ref7, _ref8, _ref9;
           i9n.func = joe.Invocation.prototype.interpretFinal;
           if (i9n.invokedFunction instanceof JBoundFunc) {
             i9n.oldScope = $.scope;
-            _ref6 = i9n.invokedFunction, (_ref7 = _ref6.func, block = _ref7.block, params = _ref7.params), scope = _ref6.scope;
+            _ref7 = i9n.invokedFunction, (_ref8 = _ref7.func, block = _ref8.block, params = _ref8.params), scope = _ref7.scope;
             paramValues = i9n.paramValues;
             if (i9n.source != null) {
               $.scope = scope.__create__($, {
@@ -4393,11 +4382,11 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
             }
             if (params != null) {
               assert.ok(params instanceof joe.AssignList);
-              _ref8 = params.items;
-              for (i = _i = 0, _len = _ref8.length; _i < _len; i = ++_i) {
-                argName = _ref8[i].target;
+              _ref9 = params.items;
+              for (i = _i = 0, _len = _ref9.length; _i < _len; i = ++_i) {
+                argName = _ref9[i].target;
                 assert.ok(isVariable(argName, "Expected variable but got " + argName + " (" + (argName != null ? argName.constructor.name : void 0) + ")"));
-                $.scope.__set__($, argName, (_ref9 = paramValues[i]) != null ? _ref9 : JUndefined);
+                $.scope.__set__($, argName, (_ref10 = paramValues[i]) != null ? _ref10 : JUndefined);
               }
             }
             if (block != null) {
@@ -4412,7 +4401,7 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
             try {
               return i9n.invokedFunction.call(i9n.source, $, i9n.paramValues);
             } catch (error) {
-              return $["throw"]((_ref10 = error != null ? error.name : void 0) != null ? _ref10 : 'UnknownError', (_ref11 = error != null ? error.message : void 0) != null ? _ref11 : '' + error);
+              return $["throw"]((_ref11 = error != null ? error.name : void 0) != null ? _ref11 : 'UnknownError', (_ref12 = error != null ? error.message : void 0) != null ? _ref12 : '' + error);
             }
           }
         },
@@ -4536,23 +4525,23 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
           }
         },
         interpret2: function($, i9n) {
-          var array, x, _i, _j, _ref6, _ref7, _ref8, _ref9, _results, _results2;
+          var array, x, _i, _j, _ref10, _ref7, _ref8, _ref9, _results, _results2;
           $.pop();
           if (i9n.by != null) {
             if (this.type === '..') {
               array = (function() {
-                var _i, _ref6, _ref7, _ref8, _results;
+                var _i, _ref7, _ref8, _ref9, _results;
                 _results = [];
-                for (x = _i = _ref6 = i9n.start, _ref7 = i9n.end, _ref8 = i9n.by; _ref6 <= _ref7 ? _i <= _ref7 : _i >= _ref7; x = _i += _ref8) {
+                for (x = _i = _ref7 = i9n.start, _ref8 = i9n.end, _ref9 = i9n.by; _ref7 <= _ref8 ? _i <= _ref8 : _i >= _ref8; x = _i += _ref9) {
                   _results.push(x);
                 }
                 return _results;
               })();
             } else {
               array = (function() {
-                var _i, _ref6, _ref7, _ref8, _results;
+                var _i, _ref7, _ref8, _ref9, _results;
                 _results = [];
-                for (x = _i = _ref6 = i9n.start, _ref7 = i9n.end, _ref8 = i9n.by; _ref6 <= _ref7 ? _i < _ref7 : _i > _ref7; x = _i += _ref8) {
+                for (x = _i = _ref7 = i9n.start, _ref8 = i9n.end, _ref9 = i9n.by; _ref7 <= _ref8 ? _i < _ref8 : _i > _ref8; x = _i += _ref9) {
                   _results.push(x);
                 }
                 return _results;
@@ -4562,13 +4551,13 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
             if (this.type === '..') {
               array = (function() {
                 _results = [];
-                for (var _i = _ref6 = i9n.start, _ref7 = i9n.end; _ref6 <= _ref7 ? _i <= _ref7 : _i >= _ref7; _ref6 <= _ref7 ? _i++ : _i--){ _results.push(_i); }
+                for (var _i = _ref7 = i9n.start, _ref8 = i9n.end; _ref7 <= _ref8 ? _i <= _ref8 : _i >= _ref8; _ref7 <= _ref8 ? _i++ : _i--){ _results.push(_i); }
                 return _results;
               }).apply(this);
             } else {
               array = (function() {
                 _results2 = [];
-                for (var _j = _ref8 = i9n.start, _ref9 = i9n.end; _ref8 <= _ref9 ? _j < _ref9 : _j > _ref9; _ref8 <= _ref9 ? _j++ : _j--){ _results2.push(_j); }
+                for (var _j = _ref9 = i9n.start, _ref10 = i9n.end; _ref9 <= _ref10 ? _j < _ref10 : _j > _ref10; _ref9 <= _ref10 ? _j++ : _j--){ _results2.push(_j); }
                 return _results2;
               }).apply(this);
             }
@@ -4781,8 +4770,8 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
           return "(<\#" + this.id + ">)";
         },
         __repr__: function($) {
-          var name, _ref6;
-          name = (_ref6 = this.name) != null ? _ref6 : this._name;
+          var name, _ref7;
+          name = (_ref7 = this.name) != null ? _ref7 : this._name;
           if (name) {
             return "[NativeFunction: " + name + "]";
           } else {
@@ -4803,12 +4792,15 @@ require['joeson/src/interpreter/global'].nonce = nonce;require['joeson/src/inter
     require['joeson/src/interpreter/object'] = module.exports;
   };
 };
-require['joeson/src/interpreter/object'].nonce = nonce;require['joeson/src/interpreter/persistence'] = function() {
+require['joeson/src/interpreter/object'].nonce = nonce;
+
+require['joeson/src/interpreter/persistence'] = function() {
   return new function() {
     var exports = require['joeson/src/interpreter/persistence'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
-  var GOD, JArray, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, USERS, WORLD, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, globals, green, info, inspect, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
+  var GLOBALS, JArray, JBoundFunc, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, green, info, inspect, joefn, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
 
@@ -4824,7 +4816,7 @@ require['joeson/src/interpreter/object'].nonce = nonce;require['joeson/src/inter
 
   _ref4 = require('nogg').logger('server'), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.error;
 
-  _ref5 = require('joeson/src/interpreter/object'), JObject = _ref5.JObject, JArray = _ref5.JArray, JUser = _ref5.JUser, JUndefined = _ref5.JUndefined, JNull = _ref5.JNull, JNaN = _ref5.JNaN, JStub = _ref5.JStub;
+  _ref5 = require('joeson/src/interpreter'), (_ref6 = _ref5.JTypes, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc, JStub = _ref6.JStub), GLOBALS = _ref5.GLOBALS;
 
   client = void 0;
 
@@ -4841,6 +4833,17 @@ require['joeson/src/interpreter/object'].nonce = nonce;require['joeson/src/inter
     return f;
   };
 
+  joefn = this.joefn = function(id, creator, fCode) {
+    assert.ok(id != null, "joefn wants an id");
+    console.log("joefn with code " + fCode);
+    return new JBoundFunc({
+      id: id,
+      creator: creator,
+      func: fCode,
+      scope: null
+    });
+  };
+
   OBJECTS = {};
 
   getOrStub = function(id) {
@@ -4852,10 +4855,8 @@ require['joeson/src/interpreter/object'].nonce = nonce;require['joeson/src/inter
     }
   };
 
-  _ref6 = globals = require('joeson/src/interpreter/global'), GOD = _ref6.GOD, WORLD = _ref6.WORLD, USERS = _ref6.USERS;
-
-  for (key in globals) {
-    value = globals[key];
+  for (key in GLOBALS) {
+    value = GLOBALS[key];
     if (value instanceof JObject) OBJECTS[value.id] = value;
   }
 
@@ -4991,10 +4992,13 @@ require['joeson/src/interpreter/object'].nonce = nonce;require['joeson/src/inter
     require['joeson/src/interpreter/persistence'] = module.exports;
   };
 };
-require['joeson/src/interpreter/persistence'].nonce = nonce;require['joeson/src/translators/javascript'] = function() {
+require['joeson/src/interpreter/persistence'].nonce = nonce;
+
+require['joeson/src/translators/javascript'] = function() {
   return new function() {
     var exports = require['joeson/src/translators/javascript'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var assert, black, blue, clazz, compact, cyan, escape, extend, flatten, green, inspect, install, isVariable, isWord, joe, js, magenta, normal, red, translate, trigger, white, yellow, _, _ref, _ref2, _ref3, _ref4,
     __slice = Array.prototype.slice;
@@ -5603,10 +5607,13 @@ require['joeson/src/interpreter/persistence'].nonce = nonce;require['joeson/src/
     require['joeson/src/translators/javascript'] = module.exports;
   };
 };
-require['joeson/src/translators/javascript'].nonce = nonce;require['joeson/src/translators/scope'] = function() {
+require['joeson/src/translators/javascript'].nonce = nonce;
+
+require['joeson/src/translators/scope'] = function() {
   return new function() {
     var exports = require['joeson/src/translators/scope'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var LScope, assert, black, blue, clazz, cyan, extend, green, inspect, isVariable, isWord, joe, magenta, normal, randid, red, white, yellow, _, _ref, _ref2, _ref3,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
@@ -5806,18 +5813,25 @@ require['joeson/src/translators/javascript'].nonce = nonce;require['joeson/src/t
     require['joeson/src/translators/scope'] = module.exports;
   };
 };
-require['joeson/src/translators/scope'].nonce = nonce;require['joeson/src/client'] = function() {
+require['joeson/src/translators/scope'].nonce = nonce;
+
+require['joeson/src/client'] = function() {
   return new function() {
     var exports = require['joeson/src/client'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
-  var Client, clazz, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x;
+  var Client, GOD, GUEST, JKernel, WORLD, clazz, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
 
   this.require = require;
 
   clazz = require('cardamom').clazz;
 
   randid = require('joeson/lib/helpers').randid;
+
+  _ref = require('joeson/src/interpreter'), GOD = _ref.GOD, WORLD = _ref.WORLD, GUEST = _ref.GUEST, JKernel = _ref.JKernel;
+
+  kern = new JKernel;
 
   outBoxHtml = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
 
@@ -5856,7 +5870,7 @@ require['joeson/src/translators/scope'].nonce = nonce;require['joeson/src/client
   };
 
   $('document').ready(function() {
-    var client, marqueeLevel;
+    var marqueeLevel;
     console.log("booting...");
     marqueeLevel = 0;
     setInterval((function() {
@@ -5870,9 +5884,10 @@ require['joeson/src/translators/scope'].nonce = nonce;require['joeson/src/client
         opacity: 0.7
       });
     }), 300);
-    window.client = client = new Client();
-    return $(document).click(function() {
-      return client.mirror.focus();
+    return kern.run({
+      user: GUEST,
+      code: 'login()',
+      output: void 0
     });
   });
 
@@ -6000,10 +6015,13 @@ require['joeson/src/translators/scope'].nonce = nonce;require['joeson/src/client
     require['joeson/src/client'] = module.exports;
   };
 };
-require['joeson/src/client'].nonce = nonce;require['joeson/lib/helpers'] = function() {
+require['joeson/src/client'].nonce = nonce;
+
+require['joeson/lib/helpers'] = function() {
   return new function() {
     var exports = require['joeson/lib/helpers'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var extend, flatten;
 
@@ -6152,36 +6170,78 @@ require['joeson/src/client'].nonce = nonce;require['joeson/lib/helpers'] = funct
     require['joeson/lib/helpers'] = module.exports;
   };
 };
-require['joeson/lib/helpers'].nonce = nonce;require['assert'] = function() {
+require['joeson/lib/helpers'].nonce = nonce;
+
+require['_process'] = function() {
+  return new function() {
+    var exports = require['_process'] = this;
+    var module = {exports:exports};
+    var process = require('_process');
+    var process = module.exports = {};
+
+process.nextTick = (function () {
+    var queue = [];
+    var canPost = typeof window !== 'undefined'
+        && window.postMessage && window.addEventListener
+    ;
+    
+    if (canPost) {
+        window.addEventListener('message', function (ev) {
+            if (ev.source === window && ev.data === 'browserify-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+    }
+    
+    return function (fn) {
+        if (canPost) {
+            queue.push(fn);
+            window.postMessage('browserify-tick', '*');
+        }
+        else setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+process.binding = function (name) {
+    if (name === 'evals') return (require)('vm')
+    else throw new Error('No such module. (Possibly not yet loaded)')
+};
+
+process.stderr = process.stdout = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
+//process.stderr = require('fs').createWriteStream('stderr.log', {flags: 'a', mode: 0666});
+
+(function () {
+    var cwd = '/';
+    var path;
+    process.cwd = function () { return cwd };
+    process.chdir = function (dir) {
+        if (!path) path = require('path');
+        cwd = path.resolve(dir, cwd);
+    };
+})();
+
+    require['_process'] = module.exports;
+  };
+};
+require['_process'].nonce = nonce;
+
+require['assert'] = function() {
   return new function() {
     var exports = require['assert'] = this;
     var module = {exports:exports};
-    // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
-//
-// THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
-//
-// Originally from narwhal.js (http://narwhaljs.org)
-// Copyright (c) 2009 Thomas Robinson <280north.com>
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the 'Software'), to
-// deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-// ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-// UTILITY
+    var process = require('_process');
+    // UTILITY
 var util = require('util');
+var Buffer = require("buffer").Buffer;
 var pSlice = Array.prototype.slice;
 
 // 1. The assert module provides functions that throw
@@ -6486,441 +6546,260 @@ assert.ifError = function(err) { if (err) {throw err;}};
     require['assert'] = module.exports;
   };
 };
-require['assert'].nonce = nonce;require['util'] = function() {
+require['assert'].nonce = nonce;
+
+require['util'] = function() {
   return new function() {
     var exports = require['util'] = this;
     var module = {exports:exports};
-    // Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+    var process = require('_process');
+    var events = require('events');
 
-var events = require('events');
+exports.print = function () {};
+exports.puts = function () {};
+exports.debug = function() {};
 
+exports.inspect = function(obj, showHidden, depth, colors) {
+  var seen = [];
 
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (typeof f !== 'string') {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
+  var stylize = function(str, styleType) {
+    // http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+    var styles =
+        { 'bold' : [1, 22],
+          'italic' : [3, 23],
+          'underline' : [4, 24],
+          'inverse' : [7, 27],
+          'white' : [37, 39],
+          'grey' : [90, 39],
+          'black' : [30, 39],
+          'blue' : [34, 39],
+          'cyan' : [36, 39],
+          'green' : [32, 39],
+          'magenta' : [35, 39],
+          'red' : [31, 39],
+          'yellow' : [33, 39] };
 
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j': return JSON.stringify(args[i++]);
-      case '%%': return '%';
-      default:
-        return x;
-    }
-  });
-  for (var x = args[i]; i < len; x = args[++i]) {
-    if (x === null || typeof x !== 'object') {
-      str += ' ' + x;
+    var style =
+        { 'special': 'cyan',
+          'number': 'blue',
+          'boolean': 'yellow',
+          'undefined': 'grey',
+          'null': 'bold',
+          'string': 'green',
+          'date': 'magenta',
+          // "name": intentionally not styling
+          'regexp': 'red' }[styleType];
+
+    if (style) {
+      return '\033[' + styles[style][0] + 'm' + str +
+             '\033[' + styles[style][1] + 'm';
     } else {
-      str += ' ' + inspect(x);
-    }
-  }
-  return str;
-};
-
-
-exports.print = function() {
-  for (var i = 0, len = arguments.length; i < len; ++i) {
-    process.stdout.write(String(arguments[i]));
-  }
-};
-
-
-exports.puts = function() {
-  for (var i = 0, len = arguments.length; i < len; ++i) {
-    process.stdout.write(arguments[i] + '\n');
-  }
-};
-
-
-exports.debug = function(x) {
-  process.stderr.write('DEBUG: ' + x + '\n');
-};
-
-
-var error = exports.error = function(x) {
-  for (var i = 0, len = arguments.length; i < len; ++i) {
-    process.stderr.write(arguments[i] + '\n');
-  }
-};
-
-
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- *
- * @param {Object} obj The object to print out.
- * @param {Boolean} showHidden Flag that shows hidden (not enumerable)
- *    properties of objects.
- * @param {Number} depth Depth in which to descend in object. Default is 2.
- * @param {Boolean} colors Flag to turn on ANSI escape codes to color the
- *    output. Default is false (no coloring).
- */
-function inspect(obj, showHidden, depth, colors) {
-  var ctx = {
-    showHidden: showHidden,
-    seen: [],
-    stylize: colors ? stylizeWithColor : stylizeNoColor
-  };
-  return formatValue(ctx, obj, (typeof depth === 'undefined' ? 2 : depth));
-}
-exports.inspect = inspect;
-
-
-// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-var colors = {
-  'bold' : [1, 22],
-  'italic' : [3, 23],
-  'underline' : [4, 24],
-  'inverse' : [7, 27],
-  'white' : [37, 39],
-  'grey' : [90, 39],
-  'black' : [30, 39],
-  'blue' : [34, 39],
-  'cyan' : [36, 39],
-  'green' : [32, 39],
-  'magenta' : [35, 39],
-  'red' : [31, 39],
-  'yellow' : [33, 39]
-};
-
-// Don't use 'blue' not visible on cmd.exe
-var styles = {
-  'special': 'cyan',
-  'number': 'yellow',
-  'boolean': 'yellow',
-  'undefined': 'grey',
-  'null': 'bold',
-  'string': 'green',
-  'date': 'magenta',
-  // "name": intentionally not styling
-  'regexp': 'red'
-};
-
-
-function stylizeWithColor(str, styleType) {
-  var style = styles[styleType];
-
-  if (style) {
-    return '\033[' + colors[style][0] + 'm' + str +
-           '\033[' + colors[style][1] + 'm';
-  } else {
-    return str;
-  }
-}
-
-
-function stylizeNoColor(str, styleType) {
-  return str;
-}
-
-
-function formatValue(ctx, value, recurseTimes) {
-  // Provide a hook for user-specified inspect functions.
-  // Check that value is an object with an inspect function on it
-  if (value && typeof value.inspect === 'function' &&
-      // Filter out the util module, it's inspect function is special
-      value !== exports &&
-      // Also filter out any prototype objects using the circular check.
-      !(value.constructor && value.constructor.prototype === value)) {
-    return value.inspect(recurseTimes);
-  }
-
-  // Primitive types cannot have properties
-  var primitive = formatPrimitive(ctx, value);
-  if (primitive) {
-    return primitive;
-  }
-
-  // Look up the keys of the object.
-  var visibleKeys = Object.keys(value);
-  var keys = ctx.showHidden ? Object.getOwnPropertyNames(value) : visibleKeys;
-
-  // Some type of object without properties can be shortcutted.
-  if (keys.length === 0) {
-    if (typeof value === 'function') {
-      var name = value.name ? ': ' + value.name : '';
-      return ctx.stylize('[Function' + name + ']', 'special');
-    }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toUTCString.call(value), 'date');
-    }
-    if (isError(value)) {
-      return formatError(value);
-    }
-  }
-
-  var base = '', array = false, braces = ['{', '}'];
-
-  // Make Array say that they are Array
-  if (isArray(value)) {
-    array = true;
-    braces = ['[', ']'];
-  }
-
-  // Make functions say that they are functions
-  if (typeof value === 'function') {
-    var n = value.name ? ': ' + value.name : '';
-    base = ' [Function' + n + ']';
-  }
-
-  // Make RegExps say that they are RegExps
-  if (isRegExp(value)) {
-    base = ' ' + RegExp.prototype.toString.call(value);
-  }
-
-  // Make dates with properties first say the date
-  if (isDate(value)) {
-    base = ' ' + Date.prototype.toUTCString.call(value);
-  }
-
-  // Make error with message first say the error
-  if (isError(value)) {
-    base = ' ' + formatError(value);
-  }
-
-  if (keys.length === 0 && (!array || value.length == 0)) {
-    return braces[0] + base + braces[1];
-  }
-
-  if (recurseTimes < 0) {
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    } else {
-      return ctx.stylize('[Object]', 'special');
-    }
-  }
-
-  ctx.seen.push(value);
-
-  var output;
-  if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
-  } else {
-    output = keys.map(function(key) {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
-    });
-  }
-
-  ctx.seen.pop();
-
-  return reduceToSingleString(output, base, braces);
-}
-
-
-function formatPrimitive(ctx, value) {
-  switch (typeof value) {
-    case 'undefined':
-      return ctx.stylize('undefined', 'undefined');
-
-    case 'string':
-      var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                               .replace(/'/g, "\\'")
-                                               .replace(/\\"/g, '"') + '\'';
-      return ctx.stylize(simple, 'string');
-
-    case 'number':
-      return ctx.stylize('' + value, 'number');
-
-    case 'boolean':
-      return ctx.stylize('' + value, 'boolean');
-  }
-  // For some reason typeof null is "object", so special case here.
-  if (value === null) {
-    return ctx.stylize('null', 'null');
-  }
-}
-
-
-function formatError(value) {
-  return '[' + Error.prototype.toString.call(value) + ']';
-}
-
-
-function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
-  var output = [];
-  for (var i = 0, l = value.length; i < l; ++i) {
-    if (Object.prototype.hasOwnProperty.call(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          String(i), true));
-    } else {
-      output.push('');
-    }
-  }
-  keys.forEach(function(key) {
-    if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          key, true));
-    }
-  });
-  return output;
-}
-
-
-function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
-  var name, str;
-  if (value.__lookupGetter__) {
-    if (value.__lookupGetter__(key)) {
-      if (value.__lookupSetter__(key)) {
-        str = ctx.stylize('[Getter/Setter]', 'special');
-      } else {
-        str = ctx.stylize('[Getter]', 'special');
-      }
-    } else {
-      if (value.__lookupSetter__(key)) {
-        str = ctx.stylize('[Setter]', 'special');
-      }
-    }
-  }
-  if (visibleKeys.indexOf(key) < 0) {
-    name = '[' + key + ']';
-  }
-  if (!str) {
-    if (ctx.seen.indexOf(value[key]) < 0) {
-      if (recurseTimes === null) {
-        str = formatValue(ctx, value[key], null);
-      } else {
-        str = formatValue(ctx, value[key], recurseTimes - 1);
-      }
-      if (str.indexOf('\n') > -1) {
-        if (array) {
-          str = str.split('\n').map(function(line) {
-            return '  ' + line;
-          }).join('\n').substr(2);
-        } else {
-          str = '\n' + str.split('\n').map(function(line) {
-            return '   ' + line;
-          }).join('\n');
-        }
-      }
-    } else {
-      str = ctx.stylize('[Circular]', 'special');
-    }
-  }
-  if (typeof name === 'undefined') {
-    if (array && key.match(/^\d+$/)) {
       return str;
     }
-    name = JSON.stringify('' + key);
-    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-      name = name.substr(1, name.length - 2);
-      name = ctx.stylize(name, 'name');
-    } else {
-      name = name.replace(/'/g, "\\'")
-                 .replace(/\\"/g, '"')
-                 .replace(/(^"|"$)/g, "'");
-      name = ctx.stylize(name, 'string');
+  };
+  if (! colors) {
+    stylize = function(str, styleType) { return str; };
+  }
+
+  function format(value, recurseTimes) {
+    // Provide a hook for user-specified inspect functions.
+    // Check that value is an object with an inspect function on it
+    if (value && typeof value.inspect === 'function' &&
+        // Filter out the util module, it's inspect function is special
+        value !== exports &&
+        // Also filter out any prototype objects using the circular check.
+        !(value.constructor && value.constructor.prototype === value)) {
+      return value.inspect(recurseTimes);
     }
+
+    // Primitive types cannot have properties
+    switch (typeof value) {
+      case 'undefined':
+        return stylize('undefined', 'undefined');
+
+      case 'string':
+        var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                                 .replace(/'/g, "\\'")
+                                                 .replace(/\\"/g, '"') + '\'';
+        return stylize(simple, 'string');
+
+      case 'number':
+        return stylize('' + value, 'number');
+
+      case 'boolean':
+        return stylize('' + value, 'boolean');
+    }
+    // For some reason typeof null is "object", so special case here.
+    if (value === null) {
+      return stylize('null', 'null');
+    }
+
+    // Look up the keys of the object.
+    var visible_keys = Object_keys(value);
+    var keys = showHidden ? Object_getOwnPropertyNames(value) : visible_keys;
+
+    // Functions without properties can be shortcutted.
+    if (typeof value === 'function' && keys.length === 0) {
+      if (isRegExp(value)) {
+        return stylize('' + value, 'regexp');
+      } else {
+        var name = value.name ? ': ' + value.name : '';
+        return stylize('[Function' + name + ']', 'special');
+      }
+    }
+
+    // Dates without properties can be shortcutted
+    if (isDate(value) && keys.length === 0) {
+      return stylize(value.toUTCString(), 'date');
+    }
+
+    var base, type, braces;
+    // Determine the object type
+    if (isArray(value)) {
+      type = 'Array';
+      braces = ['[', ']'];
+    } else {
+      type = 'Object';
+      braces = ['{', '}'];
+    }
+
+    // Make functions say that they are functions
+    if (typeof value === 'function') {
+      var n = value.name ? ': ' + value.name : '';
+      base = (isRegExp(value)) ? ' ' + value : ' [Function' + n + ']';
+    } else {
+      base = '';
+    }
+
+    // Make dates with properties first say the date
+    if (isDate(value)) {
+      base = ' ' + value.toUTCString();
+    }
+
+    if (keys.length === 0) {
+      return braces[0] + base + braces[1];
+    }
+
+    if (recurseTimes < 0) {
+      if (isRegExp(value)) {
+        return stylize('' + value, 'regexp');
+      } else {
+        return stylize('[Object]', 'special');
+      }
+    }
+
+    seen.push(value);
+
+    var output = keys.map(function(key) {
+      var name, str;
+      if (value.__lookupGetter__) {
+        if (value.__lookupGetter__(key)) {
+          if (value.__lookupSetter__(key)) {
+            str = stylize('[Getter/Setter]', 'special');
+          } else {
+            str = stylize('[Getter]', 'special');
+          }
+        } else {
+          if (value.__lookupSetter__(key)) {
+            str = stylize('[Setter]', 'special');
+          }
+        }
+      }
+      if (visible_keys.indexOf(key) < 0) {
+        name = '[' + key + ']';
+      }
+      if (!str) {
+        if (seen.indexOf(value[key]) < 0) {
+          if (recurseTimes === null) {
+            str = format(value[key]);
+          } else {
+            str = format(value[key], recurseTimes - 1);
+          }
+          if (str.indexOf('\n') > -1) {
+            if (isArray(value)) {
+              str = str.split('\n').map(function(line) {
+                return '  ' + line;
+              }).join('\n').substr(2);
+            } else {
+              str = '\n' + str.split('\n').map(function(line) {
+                return '   ' + line;
+              }).join('\n');
+            }
+          }
+        } else {
+          str = stylize('[Circular]', 'special');
+        }
+      }
+      if (typeof name === 'undefined') {
+        if (type === 'Array' && key.match(/^\d+$/)) {
+          return str;
+        }
+        name = JSON.stringify('' + key);
+        if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+          name = name.substr(1, name.length - 2);
+          name = stylize(name, 'name');
+        } else {
+          name = name.replace(/'/g, "\\'")
+                     .replace(/\\"/g, '"')
+                     .replace(/(^"|"$)/g, "'");
+          name = stylize(name, 'string');
+        }
+      }
+
+      return name + ': ' + str;
+    });
+
+    seen.pop();
+
+    var numLinesEst = 0;
+    var length = output.reduce(function(prev, cur) {
+      numLinesEst++;
+      if (cur.indexOf('\n') >= 0) numLinesEst++;
+      return prev + cur.length + 1;
+    }, 0);
+
+    if (length > 50) {
+      output = braces[0] +
+               (base === '' ? '' : base + '\n ') +
+               ' ' +
+               output.join(',\n  ') +
+               ' ' +
+               braces[1];
+
+    } else {
+      output = braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+    }
+
+    return output;
   }
-
-  return name + ': ' + str;
-}
-
-
-function reduceToSingleString(output, base, braces) {
-  var numLinesEst = 0;
-  var length = output.reduce(function(prev, cur) {
-    numLinesEst++;
-    if (cur.indexOf('\n') >= 0) numLinesEst++;
-    return prev + cur.length + 1;
-  }, 0);
-
-  if (length > 60) {
-    return braces[0] +
-           (base === '' ? '' : base + '\n ') +
-           ' ' +
-           output.join(',\n  ') +
-           ' ' +
-           braces[1];
-  }
-
-  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-}
+  return format(obj, (typeof depth === 'undefined' ? 2 : depth));
+};
 
 
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
 function isArray(ar) {
-  return Array.isArray(ar) ||
-         (typeof ar === 'object' && objectToString(ar) === '[object Array]');
+  return ar instanceof Array ||
+         Array.isArray(ar) ||
+         (ar && ar !== Object.prototype && isArray(ar.__proto__));
 }
-exports.isArray = isArray;
 
 
 function isRegExp(re) {
-  return typeof re === 'object' && objectToString(re) === '[object RegExp]';
+  return re instanceof RegExp ||
+    (typeof re === 'object' && Object.prototype.toString.call(re) === '[object RegExp]');
 }
-exports.isRegExp = isRegExp;
 
 
 function isDate(d) {
-  return typeof d === 'object' && objectToString(d) === '[object Date]';
+  if (d instanceof Date) return true;
+  if (typeof d !== 'object') return false;
+  var properties = Date.prototype && Object_getOwnPropertyNames(Date.prototype);
+  var proto = d.__proto__ && Object_getOwnPropertyNames(d.__proto__);
+  return JSON.stringify(proto) === JSON.stringify(properties);
 }
-exports.isDate = isDate;
-
-
-function isError(e) {
-  return typeof e === 'object' && objectToString(e) === '[object Error]';
-}
-exports.isError = isError;
-
-
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
-
-
-var pWarning;
-
-exports.p = function() {
-  if (!pWarning) {
-    pWarning = 'util.p will be removed in future versions of Node. ' +
-               'Use util.puts(util.inspect()) instead.\n';
-    exports.error(pWarning);
-  }
-  for (var i = 0, len = arguments.length; i < len; ++i) {
-    error(exports.inspect(arguments[i]));
-  }
-};
-
 
 function pad(n) {
   return n < 10 ? '0' + n.toString(10) : n.toString(10);
 }
-
 
 var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
               'Oct', 'Nov', 'Dec'];
@@ -6934,77 +6813,50 @@ function timestamp() {
   return [d.getDate(), months[d.getMonth()], time].join(' ');
 }
 
+exports.log = function (msg) {};
 
-exports.log = function(msg) {
-  exports.puts(timestamp() + ' - ' + msg.toString());
+exports.pump = null;
+
+var Object_keys = Object.keys || function (obj) {
+    var res = [];
+    for (var key in obj) res.push(key);
+    return res;
 };
 
-
-var execWarning;
-exports.exec = function() {
-  if (!execWarning) {
-    execWarning = 'util.exec has moved to the "child_process" module.' +
-                  ' Please update your source code.';
-    error(execWarning);
-  }
-  return require('child_process').exec.apply(this, arguments);
-};
-
-
-exports.pump = function(readStream, writeStream, callback) {
-  var callbackCalled = false;
-
-  function call(a, b, c) {
-    if (callback && !callbackCalled) {
-      callback(a, b, c);
-      callbackCalled = true;
+var Object_getOwnPropertyNames = Object.getOwnPropertyNames || function (obj) {
+    var res = [];
+    for (var key in obj) {
+        if (Object.hasOwnProperty.call(obj, key)) res.push(key);
     }
-  }
-
-  readStream.addListener('data', function(chunk) {
-    if (writeStream.write(chunk) === false) readStream.pause();
-  });
-
-  writeStream.addListener('drain', function() {
-    readStream.resume();
-  });
-
-  readStream.addListener('end', function() {
-    writeStream.end();
-  });
-
-  readStream.addListener('close', function() {
-    call();
-  });
-
-  readStream.addListener('error', function(err) {
-    writeStream.end();
-    call(err);
-  });
-
-  writeStream.addListener('error', function(err) {
-    readStream.destroy();
-    call(err);
-  });
+    return res;
 };
 
+var Object_create = Object.create || function (prototype, properties) {
+    // from es5-shim
+    var object;
+    if (prototype === null) {
+        object = { '__proto__' : null };
+    }
+    else {
+        if (typeof prototype !== 'object') {
+            throw new TypeError(
+                'typeof prototype[' + (typeof prototype) + '] != \'object\''
+            );
+        }
+        var Type = function () {};
+        Type.prototype = prototype;
+        object = new Type();
+        object.__proto__ = prototype;
+    }
+    if (typeof properties !== 'undefined' && Object.defineProperties) {
+        Object.defineProperties(object, properties);
+    }
+    return object;
+};
 
-/**
- * Inherit the prototype methods from one constructor into another.
- *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be revritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype.
- * @param {function} superCtor Constructor function to inherit prototype from.
- */
 exports.inherits = function(ctor, superCtor) {
   ctor.super_ = superCtor;
-  ctor.prototype = Object.create(superCtor.prototype, {
+  ctor.prototype = Object_create(superCtor.prototype, {
     constructor: {
       value: ctor,
       enumerable: false,
@@ -7017,35 +6869,22 @@ exports.inherits = function(ctor, superCtor) {
     require['util'] = module.exports;
   };
 };
-require['util'].nonce = nonce;require['events'] = function() {
+require['util'].nonce = nonce;
+
+require['events'] = function() {
   return new function() {
     var exports = require['events'] = this;
     var module = {exports:exports};
-    // Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+    var process = require('_process');
+    if (!process.EventEmitter) process.EventEmitter = function () {};
 
-var isArray = Array.isArray;
-
-function EventEmitter() { }
-exports.EventEmitter = EventEmitter;
+var EventEmitter = exports.EventEmitter = process.EventEmitter;
+var isArray = typeof Array.isArray === 'function'
+    ? Array.isArray
+    : function (xs) {
+        return Object.prototype.toString.call(xs) === '[object Array]'
+    }
+;
 
 // By default EventEmitters will print a warning if more than
 // 10 listeners are added to it. This is a useful default which
@@ -7056,12 +6895,11 @@ exports.EventEmitter = EventEmitter;
 var defaultMaxListeners = 10;
 EventEmitter.prototype.setMaxListeners = function(n) {
   if (!this._events) this._events = {};
-  this._maxListeners = n;
+  this._events.maxListeners = n;
 };
 
 
-EventEmitter.prototype.emit = function() {
-  var type = arguments[0];
+EventEmitter.prototype.emit = function(type) {
   // If there is no 'error' event listener then throw.
   if (type === 'error') {
     if (!this._events || !this._events.error ||
@@ -7094,17 +6932,13 @@ EventEmitter.prototype.emit = function() {
         break;
       // slower
       default:
-        var l = arguments.length;
-        var args = new Array(l - 1);
-        for (var i = 1; i < l; i++) args[i - 1] = arguments[i];
+        var args = Array.prototype.slice.call(arguments, 1);
         handler.apply(this, args);
     }
     return true;
 
   } else if (isArray(handler)) {
-    var l = arguments.length;
-    var args = new Array(l - 1);
-    for (var i = 1; i < l; i++) args[i - 1] = arguments[i];
+    var args = Array.prototype.slice.call(arguments, 1);
 
     var listeners = handler.slice();
     for (var i = 0, l = listeners.length; i < l; i++) {
@@ -7135,14 +6969,11 @@ EventEmitter.prototype.addListener = function(type, listener) {
     this._events[type] = listener;
   } else if (isArray(this._events[type])) {
 
-    // If we've already got an array, just append.
-    this._events[type].push(listener);
-
     // Check for listener leak
     if (!this._events[type].warned) {
       var m;
-      if (this._maxListeners !== undefined) {
-        m = this._maxListeners;
+      if (this._events.maxListeners !== undefined) {
+        m = this._events.maxListeners;
       } else {
         m = defaultMaxListeners;
       }
@@ -7156,6 +6987,9 @@ EventEmitter.prototype.addListener = function(type, listener) {
         console.trace();
       }
     }
+
+    // If we've already got an array, just append.
+    this._events[type].push(listener);
   } else {
     // Adding the second element, need to change to array.
     this._events[type] = [this._events[type], listener];
@@ -7167,18 +7001,11 @@ EventEmitter.prototype.addListener = function(type, listener) {
 EventEmitter.prototype.on = EventEmitter.prototype.addListener;
 
 EventEmitter.prototype.once = function(type, listener) {
-  if ('function' !== typeof listener) {
-    throw new Error('.once only takes instances of Function');
-  }
-
   var self = this;
-  function g() {
+  self.on(type, function g() {
     self.removeListener(type, g);
     listener.apply(this, arguments);
-  };
-
-  g.listener = listener;
-  self.on(type, g);
+  });
 
   return this;
 };
@@ -7194,23 +7021,12 @@ EventEmitter.prototype.removeListener = function(type, listener) {
   var list = this._events[type];
 
   if (isArray(list)) {
-    var position = -1;
-    for (var i = 0, length = list.length; i < length; i++) {
-      if (list[i] === listener ||
-          (list[i].listener && list[i].listener === listener))
-      {
-        position = i;
-        break;
-      }
-    }
-
-    if (position < 0) return this;
-    list.splice(position, 1);
+    var i = list.indexOf(listener);
+    if (i < 0) return this;
+    list.splice(i, 1);
     if (list.length == 0)
       delete this._events[type];
-  } else if (list === listener ||
-             (list.listener && list.listener === listener))
-  {
+  } else if (this._events[type] === listener) {
     delete this._events[type];
   }
 
@@ -7218,11 +7034,6 @@ EventEmitter.prototype.removeListener = function(type, listener) {
 };
 
 EventEmitter.prototype.removeAllListeners = function(type) {
-  if (arguments.length === 0) {
-    this._events = {};
-    return this;
-  }
-
   // does not use listeners(), so no side effect of creating _events[type]
   if (type && this._events && this._events[type]) this._events[type] = null;
   return this;
@@ -7240,10 +7051,1358 @@ EventEmitter.prototype.listeners = function(type) {
     require['events'] = module.exports;
   };
 };
-require['events'].nonce = nonce;require['cardamom'] = function() {
+require['events'].nonce = nonce;
+
+require['buffer'] = function() {
+  return new function() {
+    var exports = require['buffer'] = this;
+    var module = {exports:exports};
+    var process = require('_process');
+    function SlowBuffer (size) {
+    this.length = size;
+};
+
+var assert = require('assert');
+
+exports.INSPECT_MAX_BYTES = 50;
+
+
+function toHex(n) {
+  if (n < 16) return '0' + n.toString(16);
+  return n.toString(16);
+}
+
+
+SlowBuffer.prototype.inspect = function() {
+  var out = [],
+      len = this.length;
+  for (var i = 0; i < len; i++) {
+    out[i] = toHex(this[i]);
+    if (i == exports.INSPECT_MAX_BYTES) {
+      out[i + 1] = '...';
+      break;
+    }
+  }
+  return '<SlowBuffer ' + out.join(' ') + '>';
+};
+
+
+SlowBuffer.prototype.hexSlice = function(start, end) {
+  var len = this.length;
+
+  if (!start || start < 0) start = 0;
+  if (!end || end < 0 || end > len) end = len;
+
+  var out = '';
+  for (var i = start; i < end; i++) {
+    out += toHex(this[i]);
+  }
+  return out;
+};
+
+
+SlowBuffer.prototype.toString = function(encoding, start, end) {
+  encoding = String(encoding || 'utf8').toLowerCase();
+  start = +start || 0;
+  if (typeof end == 'undefined') end = this.length;
+
+  // Fastpath empty strings
+  if (+end == start) {
+    return '';
+  }
+
+  switch (encoding) {
+    case 'hex':
+      return this.hexSlice(start, end);
+
+    case 'utf8':
+    case 'utf-8':
+      return this.utf8Slice(start, end);
+
+    case 'ascii':
+      return this.asciiSlice(start, end);
+
+    case 'binary':
+      return this.binarySlice(start, end);
+
+    case 'base64':
+      return this.base64Slice(start, end);
+
+    case 'ucs2':
+    case 'ucs-2':
+      return this.ucs2Slice(start, end);
+
+    default:
+      throw new Error('Unknown encoding');
+  }
+};
+
+
+SlowBuffer.prototype.hexWrite = function(string, offset, length) {
+  offset = +offset || 0;
+  var remaining = this.length - offset;
+  if (!length) {
+    length = remaining;
+  } else {
+    length = +length;
+    if (length > remaining) {
+      length = remaining;
+    }
+  }
+
+  // must be an even number of digits
+  var strLen = string.length;
+  if (strLen % 2) {
+    throw new Error('Invalid hex string');
+  }
+  if (length > strLen / 2) {
+    length = strLen / 2;
+  }
+  for (var i = 0; i < length; i++) {
+    var byte = parseInt(string.substr(i * 2, 2), 16);
+    if (isNaN(byte)) throw new Error('Invalid hex string');
+    this[offset + i] = byte;
+  }
+  SlowBuffer._charsWritten = i * 2;
+  return i;
+};
+
+
+SlowBuffer.prototype.write = function(string, offset, length, encoding) {
+  // Support both (string, offset, length, encoding)
+  // and the legacy (string, encoding, offset, length)
+  if (isFinite(offset)) {
+    if (!isFinite(length)) {
+      encoding = length;
+      length = undefined;
+    }
+  } else {  // legacy
+    var swap = encoding;
+    encoding = offset;
+    offset = length;
+    length = swap;
+  }
+
+  offset = +offset || 0;
+  var remaining = this.length - offset;
+  if (!length) {
+    length = remaining;
+  } else {
+    length = +length;
+    if (length > remaining) {
+      length = remaining;
+    }
+  }
+  encoding = String(encoding || 'utf8').toLowerCase();
+
+  switch (encoding) {
+    case 'hex':
+      return this.hexWrite(string, offset, length);
+
+    case 'utf8':
+    case 'utf-8':
+      return this.utf8Write(string, offset, length);
+
+    case 'ascii':
+      return this.asciiWrite(string, offset, length);
+
+    case 'binary':
+      return this.binaryWrite(string, offset, length);
+
+    case 'base64':
+      return this.base64Write(string, offset, length);
+
+    case 'ucs2':
+    case 'ucs-2':
+      return this.ucs2Write(string, offset, length);
+
+    default:
+      throw new Error('Unknown encoding');
+  }
+};
+
+
+// slice(start, end)
+SlowBuffer.prototype.slice = function(start, end) {
+  if (end === undefined) end = this.length;
+
+  if (end > this.length) {
+    throw new Error('oob');
+  }
+  if (start > end) {
+    throw new Error('oob');
+  }
+
+  return new Buffer(this, end - start, +start);
+};
+
+
+function coerce(length) {
+  // Coerce length to a number (possibly NaN), round up
+  // in case it's fractional (e.g. 123.456) then do a
+  // double negate to coerce a NaN to 0. Easy, right?
+  length = ~~Math.ceil(+length);
+  return length < 0 ? 0 : length;
+}
+
+
+// Buffer
+
+function Buffer(subject, encoding, offset) {
+  if (!(this instanceof Buffer)) {
+    return new Buffer(subject, encoding, offset);
+  }
+
+  var type;
+
+  // Are we slicing?
+  if (typeof offset === 'number') {
+    this.length = coerce(encoding);
+    this.parent = subject;
+    this.offset = offset;
+  } else {
+    // Find the length
+    switch (type = typeof subject) {
+      case 'number':
+        this.length = coerce(subject);
+        break;
+
+      case 'string':
+        this.length = Buffer.byteLength(subject, encoding);
+        break;
+
+      case 'object': // Assume object is an array
+        this.length = coerce(subject.length);
+        break;
+
+      default:
+        throw new Error('First argument needs to be a number, ' +
+                        'array or string.');
+    }
+
+    if (this.length > Buffer.poolSize) {
+      // Big buffer, just alloc one.
+      this.parent = new SlowBuffer(this.length);
+      this.offset = 0;
+
+    } else {
+      // Small buffer.
+      if (!pool || pool.length - pool.used < this.length) allocPool();
+      this.parent = pool;
+      this.offset = pool.used;
+      pool.used += this.length;
+    }
+
+    // Treat array-ish objects as a byte array.
+    if (isArrayIsh(subject)) {
+      for (var i = 0; i < this.length; i++) {
+        this.parent[i + this.offset] = subject[i];
+      }
+    } else if (type == 'string') {
+      // We are a string
+      this.length = this.write(subject, 0, encoding);
+    }
+  }
+
+}
+
+function isArrayIsh(subject) {
+  return Array.isArray(subject) || Buffer.isBuffer(subject) ||
+         subject && typeof subject === 'object' &&
+         typeof subject.length === 'number';
+}
+
+exports.SlowBuffer = SlowBuffer;
+exports.Buffer = Buffer;
+
+Buffer.poolSize = 8 * 1024;
+var pool;
+
+function allocPool() {
+  pool = new SlowBuffer(Buffer.poolSize);
+  pool.used = 0;
+}
+
+
+// Static methods
+Buffer.isBuffer = function isBuffer(b) {
+  return b instanceof Buffer || b instanceof SlowBuffer;
+};
+
+
+// Inspect
+Buffer.prototype.inspect = function inspect() {
+  var out = [],
+      len = this.length;
+
+  for (var i = 0; i < len; i++) {
+    out[i] = toHex(this.parent[i + this.offset]);
+    if (i == exports.INSPECT_MAX_BYTES) {
+      out[i + 1] = '...';
+      break;
+    }
+  }
+
+  return '<Buffer ' + out.join(' ') + '>';
+};
+
+
+Buffer.prototype.get = function get(i) {
+  if (i < 0 || i >= this.length) throw new Error('oob');
+  return this.parent[this.offset + i];
+};
+
+
+Buffer.prototype.set = function set(i, v) {
+  if (i < 0 || i >= this.length) throw new Error('oob');
+  return this.parent[this.offset + i] = v;
+};
+
+
+// write(string, offset = 0, length = buffer.length-offset, encoding = 'utf8')
+Buffer.prototype.write = function(string, offset, length, encoding) {
+  // Support both (string, offset, length, encoding)
+  // and the legacy (string, encoding, offset, length)
+  if (isFinite(offset)) {
+    if (!isFinite(length)) {
+      encoding = length;
+      length = undefined;
+    }
+  } else {  // legacy
+    var swap = encoding;
+    encoding = offset;
+    offset = length;
+    length = swap;
+  }
+
+  offset = +offset || 0;
+  var remaining = this.length - offset;
+  if (!length) {
+    length = remaining;
+  } else {
+    length = +length;
+    if (length > remaining) {
+      length = remaining;
+    }
+  }
+  encoding = String(encoding || 'utf8').toLowerCase();
+
+  var ret;
+  switch (encoding) {
+    case 'hex':
+      ret = this.parent.hexWrite(string, this.offset + offset, length);
+      break;
+
+    case 'utf8':
+    case 'utf-8':
+      ret = this.parent.utf8Write(string, this.offset + offset, length);
+      break;
+
+    case 'ascii':
+      ret = this.parent.asciiWrite(string, this.offset + offset, length);
+      break;
+
+    case 'binary':
+      ret = this.parent.binaryWrite(string, this.offset + offset, length);
+      break;
+
+    case 'base64':
+      // Warning: maxLength not taken into account in base64Write
+      ret = this.parent.base64Write(string, this.offset + offset, length);
+      break;
+
+    case 'ucs2':
+    case 'ucs-2':
+      ret = this.parent.ucs2Write(string, this.offset + offset, length);
+      break;
+
+    default:
+      throw new Error('Unknown encoding');
+  }
+
+  Buffer._charsWritten = SlowBuffer._charsWritten;
+
+  return ret;
+};
+
+
+// toString(encoding, start=0, end=buffer.length)
+Buffer.prototype.toString = function(encoding, start, end) {
+  encoding = String(encoding || 'utf8').toLowerCase();
+
+  if (typeof start == 'undefined' || start < 0) {
+    start = 0;
+  } else if (start > this.length) {
+    start = this.length;
+  }
+
+  if (typeof end == 'undefined' || end > this.length) {
+    end = this.length;
+  } else if (end < 0) {
+    end = 0;
+  }
+
+  start = start + this.offset;
+  end = end + this.offset;
+
+  switch (encoding) {
+    case 'hex':
+      return this.parent.hexSlice(start, end);
+
+    case 'utf8':
+    case 'utf-8':
+      return this.parent.utf8Slice(start, end);
+
+    case 'ascii':
+      return this.parent.asciiSlice(start, end);
+
+    case 'binary':
+      return this.parent.binarySlice(start, end);
+
+    case 'base64':
+      return this.parent.base64Slice(start, end);
+
+    case 'ucs2':
+    case 'ucs-2':
+      return this.parent.ucs2Slice(start, end);
+
+    default:
+      throw new Error('Unknown encoding');
+  }
+};
+
+
+// byteLength
+Buffer.byteLength = SlowBuffer.byteLength;
+
+
+// fill(value, start=0, end=buffer.length)
+Buffer.prototype.fill = function fill(value, start, end) {
+  value || (value = 0);
+  start || (start = 0);
+  end || (end = this.length);
+
+  if (typeof value === 'string') {
+    value = value.charCodeAt(0);
+  }
+  if (!(typeof value === 'number') || isNaN(value)) {
+    throw new Error('value is not a number');
+  }
+
+  if (end < start) throw new Error('end < start');
+
+  // Fill 0 bytes; we're done
+  if (end === start) return 0;
+  if (this.length == 0) return 0;
+
+  if (start < 0 || start >= this.length) {
+    throw new Error('start out of bounds');
+  }
+
+  if (end < 0 || end > this.length) {
+    throw new Error('end out of bounds');
+  }
+
+  return this.parent.fill(value,
+                          start + this.offset,
+                          end + this.offset);
+};
+
+
+// copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
+Buffer.prototype.copy = function(target, target_start, start, end) {
+  var source = this;
+  start || (start = 0);
+  end || (end = this.length);
+  target_start || (target_start = 0);
+
+  if (end < start) throw new Error('sourceEnd < sourceStart');
+
+  // Copy 0 bytes; we're done
+  if (end === start) return 0;
+  if (target.length == 0 || source.length == 0) return 0;
+
+  if (target_start < 0 || target_start >= target.length) {
+    throw new Error('targetStart out of bounds');
+  }
+
+  if (start < 0 || start >= source.length) {
+    throw new Error('sourceStart out of bounds');
+  }
+
+  if (end < 0 || end > source.length) {
+    throw new Error('sourceEnd out of bounds');
+  }
+
+  // Are we oob?
+  if (end > this.length) {
+    end = this.length;
+  }
+
+  if (target.length - target_start < end - start) {
+    end = target.length - target_start + start;
+  }
+
+  return this.parent.copy(target.parent,
+                          target_start + target.offset,
+                          start + this.offset,
+                          end + this.offset);
+};
+
+
+// slice(start, end)
+Buffer.prototype.slice = function(start, end) {
+  if (end === undefined) end = this.length;
+  if (end > this.length) throw new Error('oob');
+  if (start > end) throw new Error('oob');
+
+  return new Buffer(this.parent, end - start, +start + this.offset);
+};
+
+
+// Legacy methods for backwards compatibility.
+
+Buffer.prototype.utf8Slice = function(start, end) {
+  return this.toString('utf8', start, end);
+};
+
+Buffer.prototype.binarySlice = function(start, end) {
+  return this.toString('binary', start, end);
+};
+
+Buffer.prototype.asciiSlice = function(start, end) {
+  return this.toString('ascii', start, end);
+};
+
+Buffer.prototype.utf8Write = function(string, offset) {
+  return this.write(string, offset, 'utf8');
+};
+
+Buffer.prototype.binaryWrite = function(string, offset) {
+  return this.write(string, offset, 'binary');
+};
+
+Buffer.prototype.asciiWrite = function(string, offset) {
+  return this.write(string, offset, 'ascii');
+};
+
+Buffer.prototype.readUInt8 = function(offset, noAssert) {
+  var buffer = this;
+
+  if (!noAssert) {
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  return buffer[offset];
+};
+
+function readUInt16(buffer, offset, isBigEndian, noAssert) {
+  var val = 0;
+
+
+  if (!noAssert) {
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 1 < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  if (isBigEndian) {
+    val = buffer[offset] << 8;
+    val |= buffer[offset + 1];
+  } else {
+    val = buffer[offset];
+    val |= buffer[offset + 1] << 8;
+  }
+
+  return val;
+}
+
+Buffer.prototype.readUInt16LE = function(offset, noAssert) {
+  return readUInt16(this, offset, false, noAssert);
+};
+
+Buffer.prototype.readUInt16BE = function(offset, noAssert) {
+  return readUInt16(this, offset, true, noAssert);
+};
+
+function readUInt32(buffer, offset, isBigEndian, noAssert) {
+  var val = 0;
+
+  if (!noAssert) {
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 3 < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  if (isBigEndian) {
+    val = buffer[offset + 1] << 16;
+    val |= buffer[offset + 2] << 8;
+    val |= buffer[offset + 3];
+    val = val + (buffer[offset] << 24 >>> 0);
+  } else {
+    val = buffer[offset + 2] << 16;
+    val |= buffer[offset + 1] << 8;
+    val |= buffer[offset];
+    val = val + (buffer[offset + 3] << 24 >>> 0);
+  }
+
+  return val;
+}
+
+Buffer.prototype.readUInt32LE = function(offset, noAssert) {
+  return readUInt32(this, offset, false, noAssert);
+};
+
+Buffer.prototype.readUInt32BE = function(offset, noAssert) {
+  return readUInt32(this, offset, true, noAssert);
+};
+
+
+/*
+ * Signed integer types, yay team! A reminder on how two's complement actually
+ * works. The first bit is the signed bit, i.e. tells us whether or not the
+ * number should be positive or negative. If the two's complement value is
+ * positive, then we're done, as it's equivalent to the unsigned representation.
+ *
+ * Now if the number is positive, you're pretty much done, you can just leverage
+ * the unsigned translations and return those. Unfortunately, negative numbers
+ * aren't quite that straightforward.
+ *
+ * At first glance, one might be inclined to use the traditional formula to
+ * translate binary numbers between the positive and negative values in two's
+ * complement. (Though it doesn't quite work for the most negative value)
+ * Mainly:
+ *  - invert all the bits
+ *  - add one to the result
+ *
+ * Of course, this doesn't quite work in Javascript. Take for example the value
+ * of -128. This could be represented in 16 bits (big-endian) as 0xff80. But of
+ * course, Javascript will do the following:
+ *
+ * > ~0xff80
+ * -65409
+ *
+ * Whoh there, Javascript, that's not quite right. But wait, according to
+ * Javascript that's perfectly correct. When Javascript ends up seeing the
+ * constant 0xff80, it has no notion that it is actually a signed number. It
+ * assumes that we've input the unsigned value 0xff80. Thus, when it does the
+ * binary negation, it casts it into a signed value, (positive 0xff80). Then
+ * when you perform binary negation on that, it turns it into a negative number.
+ *
+ * Instead, we're going to have to use the following general formula, that works
+ * in a rather Javascript friendly way. I'm glad we don't support this kind of
+ * weird numbering scheme in the kernel.
+ *
+ * (BIT-MAX - (unsigned)val + 1) * -1
+ *
+ * The astute observer, may think that this doesn't make sense for 8-bit numbers
+ * (really it isn't necessary for them). However, when you get 16-bit numbers,
+ * you do. Let's go back to our prior example and see how this will look:
+ *
+ * (0xffff - 0xff80 + 1) * -1
+ * (0x007f + 1) * -1
+ * (0x0080) * -1
+ */
+Buffer.prototype.readInt8 = function(offset, noAssert) {
+  var buffer = this;
+  var neg;
+
+  if (!noAssert) {
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  neg = buffer[offset] & 0x80;
+  if (!neg) {
+    return (buffer[offset]);
+  }
+
+  return ((0xff - buffer[offset] + 1) * -1);
+};
+
+function readInt16(buffer, offset, isBigEndian, noAssert) {
+  var neg, val;
+
+  if (!noAssert) {
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 1 < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  val = readUInt16(buffer, offset, isBigEndian, noAssert);
+  neg = val & 0x8000;
+  if (!neg) {
+    return val;
+  }
+
+  return (0xffff - val + 1) * -1;
+}
+
+Buffer.prototype.readInt16LE = function(offset, noAssert) {
+  return readInt16(this, offset, false, noAssert);
+};
+
+Buffer.prototype.readInt16BE = function(offset, noAssert) {
+  return readInt16(this, offset, true, noAssert);
+};
+
+function readInt32(buffer, offset, isBigEndian, noAssert) {
+  var neg, val;
+
+  if (!noAssert) {
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 3 < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  val = readUInt32(buffer, offset, isBigEndian, noAssert);
+  neg = val & 0x80000000;
+  if (!neg) {
+    return (val);
+  }
+
+  return (0xffffffff - val + 1) * -1;
+}
+
+Buffer.prototype.readInt32LE = function(offset, noAssert) {
+  return readInt32(this, offset, false, noAssert);
+};
+
+Buffer.prototype.readInt32BE = function(offset, noAssert) {
+  return readInt32(this, offset, true, noAssert);
+};
+
+function readFloat(buffer, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset + 3 < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  return require('buffer_ieee754').readIEEE754(buffer, offset, isBigEndian,
+      23, 4);
+}
+
+Buffer.prototype.readFloatLE = function(offset, noAssert) {
+  return readFloat(this, offset, false, noAssert);
+};
+
+Buffer.prototype.readFloatBE = function(offset, noAssert) {
+  return readFloat(this, offset, true, noAssert);
+};
+
+function readDouble(buffer, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset + 7 < buffer.length,
+        'Trying to read beyond buffer length');
+  }
+
+  return require('buffer_ieee754').readIEEE754(buffer, offset, isBigEndian,
+      52, 8);
+}
+
+Buffer.prototype.readDoubleLE = function(offset, noAssert) {
+  return readDouble(this, offset, false, noAssert);
+};
+
+Buffer.prototype.readDoubleBE = function(offset, noAssert) {
+  return readDouble(this, offset, true, noAssert);
+};
+
+
+/*
+ * We have to make sure that the value is a valid integer. This means that it is
+ * non-negative. It has no fractional component and that it does not exceed the
+ * maximum allowed value.
+ *
+ *      value           The number to check for validity
+ *
+ *      max             The maximum value
+ */
+function verifuint(value, max) {
+  assert.ok(typeof (value) == 'number',
+      'cannot write a non-number as a number');
+
+  assert.ok(value >= 0,
+      'specified a negative value for writing an unsigned value');
+
+  assert.ok(value <= max, 'value is larger than maximum value for type');
+
+  assert.ok(Math.floor(value) === value, 'value has a fractional component');
+}
+
+Buffer.prototype.writeUInt8 = function(value, offset, noAssert) {
+  var buffer = this;
+
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset < buffer.length,
+        'trying to write beyond buffer length');
+
+    verifuint(value, 0xff);
+  }
+
+  buffer[offset] = value;
+};
+
+function writeUInt16(buffer, value, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 1 < buffer.length,
+        'trying to write beyond buffer length');
+
+    verifuint(value, 0xffff);
+  }
+
+  if (isBigEndian) {
+    buffer[offset] = (value & 0xff00) >>> 8;
+    buffer[offset + 1] = value & 0x00ff;
+  } else {
+    buffer[offset + 1] = (value & 0xff00) >>> 8;
+    buffer[offset] = value & 0x00ff;
+  }
+}
+
+Buffer.prototype.writeUInt16LE = function(value, offset, noAssert) {
+  writeUInt16(this, value, offset, false, noAssert);
+};
+
+Buffer.prototype.writeUInt16BE = function(value, offset, noAssert) {
+  writeUInt16(this, value, offset, true, noAssert);
+};
+
+function writeUInt32(buffer, value, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 3 < buffer.length,
+        'trying to write beyond buffer length');
+
+    verifuint(value, 0xffffffff);
+  }
+
+  if (isBigEndian) {
+    buffer[offset] = (value >>> 24) & 0xff;
+    buffer[offset + 1] = (value >>> 16) & 0xff;
+    buffer[offset + 2] = (value >>> 8) & 0xff;
+    buffer[offset + 3] = value & 0xff;
+  } else {
+    buffer[offset + 3] = (value >>> 24) & 0xff;
+    buffer[offset + 2] = (value >>> 16) & 0xff;
+    buffer[offset + 1] = (value >>> 8) & 0xff;
+    buffer[offset] = value & 0xff;
+  }
+}
+
+Buffer.prototype.writeUInt32LE = function(value, offset, noAssert) {
+  writeUInt32(this, value, offset, false, noAssert);
+};
+
+Buffer.prototype.writeUInt32BE = function(value, offset, noAssert) {
+  writeUInt32(this, value, offset, true, noAssert);
+};
+
+
+/*
+ * We now move onto our friends in the signed number category. Unlike unsigned
+ * numbers, we're going to have to worry a bit more about how we put values into
+ * arrays. Since we are only worrying about signed 32-bit values, we're in
+ * slightly better shape. Unfortunately, we really can't do our favorite binary
+ * & in this system. It really seems to do the wrong thing. For example:
+ *
+ * > -32 & 0xff
+ * 224
+ *
+ * What's happening above is really: 0xe0 & 0xff = 0xe0. However, the results of
+ * this aren't treated as a signed number. Ultimately a bad thing.
+ *
+ * What we're going to want to do is basically create the unsigned equivalent of
+ * our representation and pass that off to the wuint* functions. To do that
+ * we're going to do the following:
+ *
+ *  - if the value is positive
+ *      we can pass it directly off to the equivalent wuint
+ *  - if the value is negative
+ *      we do the following computation:
+ *         mb + val + 1, where
+ *         mb   is the maximum unsigned value in that byte size
+ *         val  is the Javascript negative integer
+ *
+ *
+ * As a concrete value, take -128. In signed 16 bits this would be 0xff80. If
+ * you do out the computations:
+ *
+ * 0xffff - 128 + 1
+ * 0xffff - 127
+ * 0xff80
+ *
+ * You can then encode this value as the signed version. This is really rather
+ * hacky, but it should work and get the job done which is our goal here.
+ */
+
+/*
+ * A series of checks to make sure we actually have a signed 32-bit number
+ */
+function verifsint(value, max, min) {
+  assert.ok(typeof (value) == 'number',
+      'cannot write a non-number as a number');
+
+  assert.ok(value <= max, 'value larger than maximum allowed value');
+
+  assert.ok(value >= min, 'value smaller than minimum allowed value');
+
+  assert.ok(Math.floor(value) === value, 'value has a fractional component');
+}
+
+function verifIEEE754(value, max, min) {
+  assert.ok(typeof (value) == 'number',
+      'cannot write a non-number as a number');
+
+  assert.ok(value <= max, 'value larger than maximum allowed value');
+
+  assert.ok(value >= min, 'value smaller than minimum allowed value');
+}
+
+Buffer.prototype.writeInt8 = function(value, offset, noAssert) {
+  var buffer = this;
+
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset < buffer.length,
+        'Trying to write beyond buffer length');
+
+    verifsint(value, 0x7f, -0x80);
+  }
+
+  if (value >= 0) {
+    buffer.writeUInt8(value, offset, noAssert);
+  } else {
+    buffer.writeUInt8(0xff + value + 1, offset, noAssert);
+  }
+};
+
+function writeInt16(buffer, value, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 1 < buffer.length,
+        'Trying to write beyond buffer length');
+
+    verifsint(value, 0x7fff, -0x8000);
+  }
+
+  if (value >= 0) {
+    writeUInt16(buffer, value, offset, isBigEndian, noAssert);
+  } else {
+    writeUInt16(buffer, 0xffff + value + 1, offset, isBigEndian, noAssert);
+  }
+}
+
+Buffer.prototype.writeInt16LE = function(value, offset, noAssert) {
+  writeInt16(this, value, offset, false, noAssert);
+};
+
+Buffer.prototype.writeInt16BE = function(value, offset, noAssert) {
+  writeInt16(this, value, offset, true, noAssert);
+};
+
+function writeInt32(buffer, value, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 3 < buffer.length,
+        'Trying to write beyond buffer length');
+
+    verifsint(value, 0x7fffffff, -0x80000000);
+  }
+
+  if (value >= 0) {
+    writeUInt32(buffer, value, offset, isBigEndian, noAssert);
+  } else {
+    writeUInt32(buffer, 0xffffffff + value + 1, offset, isBigEndian, noAssert);
+  }
+}
+
+Buffer.prototype.writeInt32LE = function(value, offset, noAssert) {
+  writeInt32(this, value, offset, false, noAssert);
+};
+
+Buffer.prototype.writeInt32BE = function(value, offset, noAssert) {
+  writeInt32(this, value, offset, true, noAssert);
+};
+
+function writeFloat(buffer, value, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 3 < buffer.length,
+        'Trying to write beyond buffer length');
+
+    verifIEEE754(value, 3.4028234663852886e+38, -3.4028234663852886e+38);
+  }
+
+  require('buffer_ieee754').writeIEEE754(buffer, value, offset, isBigEndian,
+      23, 4);
+}
+
+Buffer.prototype.writeFloatLE = function(value, offset, noAssert) {
+  writeFloat(this, value, offset, false, noAssert);
+};
+
+Buffer.prototype.writeFloatBE = function(value, offset, noAssert) {
+  writeFloat(this, value, offset, true, noAssert);
+};
+
+function writeDouble(buffer, value, offset, isBigEndian, noAssert) {
+  if (!noAssert) {
+    assert.ok(value !== undefined && value !== null,
+        'missing value');
+
+    assert.ok(typeof (isBigEndian) === 'boolean',
+        'missing or invalid endian');
+
+    assert.ok(offset !== undefined && offset !== null,
+        'missing offset');
+
+    assert.ok(offset + 7 < buffer.length,
+        'Trying to write beyond buffer length');
+
+    verifIEEE754(value, 1.7976931348623157E+308, -1.7976931348623157E+308);
+  }
+
+  require('buffer_ieee754').writeIEEE754(buffer, value, offset, isBigEndian,
+      52, 8);
+}
+
+Buffer.prototype.writeDoubleLE = function(value, offset, noAssert) {
+  writeDouble(this, value, offset, false, noAssert);
+};
+
+Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
+  writeDouble(this, value, offset, true, noAssert);
+};
+
+SlowBuffer.prototype.readUInt8 = Buffer.prototype.readUInt8;
+SlowBuffer.prototype.readUInt16LE = Buffer.prototype.readUInt16LE;
+SlowBuffer.prototype.readUInt16BE = Buffer.prototype.readUInt16BE;
+SlowBuffer.prototype.readUInt32LE = Buffer.prototype.readUInt32LE;
+SlowBuffer.prototype.readUInt32BE = Buffer.prototype.readUInt32BE;
+SlowBuffer.prototype.readInt8 = Buffer.prototype.readInt8;
+SlowBuffer.prototype.readInt16LE = Buffer.prototype.readInt16LE;
+SlowBuffer.prototype.readInt16BE = Buffer.prototype.readInt16BE;
+SlowBuffer.prototype.readInt32LE = Buffer.prototype.readInt32LE;
+SlowBuffer.prototype.readInt32BE = Buffer.prototype.readInt32BE;
+SlowBuffer.prototype.readFloatLE = Buffer.prototype.readFloatLE;
+SlowBuffer.prototype.readFloatBE = Buffer.prototype.readFloatBE;
+SlowBuffer.prototype.readDoubleLE = Buffer.prototype.readDoubleLE;
+SlowBuffer.prototype.readDoubleBE = Buffer.prototype.readDoubleBE;
+SlowBuffer.prototype.writeUInt8 = Buffer.prototype.writeUInt8;
+SlowBuffer.prototype.writeUInt16LE = Buffer.prototype.writeUInt16LE;
+SlowBuffer.prototype.writeUInt16BE = Buffer.prototype.writeUInt16BE;
+SlowBuffer.prototype.writeUInt32LE = Buffer.prototype.writeUInt32LE;
+SlowBuffer.prototype.writeUInt32BE = Buffer.prototype.writeUInt32BE;
+SlowBuffer.prototype.writeInt8 = Buffer.prototype.writeInt8;
+SlowBuffer.prototype.writeInt16LE = Buffer.prototype.writeInt16LE;
+SlowBuffer.prototype.writeInt16BE = Buffer.prototype.writeInt16BE;
+SlowBuffer.prototype.writeInt32LE = Buffer.prototype.writeInt32LE;
+SlowBuffer.prototype.writeInt32BE = Buffer.prototype.writeInt32BE;
+SlowBuffer.prototype.writeFloatLE = Buffer.prototype.writeFloatLE;
+SlowBuffer.prototype.writeFloatBE = Buffer.prototype.writeFloatBE;
+SlowBuffer.prototype.writeDoubleLE = Buffer.prototype.writeDoubleLE;
+SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
+
+    require['buffer'] = module.exports;
+  };
+};
+require['buffer'].nonce = nonce;
+
+require['buffer_ieee754'] = function() {
+  return new function() {
+    var exports = require['buffer_ieee754'] = this;
+    var module = {exports:exports};
+    var process = require('_process');
+    exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
+  var e, m,
+      eLen = nBytes * 8 - mLen - 1,
+      eMax = (1 << eLen) - 1,
+      eBias = eMax >> 1,
+      nBits = -7,
+      i = isBE ? 0 : (nBytes - 1),
+      d = isBE ? 1 : -1,
+      s = buffer[offset + i];
+
+  i += d;
+
+  e = s & ((1 << (-nBits)) - 1);
+  s >>= (-nBits);
+  nBits += eLen;
+  for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8);
+
+  m = e & ((1 << (-nBits)) - 1);
+  e >>= (-nBits);
+  nBits += mLen;
+  for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8);
+
+  if (e === 0) {
+    e = 1 - eBias;
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity);
+  } else {
+    m = m + Math.pow(2, mLen);
+    e = e - eBias;
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen);
+};
+
+exports.writeIEEE754 = function(buffer, value, offset, isBE, mLen, nBytes) {
+  var e, m, c,
+      eLen = nBytes * 8 - mLen - 1,
+      eMax = (1 << eLen) - 1,
+      eBias = eMax >> 1,
+      rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0),
+      i = isBE ? (nBytes - 1) : 0,
+      d = isBE ? -1 : 1,
+      s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0;
+
+  value = Math.abs(value);
+
+  if (isNaN(value) || value === Infinity) {
+    m = isNaN(value) ? 1 : 0;
+    e = eMax;
+  } else {
+    e = Math.floor(Math.log(value) / Math.LN2);
+    if (value * (c = Math.pow(2, -e)) < 1) {
+      e--;
+      c *= 2;
+    }
+    if (e + eBias >= 1) {
+      value += rt / c;
+    } else {
+      value += rt * Math.pow(2, 1 - eBias);
+    }
+    if (value * c >= 2) {
+      e++;
+      c /= 2;
+    }
+
+    if (e + eBias >= eMax) {
+      m = 0;
+      e = eMax;
+    } else if (e + eBias >= 1) {
+      m = (value * c - 1) * Math.pow(2, mLen);
+      e = e + eBias;
+    } else {
+      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+      e = 0;
+    }
+  }
+
+  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8);
+
+  e = (e << mLen) | m;
+  eLen += mLen;
+  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8);
+
+  buffer[offset + i - d] |= s * 128;
+};
+
+    require['buffer_ieee754'] = module.exports;
+  };
+};
+require['buffer_ieee754'].nonce = nonce;
+
+require['fs'] = function() {
+  return new function() {
+    var exports = require['fs'] = this;
+    var module = {exports:exports};
+    var process = require('_process');
+    // nothing to see here... no file methods for the browser
+
+// global fs ref
+var _fs = null;
+
+function withFileSystem(cb) {
+  if (_fs) {
+    cb(_fs);
+  } else {
+    window.webkitStorageInfo.requestQuota(TEMPORARY, 1024*1024, function(grantedBytes) {
+      window.webkitRequestFileSystem(TEMPORARY, grantedBytes, function(fs) { _fs = fs; cb(fs); }, errorHandler);
+    }, function(e) {
+      errorHandler(e);
+    });
+  };
+};
+
+// Return a fake writer synchronously.
+// You can use it like a node.js file write stream.
+function makeStreamAdapter() {
+  var writeBuffer = [];
+  var fakeStream = {};
+  fakeStream.write = function (str, enc) {
+    if (enc != 'utf8') {
+      throw new Error("FakeStream wants utf8");
+    }
+    console.log('fs.write: '+str);
+    writeBuffer.push(str);
+  };
+  // make it real
+  fakeStream.realize = function (fileWriter) {
+    fakeStream.fileWriter = fileWriter;
+    fakeStream.write = function (str, enc) {
+      if (enc != 'utf8') {
+        throw new Error("FakeStream wants utf8");
+      }
+      console.log('fs.write: '+str);
+      // blobs? are you for fucking real?
+      var bb = new WebKitBlobBuilder();
+      while (writeBuffer.length) {
+        bb.append(writeBuffer.shift());
+      }
+      bb.append(str);
+      var blob = bb.getBlob('text/plain');
+      fileWriter.write(blob);
+    };
+    if (writeBuffer.length) {
+      fakeStream.write('', 'utf8');
+    }
+  };
+  return fakeStream;
+};
+
+exports.createWriteStream = function (path, options) {
+  var fakeStream = makeStreamAdapter();
+  withFileSystem(function(fs) {
+    // TODO handle options
+    fs.root.getFile(path, {create:true}, function(fileEntry) {
+      // Create a FileWriter object for our FileEntry
+      fileEntry.createWriter(function(fileWriter) {
+        //fileWriter.onwriteend = function(e) {
+        //  console.log('Write completed.');
+        //};
+        fileWriter.onerror = function(e) {
+          console.log('Write failed: ' + e.toString());
+        };
+        fakeStream.realize(fileWriter);
+      }, errorHandler);
+    });
+  });
+  return fakeStream;
+};
+
+function errorHandler(e) {
+  var msg = '';
+  switch (e.code) {
+    case FileError.QUOTA_EXCEEDED_ERR:
+      msg = 'QUOTA_EXCEEDED_ERR';
+      break;
+    case FileError.NOT_FOUND_ERR:
+      msg = 'NOT_FOUND_ERR';
+      break;
+    case FileError.SECURITY_ERR:
+      msg = 'SECURITY_ERR';
+      break;
+    case FileError.INVALID_MODIFICATION_ERR:
+      msg = 'INVALID_MODIFICATION_ERR';
+      break;
+    case FileError.INVALID_STATE_ERR:
+      msg = 'INVALID_STATE_ERR';
+      break;
+    default:
+      msg = 'Unknown Error';
+      break;
+  };
+  console.log('Error: ' + msg);
+}
+
+
+    require['fs'] = module.exports;
+  };
+};
+require['fs'].nonce = nonce;
+
+require['cardamom'] = function() {
   return new function() {
     var exports = require['cardamom'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
 
   this.clazz = require('cardamom/src/clazz').clazz;
@@ -7263,10 +8422,13 @@ require['events'].nonce = nonce;require['cardamom'] = function() {
     require['cardamom'] = module.exports;
   };
 };
-require['cardamom'].nonce = nonce;require['cardamom/src/bisect'] = function() {
+require['cardamom'].nonce = nonce;
+
+require['cardamom/src/bisect'] = function() {
   return new function() {
     var exports = require['cardamom/src/bisect'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   "Bisection algorithms.";
 
@@ -7367,10 +8529,13 @@ require['cardamom'].nonce = nonce;require['cardamom/src/bisect'] = function() {
     require['cardamom/src/bisect'] = module.exports;
   };
 };
-require['cardamom/src/bisect'].nonce = nonce;require['cardamom/src/clazz'] = function() {
+require['cardamom/src/bisect'].nonce = nonce;
+
+require['cardamom/src/clazz'] = function() {
   return new function() {
     var exports = require['cardamom/src/clazz'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var SUPERKEY, bindMethods, ctor, extendProto, isPropertyDescriptor, _getThis, _makeSuper,
     __hasProp = Object.prototype.hasOwnProperty;
@@ -7573,10 +8738,13 @@ require['cardamom/src/bisect'].nonce = nonce;require['cardamom/src/clazz'] = fun
     require['cardamom/src/clazz'] = module.exports;
   };
 };
-require['cardamom/src/clazz'].nonce = nonce;require['cardamom/src/collections'] = function() {
+require['cardamom/src/clazz'].nonce = nonce;
+
+require['cardamom/src/collections'] = function() {
   return new function() {
     var exports = require['cardamom/src/collections'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var Set, clazz;
 
@@ -7595,10 +8763,13 @@ require['cardamom/src/clazz'].nonce = nonce;require['cardamom/src/collections'] 
     require['cardamom/src/collections'] = module.exports;
   };
 };
-require['cardamom/src/collections'].nonce = nonce;require['cardamom/src/colors'] = function() {
+require['cardamom/src/collections'].nonce = nonce;
+
+require['cardamom/src/colors'] = function() {
   return new function() {
     var exports = require['cardamom/src/colors'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var _wrap_with;
 
@@ -7633,10 +8804,13 @@ require['cardamom/src/collections'].nonce = nonce;require['cardamom/src/colors']
     require['cardamom/src/colors'] = module.exports;
   };
 };
-require['cardamom/src/colors'].nonce = nonce;require['cardamom/src/errors'] = function() {
+require['cardamom/src/colors'].nonce = nonce;
+
+require['cardamom/src/errors'] = function() {
   return new function() {
     var exports = require['cardamom/src/errors'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var __hasProp = Object.prototype.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
@@ -7686,10 +8860,13 @@ require['cardamom/src/colors'].nonce = nonce;require['cardamom/src/errors'] = fu
     require['cardamom/src/errors'] = module.exports;
   };
 };
-require['cardamom/src/errors'].nonce = nonce;require['cardamom/src/fnstuff'] = function() {
+require['cardamom/src/errors'].nonce = nonce;
+
+require['cardamom/src/fnstuff'] = function() {
   return new function() {
     var exports = require['cardamom/src/fnstuff'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var assert;
 
@@ -7803,10 +8980,13 @@ require['cardamom/src/errors'].nonce = nonce;require['cardamom/src/fnstuff'] = f
     require['cardamom/src/fnstuff'] = module.exports;
   };
 };
-require['cardamom/src/fnstuff'].nonce = nonce;require['underscore'] = function() {
+require['cardamom/src/fnstuff'].nonce = nonce;
+
+require['underscore'] = function() {
   return new function() {
     var exports = require['underscore'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     //     Underscore.js 1.3.1
 //     (c) 2009-2012 Jeremy Ashkenas, DocumentCloud Inc.
 //     Underscore is freely distributable under the MIT license.
@@ -8810,10 +9990,13 @@ require['cardamom/src/fnstuff'].nonce = nonce;require['underscore'] = function()
     require['underscore'] = module.exports;
   };
 };
-require['underscore'].nonce = nonce;require['async'] = function() {
+require['underscore'].nonce = nonce;
+
+require['async'] = function() {
   return new function() {
     var exports = require['async'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     /*global setTimeout: false, console: false */
 (function () {
 
@@ -9510,10 +10693,13 @@ require['underscore'].nonce = nonce;require['async'] = function() {
     require['async'] = module.exports;
   };
 };
-require['async'].nonce = nonce;require['nogg'] = function() {
+require['async'].nonce = nonce;
+
+require['nogg'] = function() {
   return new function() {
     var exports = require['nogg'] = this;
     var module = {exports:exports};
+    var process = require('_process');
     (function() {
   var COLORS, LEVELS, PIDMAP, STREAM_GENERATORS, assert, colors, fs, getWritestream, inspect, level, loggingConfig, num, toMessage, writeLog, _fn, _ref,
     __slice = Array.prototype.slice,
@@ -9727,25 +10913,9 @@ require['async'].nonce = nonce;require['nogg'] = function() {
     require['nogg'] = module.exports;
   };
 };
-require['nogg'].nonce = nonce;require['fs'] = function() {
-  return new function() {
-    var exports = require['fs'] = this;
-    var module = {exports:exports};
-    // keep it empty i guess
+require['nogg'].nonce = nonce;
 
-    require['fs'] = module.exports;
-  };
-};
-require['fs'].nonce = nonce;require['path'] = function() {
-  return new function() {
-    var exports = require['path'] = this;
-    var module = {exports:exports};
-    // keep it empty i guess
 
-    require['path'] = module.exports;
-  };
-};
-require['path'].nonce = nonce;
     return require('joeson/src/client');
   }();
 

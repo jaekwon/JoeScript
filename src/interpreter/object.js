@@ -1,5 +1,5 @@
 (function() {
-  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, randid, red, setLast, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5,
+  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __slice = Array.prototype.slice,
     _this = this;
@@ -12,13 +12,13 @@
 
   _ = require('underscore');
 
-  joe = require('joeson/src/joescript').NODES;
+  _ref3 = require('joeson/src/joescript'), joe = _ref3.NODES, parse = _ref3.parse;
 
-  _ref3 = require('joeson/lib/helpers'), randid = _ref3.randid, pad = _ref3.pad, htmlEscape = _ref3.htmlEscape, escape = _ref3.escape, starts = _ref3.starts, ends = _ref3.ends;
+  _ref4 = require('joeson/lib/helpers'), randid = _ref4.randid, pad = _ref4.pad, htmlEscape = _ref4.htmlEscape, escape = _ref4.escape, starts = _ref4.starts, ends = _ref4.ends;
 
-  _ref4 = require('joeson/src/joescript').HELPERS, extend = _ref4.extend, isVariable = _ref4.isVariable;
+  _ref5 = require('joeson/src/joescript').HELPERS, extend = _ref5.extend, isVariable = _ref5.isVariable;
 
-  _ref5 = require('nogg').logger('server'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
+  _ref6 = require('nogg').logger('server'), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.error;
 
   isInteger = function(n) {
     return n % 1 === 0;
@@ -177,11 +177,11 @@
         } else {
           $$[this.id] = true;
           dataPart = ((function() {
-            var _ref6, _results;
-            _ref6 = this.data;
+            var _ref7, _results;
+            _ref7 = this.data;
             _results = [];
-            for (key in _ref6) {
-              value = _ref6[key];
+            for (key in _ref7) {
+              value = _ref7[key];
               _results.push("" + (key.__str__($)) + ":" + (value.__str__($, $$)));
             }
             return _results;
@@ -192,11 +192,11 @@
       __repr__: function($) {
         var key, value;
         return $.jml('{', $.jml(((function() {
-          var _ref6, _results;
-          _ref6 = this.data;
+          var _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (key in _ref6) {
-            value = _ref6[key];
+          for (key in _ref7) {
+            value = _ref7[key];
             _results.push([key, ':', value.__repr__($)]);
           }
           return _results;
@@ -206,11 +206,11 @@
       },
       jsValue$: {
         get: function() {
-          var key, tmp, value, _ref6;
+          var key, tmp, value, _ref7;
           tmp = {};
-          _ref6 = this.data;
-          for (key in _ref6) {
-            value = _ref6[key];
+          _ref7 = this.data;
+          for (key in _ref7) {
+            value = _ref7[key];
             tmp[key] = value.jsValue;
           }
           return tmp;
@@ -239,16 +239,16 @@
         });
       },
       __get__: function($, key) {
-        var value, _ref6, _ref7;
+        var value, _ref7, _ref8;
         $.will('read', this);
         if (isInteger(key)) {
-          return (_ref6 = this.data[key]) != null ? _ref6 : JUndefined;
+          return (_ref7 = this.data[key]) != null ? _ref7 : JUndefined;
         } else {
           assert.ok(key = typeof key.__key__ === "function" ? key.__key__($) : void 0, "Key couldn't be stringified");
           value = this.data[key];
           if (value != null) return value;
           if (starts(key, '__') && ends(key, '__')) {
-            return (_ref7 = this[key]) != null ? _ref7 : JUndefined;
+            return (_ref8 = this[key]) != null ? _ref8 : JUndefined;
           }
           if (__indexOf.call(protoKeys, key) >= 0) return this[key];
           return JUndefined;
@@ -299,11 +299,11 @@
         } else {
           $$[this.id] = true;
           return "[" + (this.id ? '#' + this.id + ' ' : '') + (((function() {
-            var _ref6, _results;
-            _ref6 = this.data;
+            var _ref7, _results;
+            _ref7 = this.data;
             _results = [];
-            for (key in _ref6) {
-              value = _ref6[key];
+            for (key in _ref7) {
+              value = _ref7[key];
               _results.push("" + (isInteger(key) ? '' + key : key.__str__($)) + ":" + (value.__str__($, $$)));
             }
             return _results;
@@ -313,21 +313,21 @@
       __repr__: function($) {
         var arrayPart, dataPart, item, key, value;
         arrayPart = ((function() {
-          var _i, _len, _ref6, _results;
-          _ref6 = this.data;
+          var _i, _len, _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
-            item = _ref6[_i];
+          for (_i = 0, _len = _ref7.length; _i < _len; _i++) {
+            item = _ref7[_i];
             _results.push(item.__repr__($));
           }
           return _results;
         }).call(this)).weave(',');
         dataPart = $.jml(((function() {
-          var _ref6, _results;
-          _ref6 = this.data;
+          var _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (key in _ref6) {
-            value = _ref6[key];
+          for (key in _ref7) {
+            value = _ref7[key];
             if (!isInteger(key)) _results.push([key, ':', value.__repr__($)]);
           }
           return _results;
@@ -340,11 +340,11 @@
       },
       jsValue$: {
         get: function() {
-          var key, tmp, value, _ref6;
+          var key, tmp, value, _ref7;
           tmp = [];
-          _ref6 = this.data;
-          for (key in _ref6) {
-            value = _ref6[key];
+          _ref7 = this.data;
+          for (key in _ref7) {
+            value = _ref7[key];
             tmp[key] = value.jsValue;
           }
           return tmp;
@@ -457,15 +457,32 @@
   JBoundFunc = this.JBoundFunc = clazz('JBoundFunc', JObject, function() {
     return {
       init: function(_arg) {
-        var acl, creator, id;
-        id = _arg.id, creator = _arg.creator, acl = _arg.acl, this.func = _arg.func, this.scope = _arg.scope;
+        var acl, creator, func, id;
+        id = _arg.id, creator = _arg.creator, acl = _arg.acl, func = _arg.func, this.scope = _arg.scope;
         this["super"].init.call(this, {
           id: id,
           creator: creator,
           acl: acl
         });
-        assert.ok(this.func instanceof joe.Func, "func not Func");
-        return assert.ok((this.scope != null) && this.scope instanceof JObject, "scope not a JObject");
+        assert.ok((this.scope === null) || this.scope instanceof JObject, "scope, if present, must be a JObject");
+        if (func instanceof joe.Func) {
+          return this.func = func;
+        } else if (typeof func === 'string') {
+          return this._func = func;
+        } else {
+          throw new Error("funky func");
+        }
+      },
+      func$: {
+        get: function() {
+          var node;
+          node = parse(this._func);
+          node = node.toJSNode({
+            toValue: true
+          }).installScope().determine();
+          assert.ok(node.constructor.name === 'Func');
+          return this.func = node;
+        }
       },
       __str__: function($) {
         return "(<\#" + this.id + ">)";
@@ -473,11 +490,11 @@
       __repr__: function($) {
         var dataPart, key, value;
         dataPart = ((function() {
-          var _ref6, _results;
-          _ref6 = this.data;
+          var _ref7, _results;
+          _ref7 = this.data;
           _results = [];
-          for (key in _ref6) {
-            value = _ref6[key];
+          for (key in _ref7) {
+            value = _ref7[key];
             _results.push([key, ':', value.__repr__($)]);
           }
           return _results;
@@ -545,12 +562,12 @@
       });
       joe.Block.prototype.extend({
         interpret: function($) {
-          var firstLine, length, variable, _i, _len, _ref6;
+          var firstLine, length, variable, _i, _len, _ref7;
           $.pop();
           if (this.ownScope != null) {
-            _ref6 = this.ownScope.nonparameterVariables;
-            for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
-              variable = _ref6[_i];
+            _ref7 = this.ownScope.nonparameterVariables;
+            for (_i = 0, _len = _ref7.length; _i < _len; _i++) {
+              variable = _ref7[_i];
               $.scope.__set__($, variable, JUndefined);
             }
           }
@@ -608,14 +625,14 @@
       });
       joe.Assign.prototype.extend({
         interpret: function($, i9n) {
-          var key, targetObj, type, _ref6;
+          var key, targetObj, type, _ref7;
           i9n.func = joe.Assign.prototype.interpret2;
           $.push({
             "this": this.value,
             func: this.value.interpret
           });
           if (this.target instanceof joe.Index) {
-            _ref6 = this.target, targetObj = _ref6.obj, type = _ref6.type, key = _ref6.key;
+            _ref7 = this.target, targetObj = _ref7.obj, type = _ref7.type, key = _ref7.key;
             $.push({
               "this": i9n,
               func: setLast,
@@ -655,8 +672,8 @@
       });
       joe.Obj.prototype.extend({
         interpret: function($, i9n) {
-          var length, _ref6, _ref7;
-          length = (_ref6 = (_ref7 = this.items) != null ? _ref7.length : void 0) != null ? _ref6 : 0;
+          var length, _ref7, _ref8;
+          length = (_ref7 = (_ref8 = this.items) != null ? _ref8.length : void 0) != null ? _ref7 : 0;
           if (length > 0) {
             i9n.obj = new JObject({
               creator: $.user
@@ -672,10 +689,10 @@
           }
         },
         interpretKV: function($, i9n) {
-          var key, value, _ref6;
+          var key, value, _ref7;
           if (0 < i9n.idx) i9n.obj.__set__($, i9n.key, i9n.value);
           if (i9n.idx < i9n.length) {
-            _ref6 = this.items[i9n.idx], key = _ref6.key, value = _ref6.value;
+            _ref7 = this.items[i9n.idx], key = _ref7.key, value = _ref7.value;
             if (key instanceof joe.Word) {
               i9n.key = key;
             } else if (key instanceof joe.Str) {
@@ -709,8 +726,8 @@
       });
       joe.Arr.prototype.extend({
         interpret: function($, i9n) {
-          var length, _ref6, _ref7;
-          length = (_ref6 = (_ref7 = this.items) != null ? _ref7.length : void 0) != null ? _ref6 : 0;
+          var length, _ref7, _ref8;
+          length = (_ref7 = (_ref8 = this.items) != null ? _ref8.length : void 0) != null ? _ref7 : 0;
           if (length > 0) {
             i9n.arr = new JArray({
               creator: $.user
@@ -742,7 +759,7 @@
       });
       joe.Operation.prototype.extend({
         interpret: function($, i9n) {
-          var key, targetObj, _ref6, _ref7;
+          var key, targetObj, _ref7, _ref8;
           i9n.func = joe.Operation.prototype.interpret2;
           if (this.left != null) {
             $.push({
@@ -754,8 +771,8 @@
               "this": this.left,
               func: this.left.interpret
             });
-            if (this.left instanceof joe.Index && ((_ref6 = this.op) === '--' || _ref6 === '++')) {
-              _ref7 = this.left, targetObj = _ref7.obj, key = _ref7.key;
+            if (this.left instanceof joe.Index && ((_ref7 = this.op) === '--' || _ref7 === '++')) {
+              _ref8 = this.left, targetObj = _ref8.obj, key = _ref8.key;
               $.push({
                 "this": i9n,
                 func: setLast,
@@ -867,10 +884,10 @@
           });
         },
         interpretTarget: function($, i9n, obj) {
-          var _ref6;
+          var _ref7;
           if (i9n.setSource != null) i9n.setSource.source = obj;
           if (this.type === '.') {
-            assert.ok(this.key instanceof joe.Word, "Unexpected key of type " + ((_ref6 = this.key) != null ? _ref6.constructor.name : void 0));
+            assert.ok(this.key instanceof joe.Word, "Unexpected key of type " + ((_ref7 = this.key) != null ? _ref7.constructor.name : void 0));
             $.pop();
             return obj.__get__($, this.key);
           } else {
@@ -909,15 +926,15 @@
           });
         },
         interpretParams: function($, i9n, func) {
-          var i, param, _i, _len, _ref6;
+          var i, param, _i, _len, _ref7;
           if (!(func instanceof JBoundFunc || func instanceof Function)) {
             return $["throw"]('TypeError', "" + this.func + " cannot be called.");
           }
           i9n.invokedFunction = func;
           i9n.paramValues = [];
-          _ref6 = this.params;
-          for (i = _i = 0, _len = _ref6.length; _i < _len; i = ++_i) {
-            param = _ref6[i];
+          _ref7 = this.params;
+          for (i = _i = 0, _len = _ref7.length; _i < _len; i = ++_i) {
+            param = _ref7[i];
             $.push({
               "this": i9n,
               func: setLast,
@@ -932,11 +949,11 @@
           i9n.func = joe.Invocation.prototype.interpretCall;
         },
         interpretCall: function($, i9n) {
-          var argName, block, i, paramValues, params, scope, _i, _len, _ref10, _ref11, _ref6, _ref7, _ref8, _ref9;
+          var argName, block, i, paramValues, params, scope, _i, _len, _ref10, _ref11, _ref12, _ref7, _ref8, _ref9;
           i9n.func = joe.Invocation.prototype.interpretFinal;
           if (i9n.invokedFunction instanceof JBoundFunc) {
             i9n.oldScope = $.scope;
-            _ref6 = i9n.invokedFunction, (_ref7 = _ref6.func, block = _ref7.block, params = _ref7.params), scope = _ref6.scope;
+            _ref7 = i9n.invokedFunction, (_ref8 = _ref7.func, block = _ref8.block, params = _ref8.params), scope = _ref7.scope;
             paramValues = i9n.paramValues;
             if (i9n.source != null) {
               $.scope = scope.__create__($, {
@@ -947,11 +964,11 @@
             }
             if (params != null) {
               assert.ok(params instanceof joe.AssignList);
-              _ref8 = params.items;
-              for (i = _i = 0, _len = _ref8.length; _i < _len; i = ++_i) {
-                argName = _ref8[i].target;
+              _ref9 = params.items;
+              for (i = _i = 0, _len = _ref9.length; _i < _len; i = ++_i) {
+                argName = _ref9[i].target;
                 assert.ok(isVariable(argName, "Expected variable but got " + argName + " (" + (argName != null ? argName.constructor.name : void 0) + ")"));
-                $.scope.__set__($, argName, (_ref9 = paramValues[i]) != null ? _ref9 : JUndefined);
+                $.scope.__set__($, argName, (_ref10 = paramValues[i]) != null ? _ref10 : JUndefined);
               }
             }
             if (block != null) {
@@ -966,7 +983,7 @@
             try {
               return i9n.invokedFunction.call(i9n.source, $, i9n.paramValues);
             } catch (error) {
-              return $["throw"]((_ref10 = error != null ? error.name : void 0) != null ? _ref10 : 'UnknownError', (_ref11 = error != null ? error.message : void 0) != null ? _ref11 : '' + error);
+              return $["throw"]((_ref11 = error != null ? error.name : void 0) != null ? _ref11 : 'UnknownError', (_ref12 = error != null ? error.message : void 0) != null ? _ref12 : '' + error);
             }
           }
         },
@@ -1090,23 +1107,23 @@
           }
         },
         interpret2: function($, i9n) {
-          var array, x, _i, _j, _ref6, _ref7, _ref8, _ref9, _results, _results2;
+          var array, x, _i, _j, _ref10, _ref7, _ref8, _ref9, _results, _results2;
           $.pop();
           if (i9n.by != null) {
             if (this.type === '..') {
               array = (function() {
-                var _i, _ref6, _ref7, _ref8, _results;
+                var _i, _ref7, _ref8, _ref9, _results;
                 _results = [];
-                for (x = _i = _ref6 = i9n.start, _ref7 = i9n.end, _ref8 = i9n.by; _ref6 <= _ref7 ? _i <= _ref7 : _i >= _ref7; x = _i += _ref8) {
+                for (x = _i = _ref7 = i9n.start, _ref8 = i9n.end, _ref9 = i9n.by; _ref7 <= _ref8 ? _i <= _ref8 : _i >= _ref8; x = _i += _ref9) {
                   _results.push(x);
                 }
                 return _results;
               })();
             } else {
               array = (function() {
-                var _i, _ref6, _ref7, _ref8, _results;
+                var _i, _ref7, _ref8, _ref9, _results;
                 _results = [];
-                for (x = _i = _ref6 = i9n.start, _ref7 = i9n.end, _ref8 = i9n.by; _ref6 <= _ref7 ? _i < _ref7 : _i > _ref7; x = _i += _ref8) {
+                for (x = _i = _ref7 = i9n.start, _ref8 = i9n.end, _ref9 = i9n.by; _ref7 <= _ref8 ? _i < _ref8 : _i > _ref8; x = _i += _ref9) {
                   _results.push(x);
                 }
                 return _results;
@@ -1116,13 +1133,13 @@
             if (this.type === '..') {
               array = (function() {
                 _results = [];
-                for (var _i = _ref6 = i9n.start, _ref7 = i9n.end; _ref6 <= _ref7 ? _i <= _ref7 : _i >= _ref7; _ref6 <= _ref7 ? _i++ : _i--){ _results.push(_i); }
+                for (var _i = _ref7 = i9n.start, _ref8 = i9n.end; _ref7 <= _ref8 ? _i <= _ref8 : _i >= _ref8; _ref7 <= _ref8 ? _i++ : _i--){ _results.push(_i); }
                 return _results;
               }).apply(this);
             } else {
               array = (function() {
                 _results2 = [];
-                for (var _j = _ref8 = i9n.start, _ref9 = i9n.end; _ref8 <= _ref9 ? _j < _ref9 : _j > _ref9; _ref8 <= _ref9 ? _j++ : _j--){ _results2.push(_j); }
+                for (var _j = _ref9 = i9n.start, _ref10 = i9n.end; _ref9 <= _ref10 ? _j < _ref10 : _j > _ref10; _ref9 <= _ref10 ? _j++ : _j--){ _results2.push(_j); }
                 return _results2;
               }).apply(this);
             }
@@ -1335,8 +1352,8 @@
           return "(<\#" + this.id + ">)";
         },
         __repr__: function($) {
-          var name, _ref6;
-          name = (_ref6 = this.name) != null ? _ref6 : this._name;
+          var name, _ref7;
+          name = (_ref7 = this.name) != null ? _ref7 : this._name;
           if (name) {
             return "[NativeFunction: " + name + "]";
           } else {

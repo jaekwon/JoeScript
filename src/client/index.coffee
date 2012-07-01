@@ -1,6 +1,9 @@
 @require = require
 {clazz} = require 'cardamom'
 {randid} = require 'joeson/lib/helpers'
+{GOD, WORLD, GUEST, JKernel} = require 'joeson/src/interpreter'
+
+kern = new JKernel
 
 outBoxHtml = """
 <div class='outbox'>
@@ -44,9 +47,14 @@ $('document').ready ->
   ), 300
 
   # connect to client.
-  window.client = client = new Client()
+  #window.client = client = new Client()
   # click page to focus
-  $(document).click -> client.mirror.focus()
+  #$(document).click -> client.mirror.focus()
+
+  kern.run
+    user: GUEST
+    code: 'login()'
+    output: undefined
 
 Client = clazz 'Client', ->
   init: ->

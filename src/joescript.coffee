@@ -4,8 +4,6 @@
 {inspect} = require 'util'
 assert    = require 'assert'
 _         = require 'underscore'
-fs        = require 'fs'
-path      = require 'path'
 {Grammar} = require 'joeson'
 {Node} = require 'joeson/src/node'
 
@@ -641,24 +639,3 @@ EXPR = new Set([Node, Boolean, String, Number])
 
 # Parse the given code
 @parse = GRAMMAR.parse
-
-# Interpret the given code
-@run = (code, options = {}) ->
-  mainModule = require.main
-
-  # Set the filename.
-  mainModule.filename = process.argv[1] =
-    if options.filename then fs.realpathSync(options.filename) else '.'
-
-  # Clear the module cache.
-  mainModule.moduleCache and= {}
-
-  # Assign paths for node_modules loading
-  mainModule.paths = require('module')._nodeModulePaths path.dirname fs.realpathSync options.filename
-
-  # Interpret
-  # TODO
-  throw new Error "Implement me!"
-  #jsi = require 'joeson/src/interpreter'
-  #node = GRAMMAR.parse code
-  #return jsi.interpret(node, include:{require:require}) # TODO set require properly.

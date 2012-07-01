@@ -2,7 +2,7 @@
 {inspect} = require 'util'
 assert = require 'assert'
 _ = require 'underscore'
-joe = require('joeson/src/joescript').NODES
+{NODES:joe, parse} = require('joeson/src/joescript')
 {randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
@@ -229,14 +229,25 @@ JUndefined  = @JUndefined = new JSingleton 'undefined', undefined
 JNaN        = @JNaN       = new Number NaN
 # JFalse/JTrue don't exist, just use native booleans.
 
+# Actually, not always bound to a scope.
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
-  # func:    The joe.Func node.
+  # func:    The joe.Func node, or a string for lazy parsing.
   # creator: The owner of the process that declared above function.
   # scope:   Runtime scope of process that declares above function.
-  init: ({id, creator, acl, @func, @scope}) ->
+  init: ({id, creator, acl, func, @scope}) ->
     @super.init.call @, {id, creator, acl}
-    assert.ok @func instanceof joe.Func, "func not Func"
-    assert.ok @scope? and @scope instanceof JObject, "scope not a JObject"
+    assert.ok (@scope is null) or @scope instanceof JObject, "scope, if present, must be a JObject"
+    if func instanceof joe.Func
+      @func = func
+    else if typeof func is 'string'
+      @_func = func
+    else
+      throw new Error "funky func"
+  func$: get: ->
+    node = parse @_func
+    node = node.toJSNode(toValue:yes).installScope().determine()
+    assert.ok node.constructor.name is 'Func'
+    return @func=node
   __str__: ($) -> "(<\##{@id}>)"
   __repr__: ($) ->
     dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)

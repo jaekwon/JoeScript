@@ -1,11 +1,15 @@
 (function() {
-  var Client, clazz, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x;
+  var Client, GOD, GUEST, JKernel, WORLD, clazz, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
 
   this.require = require;
 
   clazz = require('cardamom').clazz;
 
   randid = require('joeson/lib/helpers').randid;
+
+  _ref = require('joeson/src/interpreter'), GOD = _ref.GOD, WORLD = _ref.WORLD, GUEST = _ref.GUEST, JKernel = _ref.JKernel;
+
+  kern = new JKernel;
 
   outBoxHtml = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
 
@@ -44,7 +48,7 @@
   };
 
   $('document').ready(function() {
-    var client, marqueeLevel;
+    var marqueeLevel;
     console.log("booting...");
     marqueeLevel = 0;
     setInterval((function() {
@@ -58,9 +62,10 @@
         opacity: 0.7
       });
     }), 300);
-    window.client = client = new Client();
-    return $(document).click(function() {
-      return client.mirror.focus();
+    return kern.run({
+      user: GUEST,
+      code: 'login()',
+      output: void 0
     });
   });
 

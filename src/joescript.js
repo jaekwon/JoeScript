@@ -1,5 +1,5 @@
 (function() {
-  var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, fs, green, inspect, isVariable, magenta, normal, path, red, resetIndent, trace, white, yellow, _, _ref, _ref2, _ref3;
+  var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, green, inspect, isVariable, magenta, normal, red, resetIndent, trace, white, yellow, _, _ref, _ref2, _ref3;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow), (_ref3 = _ref.collections, Set = _ref3.Set);
 
@@ -8,10 +8,6 @@
   assert = require('assert');
 
   _ = require('underscore');
-
-  fs = require('fs');
-
-  path = require('path');
 
   Grammar = require('joeson').Grammar;
 
@@ -1295,15 +1291,5 @@
   EXPR = new Set([Node, Boolean, String, Number]);
 
   this.parse = GRAMMAR.parse;
-
-  this.run = function(code, options) {
-    var mainModule;
-    if (options == null) options = {};
-    mainModule = require.main;
-    mainModule.filename = process.argv[1] = options.filename ? fs.realpathSync(options.filename) : '.';
-    mainModule.moduleCache && (mainModule.moduleCache = {});
-    mainModule.paths = require('module')._nodeModulePaths(path.dirname(fs.realpathSync(options.filename)));
-    throw new Error("Implement me!");
-  };
 
 }).call(this);

@@ -18,24 +18,9 @@ joe = require('joeson/src/joescript').NODES
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
 
-{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
-
 trace = debug:no, logCode:yes
-
-times = {}
-counter = 0
-timeit = (name, fn) ->
-  start = (new Date()).valueOf()
-  result = fn()
-  times[name] ?= durations:0, hits:0
-  times[name].durations += (new Date()).valueOf() - start
-  times[name].hits++
-  if counter++ % 100 is 0
-    console.log "times:", times
-  return result
-
-## Universe
-{GOD, WORLD, GUEST} = {@GOD, @GUEST, @WORLD} = require 'joeson/src/interpreter/global'
+{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
+{GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->

@@ -34,9 +34,15 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'joeson/src/client',                  f:'src/client/index'}
       # ./lib/*
       {           l:'joeson/lib/helpers',       f:'lib/helpers'}
-      {           l:'assert',                   f:'lib/assert'}
-      {           l:'util',                     f:'lib/util'}
-      {           l:'events',                   f:'lib/events'}
+      # browserify builtins
+      {           l:'_process',                 f:'node_modules/browserify/builtins/__browserify_process'}
+      {           l:'assert',                   f:'node_modules/browserify/builtins/assert'}
+      {           l:'util',                     f:'node_modules/browserify/builtins/util'}
+      {           l:'events',                   f:'node_modules/browserify/builtins/events'}
+      {           l:'buffer',                   f:'node_modules/browserify/builtins/buffer'}
+      {           l:'buffer_ieee754',           f:'node_modules/browserify/builtins/buffer_ieee754'}
+      #{           l:'path',                     f:'node_modules/browserify/builtins/path'}
+      {           l:'fs',                       f:'node_modules/browserify/builtins/fs'}
       # cardamom
       {           l:'cardamom',                 f:'node_modules/cardamom/lib/cardamom'}
       {           l:'cardamom/src/bisect',      f:'node_modules/cardamom/lib/bisect'}
@@ -51,32 +57,33 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'async',                    f:'node_modules/async/lib/async'}
       # nogg
       {           l:'nogg',                     f:'node_modules/nogg/lib/nogg'}
-      {           l:'fs',                       f:'lib/dummy'}
-      {           l:'path',                       f:'lib/dummy'}
     ]
       code += """
         require['#{libname}'] = function() {
           return new function() {
             var exports = require['#{libname}'] = this;
             var module = {exports:exports};
+            var process = require('_process');
             #{ fs.readFileSync "#{filepath}.js" }
             require['#{libname}'] = module.exports;
           };
         };
-        require['#{libname}'].nonce = nonce;
+        require['#{libname}'].nonce = nonce;\n\n
       """
   code = """
     (function(root) {
       var Sembly = function() {
         function require(path){
           var module = require[path];
-          //console.log(path, Object.getOwnPropertyNames(require), module);
+          console.log("require:start", path);
           if (!module) {
             throw new Error("Can't find module "+path);
           }
           if (module.nonce === nonce) {
-            return module();
+            module = module();
+            console.log("require:end", path);
           }
+          console.log("require:cached", path);
           return module;
         }
         #{code}

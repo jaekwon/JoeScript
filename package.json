@@ -13,7 +13,8 @@
       "nogg": ">= 0.0.5",
       "socket.io": "",
       "redis": "",
-      "uglify-js": ""
+      "uglify-js": "",
+      "browserify": "https://github.com/jaekwon/node-browserify.git"
     },
   "main": "./src/joeson",
   "keywords": [],

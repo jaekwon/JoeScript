@@ -7,7 +7,7 @@ async = require 'async'
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
-{nativ} = require 'joeson/src/interpreter/persistence'
+{joefn, nativ} = require 'joeson/src/interpreter/persistence'
 
 GOD   = @GOD   = new JUser   id:'god',   name:'god'
 GUEST = @GUEST = new JUser   id:'guest', name:'guest'
@@ -17,8 +17,7 @@ WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
   print: nativ 'print', ($, [obj]) ->
     $.output(obj.__html__($) + '<br/>')
     return JUndefined
-###
-  login: joeson """
+  login: joefn 'login', GOD, """
     -> print [
       "username:"
 
@@ -32,7 +31,6 @@ WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
       enter: (text) -> print text
     ]
     """
-###
 
 # run this file to set up redis
 if require.main is module

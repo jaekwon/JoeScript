@@ -1,5 +1,5 @@
 (function() {
-  var GOD, JArray, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, USERS, WORLD, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, globals, green, info, inspect, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
+  var GLOBALS, JArray, JBoundFunc, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, green, info, inspect, joefn, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
 
@@ -15,7 +15,7 @@
 
   _ref4 = require('nogg').logger('server'), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.error;
 
-  _ref5 = require('joeson/src/interpreter/object'), JObject = _ref5.JObject, JArray = _ref5.JArray, JUser = _ref5.JUser, JUndefined = _ref5.JUndefined, JNull = _ref5.JNull, JNaN = _ref5.JNaN, JStub = _ref5.JStub;
+  _ref5 = require('joeson/src/interpreter'), (_ref6 = _ref5.JTypes, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc, JStub = _ref6.JStub), GLOBALS = _ref5.GLOBALS;
 
   client = void 0;
 
@@ -32,6 +32,17 @@
     return f;
   };
 
+  joefn = this.joefn = function(id, creator, fCode) {
+    assert.ok(id != null, "joefn wants an id");
+    console.log("joefn with code " + fCode);
+    return new JBoundFunc({
+      id: id,
+      creator: creator,
+      func: fCode,
+      scope: null
+    });
+  };
+
   OBJECTS = {};
 
   getOrStub = function(id) {
@@ -43,10 +54,8 @@
     }
   };
 
-  _ref6 = globals = require('joeson/src/interpreter/global'), GOD = _ref6.GOD, WORLD = _ref6.WORLD, USERS = _ref6.USERS;
-
-  for (key in globals) {
-    value = globals[key];
+  for (key in GLOBALS) {
+    value = GLOBALS[key];
     if (value instanceof JObject) OBJECTS[value.id] = value;
   }
 

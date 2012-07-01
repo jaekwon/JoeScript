@@ -6,7 +6,10 @@ async = require 'async'
 {pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'
 
-{JObject, JArray, JUser, JUndefined, JNull, JNaN, JStub} = require 'joeson/src/interpreter/object'
+{
+  JTypes:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  GLOBALS:GLOBALS
+} = require 'joeson/src/interpreter'
 
 client = undefined
 getClient = ->
@@ -19,6 +22,11 @@ nativ = @nativ = (id, f) ->
   NATIVE_FUNCTIONS[id] = f
   return f
 
+joefn = @joefn = (id, creator, fCode) ->
+  assert.ok id?, "joefn wants an id"
+  console.log "joefn with code #{fCode}"
+  new JBoundFunc id:id, creator:creator, func:fCode, scope:null
+
 OBJECTS = {} # id to object.
 getOrStub = (id) ->
   if cached=OBJECTS[id]
@@ -26,8 +34,7 @@ getOrStub = (id) ->
   else
     return new JStub id
 
-{GOD, WORLD, USERS} = globals = require('joeson/src/interpreter/global')
-OBJECTS[value.id] = value for key, value of globals when value instanceof JObject
+OBJECTS[value.id] = value for key, value of GLOBALS when value instanceof JObject
 
 # make sure objects in persistence store have everything here.
 saveJObject = @saveJObject = (jobj, cb) ->

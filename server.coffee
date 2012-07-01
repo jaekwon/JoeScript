@@ -55,10 +55,11 @@ io = require('socket.io').listen app
 app.listen 8080
 
 # kernel
-{JKernel, JTypes, GOD} = require 'joeson/src/interpreter'
+{JKernel, JTypes} = require 'joeson/src/interpreter'
 kern = new JKernel
 info "initialized kernel runloop"
 
+# make output object
 makeOut = (socket, threadId) ->
   write = (html) ->
     assert.ok typeof html is 'string', "makeOut/write wants a string, but got #{typeof html}"
@@ -71,34 +72,34 @@ makeOut = (socket, threadId) ->
 # connect.io <-> kernel
 io.sockets.on 'connection', (socket) ->
 
+  # login
+  # Caller (client) will receive a user object __str__
+  socket.on 'login', ({name}) ->
+    info "user #{name} login"
+
   # start code
   socket.on 'start', ({code,threadId}) ->
     info "received code #{code}, thread id #{threadId}"
-    socket.get 'user', (err, user) ->
-      # note: user may be null for new users.
-      if err?
-        fatal "Couldn't get the user of the socket", err, err.stack
-        return
-      output = makeOut socket, threadId
-      kern.run
-        user:   user
-        code:   code
-        output: output
-        input:  undefined # not implemented
-        callback: ->
-          switch @state
-            when 'return'
-              unless @last is JTypes.JUndefined
-                output(@last.__repr__(@).__html__(@))
-              #output.close()
-            when 'error'
-              if @error.stack.length
-                @printStack @error.stack
-                stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
-                output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
-              else
-                output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
-              #output.close()
+    output = makeOut socket, threadId
+    kern.run
+      user:   user
+      code:   code
+      output: output
+      input:  undefined # not implemented
+      callback: ->
+        switch @state
+          when 'return'
+            unless @last is JTypes.JUndefined
+              output(@last.__repr__(@).__html__(@))
+            #output.close()
+          when 'error'
+            if @error.stack.length
+              @printStack @error.stack
+              stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
+              output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
             else
-              throw new Error "Unexpected state #{@state} during kernel callback"
-          @cleanup()
+              output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
+            #output.close()
+          else
+            throw new Error "Unexpected state #{@state} during kernel callback"
+        @cleanup()
