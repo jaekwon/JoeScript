@@ -1,12 +1,13 @@
 @require = require
 {clazz} = require 'cardamom'
 {randid} = require 'joeson/lib/helpers'
+{toHTML} = require 'joeson/src/parsers/ansi'
 
 # configure logging
 domLog = window.domLog = $('<pre/>')
 require('nogg').configure
   default:
-    file:   {write:(line)->domLog.append(line)}
+    file:   {write:(line)->domLog.append(toHTML line)}
     level: 'debug'
 
 {GOD, WORLD, GUEST, JKernel} = require 'joeson/src/interpreter'

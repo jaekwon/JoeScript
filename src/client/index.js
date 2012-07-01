@@ -1,5 +1,5 @@
 (function() {
-  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
+  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, toHTML, x, _ref;
 
   this.require = require;
 
@@ -7,13 +7,15 @@
 
   randid = require('joeson/lib/helpers').randid;
 
+  toHTML = require('joeson/src/parsers/ansi').toHTML;
+
   domLog = window.domLog = $('<pre/>');
 
   require('nogg').configure({
     "default": {
       file: {
         write: function(line) {
-          return domLog.append(line);
+          return domLog.append(toHTML(line));
         }
       },
       level: 'debug'

@@ -21,10 +21,10 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
   """
   for {l:libname, f:filepath} in [
       # ./src/*
-      {           l:'joeson',                f:'src/joeson'}
-      {           l:'joeson/src/codestream', f:'src/codestream'}
-      {           l:'joeson/src/joescript',  f:'src/joescript'}
-      {           l:'joeson/src/node',       f:'src/node'}
+      {           l:'joeson',                   f:'src/joeson'}
+      {           l:'joeson/src/codestream',    f:'src/codestream'}
+      {           l:'joeson/src/joescript',     f:'src/joescript'}
+      {           l:'joeson/src/node',          f:'src/node'}
       {           l:'joeson/src/interpreter',             f:'src/interpreter/index'}
       {           l:'joeson/src/interpreter/global',      f:'src/interpreter/global'}
       {           l:'joeson/src/interpreter/object',      f:'src/interpreter/object'}
@@ -32,7 +32,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'joeson/src/translators/javascript',  f:'src/translators/javascript'}
       {           l:'joeson/src/translators/scope',       f:'src/translators/scope'}
       {           l:'joeson/src/client',                  f:'src/client/index'}
-      # ./lib/*
+      {           l:'joeson/src/parsers/ansi',            f:'src/parsers/ansi'}
       {           l:'joeson/lib/helpers',       f:'lib/helpers'}
       # browserify builtins
       {           l:'_process',                 f:'node_modules/browserify/builtins/__browserify_process'}
@@ -65,7 +65,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
             var module = {exports:exports};
             var process = require('_process');
             #{ fs.readFileSync "#{filepath}.js" }
-            require['#{libname}'] = module.exports;
+            return (require['#{libname}'] = module.exports);
           };
         };
         require['#{libname}'].nonce = nonce;\n\n
@@ -75,16 +75,18 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       var Sembly = function() {
         function require(path){
           var module = require[path];
-          console.log("require:start", path);
+          console.log("+"+path);
           if (!module) {
             throw new Error("Can't find module "+path);
           }
           if (module.nonce === nonce) {
             module = module();
-            console.log("require:end", path);
+            console.log("!"+path, typeof module);
+            return module;
+          } else {
+            console.log("."+path, typeof module);
+            return module;
           }
-          console.log("require:cached", path);
-          return module;
         }
         #{code}
         return require('joeson/src/client');

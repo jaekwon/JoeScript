@@ -2,16 +2,18 @@
   var Sembly = function() {
     function require(path){
       var module = require[path];
-      console.log("require:start", path);
+      console.log("+"+path);
       if (!module) {
         throw new Error("Can't find module "+path);
       }
       if (module.nonce === nonce) {
         module = module();
-        console.log("require:end", path);
+        console.log("!"+path, typeof module);
+        return module;
+      } else {
+        console.log("."+path, typeof module);
+        return module;
       }
-      console.log("require:cached", path);
-      return module;
     }
     nonce = {nonce:'nonce'};require['joeson'] = function() {
   return new function() {
@@ -1350,7 +1352,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
 
 }).call(this);
 
-    require['joeson'] = module.exports;
+    return (require['joeson'] = module.exports);
   };
 };
 require['joeson'].nonce = nonce;
@@ -1460,7 +1462,7 @@ require['joeson/src/codestream'] = function() {
 
 }).call(this);
 
-    require['joeson/src/codestream'] = module.exports;
+    return (require['joeson/src/codestream'] = module.exports);
   };
 };
 require['joeson/src/codestream'].nonce = nonce;
@@ -2766,7 +2768,7 @@ require['joeson/src/joescript'] = function() {
 
 }).call(this);
 
-    require['joeson/src/joescript'] = module.exports;
+    return (require['joeson/src/joescript'] = module.exports);
   };
 };
 require['joeson/src/joescript'].nonce = nonce;
@@ -2919,7 +2921,7 @@ require['joeson/src/node'] = function() {
 
 }).call(this);
 
-    require['joeson/src/node'] = module.exports;
+    return (require['joeson/src/node'] = module.exports);
   };
 };
 require['joeson/src/node'].nonce = nonce;
@@ -3328,7 +3330,7 @@ i9n: short for instruction
 
 }).call(this);
 
-    require['joeson/src/interpreter'] = module.exports;
+    return (require['joeson/src/interpreter'] = module.exports);
   };
 };
 require['joeson/src/interpreter'].nonce = nonce;
@@ -3406,7 +3408,7 @@ require['joeson/src/interpreter/global'] = function() {
 
 }).call(this);
 
-    require['joeson/src/interpreter/global'] = module.exports;
+    return (require['joeson/src/interpreter/global'] = module.exports);
   };
 };
 require['joeson/src/interpreter/global'].nonce = nonce;
@@ -4789,7 +4791,7 @@ require['joeson/src/interpreter/object'] = function() {
 
 }).call(this);
 
-    require['joeson/src/interpreter/object'] = module.exports;
+    return (require['joeson/src/interpreter/object'] = module.exports);
   };
 };
 require['joeson/src/interpreter/object'].nonce = nonce;
@@ -4989,7 +4991,7 @@ require['joeson/src/interpreter/persistence'] = function() {
 
 }).call(this);
 
-    require['joeson/src/interpreter/persistence'] = module.exports;
+    return (require['joeson/src/interpreter/persistence'] = module.exports);
   };
 };
 require['joeson/src/interpreter/persistence'].nonce = nonce;
@@ -5604,7 +5606,7 @@ require['joeson/src/translators/javascript'] = function() {
 
 }).call(this);
 
-    require['joeson/src/translators/javascript'] = module.exports;
+    return (require['joeson/src/translators/javascript'] = module.exports);
   };
 };
 require['joeson/src/translators/javascript'].nonce = nonce;
@@ -5810,7 +5812,7 @@ require['joeson/src/translators/scope'] = function() {
 
 }).call(this);
 
-    require['joeson/src/translators/scope'] = module.exports;
+    return (require['joeson/src/translators/scope'] = module.exports);
   };
 };
 require['joeson/src/translators/scope'].nonce = nonce;
@@ -5821,7 +5823,7 @@ require['joeson/src/client'] = function() {
     var module = {exports:exports};
     var process = require('_process');
     (function() {
-  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
+  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, toHTML, x, _ref;
 
   this.require = require;
 
@@ -5829,13 +5831,15 @@ require['joeson/src/client'] = function() {
 
   randid = require('joeson/lib/helpers').randid;
 
+  toHTML = require('joeson/src/parsers/ansi').toHTML;
+
   domLog = window.domLog = $('<pre/>');
 
   require('nogg').configure({
     "default": {
       file: {
         write: function(line) {
-          return domLog.append(line);
+          return domLog.append(toHTML(line));
         }
       },
       level: 'debug'
@@ -6026,10 +6030,74 @@ require['joeson/src/client'] = function() {
 
 }).call(this);
 
-    require['joeson/src/client'] = module.exports;
+    return (require['joeson/src/client'] = module.exports);
   };
 };
 require['joeson/src/client'].nonce = nonce;
+
+require['joeson/src/parsers/ansi'] = function() {
+  return new function() {
+    var exports = require['joeson/src/parsers/ansi'] = this;
+    var module = {exports:exports};
+    var process = require('_process');
+    (function() {
+  var ANSI, Grammar, colors, htmlEscape;
+
+  Grammar = require('joeson').Grammar;
+
+  htmlEscape = require('joeson/lib/helpers').htmlEscape;
+
+  colors = {
+    30: 'black',
+    31: 'red',
+    32: 'green',
+    33: 'yellow',
+    34: 'blue',
+    35: 'magenta',
+    36: 'cyan',
+    37: 'yellow'
+  };
+
+  ANSI = Grammar(function(_arg) {
+    var i, make, o, tokens;
+    o = _arg.o, i = _arg.i, tokens = _arg.tokens, make = _arg.make;
+    return [
+      o({
+        ANY: " ( NORMAL | STYLED )* "
+      }, function(it) {
+        return it.join('');
+      }), i({
+        NORMAL: " ( !ESCAPE . )+ "
+      }, function(it) {
+        return htmlEscape(it.join(''));
+      }), i({
+        STYLED: " !END ESCAPE ( sgr:INT ';' )? color:INT 'm' any:ANY END "
+      }, function(_arg2) {
+        var any, color, sgr, _ref;
+        sgr = _arg2.sgr, color = _arg2.color, any = _arg2.any;
+        return "<span style='color:" + ((_ref = colors[color]) != null ? _ref : 'white') + "'>" + any + "</span>";
+      }), i({
+        ESCAPE: " '\x1b[' "
+      }), i({
+        END: " '\x1b[0m' "
+      }), i({
+        '.': " /[\\s\\S]/ "
+      }), i({
+        INT: " /[0-9]+/ "
+      }, function(it) {
+        return new Number(it);
+      })
+    ];
+  });
+
+  this.toHTML = ANSI.parse;
+
+}).call(this);
+
+    return (require['joeson/src/parsers/ansi'] = module.exports);
+  };
+};
+require['joeson/src/parsers/ansi'].nonce = nonce;
 
 require['joeson/lib/helpers'] = function() {
   return new function() {
@@ -6181,7 +6249,7 @@ require['joeson/lib/helpers'] = function() {
 
 }).call(this);
 
-    require['joeson/lib/helpers'] = module.exports;
+    return (require['joeson/lib/helpers'] = module.exports);
   };
 };
 require['joeson/lib/helpers'].nonce = nonce;
@@ -6243,7 +6311,7 @@ process.stdout = process.stderr = require('fs').createWriteStream('stdout.log', 
     };
 })();
 
-    require['_process'] = module.exports;
+    return (require['_process'] = module.exports);
   };
 };
 require['_process'].nonce = nonce;
@@ -6557,7 +6625,7 @@ assert.doesNotThrow = function(block, /*optional*/error, /*optional*/message) {
 
 assert.ifError = function(err) { if (err) {throw err;}};
 
-    require['assert'] = module.exports;
+    return (require['assert'] = module.exports);
   };
 };
 require['assert'].nonce = nonce;
@@ -6880,7 +6948,7 @@ exports.inherits = function(ctor, superCtor) {
   });
 };
 
-    require['util'] = module.exports;
+    return (require['util'] = module.exports);
   };
 };
 require['util'].nonce = nonce;
@@ -7062,7 +7130,7 @@ EventEmitter.prototype.listeners = function(type) {
   return this._events[type];
 };
 
-    require['events'] = module.exports;
+    return (require['events'] = module.exports);
   };
 };
 require['events'].nonce = nonce;
@@ -8203,7 +8271,7 @@ SlowBuffer.prototype.writeFloatBE = Buffer.prototype.writeFloatBE;
 SlowBuffer.prototype.writeDoubleLE = Buffer.prototype.writeDoubleLE;
 SlowBuffer.prototype.writeDoubleBE = Buffer.prototype.writeDoubleBE;
 
-    require['buffer'] = module.exports;
+    return (require['buffer'] = module.exports);
   };
 };
 require['buffer'].nonce = nonce;
@@ -8298,7 +8366,7 @@ exports.writeIEEE754 = function(buffer, value, offset, isBE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-    require['buffer_ieee754'] = module.exports;
+    return (require['buffer_ieee754'] = module.exports);
   };
 };
 require['buffer_ieee754'].nonce = nonce;
@@ -8412,7 +8480,7 @@ function errorHandler(e) {
 }
 
 
-    require['fs'] = module.exports;
+    return (require['fs'] = module.exports);
   };
 };
 require['fs'].nonce = nonce;
@@ -8438,7 +8506,7 @@ require['cardamom'] = function() {
 
 }).call(this);
 
-    require['cardamom'] = module.exports;
+    return (require['cardamom'] = module.exports);
   };
 };
 require['cardamom'].nonce = nonce;
@@ -8545,7 +8613,7 @@ require['cardamom/src/bisect'] = function() {
 
 }).call(this);
 
-    require['cardamom/src/bisect'] = module.exports;
+    return (require['cardamom/src/bisect'] = module.exports);
   };
 };
 require['cardamom/src/bisect'].nonce = nonce;
@@ -8754,7 +8822,7 @@ require['cardamom/src/clazz'] = function() {
 
 }).call(this);
 
-    require['cardamom/src/clazz'] = module.exports;
+    return (require['cardamom/src/clazz'] = module.exports);
   };
 };
 require['cardamom/src/clazz'].nonce = nonce;
@@ -8779,7 +8847,7 @@ require['cardamom/src/collections'] = function() {
 
 }).call(this);
 
-    require['cardamom/src/collections'] = module.exports;
+    return (require['cardamom/src/collections'] = module.exports);
   };
 };
 require['cardamom/src/collections'].nonce = nonce;
@@ -8790,45 +8858,37 @@ require['cardamom/src/colors'] = function() {
     var module = {exports:exports};
     var process = require('_process');
     (function() {
-  var _nothing, _wrap_with;
+  var _wrap_with;
 
-  if (!(typeof window !== "undefined" && window !== null)) {
-    _wrap_with = function(code) {
-      return function(text, bold) {
-        return "\x1b[" + (bold ? '1;' : '') + code + "m" + text + "\x1b[0m";
-      };
+  _wrap_with = function(code) {
+    return function(text, bold) {
+      return "\x1b[" + (bold ? '1;' : '') + code + "m" + text + "\x1b[0m";
     };
-    this.black = _wrap_with('30');
-    this.red = _wrap_with('31');
-    this.green = _wrap_with('32');
-    this.yellow = _wrap_with('33');
-    this.blue = _wrap_with('34');
-    this.magenta = _wrap_with('35');
-    this.cyan = _wrap_with('36');
-    this.white = _wrap_with('37');
-    this.normal = function(text) {
-      return text;
-    };
-  } else {
-    _nothing = function(x) {
-      return x;
-    };
-    this.black = _nothing;
-    this.red = _nothing;
-    this.green = _nothing;
-    this.yellow = _nothing;
-    this.blue = _nothing;
-    this.magenta = _nothing;
-    this.cyan = _nothing;
-    this.white = _nothing;
-    this.normal = function(text) {
-      return text;
-    };
-  }
+  };
+
+  this.black = _wrap_with('30');
+
+  this.red = _wrap_with('31');
+
+  this.green = _wrap_with('32');
+
+  this.yellow = _wrap_with('33');
+
+  this.blue = _wrap_with('34');
+
+  this.magenta = _wrap_with('35');
+
+  this.cyan = _wrap_with('36');
+
+  this.white = _wrap_with('37');
+
+  this.normal = function(text) {
+    return text;
+  };
 
 }).call(this);
 
-    require['cardamom/src/colors'] = module.exports;
+    return (require['cardamom/src/colors'] = module.exports);
   };
 };
 require['cardamom/src/colors'].nonce = nonce;
@@ -8884,7 +8944,7 @@ require['cardamom/src/errors'] = function() {
 
 }).call(this);
 
-    require['cardamom/src/errors'] = module.exports;
+    return (require['cardamom/src/errors'] = module.exports);
   };
 };
 require['cardamom/src/errors'].nonce = nonce;
@@ -9004,7 +9064,7 @@ require['cardamom/src/fnstuff'] = function() {
 
 }).call(this);
 
-    require['cardamom/src/fnstuff'] = module.exports;
+    return (require['cardamom/src/fnstuff'] = module.exports);
   };
 };
 require['cardamom/src/fnstuff'].nonce = nonce;
@@ -10014,7 +10074,7 @@ require['underscore'] = function() {
 
 }).call(this);
 
-    require['underscore'] = module.exports;
+    return (require['underscore'] = module.exports);
   };
 };
 require['underscore'].nonce = nonce;
@@ -10717,7 +10777,7 @@ require['async'] = function() {
 
 }());
 
-    require['async'] = module.exports;
+    return (require['async'] = module.exports);
   };
 };
 require['async'].nonce = nonce;
@@ -10943,7 +11003,7 @@ require['nogg'] = function() {
 
 }).call(this);
 
-    require['nogg'] = module.exports;
+    return (require['nogg'] = module.exports);
   };
 };
 require['nogg'].nonce = nonce;
