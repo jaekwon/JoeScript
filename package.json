@@ -14,7 +14,7 @@
       "socket.io": "",
       "redis": "",
       "uglify-js": "",
-      "browserify": "https://github.com/jaekwon/node-browserify.git"
+      "browserify": "git://github.com/jaekwon/node-browserify.git"
     },
   "main": "./src/joeson",
   "keywords": [],

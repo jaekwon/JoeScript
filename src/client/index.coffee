@@ -1,6 +1,14 @@
 @require = require
 {clazz} = require 'cardamom'
 {randid} = require 'joeson/lib/helpers'
+
+# configure logging
+domLog = window.domLog = $('<pre/>')
+require('nogg').configure
+  default:
+    file:   {write:(line)->domLog.append(line)}
+    level: 'debug'
+
 {GOD, WORLD, GUEST, JKernel} = require 'joeson/src/interpreter'
 
 kern = new JKernel
@@ -35,7 +43,9 @@ replaceTabs = (str) ->
   return accum.join ''
 
 # init
-$('document').ready ->
+$(document).ready ->
+
+  $(document.body).append(domLog)
 
   console.log "booting..."
   marqueeLevel = 0

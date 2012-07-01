@@ -5821,13 +5821,26 @@ require['joeson/src/client'] = function() {
     var module = {exports:exports};
     var process = require('_process');
     (function() {
-  var Client, GOD, GUEST, JKernel, WORLD, clazz, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
+  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
 
   this.require = require;
 
   clazz = require('cardamom').clazz;
 
   randid = require('joeson/lib/helpers').randid;
+
+  domLog = window.domLog = $('<pre/>');
+
+  require('nogg').configure({
+    "default": {
+      file: {
+        write: function(line) {
+          return domLog.append(line);
+        }
+      },
+      level: 'debug'
+    }
+  });
 
   _ref = require('joeson/src/interpreter'), GOD = _ref.GOD, WORLD = _ref.WORLD, GUEST = _ref.GUEST, JKernel = _ref.JKernel;
 
@@ -5869,8 +5882,9 @@ require['joeson/src/client'] = function() {
     return accum.join('');
   };
 
-  $('document').ready(function() {
+  $(document).ready(function() {
     var marqueeLevel;
+    $(document.body).append(domLog);
     console.log("booting...");
     marqueeLevel = 0;
     setInterval((function() {
@@ -6216,7 +6230,7 @@ process.binding = function (name) {
     else throw new Error('No such module. (Possibly not yet loaded)')
 };
 
-process.stderr = process.stdout = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
+process.stdout = process.stderr = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
 //process.stderr = require('fs').createWriteStream('stderr.log', {flags: 'a', mode: 0666});
 
 (function () {
@@ -8302,26 +8316,28 @@ var _fs = null;
 function withFileSystem(cb) {
   if (_fs) {
     cb(_fs);
-  } else {
+  } else if (window.webkitStorageInfo) {
     window.webkitStorageInfo.requestQuota(TEMPORARY, 1024*1024, function(grantedBytes) {
       window.webkitRequestFileSystem(TEMPORARY, grantedBytes, function(fs) { _fs = fs; cb(fs); }, errorHandler);
     }, function(e) {
       errorHandler(e);
     });
+  } else {
+    cb(null);
   };
 };
 
 // Return a fake writer synchronously.
 // You can use it like a node.js file write stream.
 function makeStreamAdapter() {
-  var writeBuffer = [];
   var fakeStream = {};
+  var writeBuffer = fakeStream.writeBuffer = [];
   fakeStream.write = function (str, enc) {
     if (enc != 'utf8') {
       throw new Error("FakeStream wants utf8");
     }
-    console.log('fs.write: '+str);
-    writeBuffer.push(str);
+    if (writeBuffer) writeBuffer.push(str);
+    else console.log(str);
   };
   // make it real
   fakeStream.realize = function (fileWriter) {
@@ -8330,7 +8346,6 @@ function makeStreamAdapter() {
       if (enc != 'utf8') {
         throw new Error("FakeStream wants utf8");
       }
-      console.log('fs.write: '+str);
       // blobs? are you for fucking real?
       var bb = new WebKitBlobBuilder();
       while (writeBuffer.length) {
@@ -8350,6 +8365,10 @@ function makeStreamAdapter() {
 exports.createWriteStream = function (path, options) {
   var fakeStream = makeStreamAdapter();
   withFileSystem(function(fs) {
+    if (!fs) {
+      fakeStream.writeBuffer = null;
+      return;
+    }
     // TODO handle options
     fs.root.getFile(path, {create:true}, function(fileEntry) {
       // Create a FileWriter object for our FileEntry
@@ -8771,33 +8790,41 @@ require['cardamom/src/colors'] = function() {
     var module = {exports:exports};
     var process = require('_process');
     (function() {
-  var _wrap_with;
+  var _nothing, _wrap_with;
 
-  _wrap_with = function(code) {
-    return function(text, bold) {
-      return "\x1b[" + (bold ? '1;' : '') + code + "m" + text + "\x1b[0m";
+  if (!(typeof window !== "undefined" && window !== null)) {
+    _wrap_with = function(code) {
+      return function(text, bold) {
+        return "\x1b[" + (bold ? '1;' : '') + code + "m" + text + "\x1b[0m";
+      };
     };
-  };
-
-  this.black = _wrap_with('30');
-
-  this.red = _wrap_with('31');
-
-  this.green = _wrap_with('32');
-
-  this.yellow = _wrap_with('33');
-
-  this.blue = _wrap_with('34');
-
-  this.magenta = _wrap_with('35');
-
-  this.cyan = _wrap_with('36');
-
-  this.white = _wrap_with('37');
-
-  this.normal = function(text) {
-    return text;
-  };
+    this.black = _wrap_with('30');
+    this.red = _wrap_with('31');
+    this.green = _wrap_with('32');
+    this.yellow = _wrap_with('33');
+    this.blue = _wrap_with('34');
+    this.magenta = _wrap_with('35');
+    this.cyan = _wrap_with('36');
+    this.white = _wrap_with('37');
+    this.normal = function(text) {
+      return text;
+    };
+  } else {
+    _nothing = function(x) {
+      return x;
+    };
+    this.black = _nothing;
+    this.red = _nothing;
+    this.green = _nothing;
+    this.yellow = _nothing;
+    this.blue = _nothing;
+    this.magenta = _nothing;
+    this.cyan = _nothing;
+    this.white = _nothing;
+    this.normal = function(text) {
+      return text;
+    };
+  }
 
 }).call(this);
 
@@ -10701,7 +10728,7 @@ require['nogg'] = function() {
     var module = {exports:exports};
     var process = require('_process');
     (function() {
-  var COLORS, LEVELS, PIDMAP, STREAM_GENERATORS, assert, colors, fs, getWritestream, inspect, level, loggingConfig, num, toMessage, writeLog, _fn, _ref,
+  var COLORS, LEVELS, PIDMAP, STREAM_GENERATORS, assert, colors, fs, getStream, inspect, level, loggingConfig, num, toMessage, writeLog, _fn, _ref,
     __slice = Array.prototype.slice,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
@@ -10755,19 +10782,31 @@ require['nogg'] = function() {
 
   PIDMAP = {};
 
-  getWritestream = function(name) {
-    var stream, streamCache, _name;
-    streamCache = (PIDMAP[_name = process.pid] || (PIDMAP[_name] = {}));
-    if (streamCache[name] != null) return streamCache[name];
-    if (STREAM_GENERATORS[name] != null) {
-      stream = STREAM_GENERATORS[name]();
+  getStream = function(handler) {
+    var name, stream, streamCache, _name;
+    console.log(typeof handler.file);
+    if (handler.file.write != null) {
+      return handler.file;
     } else {
-      stream = fs.createWriteStream(name, {
-        flags: 'a',
-        mode: 0666
-      });
+      name = handler.file;
+      streamCache = (PIDMAP[_name = process.pid] || (PIDMAP[_name] = {}));
+      if (streamCache[name] != null) return streamCache[name];
+      if (STREAM_GENERATORS[name] != null) {
+        stream = STREAM_GENERATORS[name]();
+      } else {
+        stream = fs.createWriteStream(name, {
+          flags: 'a',
+          mode: 0666
+        });
+      }
+      return (streamCache[name] = stream);
     }
-    return (streamCache[name] = stream);
+  };
+
+  this.setStream = function(name, streamGen) {
+    var _ref2;
+    STREAM_GENERATORS[name] = streamGen;
+    return (_ref2 = PIDMAP[process.pid]) != null ? delete _ref2[name] : void 0;
   };
 
   writeLog = function(handler, name, level, message) {
@@ -10790,23 +10829,17 @@ require['nogg'] = function() {
       logLine = "" + (new Date()) + "\t" + level + "\t" + name + " - " + message + "\n";
       if (handler.file === 'stdout') logLine = COLORS[level](logLine);
     }
-    wstream = getWritestream(handler.file);
+    wstream = getStream(handler);
     try {
       return wstream.write(logLine, 'utf8');
     } catch (e) {
-      return console.log("ERROR IN LOGGING: COULD NOT WRITE TO FILE " + handler.file);
+      return console.log("ERROR IN LOGGING: COULD NOT WRITE TO FILE " + handler.file + ". " + e.stack);
     }
   };
 
-  exports.configure = function(config) {
+  this.configure = function(config) {
     loggingConfig = config;
     return exports;
-  };
-
-  exports.setStream = function(name, streamGen) {
-    var _ref2;
-    STREAM_GENERATORS[name] = streamGen;
-    return (_ref2 = PIDMAP[process.pid]) != null ? delete _ref2[name] : void 0;
   };
 
   toMessage = function(obj) {

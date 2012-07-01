@@ -1,11 +1,24 @@
 (function() {
-  var Client, GOD, GUEST, JKernel, WORLD, clazz, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
+  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, x, _ref;
 
   this.require = require;
 
   clazz = require('cardamom').clazz;
 
   randid = require('joeson/lib/helpers').randid;
+
+  domLog = window.domLog = $('<pre/>');
+
+  require('nogg').configure({
+    "default": {
+      file: {
+        write: function(line) {
+          return domLog.append(line);
+        }
+      },
+      level: 'debug'
+    }
+  });
 
   _ref = require('joeson/src/interpreter'), GOD = _ref.GOD, WORLD = _ref.WORLD, GUEST = _ref.GUEST, JKernel = _ref.JKernel;
 
@@ -47,8 +60,9 @@
     return accum.join('');
   };
 
-  $('document').ready(function() {
+  $(document).ready(function() {
     var marqueeLevel;
+    $(document.body).append(domLog);
     console.log("booting...");
     marqueeLevel = 0;
     setInterval((function() {
