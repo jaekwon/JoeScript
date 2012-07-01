@@ -31,7 +31,7 @@ i9n: short for instruction
   _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
 
   trace = {
-    debug: false,
+    debug: true,
     logCode: true
   };
 
@@ -88,7 +88,7 @@ i9n: short for instruction
         var dontcare, existing, func, i9n, last, target, targetIndex, targetKey, that, _ref8;
         if (this.i9ns.length === 0) return this.state = 'return';
         _ref8 = i9n = this.i9ns[this.i9ns.length - 1], func = _ref8.func, that = _ref8["this"], target = _ref8.target, targetKey = _ref8.targetKey, targetIndex = _ref8.targetIndex;
-        if (trace.debug) console.log(blue("             -- runStep --"));
+        if (trace.debug) info(blue("             -- runStep --"));
         if (trace.debug) this.printScope(this.scope);
         if (trace.debug) this.printStack();
         if (!(func != null)) throw new Error("Last i9n.func undefined!");
@@ -99,7 +99,7 @@ i9n: short for instruction
         switch (this.state) {
           case null:
             if (trace.debug) {
-              console.log("             " + (blue('last ->')) + " " + this.last);
+              info("             " + (blue('last ->')) + " " + this.last);
             }
             if (targetIndex != null) {
               target[targetKey][targetIndex] = this.last;
@@ -109,7 +109,7 @@ i9n: short for instruction
             return null;
           case 'error':
             if (trace.debug) {
-              console.log("             " + (red('throw ->')) + " " + this.last);
+              info("             " + (red('throw ->')) + " " + this.last);
             }
             while (true) {
               dontcare = this.pop();
@@ -126,7 +126,7 @@ i9n: short for instruction
             break;
           case 'return':
             if (trace.debug) {
-              console.log("             " + (yellow('return ->')) + " " + this.last);
+              info("             " + (yellow('return ->')) + " " + this.last);
             }
             while (true) {
               dontcare = this.pop();
@@ -141,7 +141,7 @@ i9n: short for instruction
             break;
           case 'wait':
             if (trace.debug) {
-              console.log("             " + (yellow('wait ->')) + " " + (inspect(this.waitKey)));
+              info("             " + (yellow('wait ->')) + " " + (inspect(this.waitKey)));
             }
             existing = this.kernel.waitlist[waitKey];
             if (existing != null) {
@@ -234,7 +234,7 @@ i9n: short for instruction
           i9nCopy = _.clone(i9n);
           delete i9nCopy["this"];
           delete i9nCopy.func;
-          _results.push(console.log("" + (blue(pad({
+          _results.push(info("" + (blue(pad({
             right: 12
           }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(_.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
@@ -252,7 +252,7 @@ i9n: short for instruction
           } catch (error) {
             valueStr = "<ERROR IN __STR__: " + error + ">";
           }
-          console.log("" + (black(pad({
+          info("" + (black(pad({
             left: 13
           }, lvl))) + (red(key)) + (blue(':')) + " " + valueStr);
         }

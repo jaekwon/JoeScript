@@ -56,7 +56,7 @@ app.listen 8080
 
 # kernel
 {JKernel, JTypes} = require 'joeson/src/interpreter'
-kern = new JKernel
+KERNEL = new JKernel
 info "initialized kernel runloop"
 
 # make output object
@@ -81,7 +81,7 @@ io.sockets.on 'connection', (socket) ->
   socket.on 'start', ({code,threadId}) ->
     info "received code #{code}, thread id #{threadId}"
     output = makeOut socket, threadId
-    kern.run
+    KERNEL.run
       user:   user
       code:   code
       output: output

@@ -18,7 +18,7 @@ joe = require('joeson/src/joescript').NODES
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
 
-trace = debug:no, logCode:yes
+trace = debug:yes, logCode:yes
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 {GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
 
@@ -64,7 +64,7 @@ JThread = @JThread = clazz 'JThread', ->
     if @i9ns.length is 0
       return @state='return'
     {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
-    console.log blue "             -- runStep --" if trace.debug
+    info blue "             -- runStep --" if trace.debug
     @printScope @scope if trace.debug
     @printStack() if trace.debug
     throw new Error "Last i9n.func undefined!" if not func?
@@ -75,14 +75,14 @@ JThread = @JThread = clazz 'JThread', ->
     @last = func.call that ? i9n, this, i9n, @last
     switch @state
       when null
-        console.log "             #{blue 'last ->'} #{@last}" if trace.debug
+        info "             #{blue 'last ->'} #{@last}" if trace.debug
         if targetIndex?
           target[targetKey][targetIndex] = @last
         else if target?
           target[targetKey] = @last
         return null
       when 'error'
-        console.log "             #{red 'throw ->'} #{@last}" if trace.debug
+        info "             #{red 'throw ->'} #{@last}" if trace.debug
         loop # unwind loop
           dontcare = @pop()
           i9n = @peek()
@@ -94,7 +94,7 @@ JThread = @JThread = clazz 'JThread', ->
             last = @error
             return @state=null
       when 'return'
-        console.log "             #{yellow 'return ->'} #{@last}" if trace.debug
+        info "             #{yellow 'return ->'} #{@last}" if trace.debug
         loop # unwind loop
           dontcare = @pop()
           i9n = @peek()
@@ -104,7 +104,7 @@ JThread = @JThread = clazz 'JThread', ->
             assert.ok i9n.func is joe.Invocation::interpretFinal
             return @state=null
       when 'wait'
-        console.log "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace.debug
+        info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace.debug
         existing = @kernel.waitlist[waitKey]
         if existing?
           @kernel.waitlist[waitKey].push thread
@@ -179,7 +179,7 @@ JThread = @JThread = clazz 'JThread', ->
       i9nCopy = _.clone i9n
       delete i9nCopy.this
       delete i9nCopy.func
-      console.log "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
+      info        "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
                  }.#{ yellow i9n.func?._name
              }($, {#{ white _.keys(i9nCopy).join ','
             }}, _) #{ black escape i9n.this }"
@@ -190,7 +190,7 @@ JThread = @JThread = clazz 'JThread', ->
         valueStr = value.__str__(@)
       catch error
         valueStr = "<ERROR IN __STR__: #{error}>"
-      console.log "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{valueStr}"
+      info "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{valueStr}"
     @printScope scope.data.__proto__, lvl+1 if scope.data.__proto__?
 
   # for convenience, jml is available on a thread.

@@ -2,6 +2,7 @@
 {clazz} = require 'cardamom'
 {randid} = require 'joeson/lib/helpers'
 {toHTML} = require 'joeson/src/parsers/ansi'
+{debug, info, warn, error:fatal} = require 'nogg'
 
 # configure logging
 domLog = window.domLog = $('<pre/>')
@@ -12,7 +13,52 @@ require('nogg').configure
 
 {GOD, WORLD, GUEST, JKernel} = require 'joeson/src/interpreter'
 
-kern = new JKernel
+KERNEL = new JKernel
+
+# init
+$(document).ready ->
+
+  $(document.body).append(domLog)
+
+  console.log "booting..."
+  marqueeLevel = 0
+  setInterval (->
+    m4Off = marqueeLevel%4
+    $(".marq#{m4Off}m4").css opacity:1
+    m4On = (++marqueeLevel)%4
+    $(".marq#{m4On}m4").css  opacity:0.7
+  ), 300
+
+  KERNEL.run
+    user: GUEST
+    code: 'login()'
+    output: undefined
+    callback: ->
+      switch @state
+        when 'return'
+          info @last.__str__(@)
+          #unless @last is JTypes.JUndefined
+          #  output(@last.__repr__(@).__html__(@))
+          #output.close()
+        when 'error'
+          if @error.stack.length
+            @printStack @error.stack
+            stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
+            warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
+          else
+            warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
+          #output.close()
+        else
+          throw new Error "Unexpected state #{@state} during kernel callback"
+      @cleanup()
+
+###
+
+  # connect to client.
+  #window.client = client = new Client()
+  # click page to focus
+  #$(document).click -> client.mirror.focus()
+
 
 outBoxHtml = """
 <div class='outbox'>
@@ -42,30 +88,6 @@ replaceTabs = (str) ->
     if i1 < lines.length-1
       accum.push '\n'
   return accum.join ''
-
-# init
-$(document).ready ->
-
-  $(document.body).append(domLog)
-
-  console.log "booting..."
-  marqueeLevel = 0
-  setInterval (->
-    m4Off = marqueeLevel%4
-    $(".marq#{m4Off}m4").css opacity:1
-    m4On = (++marqueeLevel)%4
-    $(".marq#{m4On}m4").css  opacity:0.7
-  ), 300
-
-  # connect to client.
-  #window.client = client = new Client()
-  # click page to focus
-  #$(document).click -> client.mirror.focus()
-
-  kern.run
-    user: GUEST
-    code: 'login()'
-    output: undefined
 
 Client = clazz 'Client', ->
   init: ->
@@ -159,4 +181,4 @@ Client = clazz 'Client', ->
   append: (elem) ->
     mirrorElement = $(@mirror.getWrapperElement())
     mirrorElement.before elem
-
+###

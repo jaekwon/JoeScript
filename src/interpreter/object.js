@@ -475,13 +475,14 @@
       },
       func$: {
         get: function() {
-          var node;
+          var node, _ref7;
           node = parse(this._func);
           node = node.toJSNode({
             toValue: true
           }).installScope().determine();
-          assert.ok(node.constructor.name === 'Func', "Expected Func, got " + node.constructor.name);
-          return this.func = node;
+          assert.ok(node instanceof joe.Block, "Expected Block at root node, but got " + (node != null ? (_ref7 = node.constructor) != null ? _ref7.name : void 0 : void 0));
+          assert.ok(node.lines.length === 1 && node.lines[0] instanceof joe.Func, "Expected one Func");
+          return this.func = node.lines[0];
         }
       },
       __str__: function($) {
@@ -956,11 +957,26 @@
             _ref7 = i9n.invokedFunction, (_ref8 = _ref7.func, block = _ref8.block, params = _ref8.params), scope = _ref7.scope;
             paramValues = i9n.paramValues;
             if (i9n.source != null) {
-              $.scope = scope.__create__($, {
-                "this": i9n.source
-              });
+              if (scope != null) {
+                $.scope = scope.__create__($, {
+                  "this": i9n.source
+                });
+              } else {
+                $.scope = new JObject({
+                  creator: $.user,
+                  data: {
+                    "this": i9n.source
+                  }
+                });
+              }
             } else {
-              $.scope = scope.__create__($);
+              if (scope != null) {
+                $.scope = scope.__create__($);
+              } else {
+                $.scope = new JObject({
+                  creator: $.user
+                });
+              }
             }
             if (params != null) {
               assert.ok(params instanceof joe.AssignList);

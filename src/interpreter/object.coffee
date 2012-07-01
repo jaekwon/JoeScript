@@ -246,8 +246,9 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   func$: get: ->
     node = parse @_func
     node = node.toJSNode(toValue:yes).installScope().determine()
-    assert.ok node.constructor.name is 'Func', "Expected Func, got #{node.constructor.name}"
-    return @func=node
+    assert.ok node instanceof joe.Block, "Expected Block at root node, but got #{node?.constructor?.name}"
+    assert.ok node.lines.length is 1 and node.lines[0] instanceof joe.Func, "Expected one Func"
+    return @func=node.lines[0]
   __str__: ($) -> "(<\##{@id}>)"
   __repr__: ($) ->
     dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
@@ -523,9 +524,15 @@ unless joe.Node::interpret? then do =>
         {func:{block,params}, scope} = i9n.invokedFunction
         paramValues = i9n.paramValues
         if i9n.source?
-          $.scope = scope.__create__ $, {this:i9n.source}
+          if scope?
+            $.scope = scope.__create__ $, {this:i9n.source}
+          else
+            $.scope = new JObject creator:$.user, data:{this:i9n.source}
         else
-          $.scope = scope.__create__ $ # this isnt bound to global
+          if scope?
+            $.scope = scope.__create__ $ # this isnt bound to global
+          else
+            $.scope = new JObject creator:$.user
         if params?
           # Though params is an AssignList,
           assert.ok params instanceof joe.AssignList

@@ -2964,7 +2964,7 @@ i9n: short for instruction
   _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
 
   trace = {
-    debug: false,
+    debug: true,
     logCode: true
   };
 
@@ -3021,7 +3021,7 @@ i9n: short for instruction
         var dontcare, existing, func, i9n, last, target, targetIndex, targetKey, that, _ref8;
         if (this.i9ns.length === 0) return this.state = 'return';
         _ref8 = i9n = this.i9ns[this.i9ns.length - 1], func = _ref8.func, that = _ref8["this"], target = _ref8.target, targetKey = _ref8.targetKey, targetIndex = _ref8.targetIndex;
-        if (trace.debug) console.log(blue("             -- runStep --"));
+        if (trace.debug) info(blue("             -- runStep --"));
         if (trace.debug) this.printScope(this.scope);
         if (trace.debug) this.printStack();
         if (!(func != null)) throw new Error("Last i9n.func undefined!");
@@ -3032,7 +3032,7 @@ i9n: short for instruction
         switch (this.state) {
           case null:
             if (trace.debug) {
-              console.log("             " + (blue('last ->')) + " " + this.last);
+              info("             " + (blue('last ->')) + " " + this.last);
             }
             if (targetIndex != null) {
               target[targetKey][targetIndex] = this.last;
@@ -3042,7 +3042,7 @@ i9n: short for instruction
             return null;
           case 'error':
             if (trace.debug) {
-              console.log("             " + (red('throw ->')) + " " + this.last);
+              info("             " + (red('throw ->')) + " " + this.last);
             }
             while (true) {
               dontcare = this.pop();
@@ -3059,7 +3059,7 @@ i9n: short for instruction
             break;
           case 'return':
             if (trace.debug) {
-              console.log("             " + (yellow('return ->')) + " " + this.last);
+              info("             " + (yellow('return ->')) + " " + this.last);
             }
             while (true) {
               dontcare = this.pop();
@@ -3074,7 +3074,7 @@ i9n: short for instruction
             break;
           case 'wait':
             if (trace.debug) {
-              console.log("             " + (yellow('wait ->')) + " " + (inspect(this.waitKey)));
+              info("             " + (yellow('wait ->')) + " " + (inspect(this.waitKey)));
             }
             existing = this.kernel.waitlist[waitKey];
             if (existing != null) {
@@ -3167,7 +3167,7 @@ i9n: short for instruction
           i9nCopy = _.clone(i9n);
           delete i9nCopy["this"];
           delete i9nCopy.func;
-          _results.push(console.log("" + (blue(pad({
+          _results.push(info("" + (blue(pad({
             right: 12
           }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(_.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
@@ -3185,7 +3185,7 @@ i9n: short for instruction
           } catch (error) {
             valueStr = "<ERROR IN __STR__: " + error + ">";
           }
-          console.log("" + (black(pad({
+          info("" + (black(pad({
             left: 13
           }, lvl))) + (red(key)) + (blue(':')) + " " + valueStr);
         }
@@ -3895,13 +3895,14 @@ require['joeson/src/interpreter/object'] = function() {
       },
       func$: {
         get: function() {
-          var node;
+          var node, _ref7;
           node = parse(this._func);
           node = node.toJSNode({
             toValue: true
           }).installScope().determine();
-          assert.ok(node.constructor.name === 'Func', "Expected Func, got " + node.constructor.name);
-          return this.func = node;
+          assert.ok(node instanceof joe.Block, "Expected Block at root node, but got " + (node != null ? (_ref7 = node.constructor) != null ? _ref7.name : void 0 : void 0));
+          assert.ok(node.lines.length === 1 && node.lines[0] instanceof joe.Func, "Expected one Func");
+          return this.func = node.lines[0];
         }
       },
       __str__: function($) {
@@ -4376,11 +4377,26 @@ require['joeson/src/interpreter/object'] = function() {
             _ref7 = i9n.invokedFunction, (_ref8 = _ref7.func, block = _ref8.block, params = _ref8.params), scope = _ref7.scope;
             paramValues = i9n.paramValues;
             if (i9n.source != null) {
-              $.scope = scope.__create__($, {
-                "this": i9n.source
-              });
+              if (scope != null) {
+                $.scope = scope.__create__($, {
+                  "this": i9n.source
+                });
+              } else {
+                $.scope = new JObject({
+                  creator: $.user,
+                  data: {
+                    "this": i9n.source
+                  }
+                });
+              }
             } else {
-              $.scope = scope.__create__($);
+              if (scope != null) {
+                $.scope = scope.__create__($);
+              } else {
+                $.scope = new JObject({
+                  creator: $.user
+                });
+              }
             }
             if (params != null) {
               assert.ok(params instanceof joe.AssignList);
@@ -5823,7 +5839,7 @@ require['joeson/src/client'] = function() {
     var module = {exports:exports};
     var process = require('_process');
     (function() {
-  var Client, GOD, GUEST, JKernel, WORLD, clazz, domLog, kern, outBoxHtml, randid, replaceTabs, tabCache, tabSize, toHTML, x, _ref;
+  var GOD, GUEST, JKernel, KERNEL, WORLD, clazz, debug, domLog, fatal, info, randid, toHTML, warn, _ref, _ref2;
 
   this.require = require;
 
@@ -5832,6 +5848,8 @@ require['joeson/src/client'] = function() {
   randid = require('joeson/lib/helpers').randid;
 
   toHTML = require('joeson/src/parsers/ansi').toHTML;
+
+  _ref = require('nogg'), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.error;
 
   domLog = window.domLog = $('<pre/>');
 
@@ -5846,45 +5864,9 @@ require['joeson/src/client'] = function() {
     }
   });
 
-  _ref = require('joeson/src/interpreter'), GOD = _ref.GOD, WORLD = _ref.WORLD, GUEST = _ref.GUEST, JKernel = _ref.JKernel;
+  _ref2 = require('joeson/src/interpreter'), GOD = _ref2.GOD, WORLD = _ref2.WORLD, GUEST = _ref2.GUEST, JKernel = _ref2.JKernel;
 
-  kern = new JKernel;
-
-  outBoxHtml = "<div class='outbox'>\n  <div class='outbox-gutter'>\n    <div class='outbox-gutter-text'>→ </div>\n  </div>\n  <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>\n</div>";
-
-  tabSize = 2;
-
-  tabCache = (function() {
-    var _i, _results;
-    _results = [];
-    for (x = _i = 0; 0 <= tabSize ? _i <= tabSize : _i >= tabSize; x = 0 <= tabSize ? ++_i : --_i) {
-      _results.push(Array(x + 1).join(' '));
-    }
-    return _results;
-  })();
-
-  replaceTabs = function(str) {
-    var accum, col, i1, i2, insertWs, line, lines, part, parts, _i, _j, _len, _len2;
-    accum = [];
-    lines = str.split('\n');
-    for (i1 = _i = 0, _len = lines.length; _i < _len; i1 = ++_i) {
-      line = lines[i1];
-      parts = line.split('\t');
-      col = 0;
-      for (i2 = _j = 0, _len2 = parts.length; _j < _len2; i2 = ++_j) {
-        part = parts[i2];
-        col += part.length;
-        accum.push(part);
-        if (i2 < parts.length - 1) {
-          insertWs = tabSize - col % tabSize;
-          col += insertWs;
-          accum.push(tabCache[insertWs]);
-        }
-      }
-      if (i1 < lines.length - 1) accum.push('\n');
-    }
-    return accum.join('');
-  };
+  KERNEL = new JKernel;
 
   $(document).ready(function() {
     var marqueeLevel;
@@ -5902,131 +5884,165 @@ require['joeson/src/client'] = function() {
         opacity: 0.7
       });
     }), 300);
-    return kern.run({
+    return KERNEL.run({
       user: GUEST,
       code: 'login()',
-      output: void 0
+      output: void 0,
+      callback: function() {
+        var stackTrace, _ref3, _ref4, _ref5, _ref6;
+        switch (this.state) {
+          case 'return':
+            info(this.last.__str__(this));
+            break;
+          case 'error':
+            if (this.error.stack.length) {
+              this.printStack(this.error.stack);
+              stackTrace = this.error.stack.map(function(x) {
+                return '  at ' + x;
+              }).join('\n');
+              warn("" + ((_ref3 = this.error.name) != null ? _ref3 : 'UnknownError') + ": " + ((_ref4 = this.error.message) != null ? _ref4 : '') + "\n  Most recent call last:\n" + stackTrace);
+            } else {
+              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : ''));
+            }
+            break;
+          default:
+            throw new Error("Unexpected state " + this.state + " during kernel callback");
+        }
+        return this.cleanup();
+      }
     });
   });
 
-  Client = clazz('Client', function() {
-    return {
-      init: function() {
-        this.threads = {};
-        this.mirror = this.makeMirror();
-        this.socket = io.connect();
-        this.socket.on('output', this.onOutput);
-        console.log("Client socket:", this.socket);
-        return this.start({
-          code: 'help()'
-        });
-      },
-      makeMirror: function() {
-        var mirror;
-        mirror = CodeMirror(document.body, {
-          value: '',
-          mode: 'coffeescript',
-          theme: 'joeson',
-          keyMap: 'vim',
-          autofocus: true,
-          gutter: true,
-          fixedGutter: true,
-          tabSize: 2
-        });
-        mirror.sanitize = function() {
-          var cursor, orig, tabReplaced;
-          cursor = mirror.getCursor();
-          tabReplaced = replaceTabs(orig = mirror.getValue());
-          mirror.setValue(tabReplaced);
-          mirror.setCursor(cursor);
-          return tabReplaced;
-        };
-        mirror.setMarker(0, '● ', 'cm-bracket');
-        $(mirror.getWrapperElement()).addClass('active');
-        mirror.submit = this.onSave;
-        return mirror;
-      },
-      start: function(_arg) {
-        var code, threadId;
-        code = _arg.code;
-        threadId = randid();
-        this.makeOutputForThread(threadId);
-        return this.socket.emit('start', {
-          code: code,
-          threadId: threadId
-        });
-      },
-      onSave$: function() {
-        var cloned, mirrorElement, thing, value;
-        value = this.mirror.sanitize();
-        if (value.trim().length === 0) return;
-        mirrorElement = $(this.mirror.getWrapperElement());
-        cloned = mirrorElement.clone(false);
-        cloned.removeClass('active');
-        cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove();
-        thing = cloned.find('.CodeMirror-lines>div:first>div:first');
-        if (thing.css('visibility') === 'hidden') {
-          thing.remove();
-        } else {
-          console.log("where'd that thing go?");
-        }
-        this.append(cloned);
-        return this.start({
-          code: value
-        });
-      },
-      onOutput$: function(_arg) {
-        var command, html, output, threadId;
-        command = _arg.command, html = _arg.html, threadId = _arg.threadId;
-        output = this.threads[threadId].output;
-        switch (command) {
-          case 'close':
-            return this.close({
-              output: output
-            });
-          case void 0:
-            return this.write({
-              output: output,
-              html: html
-            });
-          default:
-            throw new Error("Unexpected command " + command);
-        }
-      },
-      write: function(_arg) {
-        var html, output;
-        html = _arg.html, output = _arg.output;
-        if (!output.data('initialized')) {
-          output.data('initialized', true);
-          output.empty();
-        }
-        output.append($('<span/>').html(html));
-        return window.scroll(0, document.body.offsetHeight);
-      },
-      close: function(_arg) {
-        var output;
-        output = _arg.output;
-        if (!output.data('initialized')) {
-          output.data('initialized', true);
-          return output.empty();
-        }
-      },
-      makeOutputForThread: function(threadId) {
-        var outputBox;
-        outputBox = $(outBoxHtml);
-        this.append(outputBox);
-        this.threads[threadId] = {
-          output: outputBox.find('.outbox-lines')
-        };
-        return window.scroll(0, document.body.offsetHeight);
-      },
-      append: function(elem) {
-        var mirrorElement;
-        mirrorElement = $(this.mirror.getWrapperElement());
-        return mirrorElement.before(elem);
-      }
-    };
-  });
+  /*
+  
+    # connect to client.
+    #window.client = client = new Client()
+    # click page to focus
+    #$(document).click -> client.mirror.focus()
+  
+  
+  outBoxHtml = """
+  <div class='outbox'>
+    <div class='outbox-gutter'>
+      <div class='outbox-gutter-text'>→ </div>
+    </div>
+    <div class='outbox-lines'><span class='marq2m4'>.</span><span class='marq1m4 marq3m4'>.</span><span class='marq0m4'>.</span></div>
+  </div>
+  """
+  
+  # replace all tabs with spaces
+  tabSize = 2
+  tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
+  replaceTabs = (str) ->
+    accum = []
+    lines = str.split '\n'
+    for line, i1 in lines
+      parts = line.split('\t')
+      col = 0
+      for part, i2 in parts
+        col += part.length
+        accum.push part
+        if i2 < parts.length-1
+          insertWs = tabSize - col%tabSize
+          col += insertWs
+          accum.push tabCache[insertWs]
+      if i1 < lines.length-1
+        accum.push '\n'
+    return accum.join ''
+  
+  Client = clazz 'Client', ->
+    init: ->
+      @threads = {}
+      @mirror = @makeMirror()
+      # connect
+      @socket = io.connect()
+      @socket.on 'output', @onOutput
+      console.log "Client socket:", @socket
+      # run help()
+      @start code:'help()'
+  
+    makeMirror: ->
+      # Setup CodeMirror instance.
+      mirror = CodeMirror document.body,
+        value:      ''
+        mode:       'coffeescript'
+        theme:      'joeson'
+        keyMap:     'vim'
+        autofocus:  yes
+        gutter:     yes
+        fixedGutter:yes
+        tabSize:    2
+      # Sanitization.
+      mirror.sanitize = ->
+        cursor = mirror.getCursor()
+        tabReplaced = replaceTabs orig=mirror.getValue()
+        mirror.setValue tabReplaced
+        mirror.setCursor cursor
+        return tabReplaced
+      # Gutter
+      mirror.setMarker 0, '● ', 'cm-bracket'
+      # Blah
+      $(mirror.getWrapperElement()).addClass 'active'
+      # Events
+      mirror.submit = @onSave
+      return mirror
+  
+    start: ({code}) ->
+      threadId = randid()
+      @makeOutputForThread(threadId)
+      @socket.emit 'start', code:code, threadId:threadId
+  
+    onSave$: ->
+      value = @mirror.sanitize()
+      return if value.trim().length is 0
+      # Clone the current mirror and prepare
+      mirrorElement = $(@mirror.getWrapperElement())
+      cloned = mirrorElement.clone no
+      cloned.removeClass 'active'
+      cloned.find('.CodeMirror-cursor, .CodeMirror-scrollbar, textarea').remove()
+      thing = cloned.find('.CodeMirror-lines>div:first>div:first')
+      if thing.css('visibility') is 'hidden'
+        thing.remove()
+      else
+        console.log "where'd that thing go?"
+      @append cloned
+      @start code:value
+  
+    onOutput$: ({command, html, threadId}) ->
+      {output} = @threads[threadId]
+      switch command
+        when 'close'
+          @close output:output
+        when undefined
+          @write output:output, html:html
+        else
+          throw new Error "Unexpected command #{command}"
+  
+    write: ({html, output}) ->
+      unless output.data('initialized')
+        output.data('initialized', yes)
+        output.empty()
+      output.append $('<span/>').html(html)
+      # hack
+      window.scroll 0, document.body.offsetHeight
+  
+    close: ({output}) ->
+      unless output.data('initialized')
+        output.data('initialized', yes)
+        output.empty()
+  
+    makeOutputForThread: (threadId) ->
+      # Insert response box
+      outputBox = $(outBoxHtml)
+      @append outputBox
+      @threads[threadId] = output:outputBox.find '.outbox-lines'
+      # Scroll to bottom.
+      window.scroll(0, document.body.offsetHeight)
+  
+    append: (elem) ->
+      mirrorElement = $(@mirror.getWrapperElement())
+      mirrorElement.before elem
+  */
 
 }).call(this);
 
@@ -10844,7 +10860,6 @@ require['nogg'] = function() {
 
   getStream = function(handler) {
     var name, stream, streamCache, _name;
-    console.log(typeof handler.file);
     if (handler.file.write != null) {
       return handler.file;
     } else {
