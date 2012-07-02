@@ -11,7 +11,7 @@
 
   _ref3 = require('joeson/lib/helpers'), pad = _ref3.pad, escape = _ref3.escape, starts = _ref3.starts, ends = _ref3.ends;
 
-  _ref4 = require('nogg').logger('persistence'), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.error;
+  _ref4 = require('nogg').logger(__filename.split('/').last()), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.fatal;
 
   _ref5 = require('joeson/src/interpreter'), (_ref6 = _ref5.JTypes, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc, JStub = _ref6.JStub), GLOBALS = _ref5.GLOBALS;
 

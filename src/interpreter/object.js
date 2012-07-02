@@ -16,7 +16,7 @@
 
   _ref5 = require('joeson/src/joescript').HELPERS, extend = _ref5.extend, isVariable = _ref5.isVariable;
 
-  _ref6 = require('nogg').logger('interpreter'), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.error;
+  _ref6 = require('nogg').logger(__filename.split('/').last()), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.fatal;
 
   isInteger = function(n) {
     return n % 1 === 0;

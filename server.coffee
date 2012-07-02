@@ -1,11 +1,11 @@
+sugar = require 'sugar'
 http = require 'http'
 connect = require 'connect'
-{debug, info, warn, error:fatal} = (nogg=require('nogg')).logger 'server'
+{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 assert = require 'assert'
-sugar = require 'sugar'
 
 # logging
-nogg.configure
+require('nogg').configure
   'default': [
     {file: 'logs/app.log',    level: 'debug'},
     {file: 'stdout',          level: 'debug'}]

@@ -29,7 +29,7 @@ i9n: short for instruction
   _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
 
   trace = {
-    debug: false,
+    debug: true,
     logCode: true
   };
 

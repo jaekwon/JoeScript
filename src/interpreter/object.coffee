@@ -4,7 +4,7 @@ assert = require 'assert'
 {NODES:joe, parse} = require('joeson/src/joescript')
 {randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
-{debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
+{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 isInteger = (n) -> n%1 is 0
 

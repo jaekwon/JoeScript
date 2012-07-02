@@ -2,7 +2,7 @@
 {clazz} = require 'cardamom'
 {randid} = require 'joeson/lib/helpers'
 {toHTML} = require 'joeson/src/parsers/ansi'
-{debug, info, warn, error:fatal} = require('nogg').logger 'client'
+{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 # configure logging
 domLog = window.domLog = $('<pre/>')

@@ -9,7 +9,7 @@
 
   toHTML = require('joeson/src/parsers/ansi').toHTML;
 
-  _ref = require('nogg').logger('client'), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.error;
+  _ref = require('nogg').logger(__filename.split('/').last()), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.fatal;
 
   domLog = window.domLog = $('<pre/>');
 

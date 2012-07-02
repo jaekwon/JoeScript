@@ -65,6 +65,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
             var exports = require['#{libname}'] = this;
             var module = {exports:exports};
             var process = require('_process');
+            var __filename = "#{filepath}.js";
             #{ fs.readFileSync "#{filepath}.js" }
             return (require['#{libname}'] = module.exports);
           };

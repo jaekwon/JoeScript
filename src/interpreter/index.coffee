@@ -17,7 +17,7 @@ joe = require('joeson/src/joescript').NODES
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
 
-trace = debug:no, logCode:yes
+trace = debug:yes, logCode:yes
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 {GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
 

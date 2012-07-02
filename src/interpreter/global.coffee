@@ -3,7 +3,7 @@
 assert = require 'assert'
 async = require 'async'
 {pad, escape, starts, ends} = require 'joeson/lib/helpers'
-{debug, info, warn, error:fatal} = require('nogg').logger 'server'
+{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
 {joefn, nativ} = require 'joeson/src/interpreter/persistence'

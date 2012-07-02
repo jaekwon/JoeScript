@@ -20,6 +20,7 @@
     var exports = require['joeson'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/joeson.js";
     
 /*
 JoeSon Parser
@@ -1360,6 +1361,7 @@ require['joeson/src/codestream'] = function() {
     var exports = require['joeson/src/codestream'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/codestream.js";
     (function() {
   var CodeStream, assert, bisect_right, clazz, _ref, _ref2;
 
@@ -1470,6 +1472,7 @@ require['joeson/src/joescript'] = function() {
     var exports = require['joeson/src/joescript'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/joescript.js";
     (function() {
   var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, green, inspect, isVariable, magenta, normal, red, resetIndent, trace, white, yellow, _ref, _ref2, _ref3;
 
@@ -2774,6 +2777,7 @@ require['joeson/src/node'] = function() {
     var exports = require['joeson/src/node'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/node.js";
     (function() {
   var Node, Set, assert, black, blue, clazz, cyan, green, indent, inspect, magenta, normal, red, validateType, white, yellow, _ref, _ref2, _ref3;
 
@@ -2925,6 +2929,7 @@ require['joeson/src/interpreter'] = function() {
     var exports = require['joeson/src/interpreter'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/interpreter/index.js";
     
 /*
 Concerns:
@@ -2956,7 +2961,7 @@ i9n: short for instruction
   _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
 
   trace = {
-    debug: false,
+    debug: true,
     logCode: true
   };
 
@@ -3332,6 +3337,7 @@ require['joeson/src/interpreter/global'] = function() {
     var exports = require['joeson/src/interpreter/global'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/interpreter/global.js";
     (function() {
   var GOD, GUEST, JArray, JNaN, JNull, JObject, JUndefined, JUser, USERS, WORLD, assert, async, black, blue, clazz, cyan, debug, ends, escape, fatal, green, info, inspect, joefn, loadJObject, magenta, nativ, normal, pad, red, saveJObject, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
 
@@ -3345,7 +3351,7 @@ require['joeson/src/interpreter/global'] = function() {
 
   _ref3 = require('joeson/lib/helpers'), pad = _ref3.pad, escape = _ref3.escape, starts = _ref3.starts, ends = _ref3.ends;
 
-  _ref4 = require('nogg').logger('server'), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.error;
+  _ref4 = require('nogg').logger(__filename.split('/').last()), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.fatal;
 
   _ref5 = require('joeson/src/interpreter/object'), JObject = _ref5.JObject, JArray = _ref5.JArray, JUser = _ref5.JUser, JUndefined = _ref5.JUndefined, JNull = _ref5.JNull, JNaN = _ref5.JNaN;
 
@@ -3408,6 +3414,7 @@ require['joeson/src/interpreter/object'] = function() {
     var exports = require['joeson/src/interpreter/object'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/interpreter/object.js";
     (function() {
   var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
@@ -3426,7 +3433,7 @@ require['joeson/src/interpreter/object'] = function() {
 
   _ref5 = require('joeson/src/joescript').HELPERS, extend = _ref5.extend, isVariable = _ref5.isVariable;
 
-  _ref6 = require('nogg').logger('interpreter'), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.error;
+  _ref6 = require('nogg').logger(__filename.split('/').last()), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.fatal;
 
   isInteger = function(n) {
     return n % 1 === 0;
@@ -4805,6 +4812,7 @@ require['joeson/src/interpreter/persistence'] = function() {
     var exports = require['joeson/src/interpreter/persistence'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/interpreter/persistence.js";
     (function() {
   var GLOBALS, JArray, JBoundFunc, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, green, info, inspect, joefn, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
 
@@ -4818,7 +4826,7 @@ require['joeson/src/interpreter/persistence'] = function() {
 
   _ref3 = require('joeson/lib/helpers'), pad = _ref3.pad, escape = _ref3.escape, starts = _ref3.starts, ends = _ref3.ends;
 
-  _ref4 = require('nogg').logger('persistence'), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.error;
+  _ref4 = require('nogg').logger(__filename.split('/').last()), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.fatal;
 
   _ref5 = require('joeson/src/interpreter'), (_ref6 = _ref5.JTypes, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc, JStub = _ref6.JStub), GLOBALS = _ref5.GLOBALS;
 
@@ -5003,6 +5011,7 @@ require['joeson/src/translators/javascript'] = function() {
     var exports = require['joeson/src/translators/javascript'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/translators/javascript.js";
     (function() {
   var assert, black, blue, clazz, compact, cyan, escape, extend, flatten, green, inspect, install, isVariable, isWord, joe, js, magenta, normal, red, translate, trigger, white, yellow, _ref, _ref2, _ref3, _ref4,
     __slice = Array.prototype.slice;
@@ -5616,6 +5625,7 @@ require['joeson/src/translators/scope'] = function() {
     var exports = require['joeson/src/translators/scope'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/translators/scope.js";
     (function() {
   var LScope, assert, black, blue, clazz, cyan, extend, green, inspect, isVariable, isWord, joe, magenta, normal, randid, red, white, yellow, _ref, _ref2, _ref3,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
@@ -5820,6 +5830,7 @@ require['joeson/src/client'] = function() {
     var exports = require['joeson/src/client'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/client/index.js";
     (function() {
   var GOD, GUEST, JKernel, KERNEL, WORLD, clazz, debug, domLog, fatal, info, randid, toHTML, warn, _ref, _ref2;
 
@@ -5831,7 +5842,7 @@ require['joeson/src/client'] = function() {
 
   toHTML = require('joeson/src/parsers/ansi').toHTML;
 
-  _ref = require('nogg').logger('client'), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.error;
+  _ref = require('nogg').logger(__filename.split('/').last()), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.fatal;
 
   domLog = window.domLog = $('<pre/>');
 
@@ -6042,6 +6053,7 @@ require['joeson/src/parsers/ansi'] = function() {
     var exports = require['joeson/src/parsers/ansi'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "src/parsers/ansi.js";
     (function() {
   var ANSI, Grammar, colors, htmlEscape;
 
@@ -6106,6 +6118,7 @@ require['joeson/lib/helpers'] = function() {
     var exports = require['joeson/lib/helpers'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "lib/helpers.js";
     (function() {
   var extend, flatten;
 
@@ -6261,6 +6274,7 @@ require['_process'] = function() {
     var exports = require['_process'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/__browserify_process.js";
     var process = module.exports = {};
 
 process.nextTick = (function () {
@@ -6323,6 +6337,7 @@ require['assert'] = function() {
     var exports = require['assert'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/assert.js";
     // UTILITY
 var util = require('util');
 var Buffer = require("buffer").Buffer;
@@ -6637,6 +6652,7 @@ require['util'] = function() {
     var exports = require['util'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/util.js";
     var events = require('events');
 
 exports.print = function () {};
@@ -6960,6 +6976,7 @@ require['events'] = function() {
     var exports = require['events'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/events.js";
     if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -7142,6 +7159,7 @@ require['buffer'] = function() {
     var exports = require['buffer'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/buffer.js";
     function SlowBuffer (size) {
     this.length = size;
 };
@@ -8283,6 +8301,7 @@ require['buffer_ieee754'] = function() {
     var exports = require['buffer_ieee754'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/buffer_ieee754.js";
     exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -8378,6 +8397,7 @@ require['fs'] = function() {
     var exports = require['fs'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/browserify/builtins/fs.js";
     // nothing to see here... no file methods for the browser
 
 // global fs ref
@@ -8492,6 +8512,7 @@ require['cardamom'] = function() {
     var exports = require['cardamom'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/cardamom.js";
     (function() {
 
   this.clazz = require('cardamom/src/clazz').clazz;
@@ -8518,6 +8539,7 @@ require['cardamom/src/bisect'] = function() {
     var exports = require['cardamom/src/bisect'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/bisect.js";
     (function() {
   "Bisection algorithms.";
 
@@ -8625,6 +8647,7 @@ require['cardamom/src/clazz'] = function() {
     var exports = require['cardamom/src/clazz'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/clazz.js";
     (function() {
   var SUPERKEY, bindMethods, ctor, extendProto, isPropertyDescriptor, _getThis, _makeSuper,
     __hasProp = Object.prototype.hasOwnProperty;
@@ -8834,6 +8857,7 @@ require['cardamom/src/collections'] = function() {
     var exports = require['cardamom/src/collections'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/collections.js";
     (function() {
   var Set, clazz;
 
@@ -8859,6 +8883,7 @@ require['cardamom/src/colors'] = function() {
     var exports = require['cardamom/src/colors'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/colors.js";
     (function() {
   var _wrap_with;
 
@@ -8900,6 +8925,7 @@ require['cardamom/src/errors'] = function() {
     var exports = require['cardamom/src/errors'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/errors.js";
     (function() {
   var __hasProp = Object.prototype.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
@@ -8956,6 +8982,7 @@ require['cardamom/src/fnstuff'] = function() {
     var exports = require['cardamom/src/fnstuff'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/cardamom/lib/fnstuff.js";
     (function() {
   var assert;
 
@@ -9076,6 +9103,7 @@ require['sugar'] = function() {
     var exports = require['sugar'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development.js";
     // Google Closure Compiler will output a wrapping function here.
 (function() {
 
@@ -13088,6 +13116,7 @@ require['async'] = function() {
     var exports = require['async'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/async/lib/async.js";
     /*global setTimeout: false, console: false */
 (function () {
 
@@ -13791,6 +13820,7 @@ require['nogg'] = function() {
     var exports = require['nogg'] = this;
     var module = {exports:exports};
     var process = require('_process');
+    var __filename = "node_modules/nogg/lib/nogg.js";
     (function() {
   var COLORS, LEVELS, PIDMAP, STREAM_GENERATORS, assert, colors, fs, getStream, inspect, level, loggingConfig, num, toMessage, writeLog, _fn, _ref,
     __slice = Array.prototype.slice,
@@ -13825,14 +13855,16 @@ require['nogg'] = function() {
     debug: 0,
     info: 1,
     warn: 2,
-    error: 3
+    error: 3,
+    fatal: 3
   };
 
   COLORS = {
     debug: colors.green,
     info: colors.white,
     warn: colors.yellow,
-    error: colors.red
+    error: colors.red,
+    fatal: colors.red
   };
 
   STREAM_GENERATORS = {
