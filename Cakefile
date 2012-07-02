@@ -1,6 +1,7 @@
 fs = require 'fs'
 {spawn, exec} = require 'child_process'
 log = console.log
+sugar = require 'sugar'
 
 task 'build', ->
   run 'coffee -c src/*.coffee'
@@ -51,8 +52,8 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'cardamom/src/colors',      f:'node_modules/cardamom/lib/colors'}
       {           l:'cardamom/src/errors',      f:'node_modules/cardamom/lib/errors'}
       {           l:'cardamom/src/fnstuff',     f:'node_modules/cardamom/lib/fnstuff'}
-      # underscore
-      {           l:'underscore',               f:'node_modules/underscore/underscore'}
+      # sugar
+      {           l:'sugar',                    f:'node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development'}
       # async
       {           l:'async',                    f:'node_modules/async/lib/async'}
       # nogg
@@ -89,6 +90,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
           }
         }
         #{code}
+        require('sugar');
         return require('joeson/src/client');
       }();
 

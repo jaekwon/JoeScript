@@ -2,7 +2,7 @@ http = require 'http'
 connect = require 'connect'
 {debug, info, warn, error:fatal} = (nogg=require('nogg')).logger 'server'
 assert = require 'assert'
-
+sugar = require 'sugar'
 
 # logging
 nogg.configure

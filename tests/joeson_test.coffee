@@ -1,3 +1,5 @@
+require './setup'
+
 # Uses the existing Joeson grammar to parse the grammar RAW_GRAMMAR.
 # The resulting object, another parser (which is also a Joeson parser), is
 # used to parse its own grammar RAW_GRAMMAR.
@@ -10,7 +12,6 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 {pad, escape} = require 'joeson/lib/helpers'
 
 {o, i, t} = MACROS

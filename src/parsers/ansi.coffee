@@ -1,9 +1,17 @@
 # converts an ANSI stream produced by Cardamom/src/colors into safe HTML.
-#_ = require("underscore")
 {Grammar} = require 'joeson'
 {htmlEscape} = require 'joeson/lib/helpers'
 
-colors = {30:'black', 31:'red', 32:'green', 33:'yellow', 34:'blue', 35:'magenta', 36:'cyan', 37:'yellow'}
+colors = {
+  30:'#000000', # black
+  31:'#e6312a', # red
+  32:'#00cc00', # green
+  33:'#cccc00', # yellow
+  34:'#668ee2', # blue
+  35:'#f062e7', # magenta
+  36:'#00cccc', # cyan
+  37:'#ffffff'  # white
+}
 
 ANSI = Grammar ({o, i, tokens, make}) -> [
   o ANY:     " ( NORMAL | STYLED )* ",                              (it) -> it.join ''

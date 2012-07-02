@@ -1,7 +1,6 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
-_         = require 'underscore'
 
 joe = require('joeson/src/joescript').NODES
 {extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
@@ -27,7 +26,7 @@ joe = require('joeson/src/joescript').NODES
   willDeclare: (name) ->
     name = ''+name unless name instanceof joe.Undetermined
     return true if name in @variables
-    return true if _.any @children, (child)->child.willDeclare(name)
+    return true if @children.some (child)->child.willDeclare(name)
     return false
   ensureVariable: (name) ->
     name = ''+name unless name instanceof joe.Undetermined
@@ -37,7 +36,7 @@ joe = require('joeson/src/joescript').NODES
     @variables.push name unless name in @variables
     @parameters.push name unless name in @parameters if isParameter
   nonparameterVariables$: get: ->
-    _.difference @variables, @parameters
+    @variables.subtract @parameters
 
 # Node::installScope: (plugin)
 # Installs lexical scopes on nodes and collect variables and parameters.

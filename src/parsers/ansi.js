@@ -6,14 +6,14 @@
   htmlEscape = require('joeson/lib/helpers').htmlEscape;
 
   colors = {
-    30: 'black',
-    31: 'red',
-    32: 'green',
-    33: 'yellow',
-    34: 'blue',
-    35: 'magenta',
-    36: 'cyan',
-    37: 'yellow'
+    30: '#000000',
+    31: '#e6312a',
+    32: '#00cc00',
+    33: '#cccc00',
+    34: '#668ee2',
+    35: '#f062e7',
+    36: '#00cccc',
+    37: '#ffffff'
   };
 
   ANSI = Grammar(function(_arg) {

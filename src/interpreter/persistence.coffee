@@ -1,10 +1,9 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 async = require 'async'
 {pad, escape, starts, ends} = require 'joeson/lib/helpers'
-{debug, info, warn, error:fatal} = require('nogg').logger 'server'
+{debug, info, warn, error:fatal} = require('nogg').logger 'persistence'
 
 {
   JTypes:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
@@ -46,7 +45,7 @@ saveJObject = @saveJObject = (jobj, cb) ->
     type:jobj.constructor.name,
     creator:jobj.creator.id
   , (err, res) ->
-    dataKeys = _.keys jobj.data
+    dataKeys = Object.keys jobj.data
     async.forEach dataKeys, (key, next) ->
       value = jobj.data[key]
       saveJObjectItem jobj, key, value, next

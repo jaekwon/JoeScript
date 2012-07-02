@@ -1,7 +1,6 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 async = require 'async'
 {pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, error:fatal} = require('nogg').logger 'server'

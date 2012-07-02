@@ -1,11 +1,10 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 {NODES:joe, parse} = require('joeson/src/joescript')
 {randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
-{debug, info, warn, error:fatal} = require('nogg').logger 'server'
+{debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
 
 isInteger = (n) -> n%1 is 0
 
@@ -97,10 +96,10 @@ JObject = @JObject = clazz 'JObject', ->
       $.throw 'ReferenceError', "#{key} is not defined, cannot update."
   __keys__: ($) ->
     $.will('read', this)
-    return _.keys @data
+    return Object.keys @data
   __iter__: ($) ->
     $.will('read', this)
-    return new SimpleIterator _.keys @data
+    return new SimpleIterator Object.keys @data
   __num__:         ($) -> JNaN
   __add__:  ($, other) -> $.throw 'TypeError', "Can't add to object yet"
   __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
@@ -159,7 +158,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     return
   __keys__: ($) ->
     $.will('read', this)
-    return _.keys(@data)
+    return Object.keys(@data)
   __num__:        ($) -> JNaN
   __add__: ($, other) -> $.throw 'TypeError', "Can't add to array yet"
   __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"

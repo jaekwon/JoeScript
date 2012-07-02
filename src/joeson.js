@@ -17,7 +17,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
 */
 
 (function() {
-  var C, Choice, CodeStream, E, Existential, Frame, GNode, GRAMMAR, Grammar, ILine, L, La, Line, Lookahead, MACROS, N, Node, Not, OLine, P, ParseContext, Pattern, R, Rank, Re, Ref, Regex, S, Sequence, St, Str, assert, black, blue, clazz, cyan, escape, green, i, inspect, magenta, normal, o, pad, red, tokens, trace, white, yellow, _, _loopStack, _ref, _ref2, _ref3,
+  var C, Choice, CodeStream, E, Existential, Frame, GNode, GRAMMAR, Grammar, ILine, L, La, Line, Lookahead, MACROS, N, Node, Not, OLine, P, ParseContext, Pattern, R, Rank, Re, Ref, Regex, S, Sequence, St, Str, assert, black, blue, clazz, cyan, escape, green, i, inspect, magenta, normal, o, pad, red, tokens, trace, white, yellow, _loopStack, _ref, _ref2, _ref3,
     __hasProp = Object.prototype.hasOwnProperty,
     __slice = Array.prototype.slice,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
@@ -27,8 +27,6 @@ just admit that the current implementation is imperfect, and limit grammar usage
   inspect = require('util').inspect;
 
   assert = require('assert');
-
-  _ = require('underscore');
 
   CodeStream = require('joeson/src/codestream').CodeStream;
 
@@ -422,7 +420,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
         this.choices = choices != null ? choices : [];
       },
       prepare: function() {
-        return this.capture = _.all(this.choices, function(choice) {
+        return this.capture = this.choices.every(function(choice) {
           return choice.capture;
         });
       },
@@ -461,8 +459,8 @@ just admit that the current implementation is imperfect, and limit grammar usage
             rank.include(name, rule);
           }
         } else if (line instanceof Object && idx === lines.length - 1) {
-          assert.ok((_.intersection(GNode.optionKeys, _.keys(line))).length > 0, "Invalid options? " + line.constructor.name);
-          _.extend(rank, line);
+          assert.ok(GNode.optionKeys.intersect(Object.keys(line)).length > 0, "Invalid options? " + line.constructor.name);
+          Object.merge(rank, line);
         } else {
           throw new Error("Unknown line type, expected 'o' or 'i' line, got '" + line + "' (" + (typeof line) + ")");
         }
@@ -539,7 +537,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
       labels$: {
         get: function() {
           var child, _ref4;
-          return (_ref4 = this._labels) != null ? _ref4 : this._labels = (this.label != null ? [this.label] : _.flatten((function() {
+          return (_ref4 = this._labels) != null ? _ref4 : this._labels = (this.label != null ? [this.label] : ((function() {
             var _i, _len, _ref5, _results;
             _ref5 = this.sequence;
             _results = [];
@@ -548,13 +546,13 @@ just admit that the current implementation is imperfect, and limit grammar usage
               _results.push(child.labels);
             }
             return _results;
-          }).call(this)));
+          }).call(this)).flatten());
         }
       },
       captures$: {
         get: function() {
           var child, _ref4;
-          return (_ref4 = this._captures) != null ? _ref4 : this._captures = _.flatten((function() {
+          return (_ref4 = this._captures) != null ? _ref4 : this._captures = ((function() {
             var _i, _len, _ref5, _results;
             _ref5 = this.sequence;
             _results = [];
@@ -563,7 +561,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
               _results.push(child.captures);
             }
             return _results;
-          }).call(this));
+          }).call(this)).flatten();
         }
       },
       type$: {
@@ -603,9 +601,9 @@ just admit that the current implementation is imperfect, and limit grammar usage
               res = child.parse($);
               if (res === null) return null;
               if (child.label === '&') {
-                results = results != null ? _.extend(res, results) : res;
+                results = results != null ? Object.merge(res, results) : res;
               } else if (child.label === '@') {
-                results = results != null ? _.extend(results, res) : res;
+                results = results != null ? Object.merge(results, res) : res;
               } else if (child.label != null) {
                 (results != null ? results : results = {})[child.label] = res;
               }
@@ -889,7 +887,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
                 _base.label = node.label;
               }
               if (node.rules != null) {
-                _.extend(((_ref4 = (_base2 = node.choices[0]).rules) != null ? _ref4 : _base2.rules = {}), node.rules);
+                Object.merge(((_ref4 = (_base2 = node.choices[0]).rules) != null ? _ref4 : _base2.rules = {}), node.rules);
               }
               if (key2 != null) {
                 return parent[key][key2] = node.choices[0];
@@ -942,7 +940,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
           env: env
         });
         if (debug) {
-          oldTrace = _.clone(trace);
+          oldTrace = Object.clone(trace);
           trace.stack = true;
         }
         $.result = this.rank.parse($);
@@ -1026,7 +1024,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
         rule.rule = rule;
         assert.ok(!(rule.name != null) || rule.name === name);
         rule.name = name;
-        if (attrs != null) _.extend(rule, attrs);
+        if (attrs != null) Object.merge(rule, attrs);
         return rule;
       },
       getArgs: function() {
@@ -1053,7 +1051,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
           } else if (next instanceof Object && next.constructor.name === 'Word') {
             _a_.attrs.cbName = next;
           } else {
-            _.extend(_a_.attrs, next);
+            Object.merge(_a_.attrs, next);
           }
         }
         return _a_;
@@ -1089,8 +1087,8 @@ just admit that the current implementation is imperfect, and limit grammar usage
         index = _arg.index, name = _arg.name;
         _ref4 = this.getArgs(), rule = _ref4.rule, attrs = _ref4.attrs;
         if (!name && typeof rule !== 'string' && !(rule instanceof Array) && !(rule instanceof GNode)) {
-          assert.ok(_.keys(rule).length === 1, "Named rule should only have one key-value pair");
-          name = _.keys(rule)[0];
+          assert.ok(Object.keys(rule).length === 1, "Named rule should only have one key-value pair");
+          name = Object.keys(rule)[0];
           rule = rule[name];
         } else if (!(name != null) && (index != null) && (parentRule != null)) {
           name = parentRule.name + ("[" + index + "]");

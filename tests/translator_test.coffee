@@ -3,7 +3,6 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 joe = require 'joeson/src/joescript'
 jsx = require 'joeson/src/translators/javascript'
 

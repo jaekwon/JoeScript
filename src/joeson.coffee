@@ -19,7 +19,6 @@ just admit that the current implementation is imperfect, and limit grammar usage
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 {CodeStream} = require 'joeson/src/codestream'
 {Node} = require 'joeson/src/node'
 {pad, escape} = require 'joeson/lib/helpers'
@@ -299,7 +298,7 @@ _loopStack = [] # trace stack
     choices:    {type:[type:GNode]}
   init: (@choices=[]) ->
   prepare: ->
-    @capture = _.all @choices, (choice)->choice.capture
+    @capture = @choices.every (choice) -> choice.capture
   parse$: @$wrap ($) ->
     for choice in @choices
       result = $.try choice.parse
@@ -319,9 +318,9 @@ _loopStack = [] # trace stack
         for own name, rule of line.toRules()
           rank.include name, rule
       else if line instanceof Object and idx is lines.length-1
-        assert.ok (_.intersection GNode.optionKeys, _.keys(line)).length > 0,
+        assert.ok GNode.optionKeys.intersect(Object.keys(line)).length > 0,
           "Invalid options? #{line.constructor.name}"
-        _.extend rank, line
+        Object.merge rank, line
       else
         throw new Error "Unknown line type, expected 'o' or 'i' line, got '#{line}' (#{typeof line})"
     rank
@@ -342,8 +341,8 @@ _loopStack = [] # trace stack
     rules:      {type:{key:undefined,value:{type:GNode}}}
     sequence:   {type:[type:GNode]}
   init:       (@sequence) ->
-  labels$:    get: -> @_labels ?= (if @label? then [@label] else _.flatten (child.labels for child in @sequence))
-  captures$:  get: -> @_captures ?= (_.flatten (child.captures for child in @sequence))
+  labels$:    get: -> @_labels ?= (if @label? then [@label] else (child.labels for child in @sequence).flatten())
+  captures$:  get: -> @_captures ?= (child.captures for child in @sequence).flatten()
   type$:      get: ->
     @_type?=(
       if @labels.length is 0
@@ -374,9 +373,9 @@ _loopStack = [] # trace stack
           res = child.parse $
           return null if res is null
           if child.label is '&'
-            results = if results? then _.extend res, results else res
+            results = if results? then Object.merge res, results else res
           else if child.label is '@'
-            results = if results? then _.extend results, res else res
+            results = if results? then Object.merge results, res else res
           else if child.label?
             (results?={})[child.label] = res
         return results
@@ -523,7 +522,7 @@ _loopStack = [] # trace stack
           # Merge label
           node.choices[0].label ?= node.label
           # Merge included rules
-          _.extend (node.choices[0].rules?={}), node.rules if node.rules?
+          Object.merge (node.choices[0].rules?={}), node.rules if node.rules?
           # Replace with grandchild
           if key2?
             parent[key][key2] = node.choices[0]
@@ -568,7 +567,7 @@ _loopStack = [] # trace stack
 
     # janky
     if debug
-      oldTrace = _.clone trace
+      oldTrace = Object.clone trace
       trace.stack = yes
     $.result = @rank.parse $
     $.result?.code = code
@@ -632,7 +631,7 @@ Line = clazz 'Line', ->
     rule.rule = rule
     assert.ok not rule.name? or rule.name is name
     rule.name = name
-    _.extend rule, attrs if attrs?
+    Object.merge rule, attrs if attrs?
     rule
 
   # returns {rule:rule, attrs:{cb,skipCache,skipLog,...}}
@@ -651,7 +650,7 @@ Line = clazz 'Line', ->
       else if next instanceof Object and next.constructor.name is 'Word'
         _a_.attrs.cbName = next
       else
-        _.extend _a_.attrs, next
+        Object.merge _a_.attrs, next
     _a_
   toString: ->
     "#{@type} #{@args.join ','}"
@@ -676,8 +675,8 @@ OLine = clazz 'OLine', Line, ->
       rule not instanceof Array and
       rule not instanceof GNode
         # NAME: rule
-        assert.ok _.keys(rule).length is 1, "Named rule should only have one key-value pair"
-        name = _.keys(rule)[0]
+        assert.ok Object.keys(rule).length is 1, "Named rule should only have one key-value pair"
+        name = Object.keys(rule)[0]
         rule = rule[name]
     else if not name? and index? and parentRule?
       name = parentRule.name + "[#{index}]"

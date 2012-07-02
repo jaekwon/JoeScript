@@ -3,7 +3,6 @@
   collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
-_         = require 'underscore'
 
 indent = (c) -> Array(c+1).join('  ')
 

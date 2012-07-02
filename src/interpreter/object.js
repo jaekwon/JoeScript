@@ -1,5 +1,5 @@
 (function() {
-  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
+  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __slice = Array.prototype.slice,
     _this = this;
@@ -10,15 +10,13 @@
 
   assert = require('assert');
 
-  _ = require('underscore');
-
   _ref3 = require('joeson/src/joescript'), joe = _ref3.NODES, parse = _ref3.parse;
 
   _ref4 = require('joeson/lib/helpers'), randid = _ref4.randid, pad = _ref4.pad, htmlEscape = _ref4.htmlEscape, escape = _ref4.escape, starts = _ref4.starts, ends = _ref4.ends;
 
   _ref5 = require('joeson/src/joescript').HELPERS, extend = _ref5.extend, isVariable = _ref5.isVariable;
 
-  _ref6 = require('nogg').logger('server'), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.error;
+  _ref6 = require('nogg').logger('interpreter'), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.error;
 
   isInteger = function(n) {
     return n % 1 === 0;
@@ -139,11 +137,11 @@
       },
       __keys__: function($) {
         $.will('read', this);
-        return _.keys(this.data);
+        return Object.keys(this.data);
       },
       __iter__: function($) {
         $.will('read', this);
-        return new SimpleIterator(_.keys(this.data));
+        return new SimpleIterator(Object.keys(this.data));
       },
       __num__: function($) {
         return JNaN;
@@ -265,7 +263,7 @@
       },
       __keys__: function($) {
         $.will('read', this);
-        return _.keys(this.data);
+        return Object.keys(this.data);
       },
       __num__: function($) {
         return JNaN;

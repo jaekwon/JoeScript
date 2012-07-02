@@ -12,13 +12,12 @@ i9n: short for instruction
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-_ = require 'underscore'
 joe = require('joeson/src/joescript').NODES
 {randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
 
-trace = debug:yes, logCode:yes
+trace = debug:no, logCode:yes
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 {GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
 
@@ -176,12 +175,12 @@ JThread = @JThread = clazz 'JThread', ->
   printStack: (stack=@i9ns) ->
     assert.ok stack instanceof Array
     for i9n, i in stack
-      i9nCopy = _.clone i9n
+      i9nCopy = Object.clone i9n
       delete i9nCopy.this
       delete i9nCopy.func
       info        "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
                  }.#{ yellow i9n.func?._name
-             }($, {#{ white _.keys(i9nCopy).join ','
+             }($, {#{ white Object.keys(i9nCopy).join ','
             }}, _) #{ black escape i9n.this }"
 
   printScope: (scope, lvl=0) ->

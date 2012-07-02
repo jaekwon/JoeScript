@@ -3,7 +3,6 @@
   collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
-_         = require 'underscore'
 {Grammar} = require 'joeson'
 {Node} = require 'joeson/src/node'
 
@@ -240,7 +239,7 @@ Str = clazz 'Str', Node, ->
       else throw new Error "Dunno how to handle part of Str: #{item} (#{item.constructor.name})"
     if chars.length > 0
       @parts.push chars.join('')
-  isStatic: get: -> _.all @parts, (part)->typeof part is 'string'
+  isStatic: get: -> @parts.every (part) -> typeof part is 'string'
   toString: ->
     if typeof @parts is 'string'
       '"' + @parts.replace(/"/g, "\\\"") + '"'

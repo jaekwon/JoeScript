@@ -11,7 +11,7 @@ i9n: short for instruction
 */
 
 (function() {
-  var GOD, GUEST, JArray, JBoundFunc, JKernel, JNaN, JNull, JObject, JStackItem, JThread, JUndefined, JUser, WORLD, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, info, inspect, isVariable, joe, magenta, normal, pad, randid, red, starts, trace, warn, white, yellow, _, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7,
+  var GOD, GUEST, JArray, JBoundFunc, JKernel, JNaN, JNull, JObject, JStackItem, JThread, JUndefined, JUser, WORLD, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, info, inspect, isVariable, joe, magenta, normal, pad, randid, red, starts, trace, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7,
     __slice = Array.prototype.slice;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
@@ -19,8 +19,6 @@ i9n: short for instruction
   inspect = require('util').inspect;
 
   assert = require('assert');
-
-  _ = require('underscore');
 
   joe = require('joeson/src/joescript').NODES;
 
@@ -31,7 +29,7 @@ i9n: short for instruction
   _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
 
   trace = {
-    debug: true,
+    debug: false,
     logCode: true
   };
 
@@ -231,12 +229,12 @@ i9n: short for instruction
         _results = [];
         for (i = _i = 0, _len = stack.length; _i < _len; i = ++_i) {
           i9n = stack[i];
-          i9nCopy = _.clone(i9n);
+          i9nCopy = Object.clone(i9n);
           delete i9nCopy["this"];
           delete i9nCopy.func;
           _results.push(info("" + (blue(pad({
             right: 12
-          }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(_.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
+          }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(Object.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
         return _results;
       },

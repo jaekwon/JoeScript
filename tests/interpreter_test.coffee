@@ -3,7 +3,6 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
-_ = require 'underscore'
 joe = require 'joeson/src/joescript'
 {JThread, JKernel, GOD} = require 'joeson/src/interpreter'
 
@@ -36,9 +35,9 @@ test ' null ',                            -> equal @it, null
 test ' undefined ',                       -> equal @it, undefined
 test ' null * undefined ',                -> ok isNaN @it
 test ' {} ',                              -> ok @it instanceof Object;\
-                                             equal _.keys(@it).length, 0
+                                             equal Object.keys(@it).length, 0
 test ' {foo:1} ',                         -> ok @it instanceof Object;\
-                                             equal _.keys(@it).length, 1;\
+                                             equal Object.keys(@it).length, 1;\
                                              equal @it.foo, 1
 test ' a = {foo:1}; a.foo ',              -> equal @it, 1
 test ' if true then 1 else 2 ',           -> equal @it, 1
@@ -131,7 +130,7 @@ test """
 a = ->
 new a""", (it) ->
   assert.ok it instanceof Object
-  assert.ok _.keys(it).length is 0
+  assert.ok Object.keys(it).length is 0
   yes
 
 test """
@@ -140,7 +139,7 @@ Foo = ->
   this.b = 'B'
 f = new Foo()""", (it) ->
   assert.ok it instanceof Object
-  assert.ok _.keys(it).length is 2
+  assert.ok Object.keys(it).length is 2
   assert.ok it.a is 'A' and it.b is 'B'
   yes
 
@@ -153,7 +152,7 @@ f.key""", 'value'
 
 test """
 _ = require('underscore')
-_.keys(foo:1, bar:2, baz:3).join(',')""", 'foo,bar,baz'
+Object.keys(foo:1, bar:2, baz:3).join(',')""", 'foo,bar,baz'
 ###
 
 counter = 0

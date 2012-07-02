@@ -2,7 +2,7 @@
 {clazz} = require 'cardamom'
 {randid} = require 'joeson/lib/helpers'
 {toHTML} = require 'joeson/src/parsers/ansi'
-{debug, info, warn, error:fatal} = require 'nogg'
+{debug, info, warn, error:fatal} = require('nogg').logger 'client'
 
 # configure logging
 domLog = window.domLog = $('<pre/>')
@@ -42,7 +42,9 @@ $(document).ready ->
           #output.close()
         when 'error'
           if @error.stack.length
-            @printStack @error.stack
+            #@printStack @error.stack
+            for item in @error.stack
+              warn(item?.constructor?.name)
             stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
             warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
           else

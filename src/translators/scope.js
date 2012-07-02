@@ -1,5 +1,5 @@
 (function() {
-  var LScope, assert, black, blue, clazz, cyan, extend, green, inspect, isVariable, isWord, joe, magenta, normal, randid, red, white, yellow, _, _ref, _ref2, _ref3,
+  var LScope, assert, black, blue, clazz, cyan, extend, green, inspect, isVariable, isWord, joe, magenta, normal, randid, red, white, yellow, _ref, _ref2, _ref3,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
@@ -7,8 +7,6 @@
   inspect = require('util').inspect;
 
   assert = require('assert');
-
-  _ = require('underscore');
 
   joe = require('joeson/src/joescript').NODES;
 
@@ -44,7 +42,7 @@
       willDeclare: function(name) {
         if (!(name instanceof joe.Undetermined)) name = '' + name;
         if (__indexOf.call(this.variables, name) >= 0) return true;
-        if (_.any(this.children, function(child) {
+        if (this.children.some(function(child) {
           return child.willDeclare(name);
         })) {
           return true;
@@ -65,7 +63,7 @@
       },
       nonparameterVariables$: {
         get: function() {
-          return _.difference(this.variables, this.parameters);
+          return this.variables.subtract(this.parameters);
         }
       }
     };

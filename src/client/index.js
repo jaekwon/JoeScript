@@ -9,7 +9,7 @@
 
   toHTML = require('joeson/src/parsers/ansi').toHTML;
 
-  _ref = require('nogg'), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.error;
+  _ref = require('nogg').logger('client'), debug = _ref.debug, info = _ref.info, warn = _ref.warn, fatal = _ref.error;
 
   domLog = window.domLog = $('<pre/>');
 
@@ -49,20 +49,24 @@
       code: 'login()',
       output: void 0,
       callback: function() {
-        var stackTrace, _ref3, _ref4, _ref5, _ref6;
+        var item, stackTrace, _i, _len, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
         switch (this.state) {
           case 'return':
             info(this.last.__str__(this));
             break;
           case 'error':
             if (this.error.stack.length) {
-              this.printStack(this.error.stack);
+              _ref3 = this.error.stack;
+              for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+                item = _ref3[_i];
+                warn(item != null ? (_ref4 = item.constructor) != null ? _ref4.name : void 0 : void 0);
+              }
               stackTrace = this.error.stack.map(function(x) {
                 return '  at ' + x;
               }).join('\n');
-              warn("" + ((_ref3 = this.error.name) != null ? _ref3 : 'UnknownError') + ": " + ((_ref4 = this.error.message) != null ? _ref4 : '') + "\n  Most recent call last:\n" + stackTrace);
+              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : '') + "\n  Most recent call last:\n" + stackTrace);
             } else {
-              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : ''));
+              warn("" + ((_ref7 = this.error.name) != null ? _ref7 : 'UnknownError') + ": " + ((_ref8 = this.error.message) != null ? _ref8 : ''));
             }
             break;
           default:
