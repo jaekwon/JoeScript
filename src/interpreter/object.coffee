@@ -399,7 +399,7 @@ unless joe.Node::interpret? then do =>
         i9n.arr.__set__($, i9n.idx-1, value)
       # push next item evaluation
       if i9n.idx < i9n.length
-        value = @items[i9n.idx]
+        value = @items[i9n.idx].value
         # setup value
         $.push this:value, func:value.interpret
         i9n.idx++

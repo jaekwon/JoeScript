@@ -24,10 +24,12 @@ trace = debug:yes, logCode:yes
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->
     # figure out which function this node is declared in
+    # used for printing a stack trace.
+    # TODO make it lazy
     declaringFunc = @node.parent
     declaringFunc = declaringFunc.parent while declaringFunc? and declaringFunc not instanceof joe.Func
     @declaringFunc = declaringFunc
-  toString: -> "'#{@node}' (source:#{@declaringFunc}, line:#{@node._origin?.line}, col:#{@node._origin?.col})"
+  toString: -> "'#{@node?.toJavascript?()}' (source:#{@declaringFunc}, line:#{@node._origin?.line}, col:#{@node._origin?.col})"
 
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process
@@ -281,7 +283,7 @@ JThread = @JThread = clazz 'JThread', ->
       @index = (@index + 1) % @threads.length
       process.nextTick @runloop
     catch error
-      fatal "Error in runStep. Stopping execution, setting error.", error.stack ? error
+      fatal "Error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
       thread.throw 'InternalError', "#{error.name}:#{error.message}"
       @threads[@index..@index] = [] # splice out
       @index = @index % @threads.length # oops, sometimes NaN

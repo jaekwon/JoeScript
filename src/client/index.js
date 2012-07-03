@@ -49,24 +49,19 @@
       code: 'login()',
       output: void 0,
       callback: function() {
-        var item, stackTrace, _i, _len, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
+        var stackTrace, _ref3, _ref4, _ref5, _ref6;
         switch (this.state) {
           case 'return':
             info(this.last.__str__(this));
             break;
           case 'error':
             if (this.error.stack.length) {
-              _ref3 = this.error.stack;
-              for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
-                item = _ref3[_i];
-                warn(item != null ? (_ref4 = item.constructor) != null ? _ref4.name : void 0 : void 0);
-              }
               stackTrace = this.error.stack.map(function(x) {
                 return '  at ' + x;
               }).join('\n');
-              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : '') + "\n  Most recent call last:\n" + stackTrace);
+              warn("" + ((_ref3 = this.error.name) != null ? _ref3 : 'UnknownError') + ": " + ((_ref4 = this.error.message) != null ? _ref4 : '') + "\n  Most recent call last:\n" + stackTrace);
             } else {
-              warn("" + ((_ref7 = this.error.name) != null ? _ref7 : 'UnknownError') + ": " + ((_ref8 = this.error.message) != null ? _ref8 : ''));
+              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : ''));
             }
             break;
           default:

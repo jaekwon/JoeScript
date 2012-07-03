@@ -49,8 +49,8 @@ i9n: short for instruction
         return this.declaringFunc = declaringFunc;
       },
       toString: function() {
-        var _ref8, _ref9;
-        return "'" + this.node + "' (source:" + this.declaringFunc + ", line:" + ((_ref8 = this.node._origin) != null ? _ref8.line : void 0) + ", col:" + ((_ref9 = this.node._origin) != null ? _ref9.col : void 0) + ")";
+        var _ref10, _ref8, _ref9;
+        return "'" + ((_ref8 = this.node) != null ? typeof _ref8.toJavascript === "function" ? _ref8.toJavascript() : void 0 : void 0) + "' (source:" + this.declaringFunc + ", line:" + ((_ref9 = this.node._origin) != null ? _ref9.line : void 0) + ", col:" + ((_ref10 = this.node._origin) != null ? _ref10.col : void 0) + ")";
       }
     };
   });
@@ -382,7 +382,7 @@ i9n: short for instruction
           this.index = (this.index + 1) % this.threads.length;
           return process.nextTick(this.runloop);
         } catch (error) {
-          fatal("Error in runStep. Stopping execution, setting error.", (_ref10 = error.stack) != null ? _ref10 : error);
+          fatal("Error thrown in runStep. Stopping execution, setting error. stack:\n" + ((_ref10 = error.stack) != null ? _ref10 : error));
           thread["throw"]('InternalError', "" + error.name + ":" + error.message);
           [].splice.apply(this.threads, [(_ref11 = this.index), this.index - _ref11 + 1].concat(_ref12 = [])), _ref12;
           this.index = this.index % this.threads.length;

@@ -6,7 +6,7 @@ joe = require('joeson/src/joescript').NODES
 {extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
 {escape, compact, flatten} = require('joeson/lib/helpers')
 
-js = (obj) -> if obj.toJavascript? then obj.toJavascript() else obj
+js = (obj) -> obj?.toJavascript?() ? obj
 
 trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else obj
 

@@ -42,9 +42,8 @@ $(document).ready ->
           #output.close()
         when 'error'
           if @error.stack.length
-            #@printStack @error.stack
-            for item in @error.stack
-              warn(item?.constructor?.name)
+            # TODO print stack trace here.
+            # @printStack @error.stack
             stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
             warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
           else

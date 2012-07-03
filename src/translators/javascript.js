@@ -15,11 +15,8 @@
   _ref4 = require('joeson/lib/helpers'), escape = _ref4.escape, compact = _ref4.compact, flatten = _ref4.flatten;
 
   js = function(obj) {
-    if (obj.toJavascript != null) {
-      return obj.toJavascript();
-    } else {
-      return obj;
-    }
+    var _ref5;
+    return (_ref5 = obj != null ? typeof obj.toJavascript === "function" ? obj.toJavascript() : void 0 : void 0) != null ? _ref5 : obj;
   };
 
   trigger = function(obj, msg) {

@@ -2482,13 +2482,13 @@ require['joeson/src/joescript'] = function() {
                   o({
                     FUNC: " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? "
                   }, make(Func)), o({
-                    OBJ_IMPL: " _INDENT? &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) "
+                    OBJ_IMPL: " _INDENT? &:OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) "
                   }, make(Obj)), i({
-                    _OBJ_IMPL_ITEM: [o(" _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", make(Item)), o(" HEREDOC ")]
+                    OBJ_IMPL_ITEM: [o(" _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", make(Item)), o(" HEREDOC ")]
                   }), o({
                     ASSIGN: " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR "
                   }, make(Assign)), o({
-                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? _OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) "
+                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) "
                   }, make(Invocation)), o({
                     COMPLEX: " (? _KEYWORD) &:_COMPLEX "
                   }), i({
@@ -2620,13 +2620,15 @@ require['joeson/src/joescript'] = function() {
           }), o({
             TYPEOF: [o(" func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make(Invocation)), o(" func:_TYPEOF __ params:LINEEXPR{1,1} ", make(Invocation))]
           }), o({
-            ARR_EXPL: " '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
-          }, make(Arr)), o({
+            ARR_EXPL: " '[' _SOFTLINE? ARR_EXPR_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
+          }, make(Arr)), i({
+            ARR_EXPL_ITEM: " LINEEXPR splat:'...'? "
+          }, make(Item)), o({
             RANGE: " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? "
           }, make(Range)), o({
-            OBJ_EXPL: " '{' _SOFTLINE? &:_OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' "
+            OBJ_EXPL: " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' "
           }, make(Obj)), i({
-            _OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? "
+            OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? "
           }, make(Item)), o({
             PROPERTY: " '@' (WORD|STRING) "
           }, function(key) {
@@ -2981,8 +2983,8 @@ i9n: short for instruction
         return this.declaringFunc = declaringFunc;
       },
       toString: function() {
-        var _ref8, _ref9;
-        return "'" + this.node + "' (source:" + this.declaringFunc + ", line:" + ((_ref8 = this.node._origin) != null ? _ref8.line : void 0) + ", col:" + ((_ref9 = this.node._origin) != null ? _ref9.col : void 0) + ")";
+        var _ref10, _ref8, _ref9;
+        return "'" + ((_ref8 = this.node) != null ? typeof _ref8.toJavascript === "function" ? _ref8.toJavascript() : void 0 : void 0) + "' (source:" + this.declaringFunc + ", line:" + ((_ref9 = this.node._origin) != null ? _ref9.line : void 0) + ", col:" + ((_ref10 = this.node._origin) != null ? _ref10.col : void 0) + ")";
       }
     };
   });
@@ -3314,7 +3316,7 @@ i9n: short for instruction
           this.index = (this.index + 1) % this.threads.length;
           return process.nextTick(this.runloop);
         } catch (error) {
-          fatal("Error in runStep. Stopping execution, setting error.", (_ref10 = error.stack) != null ? _ref10 : error);
+          fatal("Error thrown in runStep. Stopping execution, setting error. stack:\n" + ((_ref10 = error.stack) != null ? _ref10 : error));
           thread["throw"]('InternalError', "" + error.name + ":" + error.message);
           [].splice.apply(this.threads, [(_ref11 = this.index), this.index - _ref11 + 1].concat(_ref12 = [])), _ref12;
           this.index = this.index % this.threads.length;
@@ -4161,7 +4163,7 @@ require['joeson/src/interpreter/object'] = function() {
         interpretKV: function($, i9n, value) {
           if (0 < i9n.idx) i9n.arr.__set__($, i9n.idx - 1, value);
           if (i9n.idx < i9n.length) {
-            value = this.items[i9n.idx];
+            value = this.items[i9n.idx].value;
             $.push({
               "this": value,
               func: value.interpret
@@ -5029,11 +5031,8 @@ require['joeson/src/translators/javascript'] = function() {
   _ref4 = require('joeson/lib/helpers'), escape = _ref4.escape, compact = _ref4.compact, flatten = _ref4.flatten;
 
   js = function(obj) {
-    if (obj.toJavascript != null) {
-      return obj.toJavascript();
-    } else {
-      return obj;
-    }
+    var _ref5;
+    return (_ref5 = obj != null ? typeof obj.toJavascript === "function" ? obj.toJavascript() : void 0 : void 0) != null ? _ref5 : obj;
   };
 
   trigger = function(obj, msg) {
@@ -5882,24 +5881,19 @@ require['joeson/src/client'] = function() {
       code: 'login()',
       output: void 0,
       callback: function() {
-        var item, stackTrace, _i, _len, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
+        var stackTrace, _ref3, _ref4, _ref5, _ref6;
         switch (this.state) {
           case 'return':
             info(this.last.__str__(this));
             break;
           case 'error':
             if (this.error.stack.length) {
-              _ref3 = this.error.stack;
-              for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
-                item = _ref3[_i];
-                warn(item != null ? (_ref4 = item.constructor) != null ? _ref4.name : void 0 : void 0);
-              }
               stackTrace = this.error.stack.map(function(x) {
                 return '  at ' + x;
               }).join('\n');
-              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : '') + "\n  Most recent call last:\n" + stackTrace);
+              warn("" + ((_ref3 = this.error.name) != null ? _ref3 : 'UnknownError') + ": " + ((_ref4 = this.error.message) != null ? _ref4 : '') + "\n  Most recent call last:\n" + stackTrace);
             } else {
-              warn("" + ((_ref7 = this.error.name) != null ? _ref7 : 'UnknownError') + ": " + ((_ref8 = this.error.message) != null ? _ref8 : ''));
+              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : ''));
             }
             break;
           default:

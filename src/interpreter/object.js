@@ -744,7 +744,7 @@
         interpretKV: function($, i9n, value) {
           if (0 < i9n.idx) i9n.arr.__set__($, i9n.idx - 1, value);
           if (i9n.idx < i9n.length) {
-            value = this.items[i9n.idx];
+            value = this.items[i9n.idx].value;
             $.push({
               "this": value,
               func: value.interpret

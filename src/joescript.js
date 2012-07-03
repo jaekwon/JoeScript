@@ -1007,13 +1007,13 @@
                   o({
                     FUNC: " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? "
                   }, make(Func)), o({
-                    OBJ_IMPL: " _INDENT? &:_OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) "
+                    OBJ_IMPL: " _INDENT? &:OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) "
                   }, make(Obj)), i({
-                    _OBJ_IMPL_ITEM: [o(" _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", make(Item)), o(" HEREDOC ")]
+                    OBJ_IMPL_ITEM: [o(" _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", make(Item)), o(" HEREDOC ")]
                   }), o({
                     ASSIGN: " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR "
                   }, make(Assign)), o({
-                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? _OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) "
+                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) "
                   }, make(Invocation)), o({
                     COMPLEX: " (? _KEYWORD) &:_COMPLEX "
                   }), i({
@@ -1145,13 +1145,15 @@
           }), o({
             TYPEOF: [o(" func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make(Invocation)), o(" func:_TYPEOF __ params:LINEEXPR{1,1} ", make(Invocation))]
           }), o({
-            ARR_EXPL: " '[' _SOFTLINE? (&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
-          }, make(Arr)), o({
+            ARR_EXPL: " '[' _SOFTLINE? ARR_EXPR_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
+          }, make(Arr)), i({
+            ARR_EXPL_ITEM: " LINEEXPR splat:'...'? "
+          }, make(Item)), o({
             RANGE: " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? "
           }, make(Range)), o({
-            OBJ_EXPL: " '{' _SOFTLINE? &:_OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' "
+            OBJ_EXPL: " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' "
           }, make(Obj)), i({
-            _OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? "
+            OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? "
           }, make(Item)), o({
             PROPERTY: " '@' (WORD|STRING) "
           }, function(key) {
