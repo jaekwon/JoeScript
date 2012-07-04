@@ -1474,7 +1474,7 @@ require['joeson/src/joescript'] = function() {
     var process = require('_process');
     var __filename = "src/joescript.js";
     (function() {
-  var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, green, inspect, isVariable, magenta, normal, red, resetIndent, trace, white, yellow, _ref, _ref2, _ref3;
+  var Arr, Assign, AssignItem, AssignList, AssignObj, Block, Case, Dummy, EXPR, For, Func, GRAMMAR, Grammar, Heredoc, If, Index, Invocation, Item, JSForC, JSForK, KEY, Loop, NativeExpression, Node, Not, Null, Obj, Operation, Range, Set, Slice, Soak, Statement, Str, Switch, This, Try, Undefined, Undetermined, Unless, Word, assert, black, blue, checkComma, checkCommaNewline, checkIndent, checkNewline, checkSoftline, clazz, cyan, extend, green, inspect, isVariable, magenta, normal, red, resetIndent, trace, white, yellow, _ref, _ref2, _ref3;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow), (_ref3 = _ref.collections, Set = _ref3.Set);
 
@@ -1572,11 +1572,11 @@ require['joeson/src/joescript'] = function() {
           isValue: true
         },
         block: {
-          type: Block,
+          type: Node,
           required: true
         },
         "else": {
-          type: Block
+          type: Node
         }
       },
       init: function(_arg) {
@@ -1614,7 +1614,7 @@ require['joeson/src/joescript'] = function() {
           isValue: true
         },
         block: {
-          type: Block,
+          type: Node,
           required: true
         }
       },
@@ -1636,7 +1636,7 @@ require['joeson/src/joescript'] = function() {
           type: Word
         },
         block: {
-          type: Block
+          type: Node
         },
         keys: {
           type: [
@@ -1670,7 +1670,7 @@ require['joeson/src/joescript'] = function() {
           type: Word
         },
         block: {
-          type: Block
+          type: Node
         },
         setup: {
           type: Node
@@ -1699,7 +1699,7 @@ require['joeson/src/joescript'] = function() {
           type: Word
         },
         block: {
-          type: Block
+          type: Node
         },
         key: {
           type: Word
@@ -1751,17 +1751,17 @@ require['joeson/src/joescript'] = function() {
     return {
       children: {
         block: {
-          type: Block,
+          type: Node,
           required: true
         },
         catchVar: {
           type: Word
         },
         "catch": {
-          type: Block
+          type: Node
         },
         "finally": {
-          type: Block
+          type: Node
         }
       },
       init: function(_arg) {
@@ -1785,7 +1785,7 @@ require['joeson/src/joescript'] = function() {
           required: true
         },
         block: {
-          type: Block
+          type: Node
         }
       },
       init: function(_arg) {
@@ -1853,7 +1853,7 @@ require['joeson/src/joescript'] = function() {
         params: {
           type: [
             {
-              type: EXPR,
+              type: Item,
               isValue: true
             }
           ]
@@ -1864,9 +1864,7 @@ require['joeson/src/joescript'] = function() {
         return this.type = '' + this.func === 'new' ? 'new' : void 0;
       },
       toString: function() {
-        return "" + this.func + "(" + (this.params.map(function(p) {
-          return "" + p + (p.splat && '...' || '');
-        })) + ")";
+        return "" + this.func + "(" + this.params + ")";
       }
     };
   });
@@ -2015,7 +2013,7 @@ require['joeson/src/joescript'] = function() {
     return {
       children: {
         key: {
-          type: Node
+          type: KEY
         },
         value: {
           type: EXPR,
@@ -2026,30 +2024,7 @@ require['joeson/src/joescript'] = function() {
         this.key = _arg.key, this.value = _arg.value, this.splat = _arg.splat;
       },
       toString: function() {
-        return "" + (this.key != null ? this.key : '') + ((this.key != null) && (this.value != null) ? ':' : '') + (this.value != null ? '(' + this.value + ')' : '') + (this.splat ? '...' : '');
-      }
-    };
-  });
-
-  AssignItem = clazz('AssignItem', Node, function() {
-    return {
-      children: {
-        key: {
-          type: Word
-        },
-        target: {
-          type: Node
-        },
-        "default": {
-          type: EXPR,
-          isValue: true
-        }
-      },
-      init: function(_arg) {
-        this.key = _arg.key, this.target = _arg.target, this.splat = _arg.splat, this["default"] = _arg["default"];
-      },
-      toString: function() {
-        return "" + (this.key != null ? this.key : '') + ((this.key != null) && (this.target != null) ? ':' : '') + (this.target != null ? this.target : '') + (this.splat ? '...' : '') + (this["default"] != null ? '=' + this["default"] : '');
+        return "" + (this.key != null ? this.key : '') + ((this.key != null) && (this.value != null) ? ':' : '') + (this.value != null ? this.value : '') + (this.splat ? '...' : '');
       }
     };
   });
@@ -2211,7 +2186,11 @@ require['joeson/src/joescript'] = function() {
     return {
       children: {
         items: {
-          type: AssignItem
+          type: [
+            {
+              type: AssignItem
+            }
+          ]
         }
       },
       init: function(items) {
@@ -2240,7 +2219,7 @@ require['joeson/src/joescript'] = function() {
     return {
       children: {
         key: {
-          type: Word
+          type: new Set([Word, Index, Number])
         },
         target: {
           type: Node
@@ -2795,6 +2774,8 @@ require['joeson/src/joescript'] = function() {
 
   EXPR = new Set([Node, Boolean, String, Number]);
 
+  KEY = new Set([Word, Number]);
+
   this.parse = GRAMMAR.parse;
 
 }).call(this);
@@ -2874,7 +2855,7 @@ require['joeson/src/node'] = function() {
           var error;
           error = validateType(child, desc);
           if (error != null) {
-            throw new Error("Error in validation (key='" + key + "'): " + error);
+            throw new Error("Error in validation {parent:" + parent.constructor.name + ", key:" + key + "): " + error);
           }
           if (child instanceof Node) return child.validate();
         }, {
@@ -2990,11 +2971,11 @@ i9n: short for instruction
 
   _ref4 = require('joeson/src/joescript').HELPERS, extend = _ref4.extend, isVariable = _ref4.isVariable;
 
-  _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
+  _ref5 = require('nogg').logger(__filename.split('/').last()), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.fatal;
 
   trace = {
-    debug: true,
-    logCode: true
+    debug: false,
+    logCode: false
   };
 
   _ref6 = this.JTypes = require('joeson/src/interpreter/object'), JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
@@ -3201,6 +3182,13 @@ i9n: short for instruction
           }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(Object.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
         return _results;
+      },
+      printErrorStack: function() {
+        var stackTrace, _ref8, _ref9;
+        stackTrace = this.error.stack.map(function(x) {
+          return '  at ' + x;
+        }).join('\n') || '  -- no stack trace available --';
+        return warn("" + ((_ref8 = this.error.name) != null ? _ref8 : 'UnknownError') + ": " + ((_ref9 = this.error.message) != null ? _ref9 : '') + "\n  Most recent call last:\n" + stackTrace);
       },
       printScope: function(scope, lvl) {
         var key, value, valueStr, _ref8;
@@ -4374,7 +4362,7 @@ require['joeson/src/interpreter/object'] = function() {
           });
         },
         interpretParams: function($, i9n, func) {
-          var i, param, _i, _len, _ref7;
+          var i, param, value, _i, _len, _ref7;
           if (!(func instanceof JBoundFunc || func instanceof Function)) {
             return $["throw"]('TypeError', "" + this.func + " cannot be called.");
           }
@@ -4383,6 +4371,7 @@ require['joeson/src/interpreter/object'] = function() {
           _ref7 = this.params;
           for (i = _i = 0, _len = _ref7.length; _i < _len; i = ++_i) {
             param = _ref7[i];
+            value = param.value;
             $.push({
               "this": i9n,
               func: setLast,
@@ -4390,8 +4379,8 @@ require['joeson/src/interpreter/object'] = function() {
               index: i
             });
             $.push({
-              "this": param,
-              func: param.interpret
+              "this": value,
+              func: value.interpret
             });
           }
           i9n.func = joe.Invocation.prototype.interpretCall;
@@ -5262,7 +5251,11 @@ require['joeson/src/translators/javascript'] = function() {
               obj: target,
               key: joe.Word('push')
             }),
-            params: [this.block]
+            params: [
+              joe.Item({
+                value: this.block
+              })
+            ]
           }).toJSNode();
           lines.push(this);
           lines.push(target.toJSNode({
@@ -5589,7 +5582,7 @@ require['joeson/src/translators/javascript'] = function() {
     joe.Invocation.prototype.extend({
       toJavascript: function() {
         return "" + (js(this.func)) + "(" + (this.params.map(function(p) {
-          return js(p);
+          return js(p.value);
         })) + ")";
       }
     });
@@ -5926,20 +5919,12 @@ require['joeson/src/client'] = function() {
       code: 'login()',
       output: void 0,
       callback: function() {
-        var stackTrace, _ref3, _ref4, _ref5, _ref6;
         switch (this.state) {
           case 'return':
             info(this.last.__str__(this));
             break;
           case 'error':
-            if (this.error.stack.length) {
-              stackTrace = this.error.stack.map(function(x) {
-                return '  at ' + x;
-              }).join('\n');
-              warn("" + ((_ref3 = this.error.name) != null ? _ref3 : 'UnknownError') + ": " + ((_ref4 = this.error.message) != null ? _ref4 : '') + "\n  Most recent call last:\n" + stackTrace);
-            } else {
-              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : ''));
-            }
+            this.printErrorStack();
             break;
           default:
             throw new Error("Unexpected state " + this.state + " during kernel callback");
@@ -6353,7 +6338,7 @@ process.binding = function (name) {
     else throw new Error('No such module. (Possibly not yet loaded)')
 };
 
-process.stderr = process.stdout = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
+process.stdout = process.stderr = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
 //process.stderr = require('fs').createWriteStream('stderr.log', {flags: 'a', mode: 0666});
 
 (function () {
@@ -8445,26 +8430,28 @@ var _fs = null;
 function withFileSystem(cb) {
   if (_fs) {
     cb(_fs);
-  } else {
+  } else if (window.webkitStorageInfo) {
     window.webkitStorageInfo.requestQuota(TEMPORARY, 1024*1024, function(grantedBytes) {
       window.webkitRequestFileSystem(TEMPORARY, grantedBytes, function(fs) { _fs = fs; cb(fs); }, errorHandler);
     }, function(e) {
       errorHandler(e);
     });
+  } else {
+    cb(null);
   };
 };
 
 // Return a fake writer synchronously.
 // You can use it like a node.js file write stream.
 function makeStreamAdapter() {
-  var writeBuffer = [];
   var fakeStream = {};
+  var writeBuffer = fakeStream.writeBuffer = [];
   fakeStream.write = function (str, enc) {
     if (enc != 'utf8') {
       throw new Error("FakeStream wants utf8");
     }
-    console.log('fs.write: '+str);
-    writeBuffer.push(str);
+    if (writeBuffer) writeBuffer.push(str);
+    else console.log(str);
   };
   // make it real
   fakeStream.realize = function (fileWriter) {
@@ -8473,7 +8460,6 @@ function makeStreamAdapter() {
       if (enc != 'utf8') {
         throw new Error("FakeStream wants utf8");
       }
-      console.log('fs.write: '+str);
       // blobs? are you for fucking real?
       var bb = new WebKitBlobBuilder();
       while (writeBuffer.length) {
@@ -8493,6 +8479,10 @@ function makeStreamAdapter() {
 exports.createWriteStream = function (path, options) {
   var fakeStream = makeStreamAdapter();
   withFileSystem(function(fs) {
+    if (!fs) {
+      fakeStream.writeBuffer = null;
+      return;
+    }
     // TODO handle options
     fs.root.getFile(path, {create:true}, function(fileEntry) {
       // Create a FileWriter object for our FileEntry
@@ -8899,7 +8889,7 @@ require['cardamom/src/collections'] = function() {
 
   this.Set = Set = clazz('Set', function() {
     return {
-      __init__: function(elements) {
+      init: function(elements) {
         this.elements = elements;
       }
     };

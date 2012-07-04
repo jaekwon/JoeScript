@@ -585,7 +585,7 @@ resetIndent = (ws, $) ->
       o             " _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", make Str
       o             " _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", make Str
       o             " _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", make Str
-      o             " _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE            ", make Str
+      o             " _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE             ", make Str
       i _ESCSTR:    " _SLASH . ", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
       i _INTERP:    " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]

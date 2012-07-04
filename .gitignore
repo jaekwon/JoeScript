@@ -3,3 +3,4 @@ node_modules
 \.*
 foo.coffee
 *.log
+static/sembly.js
