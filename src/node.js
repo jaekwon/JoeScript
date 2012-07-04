@@ -62,7 +62,7 @@
           var error;
           error = validateType(child, desc);
           if (error != null) {
-            throw new Error("Error in validation (key='" + key + "'): " + error);
+            throw new Error("Error in validation {parent:" + parent.constructor.name + ", key:" + key + "): " + error);
           }
           if (child instanceof Node) return child.validate();
         }, {

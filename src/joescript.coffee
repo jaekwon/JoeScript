@@ -37,8 +37,8 @@ Block = clazz 'Block', Node, ->
 If = clazz 'If', Node, ->
   children:
     cond:       {type:EXPR, isValue:yes}
-    block:      {type:Block, required:yes}
-    else:       {type:Block}
+    block:      {type:Node, required:yes}
+    else:       {type:Node}
   init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
   toString: ->
@@ -53,14 +53,14 @@ Loop = clazz 'Loop', Node, ->
   children:
     label:      {type:Word}
     cond:       {type:EXPR, isValue:yes}
-    block:      {type:Block, required:yes}
+    block:      {type:Node, required:yes}
   init: ({@label, @cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
 
 For = clazz 'For', Loop, ->
   children:
     label:      {type:Word}
-    block:      {type:Block}
+    block:      {type:Node}
     keys:       {type:[type:Node]}
     obj:        {type:EXPR, isValue:yes}
     cond:       {type:EXPR, isValue:yes}
@@ -74,7 +74,7 @@ For = clazz 'For', Loop, ->
 JSForC = clazz 'JSForC', Loop, ->
   children:
     label:      {type:Word}
-    block:      {type:Block}
+    block:      {type:Node}
     setup:      {type:Node}
     cond:       {type:EXPR, isValue:yes}
     counter:    {type:Node}
@@ -85,7 +85,7 @@ JSForC = clazz 'JSForC', Loop, ->
 JSForK = clazz 'JSForK', Loop, ->
   children:
     label:      {type:Word}
-    block:      {type:Block}
+    block:      {type:Node}
     key:        {type:Word}
     obj:        {type:EXPR, isValue:yes}
   init: ({@label, @block, @key, @obj}) ->
@@ -101,10 +101,10 @@ Switch = clazz 'Switch', Node, ->
 
 Try = clazz 'Try', Node, ->
   children:
-    block:      {type:Block, required:yes}
+    block:      {type:Node, required:yes}
     catchVar:   {type:Word}
-    catch:      {type:Block}
-    finally:    {type:Block}
+    catch:      {type:Node}
+    finally:    {type:Node}
   init: ({@block, @catchVar, @catch, @finally}) ->
   toString: -> "try {#{@block}}#{
                 (@catchVar? or @catch?) and " catch (#{@catchVar or ''}) {#{@catch}}" or ''}#{
@@ -113,7 +113,7 @@ Try = clazz 'Try', Node, ->
 Case = clazz 'Case', Node, ->
   children:
     matches:    {type:[type:EXPR], required:yes}
-    block:      {type:Block}
+    block:      {type:Node}
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
 
@@ -199,7 +199,7 @@ Arr = clazz 'Arr', Obj, ->
 
 Item = clazz 'Item', Node, ->
   children:
-    key:        {type:Node}
+    key:        {type:KEY}
     value:      {type:EXPR, isValue:yes}
   init: ({@key, @value, @splat}) ->
   toString: ->
@@ -258,7 +258,7 @@ Str = clazz 'Str', Node, ->
 Func = clazz 'Func', Node, ->
   children:
     params:     {type:AssignList}
-    block:      {type:Block}
+    block:      {type:Block} # must be block
   init: ({@params, @type, @block}) ->
   toString: ->
     "#{ if @params? then '('+@params.toString(no)+')' else '()'
@@ -299,7 +299,7 @@ AssignList = clazz 'AssignList', AssignObj, ->
 
 AssignItem = clazz 'AssignItem', Node, ->
   children:
-    key:      {type:Word}
+    key:      {type:new Set([Word, Index, Number])}
     target:   {type:Node}
     default:  {type:EXPR, isValue:yes}
   init: ({@key, @target, @default}) ->
@@ -644,6 +644,7 @@ resetIndent = (ws, $) ->
 
 # NODE TYPE GROUPS
 EXPR = new Set([Node, Boolean, String, Number])
+KEY  = new Set([Word, Number])
 
 # Parse the given code
 @parse = GRAMMAR.parse

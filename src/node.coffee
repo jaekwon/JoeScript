@@ -50,7 +50,7 @@ indent = (c) -> Array(c+1).join('  ')
   validate: ->
     @withChildren (child, parent, key, desc) ->
       error = validateType child, desc
-      throw new Error "Error in validation (key='#{key}'): #{error}" if error?
+      throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}): #{error}" if error?
       child.validate() if child instanceof Node
     , skipUndefined:no
 

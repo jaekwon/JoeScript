@@ -311,5 +311,6 @@ walkFiles '.', (filepath, filename) ->
   return if filepath.indexOf('node_modules') isnt -1
   console.log "FILE: #{filepath}"
   chars = require('fs').readFileSync filepath, 'utf8'
-  context = GRAMMAR.parse chars, debug:no
+  node = GRAMMAR.parse chars, debug:no
+  node.validate()
   console.log "FILE: #{filepath} OK!"
