@@ -1994,6 +1994,66 @@ require['joeson/src/joescript'] = function() {
     };
   });
 
+  Arr = clazz('Arr', Obj, function() {
+    return {
+      children: {
+        items: {
+          type: [
+            {
+              type: Item
+            }
+          ]
+        }
+      },
+      toString: function() {
+        return "[" + (this.items != null ? this.items.join(',') : '') + "]";
+      }
+    };
+  });
+
+  Item = clazz('Item', Node, function() {
+    return {
+      children: {
+        key: {
+          type: Node
+        },
+        value: {
+          type: EXPR,
+          isValue: true
+        }
+      },
+      init: function(_arg) {
+        this.key = _arg.key, this.value = _arg.value, this.splat = _arg.splat;
+      },
+      toString: function() {
+        return "" + (this.key != null ? this.key : '') + ((this.key != null) && (this.value != null) ? ':' : '') + (this.value != null ? '(' + this.value + ')' : '') + (this.splat ? '...' : '');
+      }
+    };
+  });
+
+  AssignItem = clazz('AssignItem', Node, function() {
+    return {
+      children: {
+        key: {
+          type: Word
+        },
+        target: {
+          type: Node
+        },
+        "default": {
+          type: EXPR,
+          isValue: true
+        }
+      },
+      init: function(_arg) {
+        this.key = _arg.key, this.target = _arg.target, this.splat = _arg.splat, this["default"] = _arg["default"];
+      },
+      toString: function() {
+        return "" + (this.key != null ? this.key : '') + ((this.key != null) && (this.target != null) ? ':' : '') + (this.target != null ? this.target : '') + (this.splat ? '...' : '') + (this["default"] != null ? '=' + this["default"] : '');
+      }
+    };
+  });
+
   Null = clazz('Null', Node, function() {
     return {
       init: function(construct) {
@@ -2025,43 +2085,6 @@ require['joeson/src/joescript'] = function() {
       init: function() {},
       toString: function() {
         return "@";
-      }
-    };
-  });
-
-  Arr = clazz('Arr', Obj, function() {
-    return {
-      children: {
-        items: {
-          type: [
-            {
-              type: Item
-            }
-          ]
-        }
-      },
-      toString: function() {
-        return "[" + (this.items != null ? this.items.join(',') : '') + "]";
-      }
-    };
-  });
-
-  Item = clazz('Item', Node, function() {
-    return {
-      children: {
-        key: {
-          type: Node
-        },
-        value: {
-          type: EXPR,
-          isValue: true
-        }
-      },
-      init: function(_arg) {
-        this.key = _arg.key, this.value = _arg.value;
-      },
-      toString: function() {
-        return this.key + (this.value != null ? ":(" + this.value + ")" : '');
       }
     };
   });
@@ -2186,6 +2209,11 @@ require['joeson/src/joescript'] = function() {
 
   AssignList = clazz('AssignList', AssignObj, function() {
     return {
+      children: {
+        items: {
+          type: AssignItem
+        }
+      },
       init: function(items) {
         var item, _i, _len, _ref4, _results;
         this.items = items;
@@ -2488,7 +2516,7 @@ require['joeson/src/joescript'] = function() {
                   }), o({
                     ASSIGN: " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR "
                   }, make(Assign)), o({
-                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) "
+                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) "
                   }, make(Invocation)), o({
                     COMPLEX: " (? _KEYWORD) &:_COMPLEX "
                   }), i({
@@ -2590,7 +2618,7 @@ require['joeson/src/joescript'] = function() {
       }, make(AssignList)), i({
         ASSIGN_LIST: " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' "
       }, make(AssignList)), i({
-        ASSIGN_LIST_ITEM: " _ target:(                              | &:SYMBOL   splat:'...'?                              | &:PROPERTY splat:'...'?                              | ASSIGN_OBJ                              | ASSIGN_LIST                            )                            default:(_ '=' LINEEXPR)? "
+        ASSIGN_LIST_ITEM: " _ target:(                              | SYMBOL                              | PROPERTY                              | ASSIGN_OBJ                              | ASSIGN_LIST                            )                            splat:'...'?                            default:(_ '=' LINEEXPR)? "
       }, make(AssignItem)), i({
         ASSIGN_OBJ: " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'"
       }, make(AssignObj)), i({
@@ -2606,7 +2634,7 @@ require['joeson/src/joescript'] = function() {
           }, make(Index)), o({
             PROTO: " obj:VALUE _SOFTLINE? type:'::' key:WORD? "
           }, make(Index)), o({
-            INVOC_EXPL: " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' "
+            INVOC_EXPL: " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' "
           }, make(Invocation)), o({
             SOAK: " VALUE '?' "
           }, make(Soak)), o({
@@ -2620,9 +2648,11 @@ require['joeson/src/joescript'] = function() {
           }), o({
             TYPEOF: [o(" func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make(Invocation)), o(" func:_TYPEOF __ params:LINEEXPR{1,1} ", make(Invocation))]
           }), o({
-            ARR_EXPL: " '[' _SOFTLINE? ARR_EXPR_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
+            ARR_EXPL: " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
           }, make(Arr)), i({
-            ARR_EXPL_ITEM: " LINEEXPR splat:'...'? "
+            ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? "
+          }, make(Item)), i({
+            ARR_IMPL_ITEM: " value:EXPR splat:'...'? "
           }, make(Item)), o({
             RANGE: " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? "
           }, make(Range)), o({
@@ -5585,6 +5615,21 @@ require['joeson/src/translators/javascript'] = function() {
         }).call(this)).join(', ')) + "}";
       }
     });
+    joe.Arr.prototype.extend({
+      toJavascript: function() {
+        var key, value;
+        return "[" + (((function() {
+          var _i, _len, _ref5, _ref6, _results;
+          _ref5 = this.items;
+          _results = [];
+          for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
+            _ref6 = _ref5[_i], key = _ref6.key, value = _ref6.value;
+            _results.push(js(value));
+          }
+          return _results;
+        }).call(this)).join(', ')) + "]";
+      }
+    });
     clazz.extend(Boolean, {
       toJSNode: function() {
         return this;
@@ -6308,7 +6353,7 @@ process.binding = function (name) {
     else throw new Error('No such module. (Possibly not yet loaded)')
 };
 
-process.stdout = process.stderr = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
+process.stderr = process.stdout = require('fs').createWriteStream('stdout.log', {flags: 'a', mode: 0666});
 //process.stderr = require('fs').createWriteStream('stderr.log', {flags: 'a', mode: 0666});
 
 (function () {
@@ -8400,28 +8445,26 @@ var _fs = null;
 function withFileSystem(cb) {
   if (_fs) {
     cb(_fs);
-  } else if (window.webkitStorageInfo) {
+  } else {
     window.webkitStorageInfo.requestQuota(TEMPORARY, 1024*1024, function(grantedBytes) {
       window.webkitRequestFileSystem(TEMPORARY, grantedBytes, function(fs) { _fs = fs; cb(fs); }, errorHandler);
     }, function(e) {
       errorHandler(e);
     });
-  } else {
-    cb(null);
   };
 };
 
 // Return a fake writer synchronously.
 // You can use it like a node.js file write stream.
 function makeStreamAdapter() {
+  var writeBuffer = [];
   var fakeStream = {};
-  var writeBuffer = fakeStream.writeBuffer = [];
   fakeStream.write = function (str, enc) {
     if (enc != 'utf8') {
       throw new Error("FakeStream wants utf8");
     }
-    if (writeBuffer) writeBuffer.push(str);
-    else console.log(str);
+    console.log('fs.write: '+str);
+    writeBuffer.push(str);
   };
   // make it real
   fakeStream.realize = function (fileWriter) {
@@ -8430,6 +8473,7 @@ function makeStreamAdapter() {
       if (enc != 'utf8') {
         throw new Error("FakeStream wants utf8");
       }
+      console.log('fs.write: '+str);
       // blobs? are you for fucking real?
       var bb = new WebKitBlobBuilder();
       while (writeBuffer.length) {
@@ -8449,10 +8493,6 @@ function makeStreamAdapter() {
 exports.createWriteStream = function (path, options) {
   var fakeStream = makeStreamAdapter();
   withFileSystem(function(fs) {
-    if (!fs) {
-      fakeStream.writeBuffer = null;
-      return;
-    }
     // TODO handle options
     fs.root.getFile(path, {create:true}, function(fileEntry) {
       // Create a FileWriter object for our FileEntry

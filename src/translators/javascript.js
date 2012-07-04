@@ -216,7 +216,11 @@
               obj: target,
               key: joe.Word('push')
             }),
-            params: [this.block]
+            params: [
+              joe.Item({
+                value: this.block
+              })
+            ]
           }).toJSNode();
           lines.push(this);
           lines.push(target.toJSNode({
@@ -543,7 +547,7 @@
     joe.Invocation.prototype.extend({
       toJavascript: function() {
         return "" + (js(this.func)) + "(" + (this.params.map(function(p) {
-          return js(p);
+          return js(p.value);
         })) + ")";
       }
     });
@@ -567,6 +571,21 @@
           }
           return _results;
         }).call(this)).join(', ')) + "}";
+      }
+    });
+    joe.Arr.prototype.extend({
+      toJavascript: function() {
+        var key, value;
+        return "[" + (((function() {
+          var _i, _len, _ref5, _ref6, _results;
+          _ref5 = this.items;
+          _results = [];
+          for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
+            _ref6 = _ref5[_i], key = _ref6.key, value = _ref6.value;
+            _results.push(js(value));
+          }
+          return _results;
+        }).call(this)).join(', ')) + "]";
       }
     });
     clazz.extend(Boolean, {

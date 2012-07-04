@@ -378,7 +378,7 @@
         params: {
           type: [
             {
-              type: EXPR,
+              type: Item,
               isValue: true
             }
           ]
@@ -389,9 +389,7 @@
         return this.type = '' + this.func === 'new' ? 'new' : void 0;
       },
       toString: function() {
-        return "" + this.func + "(" + (this.params.map(function(p) {
-          return "" + p + (p.splat && '...' || '');
-        })) + ")";
+        return "" + this.func + "(" + this.params + ")";
       }
     };
   });
@@ -519,6 +517,43 @@
     };
   });
 
+  Arr = clazz('Arr', Obj, function() {
+    return {
+      children: {
+        items: {
+          type: [
+            {
+              type: Item
+            }
+          ]
+        }
+      },
+      toString: function() {
+        return "[" + (this.items != null ? this.items.join(',') : '') + "]";
+      }
+    };
+  });
+
+  Item = clazz('Item', Node, function() {
+    return {
+      children: {
+        key: {
+          type: Node
+        },
+        value: {
+          type: EXPR,
+          isValue: true
+        }
+      },
+      init: function(_arg) {
+        this.key = _arg.key, this.value = _arg.value, this.splat = _arg.splat;
+      },
+      toString: function() {
+        return "" + (this.key != null ? this.key : '') + ((this.key != null) && (this.value != null) ? ':' : '') + (this.value != null ? this.value : '') + (this.splat ? '...' : '');
+      }
+    };
+  });
+
   Null = clazz('Null', Node, function() {
     return {
       init: function(construct) {
@@ -550,43 +585,6 @@
       init: function() {},
       toString: function() {
         return "@";
-      }
-    };
-  });
-
-  Arr = clazz('Arr', Obj, function() {
-    return {
-      children: {
-        items: {
-          type: [
-            {
-              type: Item
-            }
-          ]
-        }
-      },
-      toString: function() {
-        return "[" + (this.items != null ? this.items.join(',') : '') + "]";
-      }
-    };
-  });
-
-  Item = clazz('Item', Node, function() {
-    return {
-      children: {
-        key: {
-          type: Node
-        },
-        value: {
-          type: EXPR,
-          isValue: true
-        }
-      },
-      init: function(_arg) {
-        this.key = _arg.key, this.value = _arg.value;
-      },
-      toString: function() {
-        return this.key + (this.value != null ? ":(" + this.value + ")" : '');
       }
     };
   });
@@ -711,6 +709,15 @@
 
   AssignList = clazz('AssignList', AssignObj, function() {
     return {
+      children: {
+        items: {
+          type: [
+            {
+              type: AssignItem
+            }
+          ]
+        }
+      },
       init: function(items) {
         var item, _i, _len, _ref4, _results;
         this.items = items;
@@ -1013,7 +1020,7 @@
                   }), o({
                     ASSIGN: " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR "
                   }, make(Assign)), o({
-                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) "
+                    INVOC_IMPL: " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) "
                   }, make(Invocation)), o({
                     COMPLEX: " (? _KEYWORD) &:_COMPLEX "
                   }), i({
@@ -1115,7 +1122,7 @@
       }, make(AssignList)), i({
         ASSIGN_LIST: " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' "
       }, make(AssignList)), i({
-        ASSIGN_LIST_ITEM: " _ target:(                              | &:SYMBOL   splat:'...'?                              | &:PROPERTY splat:'...'?                              | ASSIGN_OBJ                              | ASSIGN_LIST                            )                            default:(_ '=' LINEEXPR)? "
+        ASSIGN_LIST_ITEM: " _ target:(                              | SYMBOL                              | PROPERTY                              | ASSIGN_OBJ                              | ASSIGN_LIST                            )                            splat:'...'?                            default:(_ '=' LINEEXPR)? "
       }, make(AssignItem)), i({
         ASSIGN_OBJ: " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'"
       }, make(AssignObj)), i({
@@ -1131,7 +1138,7 @@
           }, make(Index)), o({
             PROTO: " obj:VALUE _SOFTLINE? type:'::' key:WORD? "
           }, make(Index)), o({
-            INVOC_EXPL: " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' "
+            INVOC_EXPL: " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' "
           }, make(Invocation)), o({
             SOAK: " VALUE '?' "
           }, make(Soak)), o({
@@ -1145,9 +1152,11 @@
           }), o({
             TYPEOF: [o(" func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make(Invocation)), o(" func:_TYPEOF __ params:LINEEXPR{1,1} ", make(Invocation))]
           }), o({
-            ARR_EXPL: " '[' _SOFTLINE? ARR_EXPR_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
+            ARR_EXPL: " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' "
           }, make(Arr)), i({
-            ARR_EXPL_ITEM: " LINEEXPR splat:'...'? "
+            ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? "
+          }, make(Item)), i({
+            ARR_IMPL_ITEM: " value:EXPR splat:'...'? "
           }, make(Item)), o({
             RANGE: " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? "
           }, make(Range)), o({

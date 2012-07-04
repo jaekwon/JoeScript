@@ -26,11 +26,11 @@ i9n: short for instruction
 
   _ref4 = require('joeson/src/joescript').HELPERS, extend = _ref4.extend, isVariable = _ref4.isVariable;
 
-  _ref5 = require('nogg').logger('interpreter'), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.error;
+  _ref5 = require('nogg').logger(__filename.split('/').last()), debug = _ref5.debug, info = _ref5.info, warn = _ref5.warn, fatal = _ref5.fatal;
 
   trace = {
-    debug: true,
-    logCode: true
+    debug: false,
+    logCode: false
   };
 
   _ref6 = this.JTypes = require('joeson/src/interpreter/object'), JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
@@ -237,6 +237,13 @@ i9n: short for instruction
           }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(Object.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
         return _results;
+      },
+      printErrorStack: function() {
+        var stackTrace, _ref8, _ref9;
+        stackTrace = this.error.stack.map(function(x) {
+          return '  at ' + x;
+        }).join('\n') || '  -- no stack trace available --';
+        return warn("" + ((_ref8 = this.error.name) != null ? _ref8 : 'UnknownError') + ": " + ((_ref9 = this.error.message) != null ? _ref9 : '') + "\n  Most recent call last:\n" + stackTrace);
       },
       printScope: function(scope, lvl) {
         var key, value, valueStr, _ref8;

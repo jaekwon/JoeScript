@@ -15,9 +15,9 @@ assert = require 'assert'
 joe = require('joeson/src/joescript').NODES
 {randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {extend, isVariable} = require('joeson/src/joescript').HELPERS
-{debug, info, warn, error:fatal} = require('nogg').logger 'interpreter'
+{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-trace = debug:yes, logCode:yes
+trace = debug:no, logCode:no
 {JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
 {GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
 
@@ -184,6 +184,10 @@ JThread = @JThread = clazz 'JThread', ->
                  }.#{ yellow i9n.func?._name
              }($, {#{ white Object.keys(i9nCopy).join ','
             }}, _) #{ black escape i9n.this }"
+
+  printErrorStack: ->
+    stackTrace = @error.stack.map((x)->'  at '+x).join('\n') or '  -- no stack trace available --'
+    warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
 
   printScope: (scope, lvl=0) ->
     for key, value of scope.data when key isnt '__proto__'

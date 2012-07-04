@@ -49,20 +49,12 @@
       code: 'login()',
       output: void 0,
       callback: function() {
-        var stackTrace, _ref3, _ref4, _ref5, _ref6;
         switch (this.state) {
           case 'return':
             info(this.last.__str__(this));
             break;
           case 'error':
-            if (this.error.stack.length) {
-              stackTrace = this.error.stack.map(function(x) {
-                return '  at ' + x;
-              }).join('\n');
-              warn("" + ((_ref3 = this.error.name) != null ? _ref3 : 'UnknownError') + ": " + ((_ref4 = this.error.message) != null ? _ref4 : '') + "\n  Most recent call last:\n" + stackTrace);
-            } else {
-              warn("" + ((_ref5 = this.error.name) != null ? _ref5 : 'UnknownError') + ": " + ((_ref6 = this.error.message) != null ? _ref6 : ''));
-            }
+            this.printErrorStack();
             break;
           default:
             throw new Error("Unexpected state " + this.state + " during kernel callback");

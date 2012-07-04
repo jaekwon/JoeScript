@@ -512,8 +512,9 @@ unless joe.Node::interpret? then do =>
       # interpret the parameters
       i9n.paramValues = []
       for param, i in @params
+        {value} = param
         $.push this:i9n, func:setLast, key:'paramValues', index:i
-        $.push this:param, func:param.interpret
+        $.push this:value, func:value.interpret
       i9n.func = joe.Invocation::interpretCall
       return
     interpretCall: ($, i9n) ->

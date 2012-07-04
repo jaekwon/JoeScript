@@ -925,7 +925,7 @@
           });
         },
         interpretParams: function($, i9n, func) {
-          var i, param, _i, _len, _ref7;
+          var i, param, value, _i, _len, _ref7;
           if (!(func instanceof JBoundFunc || func instanceof Function)) {
             return $["throw"]('TypeError', "" + this.func + " cannot be called.");
           }
@@ -934,6 +934,7 @@
           _ref7 = this.params;
           for (i = _i = 0, _len = _ref7.length; _i < _len; i = ++_i) {
             param = _ref7[i];
+            value = param.value;
             $.push({
               "this": i9n,
               func: setLast,
@@ -941,8 +942,8 @@
               index: i
             });
             $.push({
-              "this": param,
-              func: param.interpret
+              "this": value,
+              func: value.interpret
             });
           }
           i9n.func = joe.Invocation.prototype.interpretCall;

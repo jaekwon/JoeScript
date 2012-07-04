@@ -169,7 +169,11 @@ runNextTest = ->
       stderr: (msg) -> process.stderr.write(msg)
       callback: ->
         try
-          ok not @error?, "Thread errored out: #{inspect @error}"
+          if @error?
+            console.log red "TEST ERROR:"
+            @printErrorStack()
+            process.exit(1)
+            return
           callback.call context:@, it:@last.jsValue
           # callbacks are synchronous.
           # if it didn't throw, it was successful.

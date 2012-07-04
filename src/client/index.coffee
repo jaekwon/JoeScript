@@ -41,13 +41,7 @@ $(document).ready ->
           #  output(@last.__repr__(@).__html__(@))
           #output.close()
         when 'error'
-          if @error.stack.length
-            # TODO print stack trace here.
-            # @printStack @error.stack
-            stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
-            warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
-          else
-            warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
+          @printErrorStack()
           #output.close()
         else
           throw new Error "Unexpected state #{@state} during kernel callback"

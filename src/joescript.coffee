@@ -137,10 +137,10 @@ Statement = clazz 'Statement', Node, ->
 Invocation = clazz 'Invocation', Node, ->
   children:
     func:       {type:EXPR, isValue:yes}
-    params:     {type:[type:EXPR,isValue:yes]}
+    params:     {type:[type:Item,isValue:yes]}
   init: ({@func, @params}) ->
     @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
-  toString: -> "#{@func}(#{@params.map((p)->"#{p}#{p.splat and '...' or ''}")})"
+  toString: -> "#{@func}(#{@params})"
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
@@ -192,6 +192,22 @@ Obj = clazz 'Obj', Node, ->
   init: (@items) ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
+Arr = clazz 'Arr', Obj, ->
+  children:
+    items:      {type:[type:Item]}
+  toString: -> "[#{if @items? then @items.join ',' else ''}]"
+
+Item = clazz 'Item', Node, ->
+  children:
+    key:        {type:Node}
+    value:      {type:EXPR, isValue:yes}
+  init: ({@key, @value, @splat}) ->
+  toString: ->
+    "#{ if @key?              then @key         else ''
+    }#{ if @key? and @value?  then ':'          else ''
+    }#{ if @value?            then @value       else ''
+    }#{ if @splat             then '...'        else '' }"
+
 Null = clazz 'Null', Node, ->
   init: (construct) ->
     if construct isnt yes
@@ -209,18 +225,6 @@ Undefined.undefined = new Undefined(yes)
 This = clazz 'This', Node, ->
   init: ->
   toString: -> "@"
-
-Arr = clazz 'Arr', Obj, ->
-  children:
-    items:      {type:[type:Item]}
-  toString: -> "[#{if @items? then @items.join ',' else ''}]"
-
-Item = clazz 'Item', Node, ->
-  children:
-    key:        {type:Node}
-    value:      {type:EXPR, isValue:yes}
-  init: ({@key, @value}) ->
-  toString: -> @key+(if @value?   then ":(#{@value})"   else '')
 
 Str = clazz 'Str', Node, ->
   children:
@@ -281,6 +285,8 @@ AssignObj = clazz 'AssignObj', Node, ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 AssignList = clazz 'AssignList', AssignObj, ->
+  children:
+    items:    {type:[type:AssignItem]}
   init: (@items) ->
     # need to consider splats.
     # TODO
@@ -458,7 +464,7 @@ resetIndent = (ws, $) ->
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
-        o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:(&:EXPR splat:'...'?)+(_COMMA|_COMMA_NEWLINE) ", make Invocation
+        o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) ", make Invocation
 
         # COMPLEX
         o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
@@ -536,11 +542,12 @@ resetIndent = (ws, $) ->
   i PARAM_LIST:           " _ '(' &:ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
   i ASSIGN_LIST:          " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
   i ASSIGN_LIST_ITEM:     " _ target:(
-                              | &:SYMBOL   splat:'...'?
-                              | &:PROPERTY splat:'...'?
+                              | SYMBOL
+                              | PROPERTY
                               | ASSIGN_OBJ
                               | ASSIGN_LIST
                             )
+                            splat:'...'?
                             default:(_ '=' LINEEXPR)? ", make AssignItem
   i ASSIGN_OBJ:           " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
   i ASSIGN_OBJ_ITEM:      " _ key:(SYMBOL|PROPERTY|NUMBER)
@@ -553,7 +560,7 @@ resetIndent = (ws, $) ->
     o INDEX0:       " obj:VALUE type:'['  key:LINEEXPR _ ']' ", make Index
     o INDEX1:       " obj:VALUE _SOFTLINE? type:'.'  key:WORD ", make Index
     o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", make Index
-    o INVOC_EXPL:   " func:VALUE '(' ___ params:(&:LINEEXPR splat:'...'?)*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
+    o INVOC_EXPL:   " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
     o SOAK:         " VALUE '?' ", make Soak
 
     # rest
@@ -565,8 +572,9 @@ resetIndent = (ws, $) ->
       o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
     ]
     # starts with symbol
-    o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPR_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
-    i ARR_EXPL_ITEM: " LINEEXPR splat:'...'? ", make Item
+    o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
+    i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", make Item
+    i ARR_IMPL_ITEM: " value:EXPR splat:'...'? ", make Item
     o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
     o OBJ_EXPL:     " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
     i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", make Item

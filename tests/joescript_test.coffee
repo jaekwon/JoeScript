@@ -67,12 +67,12 @@ test  "foo[bar][baz]", "foo[bar][baz]"
 test  "123", "123"
 test  "123.456", "123.456"
 test  "123.456 + foo.bar", "(123.456+foo.bar)"
-test  "{foo: 1}", "{foo:(1)}"
-test  "{'foo': 1}", "{\"foo\":(1)}"
-test  "{foo: bar: 1}", "{foo:({bar:(1)})}"
-test  "foo: bar: 1", "{foo:({bar:(1)})}"
-test  "foo: bar: func param1", "{foo:({bar:(func(param1))})}"
-test  "foo: bar: func param1, param2a:A, param2b:B", "{foo:({bar:(func(param1,{param2a:(A),param2b:(B)}))})}"
+test  "{foo: 1}", "{foo:1}"
+test  "{'foo': 1}", "{\"foo\":1}"
+test  "{foo: bar: 1}", "{foo:{bar:1}}"
+test  "foo: bar: 1", "{foo:{bar:1}}"
+test  "foo: bar: func param1", "{foo:{bar:func(param1)}}"
+test  "foo: bar: func param1, param2a:A, param2b:B", "{foo:{bar:func(param1,{param2a:A,param2b:B})}}"
 test  "aString = 'foo'", "aString=(\"foo\")"
 test  "'foo'.length", "\"foo\".length"
 test  "[1, 2, 3]", "[1,2,3]"
@@ -113,13 +113,13 @@ test  "foo( func x for x in items )", 'foo(for x in items {func(x)})'
 test  """
 foo: FOO
 bar: BAR
-""", "{foo:(FOO),bar:(BAR)}"
+""", "{foo:FOO,bar:BAR}"
 test  """
 a =
   foo: FOO
   bar: BAR
 """, "
-a=({foo:(FOO),bar:(BAR)})"
+a=({foo:FOO,bar:BAR})"
 test  "func = -> x ?= -> if true then 'hi'", "func=(()->{x?=(()->{if(true){\"hi\"}})})"
 test  """
 while foo
@@ -225,7 +225,7 @@ foo: ->
   blah
 pos:
   bar:2
-""", '{foo:(()->{blah}),pos:({bar:(2)})}'
+""", '{foo:()->{blah},pos:{bar:2}}'
 test """
 if true
   "qwe"
@@ -237,13 +237,13 @@ test """
   get: -> (foo)
   set: ->
 }
-""", '{get:(()->{foo}),set:(()->{undefined})}'
+""", '{get:()->{foo},set:()->{undefined}}'
 test """
 {
   get: ->
   set: ->
 }
-""", '{get:(()->{undefined}),set:(()->{undefined})}'
+""", '{get:()->{undefined},set:()->{undefined}}'
 test """
 {
   foo: ->
@@ -251,12 +251,12 @@ test """
    baz: ->
   bak: ->
 }
-""", '{foo:(()->{undefined}),bar:(()->{{baz:(()->{undefined})}}),bak:(()->{undefined})}'
+""", '{foo:()->{undefined},bar:()->{{baz:()->{undefined}}},bak:()->{undefined}}'
 test """
 console.log
   pre: "qwe"
   post: "qwe"
-""", 'console.log({pre:("qwe"),post:("qwe")})'
+""", 'console.log({pre:"qwe",post:"qwe"})'
 test """
 collect = (thing) =>
   if func param

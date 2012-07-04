@@ -109,7 +109,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         # while(@cond) {
         #   <Variable>.push(@block)
         # }
-        @block = joe.Invocation(func:joe.Index(obj:target,key:joe.Word('push')), params:[@block]).toJSNode()
+        @block = joe.Invocation(func:joe.Index(obj:target,key:joe.Word('push')), params:[joe.Item(value:@block)]).toJSNode()
         lines.push this
         # <Variable>
         lines.push target.toJSNode({toReturn})
@@ -299,7 +299,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJavascript: -> 'undefined'
 
   joe.Invocation::extend
-    toJavascript: -> "#{js @func}(#{@params.map (p)->js(p)})"
+    toJavascript: -> "#{js @func}(#{@params.map (p)->js(p.value)})"
 
   joe.Index::extend
     toJavascript: ->
@@ -309,6 +309,11 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.Obj::extend
     toJavascript: ->
       "{#{("\"#{escape key}\": #{js value}" for {key, value} in @items).join ', '}}"
+
+  joe.Arr::extend
+    toJavascript: ->
+      # TODO need to handle splats...
+      "[#{(js value for {key, value} in @items).join ', '}]"
 
   clazz.extend Boolean,
     toJSNode: -> @
