@@ -15,42 +15,39 @@ newEl = ({tag,text}={}) ->
   el = $ document.createElement tag
   el.text text if text?
   return el
-newCircular = (text="[Circular]") ->
+newLink = ({text,id}={}) ->
   el = $ document.createElement 'span'
-  el.text text
+  el.text text ? "[link:##{id}]"
+  el.data('ref', id)
   return el
 
-XXX consider multiple elements (multiple "sheets") for each object,
-with each element getting synced simutaneously according to changes.
-perhaps upon view. The window should have an understanding of what is visible. right?
-hmm.
-
-unless JObject::toDom? then do =>
+@install = ->
+  return if JObject::toDom?
 
   JObject::extend
     makeDom: ($$={}) ->
-      return newCircular() if @el?
       assert.ok @id?, "JObject wants an id"
-      @el = newEl()
+      return newLink() if $$[@id]?
+      el = $$[@id] = newEl()
       for key, value of @data
-        @el.appendChild newEl tag:'label', text:key
-        @el.appendChild value.makeDom($$)
-      return @el
+        el.appendChild newEl tag:'label', text:key
+        el.appendChild value.makeDom($$)
+      return el
 
   JArray::extend
     makeDom: ($$={}) ->
-      return newCircular() if @el?
-      assert.ok @id?, "JObject wants an id"
-      @el = newEl()
+      assert.ok @id?, "JArray wants an id"
+      return newLink() if $$[@id]?
+      el = $$[@id] = newEl()
       for key, value of @data
-        @el.appendChild newEl tag:'label', text:key
-        @el.appendChild value.makeDom($$)
-      return @el
+        el.appendChild newEl tag:'label', text:key
+        el.appendChild value.makeDom($$)
+      return el
 
   clazz.extend Function,
     makeDom: ($$={}) ->
-      @el = newEl()
+      return newEl tag:'span', text:'[Function]'
 
   clazz.extend String,
     makeDom: ($$={}) ->
-      return makeEl tag:'span', text:@
+      return newEl tag:'span', text:@

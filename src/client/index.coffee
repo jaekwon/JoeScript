@@ -15,6 +15,10 @@ require('nogg').configure
 
 KERNEL = new JKernel
 
+# install dom stuff
+require('joeson/src/client/dom').install()
+xxx
+
 # init
 $(document).ready ->
 
