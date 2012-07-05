@@ -564,7 +564,7 @@ resetIndent = (ws, $) ->
     o SOAK:         " VALUE '?' ", make Soak
 
     # rest
-    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", make Number
+    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", (it) -> Number it
     o SYMBOL:       " !_KEYWORD WORD "
     o BOOLEAN:      " _TRUE | _FALSE ", (it) -> it is 'true'
     o TYPEOF: [

@@ -101,23 +101,6 @@ a
 ''',                                      -> deepEqual @it, [1,2,3,4]
 test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
 
-canon = (str) -> str.replace /#[a-zA-Z0-9]{12}/g, '#'
-test " ''+[1,2,3] ",                      -> equal canon(@it), '[# 0:1,1:2,2:3]'
-test " ''+[] ",                           -> equal canon(@it), '[# ]'
-test " ''+{foo:'bar'} ",                  -> equal canon(@it), '{# "foo":"bar"}'
-test """
-foo = {}
-foo.bar = 1
-foo.baz = ->
-''+foo
-""",                                      -> equal canon(@it), '{# \"bar\":1,\"baz\":(<#>)}'
-test """
-foo = {}
-foo.bar = 1
-foo.foo = foo
-''+foo
-""",                                      -> equal canon(@it), '{# \"bar\":1,\"foo\":{<#>}}'
-
 ###
 test "Array", Array
 test """
@@ -174,7 +157,7 @@ runNextTest = ->
             @printErrorStack()
             process.exit(1)
             return
-          callback.call context:@, it:@last.jsValue
+          callback.call context:@, it:@last.jsValue(@)
           # callbacks are synchronous.
           # if it didn't throw, it was successful.
           runNextTest()

@@ -1143,7 +1143,9 @@
             SOAK: " VALUE '?' "
           }, make(Soak)), o({
             NUMBER: " /-?[0-9]+(\\.[0-9]+)?/ "
-          }, make(Number)), o({
+          }, function(it) {
+            return Number(it);
+          }), o({
             SYMBOL: " !_KEYWORD WORD "
           }), o({
             BOOLEAN: " _TRUE | _FALSE "
@@ -1176,7 +1178,7 @@
             PAREN: " '(' _RESETINDENT BLOCK ___ ')' "
           }), o({
             STRING: [
-              o(" _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", make(Str)), o(" _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", make(Str)), o(" _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", make(Str)), o(" _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE            ", make(Str)), i({
+              o(" _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", make(Str)), o(" _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", make(Str)), o(" _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", make(Str)), o(" _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE             ", make(Str)), i({
                 _ESCSTR: " _SLASH . "
               }, function(it) {
                 return {

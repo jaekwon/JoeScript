@@ -18,7 +18,7 @@ joe = require('joeson/src/joescript').NODES
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 trace = debug:no, logCode:no
-{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @JTypes = require 'joeson/src/interpreter/object'
+{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @NODES = require('joeson/src/interpreter/object').NODES
 {GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
@@ -216,6 +216,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   init: ->
     @threads = []
+    @cache = {}       # TODO should be weak etc.
     @users = {}       # name -> user
     @userScopes = {}  # name -> scope 
     @index = 0

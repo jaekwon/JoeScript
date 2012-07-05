@@ -7,6 +7,7 @@ assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 isInteger = (n) -> n%1 is 0
+isObject =  (o) -> o instanceof JObject or o instanceof JStub
 
 ### Simple Instructions: ###
 # Write last to `this`
@@ -23,6 +24,15 @@ setLast._name = "setLast"
 JStub = @JStub = clazz 'JStub', ->
   init: (@id) ->
     assert.ok @id?, "Stub wants id"
+  jsValue: ($, $$) ->
+    cached1 = $$[@id]
+    return cached1 if cached1?
+    cached2 = $.kernel.cache[@id]
+    return cached2.jsValue($, $$) if cached2?
+    #throw new Error "DereferenceError: Broken reference: #{@}"
+    return @
+  toString: ->
+    "<##{@id}>"
 
 JObject = @JObject = clazz 'JObject', ->
   # data:   An Object
@@ -31,8 +41,8 @@ JObject = @JObject = clazz 'JObject', ->
   # proto:  Both a workaround the native .__proto__ behavior,
   #         and a convenient way to create new JObjects w/ their prototypes.
   init: ({@id, @creator, @data, @acl, @proto}) ->
-    assert.ok not @proto? or @proto instanceof JObject, "JObject wants JObject proto or null"
-    assert.ok @creator instanceof JObject, "JObject wants JObject creator"
+    assert.ok not @proto? or isObject @proto, "JObject wants JObject proto or null"
+    assert.ok isObject @creator, "JObject wants JObject creator"
     @id ?= randid()
     @data ?= {}
     @data.__proto__ = null # detatch prototype
@@ -109,12 +119,10 @@ JObject = @JObject = clazz 'JObject', ->
   __bool__: ($, other) -> yes
   __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
   __str__:  ($, $$={}) ->
-    if @id? and $$[@id]
-      return "{<\##{@id}>}"
-    else
-      $$[@id] = yes
-      dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
-      return "{#{if @id then '#'+@id+' ' else ''}#{dataPart}}"
+    return "<##{@id}>" if $$[@id]
+    $$[@id] = yes
+    dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
+    return "{O|##{@id}@#{@creator.id} #{dataPart}}"
   __repr__: ($) ->
     # this is what it would look like in joescript
     # <"{#< ([key.__str__(),':',value.__repr__()] for key, value of @data).weave ', ', flattenItems:yes >}">
@@ -123,10 +131,11 @@ JObject = @JObject = clazz 'JObject', ->
       $.jml(([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)),
       '}'
     )
-  jsValue$: get: ->
-    tmp = {}
-    tmp[key] = value.jsValue for key, value of @data
-    return tmp
+  jsValue: ($, $$={}) ->
+    return $$[@id] if $$[@id]
+    jsObj = $$[@id] = {}
+    jsObj[key] = value.jsValue($, $$) for key, value of @data
+    return jsObj
   toString: -> "[JObject]"
 
 JArray = @JArray = clazz 'JArray', JObject, ->
@@ -168,11 +177,9 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __bool__: ($, other) -> yes
   __key__:        ($) -> $.throw 'TypeError', "Can't use an array as a key"
   __str__: ($, $$={}) ->
-    if @id? and $$[@id]
-      return "[<\##{@id}>]"
-    else
-      $$[@id] = yes
-      return "[#{if @id then '#'+@id+' ' else ''}#{("#{if isInteger key then ''+key else key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')}]"
+    return "<##{@id}>" if $$[@id]
+    $$[@id] = yes
+    return "{A|##{@id}@#{@creator.id} #{("#{if isInteger key then ''+key else key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')}}"
   __repr__: ($) ->
     arrayPart = (item.__repr__($) for item in @data).weave(',')
     dataPart = $.jml ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
@@ -180,10 +187,11 @@ JArray = @JArray = clazz 'JArray', JObject, ->
       return $.jml '[',arrayPart...,' ',dataPart,']'
     else
       return $.jml '[',arrayPart...,']'
-  jsValue$: get: ->
-    tmp = []
-    tmp[key] = value.jsValue for key, value of @data
-    return tmp
+  jsValue: ($, $$={}) ->
+    return $$[@id] if $$[@id]
+    jsObj = $$[@id] = []
+    jsObj[key] = value.jsValue($, $$) for key, value of @data
+    return jsObj
   toString: -> "[JArray]"
 
   # protokeys
@@ -204,10 +212,15 @@ JUser = @JUser = clazz 'JUser', JObject, ->
     assert.ok @name is 'god', "Who else could it be?" unless GOD?
     GOD ?= this
     @super.init.call @, id:id, creator:GOD, data:{name:@name}
+  __str__:  ($, $$={}) ->
+    return "<##{@id}>" if $$[@id]
+    $$[@id] = yes
+    dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
+    return "{U|##{@id} #{dataPart}}"
   toString: -> "[JUser #{@name}]"
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->
-  init: (@name, @jsValue) ->
+  init: (@name, @_jsValue) ->
   __get__:    ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
   __set__: ($, key, value) -> $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
   __keys__:        ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
@@ -217,10 +230,12 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   __sub__:  ($, other) -> JNaN
   __mul__:  ($, other) -> JNaN
   __div__:  ($, other) -> JNaN
+  __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare with #{@name}"
   __bool__: ($, other) -> no
-  __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
+  __key__:         ($) -> $.throw 'TypeError', "Can't use #{@name} as key"
   __str__:         ($) -> @name
   __repr__:        ($) -> @name
+  jsValue: -> @_jsValue
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = new JSingleton 'null', null
@@ -235,7 +250,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   # scope:   Runtime scope of process that declares above function.
   init: ({id, creator, acl, func, @scope}) ->
     @super.init.call @, {id, creator, acl}
-    assert.ok (@scope is null) or @scope instanceof JObject, "scope, if present, must be a JObject"
+    assert.ok (@scope is null) or isObject @scope, "scope, if present, must be a JObject"
     if func instanceof joe.Func
       @func = func
     else if typeof func is 'string'
@@ -248,7 +263,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok node instanceof joe.Block, "Expected Block at root node, but got #{node?.constructor?.name}"
     assert.ok node.lines.length is 1 and node.lines[0] instanceof joe.Func, "Expected one Func"
     return @func=node.lines[0]
-  __str__: ($) -> "(<\##{@id}>)"
+  __str__: ($) -> "<##{@id}>"
   __repr__: ($) ->
     dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0
@@ -589,7 +604,7 @@ unless joe.Node::interpret? then do =>
         $.push this:@setup, func:@setup.interpret
       return
     interpretConditionalLoop: ($, i9n, cond) ->
-      if cond.__bool__().jsValue
+      if cond.__bool__()
         $.push this:@cond,    func:@cond.interpret
         $.push this:@counter, func:@counter.interpret
         $.push this:@block,   func:@block.interpret
@@ -651,7 +666,7 @@ unless joe.Node::interpret? then do =>
     __key__:         ($) -> @valueOf()
     __str__:         ($) -> "\"#{escape @}\""
     __repr__:        ($) -> "\"#{escape @}\""
-    jsValue$: get: -> @valueOf()
+    jsValue: -> @valueOf()
 
   clazz.extend Number,
     interpret: ($) ->
@@ -671,7 +686,7 @@ unless joe.Node::interpret? then do =>
     __key__:        ($) -> @valueOf()
     __str__:        ($) -> ''+@
     __repr__:       ($) -> ''+@
-    jsValue$: get: -> @valueOf()
+    jsValue: -> @valueOf()
 
   clazz.extend Boolean,
     interpret: ($) ->
@@ -691,7 +706,7 @@ unless joe.Node::interpret? then do =>
     __key__:        ($) -> $.throw 'TypeError', "Can't use a boolean as a key"
     __str__:        ($) -> ''+@
     __repr__:       ($) -> ''+@
-    jsValue$: get: -> @valueOf()
+    jsValue: -> @valueOf()
 
   clazz.extend Function, # native functions
     __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
@@ -706,11 +721,15 @@ unless joe.Node::interpret? then do =>
     __cmp__: ($, other) -> JNaN
     __bool__:       ($) -> yes
     __key__:        ($) -> $.throw 'TypeError', "Can't use a function as a key"
-    __str__:        ($) -> "(<\##{@id}>)"
+    __str__:        ($) -> "(<##{@id}>)"
     __repr__:       ($) ->
       name = @name ? @_name
       if name
         "[NativeFunction: #{name}]"
       else
         "[NativeFunction]"
-    jsValue$: get: -> @valueOf()
+    jsValue: -> @valueOf()
+
+@NODES = {
+  JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc
+}

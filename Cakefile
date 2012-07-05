@@ -14,7 +14,8 @@ task 'test', ->
     run 'coffee tests/joescript_test.coffee', ->
       run 'coffee tests/translator_test.coffee', ->
         run 'coffee tests/interpreter_test.coffee', ->
-          console.log "All tests OK"
+          run 'coffee tests/jsl_test.coffee', ->
+            console.log "All tests OK"
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = """

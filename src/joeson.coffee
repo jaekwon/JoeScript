@@ -558,7 +558,7 @@ _loopStack = [] # trace stack
         # call prepare on all nodes
         node.prepare()
 
-  # MAIN PARSE FUNCTION
+  # MAIN GRAMMAR PARSE FUNCTION
   parse$: (code, {returnContext,env,debug}={}) ->
     returnContext ?= no
     assert.ok code, "Parser wants code"

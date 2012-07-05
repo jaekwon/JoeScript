@@ -6,7 +6,7 @@ async = require 'async'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {
-  JTypes:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
 } = require 'joeson/src/interpreter'
 

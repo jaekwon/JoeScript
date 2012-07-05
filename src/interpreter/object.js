@@ -1,5 +1,5 @@
 (function() {
-  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
+  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isObject, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __slice = Array.prototype.slice,
     _this = this;
@@ -20,6 +20,10 @@
 
   isInteger = function(n) {
     return n % 1 === 0;
+  };
+
+  isObject = function(o) {
+    return o instanceof JObject || o instanceof JStub;
   };
 
   /* Simple Instructions:
@@ -43,6 +47,17 @@
       init: function(id) {
         this.id = id;
         return assert.ok(this.id != null, "Stub wants id");
+      },
+      jsValue: function($, $$) {
+        var cached1, cached2;
+        cached1 = $$[this.id];
+        if (cached1 != null) return cached1;
+        cached2 = $.kernel.cache[this.id];
+        if (cached2 != null) return cached2.jsValue($, $$);
+        return this;
+      },
+      toString: function() {
+        return "<#" + this.id + ">";
       }
     };
   });
@@ -51,8 +66,8 @@
     return {
       init: function(_arg) {
         this.id = _arg.id, this.creator = _arg.creator, this.data = _arg.data, this.acl = _arg.acl, this.proto = _arg.proto;
-        assert.ok(!(this.proto != null) || this.proto instanceof JObject, "JObject wants JObject proto or null");
-        assert.ok(this.creator instanceof JObject, "JObject wants JObject creator");
+        assert.ok(!(this.proto != null) || isObject(this.proto, "JObject wants JObject proto or null"));
+        assert.ok(isObject(this.creator, "JObject wants JObject creator"));
         if (this.id == null) this.id = randid();
         if (this.data == null) this.data = {};
         return this.data.__proto__ = null;
@@ -170,22 +185,19 @@
       __str__: function($, $$) {
         var dataPart, key, value;
         if ($$ == null) $$ = {};
-        if ((this.id != null) && $$[this.id]) {
-          return "{<\#" + this.id + ">}";
-        } else {
-          $$[this.id] = true;
-          dataPart = ((function() {
-            var _ref7, _results;
-            _ref7 = this.data;
-            _results = [];
-            for (key in _ref7) {
-              value = _ref7[key];
-              _results.push("" + (key.__str__($)) + ":" + (value.__str__($, $$)));
-            }
-            return _results;
-          }).call(this)).join(',');
-          return "{" + (this.id ? '#' + this.id + ' ' : '') + dataPart + "}";
-        }
+        if ($$[this.id]) return "<#" + this.id + ">";
+        $$[this.id] = true;
+        dataPart = ((function() {
+          var _ref7, _results;
+          _ref7 = this.data;
+          _results = [];
+          for (key in _ref7) {
+            value = _ref7[key];
+            _results.push("" + (key.__str__($)) + ":" + (value.__str__($, $$)));
+          }
+          return _results;
+        }).call(this)).join(',');
+        return "{O|#" + this.id + "@" + this.creator.id + " " + dataPart + "}";
       },
       __repr__: function($) {
         var key, value;
@@ -202,17 +214,17 @@
           flattenItems: true
         })), '}');
       },
-      jsValue$: {
-        get: function() {
-          var key, tmp, value, _ref7;
-          tmp = {};
-          _ref7 = this.data;
-          for (key in _ref7) {
-            value = _ref7[key];
-            tmp[key] = value.jsValue;
-          }
-          return tmp;
+      jsValue: function($, $$) {
+        var jsObj, key, value, _ref7;
+        if ($$ == null) $$ = {};
+        if ($$[this.id]) return $$[this.id];
+        jsObj = $$[this.id] = {};
+        _ref7 = this.data;
+        for (key in _ref7) {
+          value = _ref7[key];
+          jsObj[key] = value.jsValue($, $$);
         }
+        return jsObj;
       },
       toString: function() {
         return "[JObject]";
@@ -292,21 +304,18 @@
       __str__: function($, $$) {
         var key, value;
         if ($$ == null) $$ = {};
-        if ((this.id != null) && $$[this.id]) {
-          return "[<\#" + this.id + ">]";
-        } else {
-          $$[this.id] = true;
-          return "[" + (this.id ? '#' + this.id + ' ' : '') + (((function() {
-            var _ref7, _results;
-            _ref7 = this.data;
-            _results = [];
-            for (key in _ref7) {
-              value = _ref7[key];
-              _results.push("" + (isInteger(key) ? '' + key : key.__str__($)) + ":" + (value.__str__($, $$)));
-            }
-            return _results;
-          }).call(this)).join(',')) + "]";
-        }
+        if ($$[this.id]) return "<#" + this.id + ">";
+        $$[this.id] = true;
+        return "{A|#" + this.id + "@" + this.creator.id + " " + (((function() {
+          var _ref7, _results;
+          _ref7 = this.data;
+          _results = [];
+          for (key in _ref7) {
+            value = _ref7[key];
+            _results.push("" + (isInteger(key) ? '' + key : key.__str__($)) + ":" + (value.__str__($, $$)));
+          }
+          return _results;
+        }).call(this)).join(',')) + "}";
       },
       __repr__: function($) {
         var arrayPart, dataPart, item, key, value;
@@ -336,17 +345,17 @@
           return $.jml.apply($, ['['].concat(__slice.call(arrayPart), [']']));
         }
       },
-      jsValue$: {
-        get: function() {
-          var key, tmp, value, _ref7;
-          tmp = [];
-          _ref7 = this.data;
-          for (key in _ref7) {
-            value = _ref7[key];
-            tmp[key] = value.jsValue;
-          }
-          return tmp;
+      jsValue: function($, $$) {
+        var jsObj, key, value, _ref7;
+        if ($$ == null) $$ = {};
+        if ($$[this.id]) return $$[this.id];
+        jsObj = $$[this.id] = [];
+        _ref7 = this.data;
+        for (key in _ref7) {
+          value = _ref7[key];
+          jsObj[key] = value.jsValue($, $$);
         }
+        return jsObj;
       },
       toString: function() {
         return "[JArray]";
@@ -389,6 +398,23 @@
           }
         });
       },
+      __str__: function($, $$) {
+        var dataPart, key, value;
+        if ($$ == null) $$ = {};
+        if ($$[this.id]) return "<#" + this.id + ">";
+        $$[this.id] = true;
+        dataPart = ((function() {
+          var _ref7, _results;
+          _ref7 = this.data;
+          _results = [];
+          for (key in _ref7) {
+            value = _ref7[key];
+            _results.push("" + (key.__str__($)) + ":" + (value.__str__($, $$)));
+          }
+          return _results;
+        }).call(this)).join(',');
+        return "{U|#" + this.id + " " + dataPart + "}";
+      },
       toString: function() {
         return "[JUser " + this.name + "]";
       }
@@ -397,9 +423,9 @@
 
   JSingleton = this.JSingleton = clazz('JSingleton', function() {
     return {
-      init: function(name, jsValue) {
+      init: function(name, _jsValue) {
         this.name = name;
-        this.jsValue = jsValue;
+        this._jsValue = _jsValue;
       },
       __get__: function($, key) {
         return $["throw"]('TypeError', "Cannot read property '" + key + "' of " + this.name);
@@ -428,17 +454,23 @@
       __div__: function($, other) {
         return JNaN;
       },
+      __cmp__: function($, other) {
+        return $["throw"]('TypeError', "Can't compare with " + this.name);
+      },
       __bool__: function($, other) {
         return false;
       },
       __key__: function($) {
-        return $["throw"]('TypeError', "Can't use object as a key");
+        return $["throw"]('TypeError', "Can't use " + this.name + " as key");
       },
       __str__: function($) {
         return this.name;
       },
       __repr__: function($) {
         return this.name;
+      },
+      jsValue: function() {
+        return this._jsValue;
       },
       toString: function() {
         return "Singleton(" + this.name + ")";
@@ -462,7 +494,7 @@
           creator: creator,
           acl: acl
         });
-        assert.ok((this.scope === null) || this.scope instanceof JObject, "scope, if present, must be a JObject");
+        assert.ok((this.scope === null) || isObject(this.scope, "scope, if present, must be a JObject"));
         if (func instanceof joe.Func) {
           return this.func = func;
         } else if (typeof func === 'string') {
@@ -484,7 +516,7 @@
         }
       },
       __str__: function($) {
-        return "(<\#" + this.id + ">)";
+        return "<#" + this.id + ">";
       },
       __repr__: function($) {
         var dataPart, key, value;
@@ -1056,7 +1088,7 @@
           }
         },
         interpretConditionalLoop: function($, i9n, cond) {
-          if (cond.__bool__().jsValue) {
+          if (cond.__bool__()) {
             $.push({
               "this": this.cond,
               func: this.cond.interpret
@@ -1214,10 +1246,8 @@
         __repr__: function($) {
           return "\"" + (escape(this)) + "\"";
         },
-        jsValue$: {
-          get: function() {
-            return this.valueOf();
-          }
+        jsValue: function() {
+          return this.valueOf();
         }
       });
       clazz.extend(Number, {
@@ -1267,10 +1297,8 @@
         __repr__: function($) {
           return '' + this;
         },
-        jsValue$: {
-          get: function() {
-            return this.valueOf();
-          }
+        jsValue: function() {
+          return this.valueOf();
         }
       });
       clazz.extend(Boolean, {
@@ -1320,10 +1348,8 @@
         __repr__: function($) {
           return '' + this;
         },
-        jsValue$: {
-          get: function() {
-            return this.valueOf();
-          }
+        jsValue: function() {
+          return this.valueOf();
         }
       });
       return clazz.extend(Function, {
@@ -1364,7 +1390,7 @@
           return $["throw"]('TypeError', "Can't use a function as a key");
         },
         __str__: function($) {
-          return "(<\#" + this.id + ">)";
+          return "(<#" + this.id + ">)";
         },
         __repr__: function($) {
           var name, _ref7;
@@ -1375,13 +1401,23 @@
             return "[NativeFunction]";
           }
         },
-        jsValue$: {
-          get: function() {
-            return this.valueOf();
-          }
+        jsValue: function() {
+          return this.valueOf();
         }
       });
     })();
   }
+
+  this.NODES = {
+    JStub: JStub,
+    JObject: JObject,
+    JArray: JArray,
+    JUser: JUser,
+    JSingleton: JSingleton,
+    JNull: JNull,
+    JUndefined: JUndefined,
+    JNaN: JNaN,
+    JBoundFunc: JBoundFunc
+  };
 
 }).call(this);

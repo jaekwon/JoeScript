@@ -33,7 +33,7 @@ i9n: short for instruction
     logCode: false
   };
 
-  _ref6 = this.JTypes = require('joeson/src/interpreter/object'), JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
+  _ref6 = this.NODES = require('joeson/src/interpreter/object').NODES, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
 
   _ref7 = this.GLOBALS = require('joeson/src/interpreter/global'), GOD = _ref7.GOD, WORLD = _ref7.WORLD, GUEST = _ref7.GUEST;
 
@@ -295,6 +295,7 @@ i9n: short for instruction
     return {
       init: function() {
         this.threads = [];
+        this.cache = {};
         this.users = {};
         this.userScopes = {};
         this.index = 0;
