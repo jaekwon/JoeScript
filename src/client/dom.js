@@ -16,7 +16,7 @@
 
   if (JObject.prototype.toDom == null) {
     (function() {
-      Node.prototype.extend;
+      JObject.prototype.extend;
       Block.prototype.extend({
         interpret: function($) {
           var firstLine, length, variable, _i, _len, _ref8;

@@ -10,27 +10,47 @@ assert = require 'assert'
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 
+newEl = ({tag,text}={}) ->
+  tag ?= 'div'
+  el = $ document.createElement tag
+  el.text text if text?
+  return el
+newCircular = (text="[Circular]") ->
+  el = $ document.createElement 'span'
+  el.text text
+  return el
+
+XXX consider multiple elements (multiple "sheets") for each object,
+with each element getting synced simutaneously according to changes.
+perhaps upon view. The window should have an understanding of what is visible. right?
+hmm.
+
 unless JObject::toDom? then do =>
 
-  Node::extend
+  JObject::extend
+    makeDom: ($$={}) ->
+      return newCircular() if @el?
+      assert.ok @id?, "JObject wants an id"
+      @el = newEl()
+      for key, value of @data
+        @el.appendChild newEl tag:'label', text:key
+        @el.appendChild value.makeDom($$)
+      return @el
 
-  Block::extend
-    interpret: ($) ->
-      $.pop()
-      # lucky us these can just be synchronous
-      $.scope.__set__ $, variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
-      if (length=@lines.length) > 1
-        $.push this:@, func:Block::interpretLoop, length:length, idx:0
-      firstLine = @lines[0]
-      $.push this:firstLine, func:firstLine.interpret
-      return
-    interpretLoop: ($, i9n, last) ->
-      assert.ok typeof i9n.idx is 'number'
-      if i9n.idx is i9n.length-2
-        $.pop() # pop this
-      nextLine = @lines[++i9n.idx]
-      $.push this:nextLine, func:nextLine.interpret
-      return
+  JArray::extend
+    makeDom: ($$={}) ->
+      return newCircular() if @el?
+      assert.ok @id?, "JObject wants an id"
+      @el = newEl()
+      for key, value of @data
+        @el.appendChild newEl tag:'label', text:key
+        @el.appendChild value.makeDom($$)
+      return @el
 
-  clazz.extend Function, # native functions
-    __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  clazz.extend Function,
+    makeDom: ($$={}) ->
+      @el = newEl()
+
+  clazz.extend String,
+    makeDom: ($$={}) ->
+      return makeEl tag:'span', text:@
