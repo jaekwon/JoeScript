@@ -1,17 +1,20 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{NODES:joe, parse} = require('joeson/src/joescript')
-{randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
-{extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
+{
+  parse,
+  NODES:joe
+  HELPERS:{isWord,isVariable}
+} = require 'joeson/src/joescript'
+{randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
+
+# HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0
 isObject =  (o) -> o instanceof JObject or o instanceof JStub
-
-### Simple Instructions: ###
-# Write last to `this`
 setLast = ($, i9n, last) ->
+  # An Instruction to write last to `this`
   $.pop()
   assert.ok i9n.key?, "setLast requires set key."
   if i9n.index?
@@ -20,6 +23,7 @@ setLast = ($, i9n, last) ->
     @[i9n.key] = last
   return last
 setLast._name = "setLast"
+@HELPERS = {isInteger, isObject, setLast}
 
 JStub = @JStub = clazz 'JStub', ->
   init: (@id) ->

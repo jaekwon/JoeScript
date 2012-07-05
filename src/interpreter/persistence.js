@@ -1,5 +1,5 @@
 (function() {
-  var GLOBALS, JArray, JBoundFunc, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, green, info, inspect, joefn, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
+  var GLOBALS, HELPERS, JArray, JBoundFunc, JNaN, JNull, JObject, JStub, JUndefined, JUser, NATIVE_FUNCTIONS, OBJECTS, assert, async, black, blue, clazz, client, cyan, debug, ends, escape, fatal, getClient, getOrStub, green, info, inspect, joefn, key, loadJObject, magenta, nativ, normal, pad, red, saveJObject, saveJObjectItem, starts, value, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
 
@@ -13,7 +13,7 @@
 
   _ref4 = require('nogg').logger(__filename.split('/').last()), debug = _ref4.debug, info = _ref4.info, warn = _ref4.warn, fatal = _ref4.fatal;
 
-  _ref5 = require('joeson/src/interpreter'), (_ref6 = _ref5.NODES, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc, JStub = _ref6.JStub), GLOBALS = _ref5.GLOBALS;
+  _ref5 = require('joeson/src/interpreter'), (_ref6 = _ref5.NODES, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc, JStub = _ref6.JStub), GLOBALS = _ref5.GLOBALS, HELPERS = _ref5.HELPERS;
 
   client = void 0;
 

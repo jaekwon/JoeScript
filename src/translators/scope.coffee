@@ -2,8 +2,11 @@
 {inspect} = require 'util'
 assert    = require 'assert'
 
-joe = require('joeson/src/joescript').NODES
-{extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
+{
+  NODES:joe
+  HELPERS:{isWord,isVariable}
+} = require 'joeson/src/joescript'
+
 {randid}  = require 'joeson/lib/helpers'
 
 # A heirarchical lexical scope structure.

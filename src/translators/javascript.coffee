@@ -2,8 +2,10 @@
 {inspect} = require 'util'
 assert = require 'assert'
 
-joe = require('joeson/src/joescript').NODES
-{extend, isWord, isVariable} = require('joeson/src/joescript').HELPERS
+{
+  NODES:joe
+  HELPERS:{isWord,isVariable}
+} = require 'joeson/src/joescript'
 {escape, compact, flatten} = require('joeson/lib/helpers')
 
 js = (obj) -> obj?.toJavascript?() ? obj

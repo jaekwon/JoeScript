@@ -1,5 +1,5 @@
 (function() {
-  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, htmlEscape, info, inspect, isInteger, isObject, isVariable, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
+  var JAccessControlItem, JArray, JBoundFunc, JNaN, JNull, JObject, JSingleton, JStub, JUndefined, JUser, SimpleIterator, assert, black, blue, clazz, cyan, debug, ends, escape, fatal, green, htmlEscape, info, inspect, isInteger, isObject, isVariable, isWord, joe, magenta, normal, pad, parse, randid, red, setLast, starts, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __slice = Array.prototype.slice,
     _this = this;
@@ -10,13 +10,11 @@
 
   assert = require('assert');
 
-  _ref3 = require('joeson/src/joescript'), joe = _ref3.NODES, parse = _ref3.parse;
+  _ref3 = require('nogg').logger(__filename.split('/').last()), debug = _ref3.debug, info = _ref3.info, warn = _ref3.warn, fatal = _ref3.fatal;
 
-  _ref4 = require('joeson/lib/helpers'), randid = _ref4.randid, pad = _ref4.pad, htmlEscape = _ref4.htmlEscape, escape = _ref4.escape, starts = _ref4.starts, ends = _ref4.ends;
+  _ref4 = require('joeson/src/joescript'), parse = _ref4.parse, joe = _ref4.NODES, (_ref5 = _ref4.HELPERS, isWord = _ref5.isWord, isVariable = _ref5.isVariable);
 
-  _ref5 = require('joeson/src/joescript').HELPERS, extend = _ref5.extend, isVariable = _ref5.isVariable;
-
-  _ref6 = require('nogg').logger(__filename.split('/').last()), debug = _ref6.debug, info = _ref6.info, warn = _ref6.warn, fatal = _ref6.fatal;
+  _ref6 = require('joeson/lib/helpers'), randid = _ref6.randid, pad = _ref6.pad, htmlEscape = _ref6.htmlEscape, escape = _ref6.escape, starts = _ref6.starts, ends = _ref6.ends;
 
   isInteger = function(n) {
     return n % 1 === 0;
@@ -25,9 +23,6 @@
   isObject = function(o) {
     return o instanceof JObject || o instanceof JStub;
   };
-
-  /* Simple Instructions:
-  */
 
   setLast = function($, i9n, last) {
     $.pop();
@@ -41,6 +36,12 @@
   };
 
   setLast._name = "setLast";
+
+  this.HELPERS = {
+    isInteger: isInteger,
+    isObject: isObject,
+    setLast: setLast
+  };
 
   JStub = this.JStub = clazz('JStub', function() {
     return {

@@ -1,7 +1,12 @@
 # Joescript Serialization Language
 # Joeson is the parser, so this is called something else. JSL, why not?
 {Grammar} = require 'joeson'
-jsi = require('joeson/src/interpreter').NODES
+{
+  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  GLOBALS:GLOBALS
+  HELPERS:{isInteger,isObject,setLast}
+} = require 'joeson/src/interpreter'
+
 
 JSL = Grammar ({o, i, tokens}) -> [
   o ANY: [
@@ -11,12 +16,12 @@ JSL = Grammar ({o, i, tokens}) -> [
       o             " '<#' id:ID '>' ", ({id}, $) ->
                       cached = $.env.thread.kernel.cache[id]
                       return cached if cached?
-                      return jsi.JStub id
+                      return JStub id
       o             " '{' type:[OAU] '|#' id:ID '@' creator:ID ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creator,items}, $) ->
                       switch type
-                        when 'O' then obj = new jsi.JObject id:id, creator:(new jsi.JStub creator)
-                        when 'A' then obj = new jsi.JArray  id:id, creator:(new jsi.JStub creator)
-                        when 'U' then obj = new jsi.JUser   name:id
+                        when 'O' then obj = new JObject id:id, creator:(new JStub creator)
+                        when 'A' then obj = new JArray  id:id, creator:(new JStub creator)
+                        when 'U' then obj = new JUser   name:id
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
                       $.env.thread.kernel.cache[id] = obj if id?
                       for {key, value} in items

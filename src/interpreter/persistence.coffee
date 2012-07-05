@@ -8,6 +8,7 @@ async = require 'async'
 {
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
+  HELPERS:HELPERS
 } = require 'joeson/src/interpreter'
 
 client = undefined

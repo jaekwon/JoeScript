@@ -3,7 +3,13 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
-{JThread, JKernel, GOD, NODES:jsi} = require 'joeson/src/interpreter'
+{
+  JThread, JKernel, GOD,
+  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  GLOBALS:GLOBALS
+  HELPERS:{isInteger,isObject,setLast}
+} = require 'joeson/src/interpreter'
+
 JSL = require 'joeson/src/parsers/jsl'
 
 console.log blue "\n-= JSL test =-"

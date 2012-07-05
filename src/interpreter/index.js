@@ -11,7 +11,7 @@ i9n: short for instruction
 */
 
 (function() {
-  var GOD, GUEST, JArray, JBoundFunc, JKernel, JNaN, JNull, JObject, JStackItem, JThread, JUndefined, JUser, WORLD, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, info, inspect, isVariable, joe, magenta, normal, pad, randid, red, starts, trace, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7,
+  var GOD, GUEST, JArray, JBoundFunc, JKernel, JNaN, JNull, JObject, JStackItem, JThread, JUndefined, JUser, WORLD, assert, black, blue, clazz, cyan, debug, ends, escape, extend, fatal, green, info, inspect, isVariable, joe, magenta, normal, pad, randid, red, starts, trace, warn, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9,
     __slice = Array.prototype.slice;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
@@ -33,9 +33,9 @@ i9n: short for instruction
     logCode: false
   };
 
-  _ref6 = this.NODES = require('joeson/src/interpreter/object').NODES, JObject = _ref6.JObject, JArray = _ref6.JArray, JUser = _ref6.JUser, JUndefined = _ref6.JUndefined, JNull = _ref6.JNull, JNaN = _ref6.JNaN, JBoundFunc = _ref6.JBoundFunc;
+  _ref8 = (_ref6 = require('joeson/src/interpreter/object'), (_ref7 = _ref6.NODES, JObject = _ref7.JObject, JArray = _ref7.JArray, JUser = _ref7.JUser, JUndefined = _ref7.JUndefined, JNull = _ref7.JNull, JNaN = _ref7.JNaN, JBoundFunc = _ref7.JBoundFunc), _ref6), this.NODES = _ref8.NODES, this.HELPERS = _ref8.HELPERS;
 
-  _ref7 = this.GLOBALS = require('joeson/src/interpreter/global'), GOD = _ref7.GOD, WORLD = _ref7.WORLD, GUEST = _ref7.GUEST;
+  this.GLOBALS = (_ref9 = require('joeson/src/interpreter/global'), GOD = _ref9.GOD, WORLD = _ref9.WORLD, GUEST = _ref9.GUEST, _ref9);
 
   JStackItem = this.JStackItem = clazz('JStackItem', function() {
     return {
@@ -49,8 +49,8 @@ i9n: short for instruction
         return this.declaringFunc = declaringFunc;
       },
       toString: function() {
-        var _ref10, _ref8, _ref9;
-        return "'" + ((_ref8 = this.node) != null ? typeof _ref8.toJavascript === "function" ? _ref8.toJavascript() : void 0 : void 0) + "' (source:" + this.declaringFunc + ", line:" + ((_ref9 = this.node._origin) != null ? _ref9.line : void 0) + ", col:" + ((_ref10 = this.node._origin) != null ? _ref10.col : void 0) + ")";
+        var _ref10, _ref11, _ref12;
+        return "'" + ((_ref10 = this.node) != null ? typeof _ref10.toJavascript === "function" ? _ref10.toJavascript() : void 0 : void 0) + "' (source:" + this.declaringFunc + ", line:" + ((_ref11 = this.node._origin) != null ? _ref11.line : void 0) + ", col:" + ((_ref12 = this.node._origin) != null ? _ref12.col : void 0) + ")";
       }
     };
   });
@@ -83,9 +83,9 @@ i9n: short for instruction
         }
       },
       runStep: function() {
-        var dontcare, existing, func, i9n, last, target, targetIndex, targetKey, that, _ref8;
+        var dontcare, existing, func, i9n, last, target, targetIndex, targetKey, that, _ref10;
         if (this.i9ns.length === 0) return this.state = 'return';
-        _ref8 = i9n = this.i9ns[this.i9ns.length - 1], func = _ref8.func, that = _ref8["this"], target = _ref8.target, targetKey = _ref8.targetKey, targetIndex = _ref8.targetIndex;
+        _ref10 = i9n = this.i9ns[this.i9ns.length - 1], func = _ref10.func, that = _ref10["this"], target = _ref10.target, targetKey = _ref10.targetKey, targetIndex = _ref10.targetIndex;
         if (trace.debug) info(blue("             -- runStep --"));
         if (trace.debug) this.printScope(this.scope);
         if (trace.debug) this.printStack();
@@ -164,11 +164,11 @@ i9n: short for instruction
         return this.i9ns.push(i9n);
       },
       callStack: function() {
-        var item, stack, _i, _len, _ref8;
+        var item, stack, _i, _len, _ref10;
         stack = [];
-        _ref8 = this.i9ns;
-        for (_i = 0, _len = _ref8.length; _i < _len; _i++) {
-          item = _ref8[_i];
+        _ref10 = this.i9ns;
+        for (_i = 0, _len = _ref10.length; _i < _len; _i++) {
+          item = _ref10[_i];
           if (item["this"] instanceof joe.Invocation) {
             stack.push(JStackItem({
               node: item["this"]
@@ -206,11 +206,11 @@ i9n: short for instruction
         }
       },
       cleanup: function() {
-        var _ref8, _ref9;
-        if ((_ref8 = this.input) != null) {
-          if (typeof _ref8.close === "function") _ref8.close();
+        var _ref10, _ref11;
+        if ((_ref10 = this.input) != null) {
+          if (typeof _ref10.close === "function") _ref10.close();
         }
-        return (_ref9 = this.output) != null ? typeof _ref9.close === "function" ? _ref9.close() : void 0 : void 0;
+        return (_ref11 = this.output) != null ? typeof _ref11.close === "function" ? _ref11.close() : void 0 : void 0;
       },
       /* ACCESS CONTROL
       */
@@ -223,7 +223,7 @@ i9n: short for instruction
       /* DEBUG
       */
       printStack: function(stack) {
-        var i, i9n, i9nCopy, _i, _len, _ref8, _ref9, _results;
+        var i, i9n, i9nCopy, _i, _len, _ref10, _ref11, _results;
         if (stack == null) stack = this.i9ns;
         assert.ok(stack instanceof Array);
         _results = [];
@@ -234,23 +234,23 @@ i9n: short for instruction
           delete i9nCopy.func;
           _results.push(info("" + (blue(pad({
             right: 12
-          }, "" + ((_ref8 = i9n["this"]) != null ? _ref8.constructor.name : void 0)))) + "." + (yellow((_ref9 = i9n.func) != null ? _ref9._name : void 0)) + "($, {" + (white(Object.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
+          }, "" + ((_ref10 = i9n["this"]) != null ? _ref10.constructor.name : void 0)))) + "." + (yellow((_ref11 = i9n.func) != null ? _ref11._name : void 0)) + "($, {" + (white(Object.keys(i9nCopy).join(','))) + "}, _) " + (black(escape(i9n["this"])))));
         }
         return _results;
       },
       printErrorStack: function() {
-        var stackTrace, _ref8, _ref9;
+        var stackTrace, _ref10, _ref11;
         stackTrace = this.error.stack.map(function(x) {
           return '  at ' + x;
         }).join('\n') || '  -- no stack trace available --';
-        return warn("" + ((_ref8 = this.error.name) != null ? _ref8 : 'UnknownError') + ": " + ((_ref9 = this.error.message) != null ? _ref9 : '') + "\n  Most recent call last:\n" + stackTrace);
+        return warn("" + ((_ref10 = this.error.name) != null ? _ref10 : 'UnknownError') + ": " + ((_ref11 = this.error.message) != null ? _ref11 : '') + "\n  Most recent call last:\n" + stackTrace);
       },
       printScope: function(scope, lvl) {
-        var key, value, valueStr, _ref8;
+        var key, value, valueStr, _ref10;
         if (lvl == null) lvl = 0;
-        _ref8 = scope.data;
-        for (key in _ref8) {
-          value = _ref8[key];
+        _ref10 = scope.data;
+        for (key in _ref10) {
+          value = _ref10[key];
           if (!(key !== '__proto__')) continue;
           try {
             valueStr = value.__str__(this);
@@ -370,7 +370,7 @@ i9n: short for instruction
         }
       },
       runloop$: function() {
-        var exitCode, i, thread, _i, _ref10, _ref11, _ref12, _ref8, _ref9;
+        var exitCode, i, thread, _i, _ref10, _ref11, _ref12, _ref13, _ref14;
         this.ticker++;
         thread = this.threads[this.index];
         if (trace.debug) {
@@ -380,7 +380,7 @@ i9n: short for instruction
           for (i = _i = 0; _i <= 20; i = ++_i) {
             exitCode = thread.runStep();
             if (exitCode != null) {
-              [].splice.apply(this.threads, [(_ref8 = this.index), this.index - _ref8 + 1].concat(_ref9 = [])), _ref9;
+              [].splice.apply(this.threads, [(_ref10 = this.index), this.index - _ref10 + 1].concat(_ref11 = [])), _ref11;
               this.index = this.index % this.threads.length;
               if (this.threads.length > 0) process.nextTick(this.runloop);
               thread.exit();
@@ -390,9 +390,9 @@ i9n: short for instruction
           this.index = (this.index + 1) % this.threads.length;
           return process.nextTick(this.runloop);
         } catch (error) {
-          fatal("Error thrown in runStep. Stopping execution, setting error. stack:\n" + ((_ref10 = error.stack) != null ? _ref10 : error));
+          fatal("Error thrown in runStep. Stopping execution, setting error. stack:\n" + ((_ref12 = error.stack) != null ? _ref12 : error));
           thread["throw"]('InternalError', "" + error.name + ":" + error.message);
-          [].splice.apply(this.threads, [(_ref11 = this.index), this.index - _ref11 + 1].concat(_ref12 = [])), _ref12;
+          [].splice.apply(this.threads, [(_ref13 = this.index), this.index - _ref13 + 1].concat(_ref14 = [])), _ref14;
           this.index = this.index % this.threads.length;
           if (this.threads.length > 0) process.nextTick(this.runloop);
           thread.exit();

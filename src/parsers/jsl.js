@@ -1,9 +1,9 @@
 (function() {
-  var Grammar, JSL, jsi;
+  var GLOBALS, Grammar, JArray, JBoundFunc, JNaN, JNull, JObject, JSL, JStub, JUndefined, JUser, isInteger, isObject, setLast, _ref, _ref2, _ref3;
 
   Grammar = require('joeson').Grammar;
 
-  jsi = require('joeson/src/interpreter').NODES;
+  _ref = require('joeson/src/interpreter'), (_ref2 = _ref.NODES, JObject = _ref2.JObject, JArray = _ref2.JArray, JUser = _ref2.JUser, JUndefined = _ref2.JUndefined, JNull = _ref2.JNull, JNaN = _ref2.JNaN, JBoundFunc = _ref2.JBoundFunc, JStub = _ref2.JStub), GLOBALS = _ref.GLOBALS, (_ref3 = _ref.HELPERS, isInteger = _ref3.isInteger, isObject = _ref3.isObject, setLast = _ref3.setLast);
 
   JSL = Grammar(function(_arg) {
     var i, o, tokens;
@@ -26,25 +26,25 @@
                 id = _arg2.id;
                 cached = $.env.thread.kernel.cache[id];
                 if (cached != null) return cached;
-                return jsi.JStub(id);
+                return JStub(id);
               }), o(" '{' type:[OAU] '|#' id:ID '@' creator:ID ' ' items:OBJ_ITEM*',' '}' ", function(_arg2, $) {
-                var creator, id, items, key, obj, type, value, _i, _len, _ref;
+                var creator, id, items, key, obj, type, value, _i, _len, _ref4;
                 type = _arg2.type, id = _arg2.id, creator = _arg2.creator, items = _arg2.items;
                 switch (type) {
                   case 'O':
-                    obj = new jsi.JObject({
+                    obj = new JObject({
                       id: id,
-                      creator: new jsi.JStub(creator)
+                      creator: new JStub(creator)
                     });
                     break;
                   case 'A':
-                    obj = new jsi.JArray({
+                    obj = new JArray({
                       id: id,
-                      creator: new jsi.JStub(creator)
+                      creator: new JStub(creator)
                     });
                     break;
                   case 'U':
-                    obj = new jsi.JUser({
+                    obj = new JUser({
                       name: id
                     });
                     break;
@@ -53,7 +53,7 @@
                 }
                 if (id != null) $.env.thread.kernel.cache[id] = obj;
                 for (_i = 0, _len = items.length; _i < _len; _i++) {
-                  _ref = items[_i], key = _ref.key, value = _ref.value;
+                  _ref4 = items[_i], key = _ref4.key, value = _ref4.value;
                   obj.__set__($.env.thread, key, value);
                 }
                 return obj;

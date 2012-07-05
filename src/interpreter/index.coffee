@@ -18,8 +18,8 @@ joe = require('joeson/src/joescript').NODES
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 trace = debug:no, logCode:no
-{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc} = @NODES = require('joeson/src/interpreter/object').NODES
-{GOD, WORLD, GUEST} = @GLOBALS = require 'joeson/src/interpreter/global'
+{@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
+@GLOBALS = {GOD, WORLD, GUEST} = require 'joeson/src/interpreter/global'
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->

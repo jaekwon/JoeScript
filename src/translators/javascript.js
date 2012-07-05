@@ -1,5 +1,5 @@
 (function() {
-  var assert, black, blue, clazz, compact, cyan, escape, extend, flatten, green, inspect, install, isVariable, isWord, joe, js, magenta, normal, red, translate, trigger, white, yellow, _ref, _ref2, _ref3, _ref4,
+  var assert, black, blue, clazz, compact, cyan, escape, flatten, green, inspect, install, isVariable, isWord, joe, js, magenta, normal, red, translate, trigger, white, yellow, _ref, _ref2, _ref3, _ref4, _ref5,
     __slice = Array.prototype.slice;
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
@@ -8,15 +8,13 @@
 
   assert = require('assert');
 
-  joe = require('joeson/src/joescript').NODES;
+  _ref3 = require('joeson/src/joescript'), joe = _ref3.NODES, (_ref4 = _ref3.HELPERS, isWord = _ref4.isWord, isVariable = _ref4.isVariable);
 
-  _ref3 = require('joeson/src/joescript').HELPERS, extend = _ref3.extend, isWord = _ref3.isWord, isVariable = _ref3.isVariable;
-
-  _ref4 = require('joeson/lib/helpers'), escape = _ref4.escape, compact = _ref4.compact, flatten = _ref4.flatten;
+  _ref5 = require('joeson/lib/helpers'), escape = _ref5.escape, compact = _ref5.compact, flatten = _ref5.flatten;
 
   js = function(obj) {
-    var _ref5;
-    return (_ref5 = obj != null ? typeof obj.toJavascript === "function" ? obj.toJavascript() : void 0 : void 0) != null ? _ref5 : obj;
+    var _ref6;
+    return (_ref6 = obj != null ? typeof obj.toJavascript === "function" ? obj.toJavascript() : void 0 : void 0) != null ? _ref6 : obj;
   };
 
   trigger = function(obj, msg) {
@@ -33,8 +31,8 @@
     require('joeson/src/translators/scope').install();
     joe.Node.prototype.extend({
       toJSNode: function(_arg) {
-        var toReturn, toValue, _ref5;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var toReturn, toValue, _ref6;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         if (toReturn && !(this instanceof joe.Statement)) {
           return joe.Statement({
             type: 'return',
@@ -71,12 +69,12 @@
     });
     joe.Block.prototype.extend({
       toJSNode: function(_arg) {
-        var i, line, toReturn, toValue, _i, _len, _ref5, _ref6;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var i, line, toReturn, toValue, _i, _len, _ref6, _ref7;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         this.isValue = toValue;
-        _ref6 = this.lines;
-        for (i = _i = 0, _len = _ref6.length; _i < _len; i = ++_i) {
-          line = _ref6[i];
+        _ref7 = this.lines;
+        for (i = _i = 0, _len = _ref7.length; _i < _len; i = ++_i) {
+          line = _ref7[i];
           if (i < this.lines.length - 1) {
             this.lines[i] = this.lines[i].toJSNode();
           } else {
@@ -89,8 +87,8 @@
         return this;
       },
       toJavascript: function() {
-        var line, lines, toDeclare, _ref5;
-        if ((this.ownScope != null) && ((_ref5 = (toDeclare = this.ownScope.nonparameterVariables)) != null ? _ref5.length : void 0) > 0) {
+        var line, lines, toDeclare, _ref6;
+        if ((this.ownScope != null) && ((_ref6 = (toDeclare = this.ownScope.nonparameterVariables)) != null ? _ref6.length : void 0) > 0) {
           lines = [joe.NativeExpression("var " + (toDeclare.map(function(x) {
               return '' + x;
             }).join(', ')))].concat(__slice.call(this.lines));
@@ -122,8 +120,8 @@
     });
     joe.If.prototype.extend({
       toJSNode: function(_arg) {
-        var toReturn, toValue, _ref5;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var toReturn, toValue, _ref6;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         this.isValue = toValue;
         this.hasStatement || (this.hasStatement = toReturn);
         this.cond = this.cond.toJSNode({
@@ -174,8 +172,8 @@
     });
     joe.Try.prototype.extend({
       toJSNode: function(_arg) {
-        var target, toReturn, toValue, _ref5;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var target, toReturn, toValue, _ref6;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         if (toValue || toReturn) {
           target = joe.Undetermined('temp');
           this.block = joe.Assign({
@@ -203,8 +201,8 @@
     });
     joe.Loop.prototype.extend({
       toJSNode: function(_arg) {
-        var lines, target, toReturn, toValue, _ref5;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var lines, target, toReturn, toValue, _ref6;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         if (toValue || toReturn) {
           lines = [];
           lines.push(joe.Assign({
@@ -237,8 +235,8 @@
     });
     joe.For.prototype.extend({
       toJSNode: function(_arg) {
-        var accum, block, cond, counter, key, node, setup, toReturn, toValue, _i, _len, _obj, _ref5;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var accum, block, cond, counter, key, node, setup, toReturn, toValue, _i, _len, _obj, _ref6;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         if (toValue || toReturn) {
           accum = this["super"].toJSNode.call(this, {
             toValue: toValue,
@@ -337,7 +335,7 @@
     });
     joe.Switch.prototype.extend({
       toJSNode: function(_arg) {
-        var lines, target, toReturn, toValue, _case, _i, _len, _ref5;
+        var lines, target, toReturn, toValue, _case, _i, _len, _ref6;
         toValue = _arg.toValue, toReturn = _arg.toReturn;
         if (toValue || toReturn) {
           lines = [];
@@ -345,9 +343,9 @@
             target: (target = joe.Undetermined('temp')),
             value: joe.Undefined()
           }));
-          _ref5 = this.cases;
-          for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-            _case = _ref5[_i];
+          _ref6 = this.cases;
+          for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+            _case = _ref6[_i];
             _case.block = joe.Assign({
               target: target,
               value: _case.block
@@ -371,8 +369,8 @@
     };
     joe.Operation.prototype.extend({
       toJavascript: function() {
-        var _ref5;
-        return "(" + (this.left != null ? js(this.left) + ' ' : '') + ((_ref5 = TO_JS_OPS[this.op]) != null ? _ref5 : this.op) + (this.right != null ? ' ' + js(this.right) : '') + ")";
+        var _ref6;
+        return "(" + (this.left != null ? js(this.left) + ' ' : '') + ((_ref6 = TO_JS_OPS[this.op]) != null ? _ref6 : this.op) + (this.right != null ? ' ' + js(this.right) : '') + ")";
       }
     });
     joe.Statement.prototype.extend({
@@ -382,8 +380,8 @@
     });
     joe.Assign.prototype.extend({
       toJSNode: function(_arg) {
-        var lines, toReturn, toValue, valueVar, _ref5;
-        _ref5 = _arg != null ? _arg : {}, toValue = _ref5.toValue, toReturn = _ref5.toReturn;
+        var lines, toReturn, toValue, valueVar, _ref6;
+        _ref6 = _arg != null ? _arg : {}, toValue = _ref6.toValue, toReturn = _ref6.toReturn;
         if (this.target instanceof joe.AssignObj) {
           lines = [];
           if (isVariable(this.value)) {
@@ -413,13 +411,13 @@
     });
     joe.AssignObj.prototype.extend({
       destructLines: function(source, lines) {
-        var default_, i, item, key, target, temp, _i, _len, _ref5, _ref6, _ref7;
+        var default_, i, item, key, target, temp, _i, _len, _ref6, _ref7, _ref8;
         if (lines == null) lines = [];
-        _ref5 = this.items;
-        for (i = _i = 0, _len = _ref5.length; _i < _len; i = ++_i) {
-          item = _ref5[i];
-          target = (_ref6 = item.target) != null ? _ref6 : item.key;
-          key = (_ref7 = item.key) != null ? _ref7 : i;
+        _ref6 = this.items;
+        for (i = _i = 0, _len = _ref6.length; _i < _len; i = ++_i) {
+          item = _ref6[i];
+          target = (_ref7 = item.target) != null ? _ref7 : item.key;
+          key = (_ref8 = item.key) != null ? _ref8 : i;
           default_ = item["default"];
           if (target instanceof joe.Word || target instanceof joe.Index) {
             lines.push(joe.Assign({
@@ -461,12 +459,12 @@
     });
     joe.Str.prototype.extend({
       getParts: function() {
-        var nodes, part, _i, _len, _ref5;
+        var nodes, part, _i, _len, _ref6;
         if (typeof this.parts === 'string') return [this];
         nodes = [];
-        _ref5 = this.parts;
-        for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-          part = _ref5[_i];
+        _ref6 = this.parts;
+        for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+          part = _ref6[_i];
           if (part instanceof joe.Node) {
             nodes.push(part);
           } else {
@@ -476,11 +474,11 @@
         return nodes;
       },
       toJSNode: function() {
-        var node, part, _i, _len, _ref5;
+        var node, part, _i, _len, _ref6;
         node = void 0;
-        _ref5 = this.getParts();
-        for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-          part = _ref5[_i];
+        _ref6 = this.getParts();
+        for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+          part = _ref6[_i];
           if (part) {
             if (node === void 0) {
               node = part;
@@ -503,12 +501,12 @@
     });
     joe.Func.prototype.extend({
       toJSNode: function() {
-        var arg, destructs, i, param, _i, _len, _ref5, _ref6;
+        var arg, destructs, i, param, _i, _len, _ref6, _ref7;
         if (this.params != null) {
           destructs = [];
-          _ref5 = this.params.items;
-          for (i = _i = 0, _len = _ref5.length; _i < _len; i = ++_i) {
-            param = _ref5[i].target;
+          _ref6 = this.params.items;
+          for (i = _i = 0, _len = _ref6.length; _i < _len; i = ++_i) {
+            param = _ref6[i].target;
             if (!isVariable(param)) {
               arg = joe.Undetermined('arg');
               this.params.items[i] = joe.AssignItem({
@@ -519,7 +517,7 @@
           }
           [].splice.apply(this.block.lines, [0, 0 - 0].concat(destructs)), destructs;
         }
-        this.block = (_ref6 = this.block) != null ? _ref6.toJSNode({
+        this.block = (_ref7 = this.block) != null ? _ref7.toJSNode({
           toValue: true,
           toReturn: true
         }) : void 0;
@@ -562,11 +560,11 @@
       toJavascript: function() {
         var key, value;
         return "{" + (((function() {
-          var _i, _len, _ref5, _ref6, _results;
-          _ref5 = this.items;
+          var _i, _len, _ref6, _ref7, _results;
+          _ref6 = this.items;
           _results = [];
-          for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-            _ref6 = _ref5[_i], key = _ref6.key, value = _ref6.value;
+          for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+            _ref7 = _ref6[_i], key = _ref7.key, value = _ref7.value;
             _results.push("\"" + (escape(key)) + "\": " + (js(value)));
           }
           return _results;
@@ -577,11 +575,11 @@
       toJavascript: function() {
         var key, value;
         return "[" + (((function() {
-          var _i, _len, _ref5, _ref6, _results;
-          _ref5 = this.items;
+          var _i, _len, _ref6, _ref7, _results;
+          _ref6 = this.items;
           _results = [];
-          for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-            _ref6 = _ref5[_i], key = _ref6.key, value = _ref6.value;
+          for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+            _ref7 = _ref6[_i], key = _ref7.key, value = _ref7.value;
             _results.push(js(value));
           }
           return _results;

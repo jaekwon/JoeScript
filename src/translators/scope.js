@@ -1,5 +1,5 @@
 (function() {
-  var LScope, assert, black, blue, clazz, cyan, extend, green, inspect, isVariable, isWord, joe, magenta, normal, randid, red, white, yellow, _ref, _ref2, _ref3,
+  var LScope, assert, black, blue, clazz, cyan, green, inspect, isVariable, isWord, joe, magenta, normal, randid, red, white, yellow, _ref, _ref2, _ref3, _ref4,
     __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
   _ref = require('cardamom'), clazz = _ref.clazz, (_ref2 = _ref.colors, red = _ref2.red, blue = _ref2.blue, cyan = _ref2.cyan, magenta = _ref2.magenta, green = _ref2.green, normal = _ref2.normal, black = _ref2.black, white = _ref2.white, yellow = _ref2.yellow);
@@ -8,9 +8,7 @@
 
   assert = require('assert');
 
-  joe = require('joeson/src/joescript').NODES;
-
-  _ref3 = require('joeson/src/joescript').HELPERS, extend = _ref3.extend, isWord = _ref3.isWord, isVariable = _ref3.isVariable;
+  _ref3 = require('joeson/src/joescript'), joe = _ref3.NODES, (_ref4 = _ref3.HELPERS, isWord = _ref4.isWord, isVariable = _ref4.isVariable);
 
   randid = require('joeson/lib/helpers').randid;
 
@@ -31,10 +29,10 @@
         return __indexOf.call(this.variables, name) >= 0;
       },
       isDeclared: function(name) {
-        var _ref4;
+        var _ref5;
         if (!(name instanceof joe.Undetermined)) name = '' + name;
         if (__indexOf.call(this.variables, name) >= 0) return true;
-        if ((_ref4 = this.parent) != null ? _ref4.isDeclared(name) : void 0) {
+        if ((_ref5 = this.parent) != null ? _ref5.isDeclared(name) : void 0) {
           return true;
         }
         return false;
@@ -73,9 +71,9 @@
     var init;
     if (joe.Node.prototype.installScope != null) return;
     init = function(node, options) {
-      var _ref4;
+      var _ref5;
       if (options.create || !(options.parent != null)) {
-        return node.scope = node.ownScope = new LScope((_ref4 = options.parent) != null ? _ref4.scope : void 0);
+        return node.scope = node.ownScope = new LScope((_ref5 = options.parent) != null ? _ref5.scope : void 0);
       } else {
         return node.scope = options.parent.scope;
       }
@@ -136,7 +134,7 @@
     });
     joe.Func.prototype.extend({
       installScope: function(options) {
-        var name, _i, _len, _ref4, _ref5;
+        var name, _i, _len, _ref5, _ref6;
         if (options == null) options = {};
         init(this, options);
         if (this.block != null) {
@@ -145,9 +143,9 @@
             parent: this
           });
         }
-        _ref5 = ((_ref4 = this.params) != null ? _ref4.targetNames : void 0) || [];
-        for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-          name = _ref5[_i];
+        _ref6 = ((_ref5 = this.params) != null ? _ref5.targetNames : void 0) || [];
+        for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+          name = _ref6[_i];
           this.block.scope.declareVariable(name, true);
         }
         this.withChildren(function(child, parent, key) {
