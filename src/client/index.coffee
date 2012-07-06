@@ -17,7 +17,6 @@ KERNEL = new JKernel
 
 # install dom stuff
 require('joeson/src/client/dom').install()
-xxx
 
 # init
 $(document).ready ->
@@ -35,12 +34,14 @@ $(document).ready ->
 
   KERNEL.run
     user: GUEST
-    code: 'login()'
+    code: 'foo = [1,2,3,"qwe",{foo:"bar"}]; foo.circ = foo; foo'
     output: undefined
     callback: ->
       switch @state
         when 'return'
           info @last.__str__(@)
+          view = @last.makeView()
+          $(document.body).append view.root
           #unless @last is JTypes.JUndefined
           #  output(@last.__repr__(@).__html__(@))
           #output.close()

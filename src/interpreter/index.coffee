@@ -12,14 +12,23 @@ i9n: short for instruction
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-joe = require('joeson/src/joescript').NODES
-{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
-{extend, isVariable} = require('joeson/src/joescript').HELPERS
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
+{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{
+  NODES:joe
+  HELPERS: {extend, isVariable}
+} = require('joeson/src/joescript')
+
 trace = debug:no, logCode:no
+
 {@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 @GLOBALS = {GOD, WORLD, GUEST} = require 'joeson/src/interpreter/global'
+
+# installs instructions to joescript prototypes
+require 'joeson/src/interpreter/instructions'
+# installs event handling to runtime objects (needs to happen after importing interpreter/object)
+require 'joeson/src/interpreter/eventful'
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->

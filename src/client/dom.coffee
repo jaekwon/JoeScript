@@ -10,44 +10,71 @@ assert = require 'assert'
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 
-newEl = ({tag,text}={}) ->
-  tag ?= 'div'
-  el = $ document.createElement tag
-  el.text text if text?
-  return el
-newLink = ({text,id}={}) ->
-  el = $ document.createElement 'span'
-  el.text text ? "[link:##{id}]"
-  el.data('ref', id)
-  return el
+# analogous to an HTML Document
+JView = @JView = clazz 'JView', ->
+  init: ->
+    @els = {}
+    @root = undefined
+    @id = "view#{randid()}"
+  # a JView is also a listener, and this is
+  # where it receives messages on objects.
+  on: (objId, name, data) ->
+    objEl = @els[objId]
+    objEl.addClass('highlight').delay(100).removeClass('highlight')
+  # analogous to Document.createElement
+  newEl: ({id,tag,cls,text,children}={}, setupCb) ->
+    return @newLink(id:id) if @els[id]? if id?
+    tag ?= 'div'
+    el = $ document.createElement tag
+    if id?
+      @els[id] = el
+      el.data 'id', id
+    el.addClass cls if cls?
+    el.text text if text?
+    el.append(child) for child in children if children?
+    setupCb?(el)
+    return el
+  # creates a link element
+  newLink: ({id,cls,text}={}) ->
+    el = $ document.createElement 'span'
+    el.text text ? "[link:##{id}]"
+    el.addClass cls if cls?
+    el.data 'ref', id
+    return el
 
 @install = ->
   return if JObject::toDom?
 
   JObject::extend
-    makeDom: ($$={}) ->
-      assert.ok @id?, "JObject wants an id"
-      return newLink() if $$[@id]?
-      el = $$[@id] = newEl()
-      for key, value of @data
-        el.appendChild newEl tag:'label', text:key
-        el.appendChild value.makeDom($$)
-      return el
+    # $$ is the JView,context for DOM objects.
+    domClass: 'object'
+    makeDom: ($$) ->
+      $$.newEl id:@id, tag:'div', cls:@domClass, (el) =>
+        @addListener $$
+        for key, value of @data
+          el.append $$.newEl tag:'div', cls:'item', children:[
+            $$.newEl tag:'label', cls:'keyword', text:key+':'
+            value.makeDom($$)
+          ]
+    makeView: ->
+      view = new JView
+      view.root = @makeDom view
+      return view
 
   JArray::extend
-    makeDom: ($$={}) ->
-      assert.ok @id?, "JArray wants an id"
-      return newLink() if $$[@id]?
-      el = $$[@id] = newEl()
-      for key, value of @data
-        el.appendChild newEl tag:'label', text:key
-        el.appendChild value.makeDom($$)
-      return el
+    domClass: 'array'
+
+  JBoundFunc::extend
+    domClass: 'boundfunc'
 
   clazz.extend Function,
-    makeDom: ($$={}) ->
-      return newEl tag:'span', text:'[Function]'
+    makeDom: ($$) ->
+      $$.newEl tag:'span', cls:'function', text:'[Function]'
 
   clazz.extend String,
-    makeDom: ($$={}) ->
-      return newEl tag:'span', text:@
+    makeDom: ($$) ->
+      $$.newEl tag:'span', cls:'string', text:@
+
+  clazz.extend Number,
+    makeDom: ($$) ->
+      $$.newEl tag:'span', cls:'number', text:@

@@ -13,7 +13,7 @@ body {
 span.comment { color: #6900a1; }
 span.atom { color: #845dc4; }
 span.number, span.attribute { color: #ffd500; }
-span.keyword { color: #599eff; }
+span.keyword, label.keyword { color: #599eff; }
 span.string { color: #37f14a; }
 span.meta { color: #7678e2; }
 span.variable-2, span.tag { color: #99b2ff; }
@@ -23,3 +23,15 @@ span.bracket { color: #8da6ce; }
 span.comment { color: #6900a1; }
 span.builtin, span.special { color: #ff9e59; }
 span.link { color: #845dc4; }
+
+/* formatting */
+.item {
+  margin-right: 0.5em;
+}
+.array, .object {
+  border: 1px solid white;
+  padding: 0.5em;
+}
+.highlight {
+  border: 1px solid yellow !important;
+}
