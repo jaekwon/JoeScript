@@ -27,8 +27,6 @@ trace = debug:no, logCode:no
 
 # installs instructions to joescript prototypes
 require 'joeson/src/interpreter/instructions'
-# installs event handling to runtime objects (needs to happen after importing interpreter/object)
-require 'joeson/src/interpreter/eventful'
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->
@@ -233,7 +231,7 @@ JThread = @JThread = clazz 'JThread', ->
   # callback: Called with thread after it exits.
   run: ({user, code, scope, callback}) ->
     user ?= GUEST
-    scope ?= WORLD
+    scope ?= WORLD.create user
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
     assert.ok scope?, "Scope missing for user #{user.name}"

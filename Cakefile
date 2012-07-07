@@ -30,7 +30,6 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'joeson/src/interpreter',             f:'src/interpreter/index'}
       {           l:'joeson/src/interpreter/instructions',f:'src/interpreter/instructions'}
       {           l:'joeson/src/interpreter/object',      f:'src/interpreter/object'}
-      {           l:'joeson/src/interpreter/eventful',    f:'src/interpreter/eventful'}
       {           l:'joeson/src/interpreter/global',      f:'src/interpreter/global'}
       {           l:'joeson/src/interpreter/persistence', f:'src/interpreter/persistence'}
       {           l:'joeson/src/translators/javascript',  f:'src/translators/javascript'}
@@ -82,16 +81,16 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       var Sembly = function() {
         function require(path){
           var module = require[path];
-          console.log("+"+path);
+          //console.log("+"+path);
           if (!module) {
             throw new Error("Can't find module "+path);
           }
           if (module.nonce === nonce) {
             module = module();
-            console.log("!"+path, typeof module);
+            //console.log("!"+path, typeof module);
             return module;
           } else {
-            console.log("."+path, typeof module);
+            //console.log("."+path, typeof module);
             return module;
           }
         }

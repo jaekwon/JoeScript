@@ -50,6 +50,20 @@ JObject = @JObject = clazz 'JObject', ->
     @id ?= randid()
     @data ?= {}
     @data.__proto__ = null # detatch prototype
+
+  # Event handling
+  addListener: (listener) ->
+    assert.ok listener.id?, "Listener needs an id"
+    assert.ok listener.on?, "Listener needs an 'on' method"
+    listeners = @listeners ?= {}
+    assert.ok not listeners[listener.id]?, "Listener with id #{listener.id} already registered"
+    listeners[listener.id] = listener
+  emit: (name, data) ->
+    return unless @listeners?
+    for id, listener of @listeners
+      listener.on @, name, data
+
+  # Runtime functions
   __get__: ($, key, required=no) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('read', this)
@@ -79,8 +93,9 @@ JObject = @JObject = clazz 'JObject', ->
         return nativeValue
       return $.throw 'ReferenceError', "#{key} is not defined" if required
       return JUndefined
-  __create__: ($, newData) ->
-    new JObject creator:$.user, data:newData, proto:@
+  create: (creator, newData={}) ->
+    new JObject creator:creator, data:newData, proto:@
+  __create__: ($, newData) -> @create $.user, newData
   __hasOwn__: ($, key) ->
     $.will('read', this)
     return @data[key]?
@@ -88,17 +103,21 @@ JObject = @JObject = clazz 'JObject', ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
     @data[key] = value
+    @emit 'set', {key,value}
     return
   __update__: ($, key, value) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
     if key is '__proto__'
       @proto = value
+      @emit 'update', {key,value} # TODO more complicated, the chain was updated.
       return
     else if @data[key]?
       @data[key] = value
+      @emit 'update', {key,value}
       return
     else if @proto?
+      @emit 'update', {key,value} # TODO this is wrong... should be asynchronous.
       if @proto instanceof JStub
         $.push func:($, i9n, proto) ->
           $.pop()
@@ -165,9 +184,11 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     $.will('write', this)
     if isInteger key
       @data[key] = value
+      @emit 'set', {key,value}
       return
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     @data[key] = value
+    @emit 'set', {key,value}
     return
   __keys__: ($) ->
     $.will('read', this)
@@ -288,3 +309,4 @@ SimpleIterator = clazz 'SimpleIterator', ->
 @NODES = {
   JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc
 }
+

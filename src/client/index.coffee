@@ -1,46 +1,50 @@
 @require = require
-{clazz} = require 'cardamom'
-{randid} = require 'joeson/lib/helpers'
-{toHTML} = require 'joeson/src/parsers/ansi'
-{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-# configure logging
-domLog = window.domLog = $('<pre/>')
-require('nogg').configure
-  default:
-    file:   {write:(line)->domLog.append(toHTML line)}
-    level: 'debug'
-
-{GOD, WORLD, GUEST, JKernel} = require 'joeson/src/interpreter'
-
-KERNEL = new JKernel
-
-# install dom stuff
-require('joeson/src/client/dom').install()
-
-# init
+# init. keep the DOM minimal so that this loads fast.
 $(document).ready ->
 
-  $(document.body).append(domLog)
-
   console.log "booting..."
-  marqueeLevel = 0
-  setInterval (->
-    m4Off = marqueeLevel%4
-    $(".marq#{m4Off}m4").css opacity:1
-    m4On = (++marqueeLevel)%4
-    $(".marq#{m4On}m4").css  opacity:0.7
-  ), 300
+
+  # configure logging
+  {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
+  domLog = window.domLog = $('#log')
+  require('nogg').configure
+    default:
+      file:   {write:(line)->domLog.append(toHTML line)}
+      level: 'debug'
+
+  # load libraries
+  {clazz} = require 'cardamom'
+  {randid} = require 'joeson/lib/helpers'
+  {toHTML} = require 'joeson/src/parsers/ansi'
+  {
+    JKernel, JThread
+    NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+    GLOBALS:{GOD, WORLD, GUEST}
+    HELPERS:{isInteger,isObject,setLast}
+  } = require 'joeson/src/interpreter'
+
+  # ensure dom stuff
+  require('joeson/src/client/dom')
+
+  # make kernel
+  KERNEL = new JKernel
+
+  # Setup default view
+  scope = WORLD.create GUEST
+  view = scope.newView()
+  $('#contents').append view.root
 
   KERNEL.run
     user: GUEST
     code: 'foo = [1,2,3,"qwe",{foo:"bar"}]; foo.circ = foo; foo'
+    #code: 'a = [1,2,3]'
+    scope: scope
     callback: ->
       switch @state
         when 'return'
           info @last.__str__(@)
-          view = @last.makeView()
-          $(document.body).append view.root
+          #view = @last.newView()
         when 'error'
           @printErrorStack()
         else
@@ -48,6 +52,15 @@ $(document).ready ->
       @cleanup()
 
 ###
+
+  # animation ticker
+  marqueeLevel = 0
+  setInterval (->
+    m4Off = marqueeLevel%4
+    $(".marq#{m4Off}m4").css opacity:1
+    m4On = (++marqueeLevel)%4
+    $(".marq#{m4On}m4").css  opacity:0.7
+  ), 300
 
   # connect to client.
   #window.client = client = new Client()

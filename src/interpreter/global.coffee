@@ -13,6 +13,10 @@ GUEST = @GUEST = new JUser   id:'guest', name:'guest'
 USERS = @USERS = new JObject id:'users', creator:GOD, data:{guest:GUEST, god:GOD}
 WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
   users: USERS
+  print: joefn 'print', GOD, """
+    (data) -> output.push data
+  """
+  ###
   print: nativ 'print', ($, [obj]) ->
     $.output(obj.__html__($) + '<br/>')
     return JUndefined
@@ -30,6 +34,7 @@ WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
       enter: (text) -> print text
     ]
     """
+  ###
 
 # run this file to set up redis
 if require.main is module
