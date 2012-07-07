@@ -31,13 +31,19 @@ $(document).ready ->
   KERNEL = new JKernel
 
   # Setup default view
-  scope = WORLD.create GUEST
-  view = scope.newView()
+  scope = WORLD.create GUEST, {}
+  output = new JArray creator:GUEST
+  print = new JBoundFunc creator:GUEST, scope:output, func:"""
+    (data) -> output.push data
+  """
+  Object.merge scope.data, {output, print}
+
+  view = output.newView()
   $('#contents').append view.root
 
   KERNEL.run
     user: GUEST
-    code: 'foo = [1,2,3,"qwe",{foo:"bar"}]; foo.circ = foo; foo[0] = i for i in [1..2000]; foo'
+    code: 'foo = [1,2,3]; output[0] = foo'
     #code: 'a = [1,2,3]'
     scope: scope
     callback: ->

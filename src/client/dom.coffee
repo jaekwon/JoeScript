@@ -16,6 +16,7 @@ JView = @JView = clazz 'JView', ->
     @els = {}
     @root = undefined
     @id = "view#{randid()}"
+
   # a JView is also a listener, and this is
   # where it receives messages on objects.
   on: (obj, name, data) ->
@@ -27,6 +28,7 @@ JView = @JView = clazz 'JView', ->
     #objEl.addClass('highlight').delay(300).queue (next) ->
     #  $(this).removeClass 'highlight'
     #  next()
+
   # analogous to Document.createElement
   newEl: ({id,tag,cls,text,data,children}={}, setupCb) ->
     if id? and @els[id]?
@@ -48,6 +50,7 @@ JView = @JView = clazz 'JView', ->
     el.append(child) for child in children if children?
     setupCb?(el)
     return el
+
   # creates a link element
   newLink: ({id,cls,text}={}) ->
     el = $ document.createElement 'span'

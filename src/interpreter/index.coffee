@@ -9,6 +9,8 @@ Concerns:
 i9n: short for instruction
 ###
 
+trace = debug:no, logCode:no
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
@@ -19,8 +21,6 @@ assert = require 'assert'
   NODES:joe
   HELPERS: {extend, isVariable}
 } = require('joeson/src/joescript')
-
-trace = debug:no, logCode:no
 
 {@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 @GLOBALS = {GOD, WORLD, GUEST} = require 'joeson/src/interpreter/global'

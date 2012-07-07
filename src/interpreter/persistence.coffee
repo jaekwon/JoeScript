@@ -22,11 +22,6 @@ nativ = @nativ = (id, f) ->
   NATIVE_FUNCTIONS[id] = f
   return f
 
-joefn = @joefn = (id, creator, fCode) ->
-  assert.ok id?, "joefn wants an id"
-  console.log "joefn with code #{fCode}"
-  new JBoundFunc id:id, creator:creator, func:fCode, scope:null
-
 OBJECTS = {} # id to object.
 getOrStub = (id) ->
   if cached=OBJECTS[id]
