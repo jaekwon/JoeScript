@@ -51,7 +51,7 @@ JThread = @JThread = clazz 'JThread', ->
   # start:  The start node of program to run
   # user:   The user associated with this thread
   # scope:  Immediate local lexical scope object
-  init: ({@kernel, @start, @user, @scope, @input, @output, @callback}) ->
+  init: ({@kernel, @start, @user, @scope, @callback}) ->
     assert.ok @kernel instanceof JKernel,  "JThread wants kernel"
     assert.ok @start  instanceof joe.Node, "JThread wants function"
     assert.ok @user   instanceof JObject,  "JThread wants user"
@@ -166,8 +166,7 @@ JThread = @JThread = clazz 'JThread', ->
       @cleanup()
 
   cleanup: ->
-    @input?.close?()
-    @output?.close?()
+    # pass
 
   ### ACCESS CONTROL ###
 
@@ -226,29 +225,17 @@ JThread = @JThread = clazz 'JThread', ->
   init: ->
     @threads = []
     @cache = {}       # TODO should be weak etc.
-    @users = {}       # name -> user
-    @userScopes = {}  # name -> scope 
     @index = 0
     @ticker = 0
-    @login name:'guest'
-
-  login: ({name, password}) -> # user JSON
-    user = @users[name]
-    unless user?
-      user = new JUser name:name
-      @users[name] = user
-      scope = new JObject creator:user, proto:WORLD
-      @userScopes[name] = scope
-    return user
 
   # Start processing another thread
   # user:     The same user object as returned by login.
   # callback: Called with thread after it exits.
-  run: ({user, code, input, output, callback}) ->
+  run: ({user, code, scope, callback}) ->
     user ?= GUEST
+    scope ?= WORLD
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
-    scope = @userScopes[user.name]
     assert.ok scope?, "Scope missing for user #{user.name}"
     try
       if typeof code is 'string'
@@ -265,8 +252,6 @@ JThread = @JThread = clazz 'JThread', ->
         start:node
         user:user
         scope:scope
-        input:input
-        output:output
         callback:callback
       @threads.push thread
       if @threads.length is 1
@@ -277,7 +262,6 @@ JThread = @JThread = clazz 'JThread', ->
         warn "Error in user code start:", error.stack, "\nfor node:\n", node.serialize()
       else
         warn "Error parsing code:", error.stack, "\nfor code text:\n", code
-      output('InternalError:'+error)
 
   runloop$: ->
     @ticker++

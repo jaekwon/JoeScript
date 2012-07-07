@@ -5,3 +5,4 @@ foo.coffee
 *.log
 static/sembly.js
 src/**/*.js
+src/*.js
