@@ -37,13 +37,13 @@ $(document).ready ->
 
   KERNEL.run
     user: GUEST
-    code: 'foo = [1,2,3,"qwe",{foo:"bar"}]; foo.circ = foo; foo'
+    code: 'foo = [1,2,3,"qwe",{foo:"bar"}]; foo.circ = foo; foo[0] = i for i in [1..2000]; foo'
     #code: 'a = [1,2,3]'
     scope: scope
     callback: ->
       switch @state
         when 'return'
-          info @last.__str__(@)
+          info "return: #{@last.__str__(@)}"
           #view = @last.newView()
         when 'error'
           @printErrorStack()

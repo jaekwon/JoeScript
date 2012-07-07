@@ -24,9 +24,9 @@ JView = @JView = clazz 'JView', ->
     # delegate event to JObject subclass
     obj.dom_on @, objEl, name, data
     # flash it
-    objEl.addClass('highlight').delay(300).queue (next) ->
-      $(this).removeClass 'highlight'
-      next()
+    #objEl.addClass('highlight').delay(300).queue (next) ->
+    #  $(this).removeClass 'highlight'
+    #  next()
   # analogous to Document.createElement
   newEl: ({id,tag,cls,text,data,children}={}, setupCb) ->
     if id? and @els[id]?
