@@ -105,6 +105,7 @@ JObject = @JObject = clazz 'JObject', ->
     @data[key] = value
     @emit 'set', {key,value}
     return
+  # an __update__ only happens for scope objects.
   __update__: ($, key, value) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
@@ -222,6 +223,8 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   # protokeys
   push: ($, [value]) ->
     Array.prototype.push.call @data, value
+    # also emit the key, to mitigate syncrony issues
+    @emit 'push', {key:@data.length-1, value}
     return JUndefined
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->

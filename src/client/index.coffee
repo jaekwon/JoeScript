@@ -30,10 +30,10 @@ $(document).ready ->
   # make kernel
   KERNEL = new JKernel
 
-  # Setup default view
+  # Setup default view and user-specific scope
   scope = WORLD.create GUEST, {}
   output = new JArray creator:GUEST
-  print = new JBoundFunc creator:GUEST, scope:output, func:"""
+  print = new JBoundFunc creator:GUEST, scope:scope, func:"""
     (data) -> output.push data
   """
   Object.merge scope.data, {output, print}
@@ -43,7 +43,7 @@ $(document).ready ->
 
   KERNEL.run
     user: GUEST
-    code: 'foo = [1,2,3]; output[0] = foo'
+    code: 'foo = [1,2,3]; print foo'
     #code: 'a = [1,2,3]'
     scope: scope
     callback: ->

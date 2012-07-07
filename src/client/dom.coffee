@@ -22,6 +22,7 @@ JView = @JView = clazz 'JView', ->
   on: (obj, name, data) ->
     #debug "JView event: ##{obj.id} #{name}:#{inspect data}"
     objEl = @els[obj.id]
+    debug "JView::on for event: #{name}"
     # delegate event to JObject subclass
     obj.dom_on @, objEl, name, data
     # flash it
@@ -94,6 +95,19 @@ JObject::extend
 
 JArray::extend
   domClass: 'array'
+  dom_on: ($$, el, name, data) ->
+    items = el.data('items')
+    switch name
+      when 'set', 'push'
+        {key, value} = data
+        itemEl = @newItemEl $$, key, value
+        if existingEl=items[key]
+          #debug "JObject::dom_on found existing item el for #{key}"
+          existingEl.replaceWith itemEl
+        else
+          #debug "JObject::dom_on appending new item el for #{key}"
+          el.append itemEl
+        items[key] = itemEl
 
 JBoundFunc::extend
   domClass: 'boundfunc'
