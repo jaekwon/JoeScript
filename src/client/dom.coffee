@@ -65,26 +65,26 @@ JObject::extend
   domClass: 'object'
   newView: ->
     view = new JView
-    view.root = @newEl view
+    view.root = @dom_draw view
     return view
-  newEl: ($$) ->
-    #debug "JObject::newEl for #{@}"
+  dom_draw: ($$) ->
+    #debug "JObject::dom_draw for #{@}"
     items = {}
     $$.newEl id:@id, tag:'div', cls:@domClass, data:{items}, (el) =>
       @addListener $$
       for key, value of @data
-        el.append items[key]=@newItemEl $$, key, value
-  newItemEl: ($$, key, value) ->
+        el.append items[key]=@dom_drawItem $$, key, value
+  dom_drawItem: ($$, key, value) ->
     $$.newEl tag:'div', cls:'item', data:{key}, children:[
       $$.newEl tag:'label', cls:'keyword', text:key+':'
-      value.newEl($$)
+      value.dom_draw($$)
     ]
   dom_on: ($$, el, name, data) ->
     items = el.data('items')
     switch name
       when 'set', 'update'
         {key, value} = data
-        itemEl = @newItemEl $$, key, value
+        itemEl = @dom_drawItem $$, key, value
         if existingEl=items[key]
           #debug "JObject::dom_on found existing item el for #{key}"
           existingEl.replaceWith itemEl
@@ -100,7 +100,7 @@ JArray::extend
     switch name
       when 'set', 'push'
         {key, value} = data
-        itemEl = @newItemEl $$, key, value
+        itemEl = @dom_drawItem $$, key, value
         if existingEl=items[key]
           #debug "JObject::dom_on found existing item el for #{key}"
           existingEl.replaceWith itemEl
@@ -111,19 +111,21 @@ JArray::extend
 
 JBoundFunc::extend
   domClass: 'boundfunc'
+  dom_draw: ($$) ->
+    $$.newLink id:@id, cls:'function', text:"[function:##{@id}]"
 
 JSingleton::extend
-  newEl: ($$) ->
+  dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'singleton', text:@name
 
 clazz.extend Function,
-  newEl: ($$) ->
+  dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'function', text:'[Function]'
 
 clazz.extend String,
-  newEl: ($$) ->
+  dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'string', text:@
 
 clazz.extend Number,
-  newEl: ($$) ->
+  dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'number', text:@

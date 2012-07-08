@@ -23,7 +23,7 @@ assert = require 'assert'
 } = require('joeson/src/joescript')
 
 {@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
-@GLOBALS = {GOD, WORLD, GUEST} = require 'joeson/src/interpreter/global'
+@GLOBALS = {GOD, WORLD, ANON} = require 'joeson/src/interpreter/global'
 
 # installs instructions to joescript prototypes
 require 'joeson/src/interpreter/instructions'
@@ -230,7 +230,7 @@ JThread = @JThread = clazz 'JThread', ->
   # user:     The same user object as returned by login.
   # callback: Called with thread after it exits.
   run: ({user, code, scope, callback}) ->
-    user ?= GUEST
+    user ?= ANON 
     scope ?= WORLD.create user
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"

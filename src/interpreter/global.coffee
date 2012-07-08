@@ -9,10 +9,12 @@ async = require 'async'
 {nativ} = require 'joeson/src/interpreter/persistence'
 
 GOD   = @GOD   = new JUser   id:'god',   name:'god'
-GUEST = @GUEST = new JUser   id:'guest', name:'guest'
-USERS = @USERS = new JObject id:'users', creator:GOD, data:{guest:GUEST, god:GOD}
+ANON  = @ANON  = new JUser   id:'anon',  name:'anon'
+USERS = @USERS = new JObject id:'users', creator:GOD, data:
+  god:    GOD
+  anon:   ANON
 WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
-  users: USERS
+  users:  USERS
 
 # run this file to set up redis
 if require.main is module

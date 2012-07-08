@@ -287,13 +287,13 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ->
       node = undefined
       # construct a '+' operation with the @parts.
-      for part in @getParts() when not node? or part
+      for part in @getParts() when (node is undefined) or part
         if node is undefined
           node = part
           continue
         else
           node = joe.Operation left:node, op:'+', right:part
-      return node.toJSNode() or ''
+      return node?.toJSNode() or ''
         
     toJavascript: ->
       assert.ok typeof @parts is 'string', "Str.toJavascript can only handle a string part."
