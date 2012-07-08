@@ -12,6 +12,29 @@ tests = []
 test = (code, callback) -> tests.push code:code, callback:callback
 
 test '''
+a = 1
+b = 1
+a += b
+a
+''',                                      -> equal @it, 2
+test '''
+(foo = {bar:1}; foo).bar += 1
+''',                                      -> equal @it, 2
+test '''
+counter = 0
+(counter += 1; foo = {bar:1}; foo).bar += 1
+counter
+''',                                      -> equal @it, 1
+test '''
+a = 1
+b = 1
+for i in [0..10]
+  c = b
+  a += b
+  b = c
+a
+''',                                      -> equal @it, 12
+test '''
 foo = ->
   a = 0
   loop
@@ -100,43 +123,6 @@ a[3] = 4
 a
 ''',                                      -> deepEqual @it, [1,2,3,4]
 test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
-
-###
-test "Array", Array
-test """
-foo = ->
-  1 + 1
-foo()""", 2
-
-# construction tests
-test """
-a = ->
-new a""", (it) ->
-  assert.ok it instanceof Object
-  assert.ok Object.keys(it).length is 0
-  yes
-
-test """
-Foo = ->
-  this.a = 'A'
-  this.b = 'B'
-f = new Foo()""", (it) ->
-  assert.ok it instanceof Object
-  assert.ok Object.keys(it).length is 2
-  assert.ok it.a is 'A' and it.b is 'B'
-  yes
-
-test """
-p = {key:'value'}
-Foo = ->
-Foo.prototype = p
-f = new Foo
-f.key""", 'value'
-
-test """
-_ = require('underscore')
-Object.keys(foo:1, bar:2, baz:3).join(',')""", 'foo,bar,baz'
-###
 
 counter = 0
 runNextTest = ->

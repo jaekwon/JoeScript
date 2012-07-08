@@ -43,8 +43,18 @@ $(document).ready ->
 
   KERNEL.run
     user: GUEST
-    code: 'foo = [1,2,3]; print foo'
-    #code: 'a = [1,2,3]'
+    code: '''
+      a = 1
+      b = 1
+      fibo = ->                                                                       
+        print '' + a + ' ' + b
+        c = a
+        #a = a + b
+        a += b
+        b = c
+      loop
+        fibo()
+    '''
     scope: scope
     callback: ->
       switch @state

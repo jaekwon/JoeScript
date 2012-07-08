@@ -9,7 +9,8 @@ assert    = require 'assert'
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
 isVariable = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
-@HELPERS = {extend, isVariable}
+isIndex = (thing) -> thing instanceof Index
+@HELPERS = {extend, isVariable, isIndex}
 
 Word = clazz 'Word', Node, ->
   init: (@key) ->
@@ -149,7 +150,7 @@ Assign = clazz 'Assign', Node, ->
     value:      {type:EXPR, isValue:yes, required:yes}
   init: ({@target, type, @op, @value}) ->
     assert.ok @value?, "need value"
-    @op = type[...type.length-1] if type?
+    @op = type[...type.length-1] or undefined if type?
   toString: -> "#{@target} #{@op or ''}= (#{@value})"
 
 Slice = clazz 'Slice', Node, ->

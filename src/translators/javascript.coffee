@@ -4,7 +4,7 @@ assert = require 'assert'
 
 {
   NODES:joe
-  HELPERS:{isWord,isVariable}
+  HELPERS:{isWord,isVariable,isIndex}
 } = require 'joeson/src/joescript'
 {escape, compact, flatten} = require('joeson/lib/helpers')
 
@@ -17,6 +17,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   require('joeson/src/translators/scope').install() # dependency
 
   joe.Node::extend
+    # CONTRACT: may mutate this node (and return @), or return a new node entirely.
     toJSNode: ({toValue,toReturn}={}) ->
       if toReturn and this not instanceof joe.Statement
         return joe.Statement(type:'return', expr:this).toJSNode()
@@ -209,14 +210,38 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Assign::extend
     toJSNode: ({toValue,toReturn}={}) ->
-      if @target instanceof joe.AssignObj
+      if @op?
+        
+        if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
+          # Simple like `x += 1` or `foo.bar += 1`.
+          # But, anything more complex like `foo.bar.baz += 1` or
+          # `(foo = {bar:1}; foo).bar += 1` requires a transformation.
+          @value = joe.Operation(left:@target, op:@op, right:@value)
+          @op = undefined
+          return @childrenToJSNode()
+        else
+          ###
+          something.complex.baz += @value ~~>
+            baseVar = something.complex
+            baseVar.baz = baseVar + @value
+          ###
+          lines = []
+          baseObj = @target.obj
+          baseVar = joe.Undetermined('baseObj')
+          lines.push joe.Assign(target:baseVar, value:baseObj)
+          baseIndex = joe.Index(obj:baseVar, key:@target.key, type:@target.type)
+          opValue = joe.Operation(left:baseIndex, op:@op, right:@value)
+          lines.push joe.Assign(target:baseIndex, value:opValue)
+          return joe.Block(lines).toJSNode()
+
+      else if @target instanceof joe.AssignObj
         lines = []
         if isVariable @value
           valueVar = @value
         else
           valueVar = joe.Undetermined('temp')
           lines.push joe.Assign target:valueVar, value:@value
-          @value = valueVar
+          @value = valueVar # XXX I think this line is unnecessary
         @target.destructLines valueVar, lines
         lines.push valueVar.toJSNode({toReturn}) if toValue or toReturn
         return joe.Block(lines)
