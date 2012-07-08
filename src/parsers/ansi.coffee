@@ -6,9 +6,9 @@ colors = {
   30:'#000000', # black
   31:'#e6312a', # red
   32:'#00cc00', # green
-  33:'#cccc00', # yellow
+  33:'#ffd500', # yellow
   34:'#668ee2', # blue
-  35:'#f062e7', # magenta
+  35:'#F59BF0', # magenta
   36:'#00cccc', # cyan
   37:'#ffffff'  # white
 }

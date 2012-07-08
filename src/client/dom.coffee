@@ -76,7 +76,7 @@ JObject::extend
         el.append items[key]=@dom_drawItem $$, key, value
   dom_drawItem: ($$, key, value) ->
     $$.newEl tag:'div', cls:'item', data:{key}, children:[
-      $$.newEl tag:'label', cls:'keyword', text:key+':'
+      $$.newEl tag:'span', cls:'attribute', text:key+':'
       value.dom_draw($$)
     ]
   dom_on: ($$, el, name, data) ->

@@ -264,7 +264,7 @@ CodeMirror.defineMode('coffeescript', function(conf) {
         // Handle properties
         if (current === '@') {
             stream.eat('@');
-            return 'keyword';
+            return 'punctuation';
         }
 
         // Handle scope changes.

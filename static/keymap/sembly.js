@@ -24,6 +24,8 @@
     "Cmd-S":      function(cm) {cm.submit();},
 
     "Cmd-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},
+    "Cmd-Left": function(cm) {var c = cm.getCursor(); cm.setCursor({line:c.line, ch:0}); },
+    "Cmd-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setCursor({line:c.line, ch:l}); },
     "Shift-Cmd-Left": function(cm) {var c = cm.getCursor(); cm.setSelection({line:c.line, ch:0}, c); },
     "Shift-Cmd-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setSelection({line:c.line, ch:l}, c); },
 
