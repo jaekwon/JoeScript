@@ -47,9 +47,8 @@ $(document).ready ->
       a = 1
       b = 1
       fibo = ->                                                                       
-        print '' + a + ' ' + b
+        print "#{a}, #{b}"
         c = a
-        #a = a + b
         a += b
         b = c
       loop

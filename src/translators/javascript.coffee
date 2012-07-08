@@ -278,6 +278,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       nodes = []
       for part in @parts
         if part instanceof joe.Node
+          nodes.push '' if nodes.length is 0 # must start with a string.
           nodes.push part
         else
           nodes.push new String part
@@ -286,13 +287,13 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ->
       node = undefined
       # construct a '+' operation with the @parts.
-      for part in @getParts() when part
+      for part in @getParts() when not node? or part
         if node is undefined
           node = part
           continue
         else
           node = joe.Operation left:node, op:'+', right:part
-      return node or ''
+      return node.toJSNode() or ''
         
     toJavascript: ->
       assert.ok typeof @parts is 'string', "Str.toJavascript can only handle a string part."

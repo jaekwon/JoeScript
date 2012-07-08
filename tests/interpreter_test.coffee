@@ -25,6 +25,8 @@ counter = 0
 (counter += 1; foo = {bar:1}; foo).bar += 1
 counter
 ''',                                      -> equal @it, 1
+test ''' "foo" ''',                       -> equal @it, 'foo'
+test " \"\#{1} \#{'2'} \#{\"three\"}\" ", -> equal @it, "1 2 three"
 test '''
 a = 1
 b = 1
