@@ -20,11 +20,17 @@ Word = clazz 'Word', Node, ->
       when 'null'
         @_newOverride = Null.null
   toString: -> @key
+  toKeyString: -> @key
 
 # An undetermined variable.
+# src/translator/scope is responsible for setting @word.
 Undetermined = clazz 'Undetermined', Node, ->
-  init: (@prefix) ->
+  init: (@prefix) -> @word = undefined
   toString: -> "[Undetermined prefix:#{@prefix}]"
+  toKeyString: ->
+    console.log @word, typeof @word
+    assert.ok @word instanceof Word, "Variable name not yet determined!"
+    return @word.key
 
 Block = clazz 'Block', Node, ->
   children:

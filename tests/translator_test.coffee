@@ -8,14 +8,17 @@ jsx = require 'joeson/src/translators/javascript'
 
 console.log blue "\n-= translator test =-"
 
+canon = (str) ->
+  str.replace(/[\n ]+/g, '').replace(/(accum|temp)_[a-zA-Z0-9]{4}/g, '$1').trim()
+
 counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = joe.parse code
   proc = []
   translated = jsx.translate(node)
-  if translated.replace(/[\n ]+/g, '').trim() isnt expected.replace(/[\n ]+/g, '').trim()
-    console.log "ERROR:\n  expected:\n#{green expected}\n  result:\n#{red translated}.\n  nodes:\n#{yellow node.serialize()}"
+  if canon(translated) isnt canon(expected)
+    console.log "ERROR:\n  expected:\n#{green canon expected}\n  result:\n#{red canon translated}.\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
 test """
@@ -32,11 +35,17 @@ loop
   a += 1
 """, 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}'
 test """
-a = 1
-b = loop
-  return if a > 2
-  a += 1
-""", 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}'
+  a = 1
+  b = loop
+    return if a > 2
+    a += 1
+""", """
+  var a, b, accum;
+  a = 1;
+  b = accum = [];
+  while(true) {(if((a > 2)){return }; accum.push(a = (a + 1)))};
+  accum_0HhB
+"""
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
 test """
 if true

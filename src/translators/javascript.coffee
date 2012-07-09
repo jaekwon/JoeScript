@@ -1,3 +1,70 @@
+###
+
+# AST Transformation
+
+  This is responsible for transforming a JoeScript AST into valid Javascript AST.
+  Actually, the result needs to be a subset of Javascript so as to be interpretable
+  from the joeson/src/interpreter. (this may change in the future).
+
+  Here are the properties of RJavascript. (Restricted Javascript).
+
+  1. No operational-assignments like +=, *=, etc
+     -> foo += bar ==>
+          foo = (foo + bar)
+     -> foo.bar += baz ==>
+          foo.bar = (foo.bar + baz)
+     -> foo.bar.baz += beh ==>
+          temp = foo.bar
+          temp.baz = (temp.baz + beh)
+  2. ??? I don't think there are any more at the moment.
+   
+## The mechanism of transformation
+
+  1. Transform the AST into an RJavascript AST via the .toJSNode() method.
+  2. Stringify to RJavascript code via toJavascript().
+
+## .toJSNode
+
+  This method recursively iterates through the AST tree and transforms to RJavascript.
+  It's not strictly depth first or breadth first, but whatever is convenient.
+  The .toJSNode may mutate the node, or return a new node entirely. This means
+  callers of .toJSNode must take care to use the result, and ignore the original node.
+
+  The 'toValue' argument tells .toJSNode that the result must be a valid Javascript value.
+  For instance, a Loop is not a valid value in Javascript, so a transformation must take
+  place to convert it into a Block with [].push of intermediate results.
+
+## .inject
+
+  The 'inject' argument is a callback that injects a statement, invocation, etc into
+  subtrees of the AST that are Javascript values. For example, the last expression of
+  a function block implicitly returns.
+
+    foo = ->
+      a = 1
+      if (true)
+        b = 2
+      else
+        b = 3    becomes...
+
+    foo = ->
+      a = 1
+      if (true)
+        return (b = 2)
+      else
+        return (b = 3)
+
+  Notice that a return statement was injected into multiple values.
+  Sometimes you want to inject an invocation, as when transforming Loops.
+
+  NOTE: By convention, when 'inject' is present, always set toValue to true.
+  NOTE: Consider the impact of always "injecting", which may lead to bloat.
+    It would be nice to have some other mechanisms, like injecting assignments
+    into a temp var, and injecting a statement or invocation only to the temp var
+    in the last line of a block, as necessary... I dunno.
+
+###
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
@@ -17,12 +84,13 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   require('joeson/src/translators/scope').install() # dependency
 
   joe.Node::extend
-    # CONTRACT: may mutate this node (and return @), or return a new node entirely.
-    toJSNode: ({toValue,toReturn}={}) ->
-      if toReturn and this not instanceof joe.Statement
-        return joe.Statement(type:'return', expr:this).toJSNode()
+    toJSNode: ({toValue,inject}={}) ->
+      if inject and this not instanceof joe.Statement
+        return inject(this).toJSNode()
       else
         return @childrenToJSNode()
+    # Convenience method, if you want to automatically .toJSNode children.
+    # Most of the time you want to do that manually.
     childrenToJSNode: ->
       that = this
       @withChildren (child, parent, key, desc, index) ->
@@ -33,39 +101,6 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined"
-
-  joe.Word::extend
-    toJavascript: ->
-      ''+this
-
-  joe.Block::extend
-    toJSNode: ({toValue,toReturn}={}) ->
-      @isValue = toValue
-      for line, i in @lines
-        if i < @lines.length-1
-          @lines[i] = @lines[i].toJSNode()
-        else
-          @lines[i] = @lines[i].toJSNode({toValue,toReturn})
-      @
-    toJavascript: ->
-      if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
-        lines = [joe.NativeExpression("var #{toDeclare.map((x)->''+x).join(', ')}"), @lines...]
-      else
-        lines = @lines
-      if @isValue and @lines.length > 1
-        "(#{(js(line) for line in lines).join '; '})"
-      else
-        (js(line) for line in lines).join ';\n'
-
-  joe.If::extend
-    toJSNode: ({toValue,toReturn}={}) ->
-      @isValue = toValue
-      @hasStatement or= toReturn
-      @cond = @cond.toJSNode(toValue:yes)
-      @block = @block.toJSNode {toValue,toReturn}
-      @else = @else.toJSNode {toValue,toReturn} if @else?
-      @
-    # NOTE: cached. never uncached.
     hasStatement$: get: ->
       if @ instanceof joe.Statement
         @hasStatement = yes
@@ -75,8 +110,41 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         return if child not instanceof joe.Node
         if child.hasStatement
           hasStatement = yes
-        # no way to exit iteration early.
       return @hasStatement=hasStatement
+
+  joe.Word::extend
+    toJavascript: ->
+      ''+this
+
+  joe.Undetermined::extend
+    toJavascript: -> throw new Error "Shouldn't happen..."
+
+  joe.Block::extend
+    toJSNode: ({toValue,inject}={}) ->
+      @isValue = toValue
+      for line, i in @lines
+        if i < @lines.length-1
+          @lines[i] = @lines[i].toJSNode()
+        else
+          @lines[i] = @lines[i].toJSNode({toValue,inject})
+      @
+    toJavascript: ->
+      if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
+        lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.toKeyString?() ? x).join(', ')}"), @lines...]
+      else
+        lines = @lines
+      if @isValue and @lines.length > 1
+        "(#{(js(line) for line in lines).join '; '})"
+      else
+        (js(line) for line in lines).join ';\n'
+
+  joe.If::extend
+    toJSNode: ({toValue,inject}={}) ->
+      @isValue = toValue
+      @cond = @cond.toJSNode(toValue:yes)
+      @block = @block.toJSNode {toValue,inject}
+      @else = @else.toJSNode {toValue,inject} if @else?
+      @
     toJavascript: ->
       if @isValue and not @hasStatement
         if @else?
@@ -90,12 +158,12 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           "if(#{js @cond}){#{js @block}}"
 
   joe.Try::extend
-    toJSNode: ({toValue,toReturn}={}) ->
-      if toValue or toReturn
+    toJSNode: ({toValue,inject}={}) ->
+      if toValue or inject
         target = joe.Undetermined('temp')
         @block = joe.Assign(target:target, value:@block).toJSNode()
         @catch = joe.Assign(target:target, value:@catch).toJSNode() if @catch?
-        return joe.Block [this, target.toJSNode({toReturn})]
+        return joe.Block [this, target.toJSNode({toValue,inject})]
       else
         return @childrenToJSNode()
     toJavascript: -> "try {#{js @block}}#{
@@ -103,8 +171,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @finally and "finally {#{js @finally}}" or ''}"
 
   joe.Loop::extend
-    toJSNode: ({toValue,toReturn}={}) ->
-      if toValue or toReturn
+    toJSNode: ({toValue,inject}={}) ->
+      if toValue or inject
         lines = []
         # <Variable> = []
         lines.push joe.Assign target:(target=joe.Undetermined('accum')), value:joe.Arr()
@@ -112,20 +180,24 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         # while(@cond) {
         #   <Variable>.push(@block)
         # }
-        @block = joe.Invocation(func:joe.Index(obj:target,key:joe.Word('push')), params:[joe.Item(value:@block)]).toJSNode()
+        @block = @block.toJSNode({toValue:yes, inject:(value)->
+          joe.Invocation
+            func:   joe.Index(obj:target, key:joe.Word('push'))
+            params: [joe.Item {value}]
+        })
         lines.push this
         # <Variable>
-        lines.push target.toJSNode({toReturn})
+        lines.push target.toJSNode({toValue,inject})
         return joe.Block lines
       else
         return @childrenToJSNode()
     toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
   joe.For::extend
-    toJSNode: ({toValue,toReturn}={}) ->
-      if toValue or toReturn
+    toJSNode: ({toValue,inject}={}) ->
+      if toValue or inject
         # call Loop.toJSNode to accumuate.
-        accum = @super.toJSNode.call(@, toValue:toValue,toReturn:toReturn)
+        accum = @super.toJSNode.call(@, {toValue,inject})
         # finally call this function again.
         return accum.toJSNode()
 
@@ -183,8 +255,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       assert.ok no, 'should not happen'
 
   joe.Switch::extend
-    toJSNode: ({toValue,toReturn}) ->
-      if toValue or toReturn
+    toJSNode: ({toValue,inject}) ->
+      if toValue or inject
         # @obj @cases @default
         lines = []
         # <Variable> = undefined
@@ -194,7 +266,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           _case.block = joe.Assign(target:target, value:_case.block).toJSNode(toValue:yes)
         lines.push this
         # <Variable>
-        lines.push target.toJSNode({toReturn})
+        lines.push target.toJSNode({toValue,inject})
         return joe.Block lines
       else
         return @childrenToJSNode()
@@ -209,15 +281,16 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJavascript: -> "#{@type} #{if @expr? then js(@expr) else ''}"
 
   joe.Assign::extend
-    toJSNode: ({toValue,toReturn}={}) ->
+    toJSNode: ({toValue,inject}={}) ->
       if @op?
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
           # But, anything more complex like `foo.bar.baz += 1` or
           # `(foo = {bar:1}; foo).bar += 1` requires a transformation.
-          @value = joe.Operation(left:@target, op:@op, right:@value)
+          @value = joe.Operation(left:@target, op:@op, right:@value.toJSNode(toValue:yes))
           @op = undefined
-          return @childrenToJSNode()
+          return inject(this) if inject?
+          return @ # no more toJSNode() necessary.
         else
           ###
           something.complex.baz += @value ~~>
@@ -231,7 +304,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           baseIndex = joe.Index(obj:baseVar, key:@target.key, type:@target.type)
           opValue = joe.Operation(left:baseIndex, op:@op, right:@value)
           lines.push joe.Assign(target:baseIndex, value:opValue)
-          return joe.Block(lines).toJSNode()
+          return joe.Block(lines).toJSNode({toValue,inject})
 
       else if @target instanceof joe.AssignObj
         lines = []
@@ -242,7 +315,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           lines.push joe.Assign target:valueVar, value:@value
           @value = valueVar # XXX I think this line is unnecessary
         @target.destructLines valueVar, lines
-        lines.push valueVar.toJSNode({toReturn}) if toValue or toReturn
+        lines.push valueVar.toJSNode({toValue,inject}) if toValue or inject
         return joe.Block(lines)
       else
         return @childrenToJSNode()
@@ -311,7 +384,9 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             param.destructLines arg, destructs
         @block.lines[...0] = destructs
       ## make last line return
-      @block = @block?.toJSNode(toValue:yes, toReturn:yes)
+      @block = @block?.toJSNode({toValue:yes, inject:(value)->
+        joe.Statement(type:'return', expr:value)
+      })
       return this
     toJavascript: ->
       "function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}}"

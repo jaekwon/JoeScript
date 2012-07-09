@@ -62,39 +62,7 @@ $(document).ready ->
       obj.emit eventJSON
 
     # Attach an editor now that output is available.
-    editor = window.editor = new Editor el:$('#input'), callback: (codeStr) ->
-      console.log "sending code"
-      socket.emit 'run', codeStr
-
-  ###
-  # make kernel
-  KERNEL = new JKernel
-  # Setup default view and user-specific scope
-  scope = WORLD.create ANON, {}
-  output = new JArray creator:ANON
-  print = new JBoundFunc creator:ANON, scope:scope, func:"""
-    (data) -> output.push data
-  """
-  Object.merge scope.data, {output, print}
-  # Attach output JView
-  $('#output').append output.newView().rootEl
-
-  # Attach input JView +
-  # Setup the editor to run code.
-  editor = window.editor = new Editor el:$('#input'), callback: (codeStr) ->
-    KERNEL.run
-      user: ANON
-      code: codeStr
-      scope: scope
-      callback: ->
-        switch @state
-          when 'return'
-            output.push @, [new JObject creator:ANON, data:{result:@last}]
-            info "return: #{@last.__str__(@)}"
-            #view = @last.newView()
-          when 'error'
-            @printErrorStack()
-          else
-            throw new Error "Unexpected state #{@state} during kernel callback"
-        @cleanup()
-  ###
+    unless window.editor?
+      editor = window.editor = new Editor el:$('#input'), callback: (codeStr) ->
+        console.log "sending code"
+        socket.emit 'run', codeStr
