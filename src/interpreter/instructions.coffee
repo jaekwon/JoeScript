@@ -319,7 +319,7 @@ joe.Statement::extend
       $.push this:@expr, func:@expr.interpret
       return
     else
-      return $.return joe.JUndefined
+      return $.return JUndefined
   interpretResult: ($, i9n, result) ->
     return $.return result
 

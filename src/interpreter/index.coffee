@@ -9,7 +9,7 @@ Concerns:
 i9n: short for instruction
 ###
 
-trace = debug:no, logCode:yes
+trace = debug:no, logCode:no
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -144,6 +144,7 @@ JThread = @JThread = clazz 'JThread', ->
     return
 
   return: (result) ->
+    assert.ok result?, "result value can't be undefined. Maybe JUndefined?"
     @state = 'return'
     return result # return the result of this to set @last.
 
