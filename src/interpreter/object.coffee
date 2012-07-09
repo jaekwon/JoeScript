@@ -309,7 +309,85 @@ SimpleIterator = clazz 'SimpleIterator', ->
       return @items[@idx]
     else throw 'StopIteration'
 
+# Extensions on native objects
+clazz.extend String,
+  __get__:    ($, key) -> JUndefined
+  __set__: ($, key, value) -> # pass
+  __keys__:        ($) -> $.throw 'TypeError', "Object.keys called on non-object"
+  __iter__:        ($) -> new SimpleIterator @valueOf()
+  __num__:         ($) -> JNaN
+  __add__:  ($, other) ->
+    if typeof other is 'string' or other instanceof String
+      @ + other
+    else
+      @ + other.__str__($)
+  __sub__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+  __mul__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+  __div__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+  __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+  __bool__:        ($) -> @length > 0
+  __key__:         ($) -> @valueOf()
+  __str__:         ($) -> "\"#{escape @}\""
+  __repr__:        ($) -> "\"#{escape @}\""
+  jsValue: -> @valueOf()
+
+clazz.extend Number,
+  __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+  __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+  __num__:        ($) -> @valueOf()
+  __add__: ($, other) -> @ + other.__num__()
+  __sub__: ($, other) -> @ - other.__num__()
+  __mul__: ($, other) -> @ * other.__num__()
+  __div__: ($, other) -> @ / other.__num__()
+  __cmp__: ($, other) -> @ - other.__num__()
+  __bool__:       ($) -> @ isnt 0
+  __key__:        ($) -> @valueOf()
+  __str__:        ($) -> ''+@
+  __repr__:       ($) -> ''+@
+  jsValue: -> @valueOf()
+
+clazz.extend Boolean,
+  __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+  __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+  __num__:        ($) -> JNaN
+  __add__: ($, other) -> JNaN
+  __sub__: ($, other) -> JNaN
+  __mul__: ($, other) -> JNaN
+  __div__: ($, other) -> JNaN
+  __cmp__: ($, other) -> JNaN
+  __bool__:       ($) -> @valueOf()
+  __key__:        ($) -> $.throw 'TypeError', "Can't use a boolean as a key"
+  __str__:        ($) -> ''+@
+  __repr__:       ($) -> ''+@
+  jsValue: -> @valueOf()
+
+clazz.extend Function, # native functions
+  __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
+  __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+  __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
+  __num__:        ($) -> JNaN
+  __add__: ($, other) -> JNaN
+  __sub__: ($, other) -> JNaN
+  __mul__: ($, other) -> JNaN
+  __div__: ($, other) -> JNaN
+  __cmp__: ($, other) -> JNaN
+  __bool__:       ($) -> yes
+  __key__:        ($) -> $.throw 'TypeError', "Can't use a function as a key"
+  __str__:        ($) -> "(<##{@id}>)"
+  __repr__:       ($) ->
+    name = @name ? @_name
+    if name
+      "[NativeFunction: #{name}]"
+    else
+      "[NativeFunction]"
+  jsValue: -> @valueOf()
+
+# EXPORTS
 @NODES = {
   JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc
 }
-

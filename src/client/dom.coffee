@@ -15,7 +15,7 @@ JView = @JView = clazz 'JView', ->
   init: ->
     @els = {}
     @root = undefined
-    @id = "view#{randid()}"
+    @id = "view:#{randid()}"
 
   # a JView is also a listener, and this is
   # where it receives messages on objects.

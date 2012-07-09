@@ -14,7 +14,7 @@ JSL = Grammar ({o, i, tokens}) -> [
     o STRING:       " '\"' (!'\"' &:(ESCSTR | .))* '\"'  ", (it) -> it.join ''
     o OBJ: [
       o             " '<#' id:ID '>' ", ({id}, $) ->
-                      cached = $.env.thread.kernel.cache[id]
+                      cached = $.env.cache[id]
                       return cached if cached?
                       return JStub id
       o             " '{' type:[OAU] '|#' id:ID '@' creator:ID ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creator,items}, $) ->
@@ -23,9 +23,8 @@ JSL = Grammar ({o, i, tokens}) -> [
                         when 'A' then obj = new JArray  id:id, creator:(new JStub creator)
                         when 'U' then obj = new JUser   name:id
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
-                      $.env.thread.kernel.cache[id] = obj if id?
-                      for {key, value} in items
-                        obj.__set__($.env.thread, key, value)
+                      $.env.cache[id] = obj if id?
+                      obj.data[key] = value for {key, value} in items
                       return obj
     ]
     o BOOLEAN:      " 'true' | 'false' ", (it) -> it is 'true'
@@ -36,5 +35,5 @@ JSL = Grammar ({o, i, tokens}) -> [
   i '.':          " /[\\s\\S]/ "
 ]
 
-@parse = (thread, str, opts) ->
-  JSL.parse str, env:{thread}, debug:opts?.debug
+@parse = (cache, str, opts) ->
+  JSL.parse str, env:{cache}, debug:opts?.debug

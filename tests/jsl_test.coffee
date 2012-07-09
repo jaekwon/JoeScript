@@ -58,12 +58,12 @@ runNextTest = ->
           equal canon(resStr), str, "Expected serialized '#{str}' but got '#{canon(resStr)}'"
           # now parse it back
           try
-            resObj = JSL.parse @, resStr
+            resObj = JSL.parse {}, resStr
           catch err
             console.log red "Error in parsing resStr '#{resStr}':"
             console.log red err.stack ? err
             try
-              resObj = JSL.parse @, resStr, debug:yes
+              resObj = JSL.parse {}, resStr, debug:yes
             process.exit(1)
           # now try the callback if exists.
           callback?.call context:@, it:resObj, thread:@

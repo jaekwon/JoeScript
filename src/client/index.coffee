@@ -23,12 +23,29 @@ $(document).ready ->
     GLOBALS:{GOD, WORLD, ANON}
     HELPERS:{isInteger,isObject,setLast}
   } = require 'joeson/src/interpreter'
+  JSL = require 'joeson/src/parsers/jsl'
   require 'joeson/src/client/dom' # DOM plugin
   {Editor} = require 'joeson/src/client/editor'
 
+  # TODO reconsider. some global object cache
+  cache = {}
+
+  # connect to server
+  @socket = io.connect()
+  # (re)initialize the output.
+  @socket.on 'output', (outputStr) ->
+    console.log "received output"
+    try
+      output = JSL.parse cache, outputStr
+    catch err
+      error "Error in parsing outputStr '#{outputStr}':\n#{err.stack ? err}"
+      return
+    # Attach output JView
+    $('#output').empty().append output.newView().root
+
+  ###
   # make kernel
   KERNEL = new JKernel
-
   # Setup default view and user-specific scope
   scope = WORLD.create ANON, {}
   output = new JArray creator:ANON
@@ -36,7 +53,6 @@ $(document).ready ->
     (data) -> output.push data
   """
   Object.merge scope.data, {output, print}
-
   # Attach output JView
   $('#output').append output.newView().root
 
@@ -58,3 +74,4 @@ $(document).ready ->
           else
             throw new Error "Unexpected state #{@state} during kernel callback"
         @cleanup()
+  ###

@@ -54,52 +54,52 @@ app = http.createServer(c)
 io = require('socket.io').listen app
 app.listen 8080
 
-# kernel
-{JKernel, JTypes} = require 'joeson/src/interpreter'
-KERNEL = new JKernel
-info "initialized kernel runloop"
 
-# make output object
-makeOut = (socket, threadId) ->
-  write = (html) ->
-    assert.ok typeof html is 'string', "makeOut/write wants a string, but got #{typeof html}"
-    info "makeOut/write:", threadId:threadId, html
-    socket.emit 'output', html:html, threadId:threadId
-  write.close = ->
-    socket.emit 'output', command:'close', threadId:threadId
-  return write
+{
+  JKernel, JThread
+  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  GLOBALS:{GOD, WORLD, ANON}
+  HELPERS:{isInteger,isObject,setLast}
+} = require 'joeson/src/interpreter'
+
+KERNEL = new JKernel
 
 # connect.io <-> kernel
 io.sockets.on 'connection', (socket) ->
 
-  # login
-  # Caller (client) will receive a user object __str__
-  socket.on 'login', ({name}) ->
-    info "user #{name} login"
+  # Setup default view and user-specific scope
+  scope = WORLD.create ANON, {}
+  output = new JArray creator:ANON
+  print = new JBoundFunc creator:ANON, scope:scope, func:"""
+    (data) -> output.push data
+  """
+  Object.merge scope.data, {output, print}
+
+  # Create entanglement to output object.
+  output.entangle ->
+
+  # Ship 'output' over the wire.
+  socket.emit 'output', output.__str__()
 
   # start code
-  socket.on 'start', ({code,threadId}) ->
-    info "received code #{code}, thread id #{threadId}"
-    output = makeOut socket, threadId
+  socket.on 'run', ({codeStr,threadId}) ->
+    info "received code #{codeStr}, thread id #{threadId}"
+
+    # TODO append codeStr to output
+
     KERNEL.run
-      user:   user
-      code:   code
-      output: output
-      input:  undefined # not implemented
+      user: ANON
+      code: codeStr
+      scope: scope
       callback: ->
         switch @state
           when 'return'
-            unless @last is JTypes.JUndefined
-              output(@last.__repr__(@).__html__(@))
-            #output.close()
+            output.push @, [new JObject creator:ANON, data:{result:@last}]
+            info "return: #{@last.__str__(@)}"
+            # view = @last.newView()
           when 'error'
-            if @error.stack.length
-              @printStack @error.stack
-              stackTrace = @error.stack.map((x)->'  at '+x).join('\n')
-              output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
-            else
-              output("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}")
-            #output.close()
+            @printErrorStack()
+            # TODO push error to output
           else
             throw new Error "Unexpected state #{@state} during kernel callback"
         @cleanup()
