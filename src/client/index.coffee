@@ -31,17 +31,40 @@ $(document).ready ->
   cache = {}
 
   # connect to server
-  @socket = io.connect()
+  socket = window.socket = io.connect()
+
   # (re)initialize the output.
-  @socket.on 'output', (outputStr) ->
+  socket.on 'output', (outputStr) ->
     console.log "received output"
+
     try
       output = JSL.parse cache, outputStr
     catch err
       error "Error in parsing outputStr '#{outputStr}':\n#{err.stack ? err}"
       return
+
     # Attach output JView
-    $('#output').empty().append output.newView().root
+    $('#output').empty().append output.newView().rootEl
+
+    # Attach listener for events
+    socket.on 'event', (eventJSON) ->
+      obj = cache[eventJSON.targetId]
+      if not obj?
+        fatal "Event for unknown object ##{eventJSON.targetId}."
+        return
+      for key, value of eventJSON
+        unless key in ['type', 'key', 'targetId']
+          try
+            eventJSON[key] = JSL.parse cache, value
+          catch err
+            fatal "Error in parsing event item '#{key}':#{value} :\n#{err.stack ? err}"
+            # XXX not sure what should go here.
+      obj.emit eventJSON
+
+    # Attach an editor now that output is available.
+    editor = window.editor = new Editor el:$('#input'), callback: (codeStr) ->
+      console.log "sending code"
+      socket.emit 'run', codeStr
 
   ###
   # make kernel
@@ -54,7 +77,7 @@ $(document).ready ->
   """
   Object.merge scope.data, {output, print}
   # Attach output JView
-  $('#output').append output.newView().root
+  $('#output').append output.newView().rootEl
 
   # Attach input JView +
   # Setup the editor to run code.

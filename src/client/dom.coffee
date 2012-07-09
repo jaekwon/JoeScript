@@ -10,21 +10,24 @@ assert = require 'assert'
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 
-# analogous to an HTML Document
+# A JObject listener
 JView = @JView = clazz 'JView', ->
-  init: ->
+  # root: the root JObject
+  # rootEl: corresponding root DOM element
+  # els: id -> element
+  init: ({@root}) ->
     @els = {}
-    @root = undefined
     @id = "view:#{randid()}"
+    @rootEl = @root.dom_draw @
 
-  # a JView is also a listener, and this is
-  # where it receives messages on objects.
-  on: (obj, name, data) ->
-    #debug "JView event: ##{obj.id} #{name}:#{inspect data}"
+  # Receives messages from objects here.
+  # obj: JObject that emitted event message
+  # event: Event object, {type,...}
+  on: (obj, event) ->
     objEl = @els[obj.id]
-    debug "JView::on for event: #{name}"
-    # delegate event to JObject subclass
-    obj.dom_on @, objEl, name, data
+    debug "JView::on for event: #{event.type}"
+    # Delegate handling to JObject subclass
+    obj.dom_on @, objEl, event
     # flash it
     #objEl.addClass('highlight').delay(300).queue (next) ->
     #  $(this).removeClass 'highlight'
@@ -61,13 +64,10 @@ JView = @JView = clazz 'JView', ->
     return el
 
 JObject::extend
-  # $$ is the JView,context for DOM objects.
   domClass: 'object'
-  newView: ->
-    view = new JView
-    view.root = @dom_draw view
-    return view
-  dom_draw: ($$) ->
+  # Convenience
+  newView: -> new JView root:@
+  dom_draw: ($$) -> # $$ is JView
     #debug "JObject::dom_draw for #{@}"
     items = {}
     $$.newEl id:@id, tag:'div', cls:@domClass, data:{items}, (el) =>
@@ -79,11 +79,11 @@ JObject::extend
       $$.newEl tag:'span', cls:'attribute', text:key+':'
       value.dom_draw($$)
     ]
-  dom_on: ($$, el, name, data) ->
+  dom_on: ($$, el, event) ->
     items = el.data('items')
-    switch name
+    switch event.type
       when 'set', 'update'
-        {key, value} = data
+        {key, value} = event
         itemEl = @dom_drawItem $$, key, value
         if existingEl=items[key]
           #debug "JObject::dom_on found existing item el for #{key}"
@@ -92,14 +92,16 @@ JObject::extend
           #debug "JObject::dom_on appending new item el for #{key}"
           el.append itemEl
         items[key] = itemEl
-
+      else
+        throw new Error "Unexpected event type #{event.type}"
+  
 JArray::extend
   domClass: 'array'
-  dom_on: ($$, el, name, data) ->
+  dom_on: ($$, el, event) ->
     items = el.data('items')
-    switch name
+    switch event.type
       when 'set', 'push'
-        {key, value} = data
+        {key, value} = event
         itemEl = @dom_drawItem $$, key, value
         if existingEl=items[key]
           #debug "JObject::dom_on found existing item el for #{key}"
@@ -108,6 +110,8 @@ JArray::extend
           #debug "JObject::dom_on appending new item el for #{key}"
           el.append itemEl
         items[key] = itemEl
+      else
+        throw new Error "Unexpected event type #{event.type}"
 
 JBoundFunc::extend
   domClass: 'boundfunc'

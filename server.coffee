@@ -61,6 +61,7 @@ app.listen 8080
   GLOBALS:{GOD, WORLD, ANON}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
+require 'joeson/src/interpreter/perspective' # Perspective plugin
 
 KERNEL = new JKernel
 
@@ -75,15 +76,15 @@ io.sockets.on 'connection', (socket) ->
   """
   Object.merge scope.data, {output, print}
 
-  # Create entanglement to output object.
-  output.entangle ->
-
   # Ship 'output' over the wire.
   socket.emit 'output', output.__str__()
 
+  # Link client and server via perspective on output.
+  perspective = output.newPerspective(socket)
+
   # start code
-  socket.on 'run', ({codeStr,threadId}) ->
-    info "received code #{codeStr}, thread id #{threadId}"
+  socket.on 'run', (codeStr) ->
+    info "received code #{codeStr}"
 
     # TODO append codeStr to output
 

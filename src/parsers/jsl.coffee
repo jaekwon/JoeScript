@@ -28,6 +28,9 @@ JSL = Grammar ({o, i, tokens}) -> [
                       return obj
     ]
     o BOOLEAN:      " 'true' | 'false' ", (it) -> it is 'true'
+    o UNDEFINED:    " 'undefined' ", -> JUndefined
+    o NAN:          " 'NaN' ", -> NaN
+    o NULL:         " 'null' ", -> JNull
   ]
   i OBJ_ITEM:     " key:(NUMBER|STRING) ':' value:ANY "
   i ID:           " [a-zA-Z0-9]{1,24} ", (it) -> it.join ''
