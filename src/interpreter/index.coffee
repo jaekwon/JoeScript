@@ -9,7 +9,7 @@ Concerns:
 i9n: short for instruction
 ###
 
-trace = debug:no, logCode:no
+trace = debug:no, logCode:yes
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -109,7 +109,7 @@ JThread = @JThread = clazz 'JThread', ->
           if not i9n?
             return 'return'
           else if i9n.this instanceof joe.Invocation
-            assert.ok i9n.func is joe.Invocation::interpretFinal
+            assert.ok i9n.func is joe.Invocation::interpretFinal, "Unexpected i9n.func #{i9n.func?._name or i9n.func?._name}"
             return @state=null
       when 'wait'
         info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace.debug

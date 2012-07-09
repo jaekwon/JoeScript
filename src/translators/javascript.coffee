@@ -97,7 +97,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         @catch = joe.Assign(target:target, value:@catch).toJSNode() if @catch?
         return joe.Block [this, target.toJSNode({toReturn})]
       else
-        return @
+        return @childrenToJSNode()
     toJavascript: -> "try {#{js @block}}#{
       (@catchVar? or @catch?) and " catch(#{js(@catchVar) or ''}) {#{js @catch}}" or ''}#{
       @finally and "finally {#{js @finally}}" or ''}"
@@ -118,7 +118,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         lines.push target.toJSNode({toReturn})
         return joe.Block lines
       else
-        return this
+        return @childrenToJSNode()
     toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
   joe.For::extend
@@ -197,7 +197,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         lines.push target.toJSNode({toReturn})
         return joe.Block lines
       else
-        return this
+        return @childrenToJSNode()
 
   TO_JS_OPS = {'is':'===', '==':'==='}
   joe.Operation::extend
@@ -211,7 +211,6 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.Assign::extend
     toJSNode: ({toValue,toReturn}={}) ->
       if @op?
-        
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
           # But, anything more complex like `foo.bar.baz += 1` or
@@ -336,10 +335,12 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Obj::extend
     toJavascript: ->
+      return '{}' unless @items?
       "{#{("\"#{escape key}\": #{js value}" for {key, value} in @items).join ', '}}"
 
   joe.Arr::extend
     toJavascript: ->
+      return '[]' unless @items?
       # TODO need to handle splats...
       "[#{(js value for {key, value} in @items).join ', '}]"
 

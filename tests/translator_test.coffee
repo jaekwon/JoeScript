@@ -18,6 +18,25 @@ test = (code, expected) ->
     console.log "ERROR:\n  expected:\n#{green expected}\n  result:\n#{red translated}.\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
+test """
+a = 1
+loop
+  return if a > 2
+  a += 1
+print a
+""", 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}; print(a)'
+test """
+a = 1
+loop
+  return if a > 2
+  a += 1
+""", 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}'
+test """
+a = 1
+b = loop
+  return if a > 2
+  a += 1
+""", 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}'
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
 test """
 if true

@@ -69,6 +69,7 @@ joe.If::extend
 
 joe.Assign::extend
   interpret: ($, i9n) ->
+    assert.ok not @op?, "Dunno how to interpret Assign with @op #{@op}"
     i9n.func = joe.Assign::interpret2
     $.push this:@value,  func:@value.interpret
     if @target instanceof joe.Index
