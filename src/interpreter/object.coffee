@@ -148,6 +148,7 @@ JObject = @JObject = clazz 'JObject', ->
   __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
   __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
   __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __eq__:   ($, other) -> other instanceof JObject and other.id is @id
   __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
   __bool__: ($, other) -> yes
   __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
@@ -208,6 +209,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
   __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
+  __eq__:  ($, other) -> other instanceof JArray and other.id is @id
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
   __key__:        ($) -> $.throw 'TypeError', "Can't use an array as a key"
@@ -267,6 +269,7 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   __sub__:  ($, other) -> JNaN
   __mul__:  ($, other) -> JNaN
   __div__:  ($, other) -> JNaN
+  __eq__:   ($, other) -> other instanceof JSingleton and @name is other.name
   __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare with #{@name}"
   __bool__: ($, other) -> no
   __key__:         ($) -> $.throw 'TypeError', "Can't use #{@name} as key"
@@ -333,6 +336,7 @@ clazz.extend String,
   __sub__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __mul__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __div__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+  __eq__:   ($, other) -> @valueOf() is other
   __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __bool__:        ($) -> @length > 0
   __key__:         ($) -> @valueOf()
@@ -345,13 +349,14 @@ clazz.extend Number,
   __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
   __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
   __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
-  __num__:        ($) -> @valueOf()
-  __add__: ($, other) -> @ + other.__num__()
-  __sub__: ($, other) -> @ - other.__num__()
-  __mul__: ($, other) -> @ * other.__num__()
-  __div__: ($, other) -> @ / other.__num__()
-  __cmp__: ($, other) -> @ - other.__num__()
-  __bool__:       ($) -> @ isnt 0
+  __num__:        ($) -> @valueOf() # prototype methods of native types, @ becomes object.
+  __add__: ($, other) -> @valueOf() + other.__num__()
+  __sub__: ($, other) -> @valueOf() - other.__num__()
+  __mul__: ($, other) -> @valueOf() * other.__num__()
+  __div__: ($, other) -> @valueOf() / other.__num__()
+  __eq__:  ($, other) -> @valueOf() is other
+  __cmp__: ($, other) -> @valueOf() - other.__num__()
+  __bool__:       ($) -> @valueOf() isnt 0
   __key__:        ($) -> @valueOf()
   __str__:        ($) -> ''+@
   __repr__:       ($) -> ''+@
@@ -367,6 +372,7 @@ clazz.extend Boolean,
   __sub__: ($, other) -> JNaN
   __mul__: ($, other) -> JNaN
   __div__: ($, other) -> JNaN
+  __eq__:  ($, other) -> @valueOf() is other
   __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> @valueOf()
   __key__:        ($) -> $.throw 'TypeError', "Can't use a boolean as a key"
@@ -384,6 +390,7 @@ clazz.extend Function, # native functions
   __sub__: ($, other) -> JNaN
   __mul__: ($, other) -> JNaN
   __div__: ($, other) -> JNaN
+  __eq__:  ($, other) -> @valueOf() is other
   __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> yes
   __key__:        ($) -> $.throw 'TypeError', "Can't use a function as a key"

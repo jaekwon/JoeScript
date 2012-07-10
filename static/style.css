@@ -44,6 +44,7 @@ span.cm-operator,   span.operator   { color: #00cccc; }
   padding-bottom: 0;
 }
 .array, .object {
+  min-height: 1em;
 }
 .highlight {
   background-color: #2A395B !important;

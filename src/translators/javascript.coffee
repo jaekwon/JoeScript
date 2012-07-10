@@ -353,7 +353,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           nodes.push '' if nodes.length is 0 # must start with a string.
           nodes.push part
         else
-          nodes.push new String part
+          nodes.push ''+part
       return nodes
       
     toJSNode: ->

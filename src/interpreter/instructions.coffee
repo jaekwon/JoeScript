@@ -192,6 +192,10 @@ joe.Operation::extend
           when '>'  then return left.__cmp__($, right) > 0
           when '<=' then return left.__cmp__($, right) <= 0
           when '>=' then return left.__cmp__($, right) >= 0
+          when 'is' then return left.__eq__($, right)
+          when '==' then return left.__eq__($, right)
+          when 'isnt' then return not left.__eq__($, right)
+          when '!=' then return not left.__eq__($, right)
           else throw new Error "Unexpected operation #{@op}"
       else # left++, left--...
         switch @op

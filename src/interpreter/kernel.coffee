@@ -180,9 +180,11 @@ JThread = @JThread = clazz 'JThread', ->
              }($, {#{ white Object.keys(i9nCopy).join ','
             }}, _) #{ black escape i9n.this }"
 
-  printErrorStack: ->
+  errorStack: ->
     stackTrace = @error.stack.map((x)->'  at '+x).join('\n') or '  -- no stack trace available --'
-    warn("#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}")
+    "#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}"
+
+  printErrorStack: -> warn @errorStack()
 
   printScope: (scope, lvl=0) ->
     for key, value of scope.data when key isnt '__proto__'

@@ -135,7 +135,7 @@ io.sockets.on 'connection', (socket) ->
             # view = @last.newView()
           when 'error'
             @printErrorStack()
-            # TODO push error to output
+            outputItem.__set__ @, 'error', @errorStack()
           else
             throw new Error "Unexpected state #{@state} during kernel callback"
         @cleanup()
