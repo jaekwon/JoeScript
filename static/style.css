@@ -41,3 +41,17 @@ span.cm-operator,   span.operator   { color: #00cccc; }
 .highlight {
   border: 1px solid yellow !important;
 }
+
+/* this isnt perfect, esp not for long keys */
+div.object {
+  position: relative;
+  padding-left: 7em;
+}
+div.object > div.item > span.key {
+  position: absolute;
+  left: 5px;
+}
+
+span.string {
+  white-space: pre;
+}

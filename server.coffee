@@ -86,7 +86,9 @@ io.sockets.on 'connection', (socket) ->
   socket.on 'run', (codeStr) ->
     info "received code #{codeStr}"
 
-    # TODO append codeStr to output
+    # Create a new entry for output.
+    outputItem = new JObject creator:ANON, data:{code:codeStr, result:JUndefined}
+    output.push undefined, [outputItem]
 
     KERNEL.run
       user: ANON
@@ -95,7 +97,7 @@ io.sockets.on 'connection', (socket) ->
       callback: ->
         switch @state
           when 'return'
-            output.push @, [new JObject creator:ANON, data:{result:@last}]
+            outputItem.__set__ @, 'result', @last
             info "return: #{@last.__str__(@)}"
             # view = @last.newView()
           when 'error'

@@ -56,7 +56,7 @@
 @last = (array, back) -> array[array.length - (back or 0) - 1]
 
 # Escape a string into javascript string code.
-@escape = (str) -> (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/'/g, "\\'")
+@escape = (str) -> (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/"/g, "\\\"")
 
 # Escape HTML special characters. Result must be valid HTML text
 @htmlEscape = (txt) ->

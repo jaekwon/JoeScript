@@ -76,7 +76,7 @@ JObject::extend
         el.append items[key]=@dom_drawItem $$, key, value
   dom_drawItem: ($$, key, value) ->
     $$.newEl tag:'div', cls:'item', data:{key}, children:[
-      $$.newEl tag:'span', cls:'attribute', text:key+':'
+      $$.newEl tag:'span', cls:'key attribute', text:key+':'
       value.dom_draw($$)
     ]
   dom_on: ($$, el, event) ->
@@ -96,7 +96,7 @@ JObject::extend
         throw new Error "Unexpected event type #{event.type}"
   
 JArray::extend
-  domClass: 'array'
+  domClass: 'object array'
   dom_on: ($$, el, event) ->
     items = el.data('items')
     switch event.type
