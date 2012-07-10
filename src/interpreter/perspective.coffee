@@ -40,10 +40,16 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
     obj.perspective_on @, event, shared
 
   # Call to add a new object into the perspective.
+  # Handles adding objects recursively.
   addObj: (obj) ->
+    debug "JPerspective::addObj with obj: ##{obj.id}: #{obj.__str__()}"
     return if @objs[obj.id]? # already in.
     @objs[obj.id] = obj
     obj.addListener @
+    # recursivey add children
+    for child in obj.perspective_withChildren @
+      assert.ok child instanceof JObject, "perspective_withChildren should have returned all JObject children"
+      @addObj child
 
 JObject::extend
   # Convenience
@@ -55,6 +61,13 @@ JObject::extend
         $$.addObj value if value instanceof JObject
       # when 'delete'
       #   garbage collection routine
+  # hmm... should JObjects be src/node/Nodes?... probably not
+  perspective_withChildren: ($$) ->
+    children = []
+    if @data?
+      children.push value for key, value of @data when value instanceof JObject
+    children.push @proto if @proto instanceof JObject
+    return children
 
 JArray::extend
   perspective_on: ($$, event) ->
