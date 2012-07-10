@@ -70,11 +70,14 @@ io.sockets.on 'connection', (socket) ->
 
   # Setup default view and user-specific scope
   scope = WORLD.create ANON, {}
-  output = new JArray creator:ANON
-  print = new JBoundFunc creator:ANON, scope:scope, func:"""
-    (data) -> output.push data
-  """
-  Object.merge scope.data, {output, print}
+  Object.merge scope.data,
+    output: output=(new JArray creator:ANON)
+    reset:  new JBoundFunc creator:ANON, scope:scope, func:"""
+              -> output.length = 0
+            """
+    print:  new JBoundFunc creator:ANON, scope:scope, func:"""
+              (data) -> output.push data
+            """
 
   # Ship 'output' over the wire.
   socket.emit 'output', output.__str__()

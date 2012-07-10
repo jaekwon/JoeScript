@@ -7,11 +7,19 @@ $(document).ready ->
 
   # configure logging
   {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
-  domLog = window.domLog = $('#log')
+  domLog = window.domLog = $('#log').css(display:'none')
+  domLogVisible = no
   require('nogg').configure
     default:
       file:   {write:(line)->domLog.append(toHTML line)}
       level: 'debug'
+  $('#log').before $('<span>π</span>').addClass('debug right').click (e) ->
+    if domLogVisible
+      domLogVisible = no
+      domLog.css(display:'none')
+    else
+      domLogVisible = yes
+      domLog.css(display:'block')
 
   # load libraries
   {clazz} = require 'cardamom'

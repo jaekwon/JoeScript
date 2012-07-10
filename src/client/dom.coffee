@@ -110,6 +110,7 @@ JArray::extend
           for itemKey, itemEl of items
             if itemKey >= newLength
               itemEl.remove()
+              delete items[itemKey]
           # no need to display the length
           return
         itemEl = @dom_drawItem $$, key, value
@@ -122,6 +123,11 @@ JArray::extend
         items[key] = itemEl
       else
         throw new Error "Unexpected event type #{event.type}"
+
+JStub::extend
+  domClass: 'stub'
+  dom_draw: ($$) ->
+    $$.newLink id:@id, cls:'link', text:"[link:##{@id}]"
 
 JBoundFunc::extend
   domClass: 'boundfunc'
