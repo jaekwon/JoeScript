@@ -2,6 +2,7 @@ sugar = require 'sugar'
 http = require 'http'
 connect = require 'connect'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
+{inspect} = require 'util'
 assert = require 'assert'
 
 # logging
@@ -58,12 +59,12 @@ app.listen 8080
 {
   JKernel, JThread
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:{GOD, WORLD, ANON}
+  GLOBALS:{CACHE, GOD, WORLD, ANON, KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 require 'joeson/src/interpreter/perspective' # Perspective plugin
 
-KERNEL = new JKernel
+# KERNEL = new JKernel
 
 # connect.io <-> kernel
 io.sockets.on 'connection', (socket) ->
@@ -85,7 +86,13 @@ io.sockets.on 'connection', (socket) ->
   # Link client and server via perspective on output.
   perspective = output.newPerspective(socket)
 
-  # start code
+  # Input
+  socket.on 'input', (data) ->
+    info "received input #{inspect data}"
+    obj = CACHE[data.id]
+    obj.set 'text', data.text
+
+  # Run
   socket.on 'run', (codeStr) ->
     info "received code #{codeStr}"
 

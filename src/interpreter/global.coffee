@@ -8,6 +8,8 @@ async = require 'async'
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
 {nativ} = require 'joeson/src/interpreter/persistence'
 
+CACHE = @CACHE = {} # weak ref? TODO. HACKY
+
 GOD   = @GOD   = new JUser   id:'god',   name:'god'
 ANON  = @ANON  = new JUser   id:'anon',  name:'anon'
 USERS = @USERS = new JObject id:'users', creator:GOD, data:
@@ -15,6 +17,10 @@ USERS = @USERS = new JObject id:'users', creator:GOD, data:
   anon:   ANON
 WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
   users:  USERS
+  this:   USERS
+
+{JKernel} = require 'joeson/src/interpreter/kernel'
+KERNEL = @KERNEL = new JKernel cache:CACHE # HACK
 
 # run this file to set up redis
 if require.main is module

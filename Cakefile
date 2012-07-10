@@ -31,12 +31,14 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'joeson/src/interpreter/instructions',f:'src/interpreter/instructions'}
       {           l:'joeson/src/interpreter/object',      f:'src/interpreter/object'}
       {           l:'joeson/src/interpreter/global',      f:'src/interpreter/global'}
+      {           l:'joeson/src/interpreter/kernel',      f:'src/interpreter/kernel'}
       {           l:'joeson/src/interpreter/persistence', f:'src/interpreter/persistence'}
       {           l:'joeson/src/translators/javascript',  f:'src/translators/javascript'}
       {           l:'joeson/src/translators/scope',       f:'src/translators/scope'}
       {           l:'joeson/src/client',                  f:'src/client/index'}
       {           l:'joeson/src/client/dom',              f:'src/client/dom'}
       {           l:'joeson/src/client/editor',           f:'src/client/editor'}
+      {           l:'joeson/src/client/misc',             f:'src/client/misc'}
       {           l:'joeson/src/parsers/ansi',            f:'src/parsers/ansi'}
       {           l:'joeson/src/parsers/jsl',             f:'src/parsers/jsl'}
       {           l:'joeson/lib/helpers',       f:'lib/helpers'}

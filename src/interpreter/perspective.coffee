@@ -22,7 +22,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
   # event: Event object, {type,...}
   on: (obj, event, shared) ->
     debug "JPerspective::on for event: #{event.type}"
-    assert.ok not event.targetId?, "event.targetId is reserved"
+    assert.ok not event.targetId? or (event.targetId is obj.id), "event.targetId is reserved"
     event.targetId = obj.id
     unless shared.eventJSON?
       debug "Serializing values of event to eventJSON"

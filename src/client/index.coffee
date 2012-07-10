@@ -29,15 +29,16 @@ $(document).ready ->
   {
     JKernel, JThread
     NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-    GLOBALS:{GOD, WORLD, ANON}
+    GLOBALS:{CACHE, GOD, WORLD, ANON}
     HELPERS:{isInteger,isObject,setLast}
   } = require 'joeson/src/interpreter'
   JSL = require 'joeson/src/parsers/jsl'
   require 'joeson/src/client/dom' # DOM plugin
+  require 'joeson/src/client/misc' # DOM plugin
   {Editor} = require 'joeson/src/client/editor'
 
-  # TODO reconsider. some global object cache
-  cache = window.cache = {}
+  # TODO reconsider.
+  cache = window.cache = CACHE
 
   # connect to server
   socket = window.socket = io.connect()
@@ -92,3 +93,5 @@ $(document).ready ->
       editor = window.editor = new Editor el:$('#input'), callback: (codeStr) ->
         console.log "sending code"
         socket.emit 'run', codeStr
+
+      $(document.body).click -> editor.focus()

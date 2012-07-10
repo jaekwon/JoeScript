@@ -229,10 +229,6 @@ Undefined = clazz 'Undefined', Node, ->
   toString: -> "undefined"
 Undefined.undefined = new Undefined(yes)
 
-This = clazz 'This', Node, ->
-  init: ->
-  toString: -> "@"
-
 Str = clazz 'Str', Node, ->
   children:
     parts:      {type:[type:EXPR, isValue:yes]}
@@ -342,7 +338,7 @@ Dummy = clazz 'Dummy', Node, ->
 
 @NODES = {
   Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
-  Statement, Invocation, Assign, Slice, Index, Soak, Obj, This,
+  Statement, Invocation, Assign, Slice, Index, Soak, Obj, 
   Null, Undefined,
   Arr, Item, Str, Func, Range, NativeExpression, Heredoc, Dummy,
   AssignList, AssignObj, AssignItem,
@@ -585,8 +581,8 @@ resetIndent = (ws, $) ->
     o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
     o OBJ_EXPL:     " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
     i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", make Item
-    o PROPERTY:     " '@' (WORD|STRING) ", (key) -> Index obj:This(), key:key
-    o THIS:         " '@' ", make This
+    o PROPERTY:     " '@' (WORD|STRING) ", (key) -> Index obj:Word('this'), key:key
+    o THIS:         " '@' ", -> Word('this')
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [
       o             " _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", make Str

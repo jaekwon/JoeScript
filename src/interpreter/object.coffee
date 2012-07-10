@@ -50,6 +50,9 @@ JObject = @JObject = clazz 'JObject', ->
     @id ?= randid()
     @data ?= {}
     @data.__proto__ = null # detatch prototype
+    # HACK, SYSTEM GLOBAL CACHE OF OBJECTS
+    {CACHE} = require 'joeson/src/interpreter/global'
+    CACHE[@id] = this
 
   # Event handling
   addListener: (listener) ->
@@ -100,6 +103,11 @@ JObject = @JObject = clazz 'JObject', ->
   __hasOwn__: ($, key) ->
     $.will('read', this)
     return @data[key]?
+  set: (key, value) -> # HACK
+    assert.ok key=key.__key__?(), "Key couldn't be stringified"
+    @data[key] = value
+    @emit {type:'set',key,value}
+    return
   __set__: ($, key, value) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)

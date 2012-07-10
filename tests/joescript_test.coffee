@@ -78,7 +78,7 @@ test  "'foo'.length", "\"foo\".length"
 test  "[1, 2, 3]", "[1,2,3]"
 test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
 test  "foo?.bar['baz']::", "(foo)?.bar[\"baz\"].prototype"
-test  "@foo == @bar.baz", "(@.foo==@.bar.baz)"
+test  "@foo == @bar.baz", "(this.foo==this.bar.baz)"
 test  "x for x in [1,2,3]", "for x in [1,2,3]{x}"
 test  """
       for x in [1,2,3]
@@ -188,7 +188,7 @@ test """
   foo, bar,
   baz, bak
 }
-""", "@.stuff=({foo,bar,baz,bak})"
+""", "this.stuff=({foo,bar,baz,bak})"
 test """
 loop
   log one

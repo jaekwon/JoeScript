@@ -57,3 +57,6 @@ Editor = @Editor = clazz 'Editor', ->
     value = @mirror.sanitize()
     return if value.trim().length is 0
     @callback? value
+
+  focus: ->
+    @mirror.focus()

@@ -55,6 +55,12 @@ span.cm-operator,   span.operator   { color: #00cccc; }
 .right {
   float: right;
 }
+textarea {
+  background: #0a001f;
+  color: #f8f8f8;
+  font-family: 'Anonymous Pro', monospace;
+  font-size: 16px;
+}
 
 /* this isnt perfect, esp not for long keys */
 div.object {
