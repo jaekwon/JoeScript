@@ -35,9 +35,14 @@ JView = @JView = clazz 'JView', ->
 
   # analogous to Document.createElement
   newEl: ({id,tag,cls,attr,text,data,children}={}, setupCb) ->
-    if id? and @els[id]?
+    if id? and (existingEl=@els[id])?
       #debug "JView::newEl returning a link for ##{id}"
-      return @newLink {id}
+      link = @newLink {id}, (el) ->
+        el.hover (e) ->
+          existingEl.addClass('highlight')
+        , (e) ->
+          existingEl.removeClass('highlight')
+      return link
     #debug "JView::newEl creating new el for ##{id}"
     tag ?= 'div'
     el = $ document.createElement tag
@@ -57,11 +62,13 @@ JView = @JView = clazz 'JView', ->
     return el
 
   # creates a link element
-  newLink: ({id,cls,text}={}) ->
-    el = $ document.createElement 'span'
+  newLink: ({id,cls,text}={}, setupCb) ->
+    el = $ document.createElement 'a'
+    el.attr {href:'#'}
     el.text text ? "[link:##{id}]"
     el.addClass cls if cls?
     el.data 'ref', id
+    setupCb?(el)
     return el
 
 JObject::extend
@@ -75,6 +82,7 @@ JObject::extend
         # TODO consider putting elsewhere. HACK
         debug "Adding JView listener to ##{@id}"
         @addListener $$
+        el.val @data.text if @data.text?
         el.make_autoresizable()
         el.click (e) -> no # consume event
         el.valueChange {debounce:300}, (e) =>
@@ -154,12 +162,18 @@ JArray::extend
 JStub::extend
   domClass: 'stub'
   dom_draw: ($$) ->
-    $$.newLink id:@id, cls:'link', text:"[link:##{@id}]"
+    $$.newLink id:@id, cls:'link', text:"[link:##{@id}]", (el) =>
+      console.log "STUB"
+      el.hover (e) ->
+        console.log "STUB HOVER"
 
 JBoundFunc::extend
   domClass: 'boundfunc'
   dom_draw: ($$) ->
-    $$.newLink id:@id, cls:'function', text:"[function:##{@id}]"
+    $$.newLink id:@id, cls:'function', text:"[function:##{@id}]", (el) =>
+      console.log "FUNC"
+      el.hover (e) ->
+        console.log "BFUNC HOBER"
 
 JSingleton::extend
   dom_draw: ($$) ->

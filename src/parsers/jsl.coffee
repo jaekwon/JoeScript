@@ -13,12 +13,12 @@ JSL = Grammar ({o, i, tokens}) -> [
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", (it) -> Number it
     o STRING:       " '\"' (!'\"' &:(ESCSTR | .))* '\"'  ", (it) -> it.join ''
     o OBJ: [
-      o             " '<#' id:ID '>' ", ({id}, $) ->
+      o             " '<' (type:[F] '|')? '#' id:ID '>' ", ({type,id}, $) ->
                       # Check client cache for existing JObject instance.
                       if $.env.cache
                         cached = $.env.cache[id]
                         return cached if cached?
-                      return JStub id
+                      return JStub {id,type}
       o             " '{' type:[OAU] '|#' id:ID ('@' creator:ID)? ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creator,items}, $) ->
                       # NOTE: Even though the full object was given,
                       # it's possible that object is already present in client cache.
@@ -28,8 +28,8 @@ JSL = Grammar ({o, i, tokens}) -> [
                         return cached if cached?
 
                       switch type
-                        when 'O' then obj = new JObject id:id, creator:(new JStub creator)
-                        when 'A' then obj = new JArray  id:id, creator:(new JStub creator)
+                        when 'O' then obj = new JObject id:id, creator:(new JStub {id:creator,type})
+                        when 'A' then obj = new JArray  id:id, creator:(new JStub {id:creator,type})
                         when 'U' then obj = new JUser   name:id
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
                       obj.data[key] = value for {key, value} in items

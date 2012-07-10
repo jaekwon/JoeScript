@@ -26,7 +26,7 @@ foo = {}
 foo.bar = 1
 foo.baz = ->
 ''+foo
-""",                                      '{O|#@ \"bar\":1,\"baz\":<#>}', -> js=@it.jsValue(@thread); equal js.bar, 1
+""",                                      '{O|#@ \"bar\":1,\"baz\":<F|#>}', -> js=@it.jsValue(@thread); equal js.bar, 1
 test """
 foo = {}
 foo.bar = 1

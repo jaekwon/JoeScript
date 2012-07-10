@@ -26,7 +26,7 @@ setLast._name = "setLast"
 @HELPERS = {isInteger, isObject, setLast}
 
 JStub = @JStub = clazz 'JStub', ->
-  init: (@id) ->
+  init: ({@id, @type}) ->
     assert.ok @id?, "Stub wants id"
   jsValue: ($, $$) ->
     cached1 = $$[@id]
@@ -300,7 +300,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok node instanceof joe.Block, "Expected Block at root node, but got #{node?.constructor?.name}"
     assert.ok node.lines.length is 1 and node.lines[0] instanceof joe.Func, "Expected one Func"
     return @func=node.lines[0]
-  __str__: ($) -> "<##{@id}>"
+  __str__: ($) -> "<F|##{@id}>"
   __repr__: ($) ->
     dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
     if dataPart.length > 0

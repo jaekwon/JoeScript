@@ -27,7 +27,7 @@ getOrStub = (id) ->
   if cached=OBJECTS[id]
     return cached
   else
-    return new JStub id
+    return new JStub {id}
 
 OBJECTS[value.id] = value for key, value of GLOBALS when value instanceof JObject
 

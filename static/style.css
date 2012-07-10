@@ -14,7 +14,7 @@ span.cm-comment,    span.comment    { color: #668ee2; }
 span.cm-atom,       span.atom       { color: #F59BF0; }
 span.cm-number,     span.number     { color: #F59BF0; }
 span.cm-attribute,  span.attribute  { color: #8da6ce; }
-span.cm-keyword,    span.keyword,   { color: #ffd500; }
+span.cm-keyword,    span.keyword    { color: #ffd500; }
 span.cm-string,     span.string     { color: #00cc00; }
 span.cm-meta,       span.meta       { color: #7678e2; }
 span.cm-tag,        span.tag        { color: #99b2ff; }
@@ -26,7 +26,7 @@ span.cm-error,      span.error      { color: #e6312a; }
 span.cm-bracket,    span.bracket    { color: #8da6ce; }
 span.cm-builtin,    span.builtin    { color: #ff9e59; }
 span.cm-special,    span.special    { color: #00cccc; }
-span.cm-link,       span.link       { color: #F59BF0; }
+span.cm-link,       span.link, a    { color: #F59BF0; }
 span.cm-punctuation, span.punctuation { color: #8da6ce; }
 span.cm-operator,   span.operator   { color: #00cccc; }
 
@@ -46,9 +46,10 @@ span.cm-operator,   span.operator   { color: #00cccc; }
 .array, .object {
 }
 .highlight {
-  border: 1px solid yellow !important;
+  background-color: #2A395B !important;
 }
 .debug {
+  display: none; /* debug */
   opacity: 0.4;
   margin: 0 1em;
 }
@@ -56,7 +57,7 @@ span.cm-operator,   span.operator   { color: #00cccc; }
   float: right;
 }
 textarea {
-  background: #0a001f;
+  background: transparent;
   color: #f8f8f8;
   font-family: 'Anonymous Pro', monospace;
   font-size: 16px;
