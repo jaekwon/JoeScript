@@ -29,7 +29,7 @@ $(document).ready ->
   {
     JKernel, JThread
     NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-    GLOBALS:{CACHE, GOD, WORLD, ANON}
+    GLOBALS:{GOD, WORLD, ANON}
     HELPERS:{isInteger,isObject,setLast}
   } = require 'joeson/src/interpreter'
   JSL = require 'joeson/src/parsers/jsl'
@@ -38,7 +38,7 @@ $(document).ready ->
   {Editor} = require 'joeson/src/client/editor'
 
   # TODO reconsider.
-  cache = window.cache = CACHE
+  cache = window.cache = {} # Can't use CACHE because that'll overwrite client state.
 
   # connect to server
   socket = window.socket = io.connect()
