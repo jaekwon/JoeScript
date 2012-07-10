@@ -81,7 +81,7 @@ JObject::extend
           # @data.text = el.val() # ??
           # HACK
           socket.emit 'input', {id:@id, text:el.val()}
-          console.log el.val()
+          #console.log el.val()
     else
       #debug "JObject::dom_draw for #{@}"
       items = {}
@@ -104,8 +104,8 @@ JObject::extend
         when 'set'
           {key, value} = event
           assert.ok key is 'text', "Unexpected event 'set' for input with key: #{key}"
-          console.log event
-          el.val(event.value)
+          #console.log event
+          el.val(event.value).trigger('keyup')
         else
           throw new Error "Unexpected event type #{event.type} for input"
     else
@@ -176,3 +176,7 @@ clazz.extend String,
 clazz.extend Number,
   dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'number', text:@
+
+clazz.extend Boolean,
+  dom_draw: ($$) ->
+    $$.newEl tag:'span', cls:'boolean', text:@

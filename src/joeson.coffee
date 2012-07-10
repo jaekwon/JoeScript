@@ -695,7 +695,7 @@ OLine = clazz 'OLine', Line, ->
   # Helper for declaring tokens
   tokens: (tokens...) ->
     cb = tokens.pop() if typeof tokens[tokens.length-1] is 'function'
-    regexAll = Regex("[ ]*(#{tokens.join('|')})[^a-zA-Z\\$_0-9]")
+    regexAll = Regex("[ ]*(#{tokens.join('|')})([^a-zA-Z\\$_0-9]|$)")
     for token in tokens
       name = '_'+token.toUpperCase()
       # HACK: temporarily halt trace

@@ -569,7 +569,7 @@ resetIndent = (ws, $) ->
     # rest
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", (it) -> Number it
     o SYMBOL:       " !_KEYWORD WORD "
-    o BOOLEAN:      " _TRUE | _FALSE ", (it) -> it is 'true'
+    o BOOLEAN:      " _TRUE | _FALSE | _YES | _NO | _SI ", (it) -> it in ['true', 'yes', 'si']
     o TYPEOF: [
       o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make Invocation
       o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
@@ -629,7 +629,7 @@ resetIndent = (ws, $) ->
   i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", make Word
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue',
-                      'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'by',
+                      'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'yes', 'no', 'si', 'by',
                       'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally')
   i _BTICK:         " '`'         "
   i _QUOTE:         " '\\''       "
