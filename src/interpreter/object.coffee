@@ -56,7 +56,7 @@ JObject = @JObject = clazz 'JObject', ->
     assert.ok listener.id?, "Listener needs an id"
     assert.ok listener.on?, "Listener needs an 'on' method"
     listeners = @listeners ?= {}
-    assert.ok not listeners[listener.id]?, "Listener with id #{listener.id} already registered"
+    assert.ok not listeners[listener.id]?, "Listener with id #{listener.id} already registered for ##{@id}"
     listeners[listener.id] = listener
   emit: (event) ->
     return unless @listeners?

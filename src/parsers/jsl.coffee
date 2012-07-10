@@ -14,17 +14,27 @@ JSL = Grammar ({o, i, tokens}) -> [
     o STRING:       " '\"' (!'\"' &:(ESCSTR | .))* '\"'  ", (it) -> it.join ''
     o OBJ: [
       o             " '<#' id:ID '>' ", ({id}, $) ->
-                      cached = $.env.cache[id]
-                      return cached if cached?
+                      # Check client cache for existing JObject instance.
+                      if $.env.cache
+                        cached = $.env.cache[id]
+                        return cached if cached?
                       return JStub id
       o             " '{' type:[OAU] '|#' id:ID '@' creator:ID ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creator,items}, $) ->
+                      # NOTE: Even though the full object was given,
+                      # it's possible that object is already present in client cache.
+                      # This is because currently there is no server tracking of the client cache state.
+                      if $.env.cache
+                        cached = $.env.cache[id]
+                        return cached if cached?
+
                       switch type
                         when 'O' then obj = new JObject id:id, creator:(new JStub creator)
                         when 'A' then obj = new JArray  id:id, creator:(new JStub creator)
                         when 'U' then obj = new JUser   name:id
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
-                      $.env.cache[id] = obj if id?
                       obj.data[key] = value for {key, value} in items
+                      $.env.cache?[id] = obj if id?
+                      $.env.newCallback?(obj)
                       return obj
     ]
     o BOOLEAN:      " 'true' | 'false' ", (it) -> it is 'true'
@@ -38,5 +48,4 @@ JSL = Grammar ({o, i, tokens}) -> [
   i '.':          " /[\\s\\S]/ "
 ]
 
-@parse = (cache, str, opts) ->
-  JSL.parse str, env:{cache}, debug:opts?.debug
+@parse = JSL.parse

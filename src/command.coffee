@@ -125,7 +125,7 @@ compileScript = (file, input, base) ->
   try
     t = task = {file, input, options}
     JoeScript.emit 'compile', task
-    if o.nodes or o.debug then printLine JoeScript.parse(t.input, debug:o.debug).serialize()
+    if o.nodes or o.debug then printLine JoeScript.parse(t.input, env:o).serialize()
     else if o.run         then JoeScript.run t.input, t.options
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input

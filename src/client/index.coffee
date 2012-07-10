@@ -15,6 +15,7 @@ $(document).ready ->
 
   # load libraries
   {clazz} = require 'cardamom'
+  {inspect} = require 'util'
   {randid} = require 'joeson/lib/helpers'
   {toHTML} = require 'joeson/src/parsers/ansi'
   {
@@ -28,38 +29,55 @@ $(document).ready ->
   {Editor} = require 'joeson/src/client/editor'
 
   # TODO reconsider. some global object cache
-  cache = {}
+  cache = window.cache = {}
 
   # connect to server
   socket = window.socket = io.connect()
 
+  # catch uncaught errors
+  _err_ = (fn) ->
+    wrapped = ->
+      try
+        fn.apply this, arguments
+      catch err
+        fatal "Uncaught error in socket callback: #{err.stack ? err}"
+        console.log "Uncaught error in socket callback: #{err.stack ? err}"
+
   # (re)initialize the output.
-  socket.on 'output', (outputStr) ->
+  socket.on 'output', _err_ (outputStr) ->
     console.log "received output"
 
     try
-      output = JSL.parse cache, outputStr
+      output = JSL.parse outputStr, env:{cache}
     catch err
-      error "Error in parsing outputStr '#{outputStr}':\n#{err.stack ? err}"
+      fatal "Error in parsing outputStr '#{outputStr}':\n#{err.stack ? err}"
       return
 
     # Attach output JView
-    $('#output').empty().append output.newView().rootEl
+    try
+      window.outputView = output.newView()
+      $('#output').empty().append outputView.rootEl
+    catch err
+      fatal "Error in attaching output view to DOM\n#{err.stack ? err}"
 
     # Attach listener for events
-    socket.on 'event', (eventJSON) ->
+    socket.on 'event', _err_ (eventJSON) ->
       obj = cache[eventJSON.targetId]
+      info "new event #{inspect eventJSON} for obj ##{obj.id}"
       if not obj?
         fatal "Event for unknown object ##{eventJSON.targetId}."
         return
       for key, value of eventJSON
         unless key in ['type', 'key', 'targetId']
           try
-            eventJSON[key] = JSL.parse cache, value
+            eventJSON[key] = valueObj = JSL.parse value, env:{cache} #, newCallback:(newObj) -> newObj.addListener outputView}
           catch err
             fatal "Error in parsing event item '#{key}':#{value} :\n#{err.stack ? err}"
             # XXX not sure what should go here.
-      obj.emit eventJSON
+      try
+        obj.emit eventJSON
+      catch err
+        fatal "Error while emitting event to object ##{obj.id}:\n#{err.stack ? err}"
 
     # Attach an editor now that output is available.
     unless window.editor?

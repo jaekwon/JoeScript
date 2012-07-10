@@ -13,7 +13,7 @@ Editor = @Editor = clazz 'Editor', ->
     assert.ok target.length is 1, "Editor target el not unique"
     # Setup CodeMirror instance.
     mirror = CodeMirror target[0],
-      value:        '# Just enter CoffeeScript here and press ctrl-Enter (or cmd-Enter) to run it.'
+      value:        ''
       mode:         'coffeescript'
       theme:        'joeson'
       keyMap:       'sembly'
@@ -54,7 +54,6 @@ Editor = @Editor = clazz 'Editor', ->
     return accum.join ''
 
   onSave$: ->
-    console.log "!"
     value = @mirror.sanitize()
     return if value.trim().length is 0
     @callback? value

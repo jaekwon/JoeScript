@@ -32,14 +32,28 @@ span.cm-operator,   span.operator   { color: #00cccc; }
 
 /* formatting */
 .item {
-  margin-right: 0.5em;
+  border-bottom: 1px solid #515B7E;
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+}
+.item:last-child {
+  margin-bottom: 0;
+}
+.item .item {
+  border: none;
+  padding-bottom: 0;
 }
 .array, .object {
-  border: 1px solid white;
-  padding: 0.5em;
 }
 .highlight {
   border: 1px solid yellow !important;
+}
+.debug {
+  opacity: 0.4;
+  margin: 0 1em;
+}
+.right {
+  float: right;
 }
 
 /* this isnt perfect, esp not for long keys */
@@ -47,9 +61,15 @@ div.object {
   position: relative;
   padding-left: 7em;
 }
+div.array {
+  position: relative;
+  padding-left: 2em;
+}
+div.object > div.item {
+}
 div.object > div.item > span.key {
   position: absolute;
-  left: 5px;
+  left: 0px;
 }
 
 span.string {

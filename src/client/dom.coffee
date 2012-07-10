@@ -71,7 +71,9 @@ JObject::extend
     #debug "JObject::dom_draw for #{@}"
     items = {}
     $$.newEl id:@id, tag:'div', cls:@domClass, data:{items}, (el) =>
+      debug "Adding JView listener to ##{@id}"
       @addListener $$
+      el.append $$.newEl tag:'span', cls:'debug right', text:''+@id # debug
       for key, value of @data
         el.append items[key]=@dom_drawItem $$, key, value
   dom_drawItem: ($$, key, value) ->
@@ -98,10 +100,18 @@ JObject::extend
 JArray::extend
   domClass: 'object array'
   dom_on: ($$, el, event) ->
-    items = el.data('items')
+    items = el.data('items') # item els
     switch event.type
       when 'set', 'push'
         {key, value} = event
+        # hack to remove DOM items when array is truncated
+        if key is 'length'
+          newLength = value
+          for itemKey, itemEl of items
+            if itemKey >= newLength
+              itemEl.remove()
+          # no need to display the length
+          return
         itemEl = @dom_drawItem $$, key, value
         if existingEl=items[key]
           #debug "JObject::dom_on found existing item el for #{key}"

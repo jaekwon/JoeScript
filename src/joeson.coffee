@@ -559,19 +559,19 @@ _loopStack = [] # trace stack
         node.prepare()
 
   # MAIN GRAMMAR PARSE FUNCTION
-  parse$: (code, {returnContext,env,debug}={}) ->
+  parse$: (code, {returnContext,env}={}) ->
     returnContext ?= no
     assert.ok code, "Parser wants code"
     code = CodeStream code if code not instanceof CodeStream
     $ = ParseContext code:code, grammar:this, env:env
 
     # janky
-    if debug
+    if env?.debug
       oldTrace = Object.clone trace
       trace.stack = yes
     $.result = @rank.parse $
     $.result?.code = code
-    if debug
+    if env?.debug
       trace = oldTrace
 
     if $.code.pos isnt $.code.text.length
