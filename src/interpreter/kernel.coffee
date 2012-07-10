@@ -39,7 +39,7 @@ JThread = @JThread = clazz 'JThread', ->
   # scope:  Immediate local lexical scope object
   init: ({@kernel, @start, @user, @scope, @callback}) ->
     assert.ok @kernel instanceof JKernel,  "JThread wants kernel"
-    assert.ok @start  instanceof joe.Node, "JThread wants function"
+    assert.ok @start  instanceof joe.Node, "JThread wants Joescript node"
     assert.ok @user   instanceof JObject,  "JThread wants user"
     @scope ?= new JObject creator:@user
     assert.ok @scope  instanceof JObject,  "JThread scope not JObject"

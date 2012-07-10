@@ -162,18 +162,22 @@ JArray::extend
 JStub::extend
   domClass: 'stub'
   dom_draw: ($$) ->
-    $$.newLink id:@id, cls:'link', text:"[link:##{@id}]", (el) =>
-      console.log "STUB"
-      el.hover (e) ->
-        console.log "STUB HOVER"
-
+    switch @type
+      when 'F'
+        $$.newLink id:@id, cls:'link', text:"[closure:##{@id}]", (el) =>
+          el.click (e) =>
+            socket.emit 'invoke', {id:@id}
+            no
+      else
+        $$.newLink id:@id, cls:'link', text:"[link:##{@id}]", (el) =>
+        
+# Never rendered on the client yet, since the client never instantiates JBoundFunc objects.
 JBoundFunc::extend
   domClass: 'boundfunc'
   dom_draw: ($$) ->
     $$.newLink id:@id, cls:'function', text:"[function:##{@id}]", (el) =>
-      console.log "FUNC"
       el.hover (e) ->
-        console.log "BFUNC HOBER"
+        console.log "JBoundFunc hover"
 
 JSingleton::extend
   dom_draw: ($$) ->

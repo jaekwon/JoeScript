@@ -56,6 +56,7 @@ io = require('socket.io').listen app
 app.listen 8080
 
 
+{NODES:joe} = require 'joeson/src/joescript'
 {
   JKernel, JThread
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
@@ -91,6 +92,28 @@ io.sockets.on 'connection', (socket) ->
     info "received input #{inspect data}"
     obj = CACHE[data.id]
     obj.set 'text', data.text
+
+  # Invoke
+  socket.on 'invoke', (data) ->
+    info "received invokation #{inspect data}"
+    boundFunc = CACHE[data.id]
+    assert.ok boundFunc instanceof JBoundFunc, "Expected JBoundFunc to be invoked but got #{boundFunc} #{boundFunc?.constructor?.name}"
+
+    KERNEL.run
+      user: ANON
+      code: new joe.Invocation func:boundFunc # eww did you see that? maybe consider adding i9ns stead of hacking the AST. HACK.
+      scope: scope
+      callback: ->
+        switch @state
+          when 'return'
+            #outputItem.__set__ @, 'result', @last
+            info "return: #{@last.__str__(@)}"
+          when 'error'
+            @printErrorStack()
+            # TODO push error to output
+          else
+            throw new Error "Unexpected state #{@state} during kernel callback"
+        @cleanup()
 
   # Run
   socket.on 'run', (codeStr) ->

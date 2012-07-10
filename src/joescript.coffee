@@ -147,7 +147,7 @@ Invocation = clazz 'Invocation', Node, ->
     params:     {type:[type:Item,isValue:yes]}
   init: ({@func, @params}) ->
     @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
-  toString: -> "#{@func}(#{@params})"
+  toString: -> "#{@func}(#{@params ? ''})"
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...

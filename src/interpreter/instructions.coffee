@@ -249,6 +249,7 @@ joe.Invocation::extend
     # interpret the func synchronously.
     i9n.func = joe.Invocation::interpretParams
     i9n.invokedFunctionRepr = ''+@func
+    return @func if @func instanceof JBoundFunc or @func instanceof Function # HACK (?) data and code getting mixed up.
     # setSource is a hack/trick to set i9n.source to the
     # 'obj' part of an index, if @func is indeed an object.
     # That way we can bind 'this' correctly.
@@ -260,7 +261,7 @@ joe.Invocation::extend
     i9n.invokedFunction = func
     # interpret the parameters
     i9n.paramValues = []
-    for param, i in @params
+    for param, i in @params ? []
       {value} = param
       $.push this:i9n, func:setLast, key:'paramValues', index:i
       $.push this:value, func:value.interpret
