@@ -19,7 +19,7 @@ JSL = Grammar ({o, i, tokens}) -> [
                         cached = $.env.cache[id]
                         return cached if cached?
                       return JStub id
-      o             " '{' type:[OAU] '|#' id:ID '@' creator:ID ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creator,items}, $) ->
+      o             " '{' type:[OAU] '|#' id:ID ('@' creator:ID)? ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creator,items}, $) ->
                       # NOTE: Even though the full object was given,
                       # it's possible that object is already present in client cache.
                       # This is because currently there is no server tracking of the client cache state.
