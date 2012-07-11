@@ -45,7 +45,7 @@ c.use (req, res) ->
 <script src='/s/jquery-1.7.2.js'></script>
 <script src='/s/boot.js'></script>
 <body>
-  hello
+  hello<a href="/s/index.html" style="text-decoration: none; color:white; ">!</a>
 </body>
 </html>
 """
@@ -53,7 +53,7 @@ c.use (req, res) ->
 # server app
 app = http.createServer(c)
 io = require('socket.io').listen app
-app.listen 8080
+app.listen 80
 
 
 {NODES:joe} = require 'joeson/src/joescript'
