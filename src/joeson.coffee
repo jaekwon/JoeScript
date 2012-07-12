@@ -239,11 +239,14 @@ _loopStack = [] # trace stack
         # syntax proposal:
         # result = ( it <- (it={})[@label] = result )
         result = ( (it={})[@label] = result; it )
+      result = @cb.call this, result, $ if @cb?
       # if result is an object, set the line/startpos on it
       if result instanceof Object
-        resultPos = $.stackPeek().pos
-        result._origin = line:$.code.posToLine(resultPos), col:$.code.posToLine(resultPos)
-      result = @cb.call this, result, $ if @cb?
+        start = $.stackPeek().pos
+        end = $.code.pos
+        result._origin =
+          start: line:$.code.posToLine(start), col:$.code.posToLine(start)
+          end: line:$.code.posToLine(end), col:$.code.posToLine(end)
     return result
 
   @$wrap = (fn) ->

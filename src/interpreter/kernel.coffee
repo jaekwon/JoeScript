@@ -24,7 +24,7 @@ JStackItem = @JStackItem = clazz 'JStackItem', ->
     declaringFunc = @node.parent
     declaringFunc = declaringFunc.parent while declaringFunc? and declaringFunc not instanceof joe.Func
     @declaringFunc = declaringFunc
-  toString: -> "'#{@node?.toJavascript?()}' (source:#{@declaringFunc}, line:#{@node._origin?.line}, col:#{@node._origin?.col})"
+  toString: -> "'#{@node?.toJavascript?()}' (source:#{@declaringFunc}, line:#{@node._origin?.start.line}, col:#{@node._origin?.start.col})"
 
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process

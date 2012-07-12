@@ -16,6 +16,7 @@ assert = require 'assert'
 
   posToLine: (pos) -> bisect_right(@lineStarts, pos) - 1
   posToCol:  (pos) -> pos - @lineStarts[@posToLine(pos)]
+  posToCursor: (pos) -> line = bisect_right(@lineStarts, pos) - 1; {line, pos:(pos - @lineStarts[line])}
   line$: get: -> @posToLine(@pos)
   col$:  get: -> @posToCol(@pos)
 
