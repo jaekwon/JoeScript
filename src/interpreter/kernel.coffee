@@ -65,9 +65,7 @@ JThread = @JThread = clazz 'JThread', ->
     @printStack() if trace.debug
     throw new Error "Last i9n.func undefined!" if not func?
     throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
-    #key = "#{that.constructor.name}.#{func._name}"
-    #timeit key, =>
-    #  @last = func.call that, this, i9n, @last
+    # Call the topmost instruction
     @last = func.call that ? i9n, this, i9n, @last
     switch @state
       when null
@@ -101,11 +99,6 @@ JThread = @JThread = clazz 'JThread', ->
             return @state=null
       when 'wait'
         info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace.debug
-        existing = @kernel.waitlist[waitKey]
-        if existing?
-          @kernel.waitlist[waitKey].push thread
-        else
-          @kernel.waitlist[waitKey] = [thread]
         return 'wait'
       else
         throw new Error "Unexpected state #{@state}"
@@ -137,14 +130,13 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    @waitKey = waitKey
+    @waitKey = waitKey ? randid()
     @state = 'wait'
     return
 
-  awaken: (waitKey) ->
-    throw new Error "TODO"
-    # set @last
-    # reanimate from waitlist
+  resume: ->
+    @kernel.resumeForKey @waitKey
+    return
 
   exit: ->
     if @callback?
@@ -195,6 +187,13 @@ JThread = @JThread = clazz 'JThread', ->
       info "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{valueStr}"
     @printScope scope.data.__proto__, lvl+1 if scope.data.__proto__?
 
+  # Convenience
+  pushValue: (thing) ->
+    i9n = this:thing, func:thing.interpret
+    @push i9n
+    return i9n
+
+  # DEPRECATED
   # for convenience, jml is available on a thread.
   jml: (args...) ->
     attributes = undefined
@@ -213,9 +212,10 @@ JThread = @JThread = clazz 'JThread', ->
 
   init: ({@cache}={}) ->
     @threads = []
-    @cache ?= {}       # TODO should be weak etc.
+    @cache ?= {}      # TODO should be weak etc.
     @index = 0
     @ticker = 0
+    @waitlists = {}   # waitKey -> [thread1,thread2,...]
 
   # Start processing another thread
   # user:     The same user object as returned by login.
@@ -261,8 +261,17 @@ JThread = @JThread = clazz 'JThread', ->
       # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
       for i in [0..20]
+        # Run thread one step
         exitCode = thread.runStep()
+        # Pop the thread off the run list
         if exitCode?
+          if exitCode is 'wait'
+            # Stash it into a waitlist to resume later
+            existing = @waitlists[thread.waitKey]
+            if existing?
+              @waitlists[thread.waitKey].push thread
+            else
+              @waitlists[thread.waitKey] = [thread]
           @threads[@index..@index] = [] # splice out
           @index = @index % @threads.length # oops, sometimes NaN
           process.nextTick @runloop if @threads.length > 0
@@ -278,3 +287,10 @@ JThread = @JThread = clazz 'JThread', ->
       process.nextTick @runloop if @threads.length > 0
       thread.exit()
       return
+
+  resumeForKey: (waitKey) ->
+    assert.ok waitKey?, "JKernel::resumeForKey wants waitKey"
+    waitlist = @waitlists[waitKey]
+    return if not waitlist?.length # was already resumed some other how.
+    for thread in waitlist
+      @threads.push thread

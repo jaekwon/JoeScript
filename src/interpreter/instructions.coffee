@@ -11,9 +11,20 @@ assert = require 'assert'
 } = require 'joeson/src/joescript'
 {
   NODES: {JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc}
-  HELPERS: {isInteger, isObject, setLast}
+  HELPERS: {isInteger, isObject}
 } = require 'joeson/src/interpreter/object'
 
+# A simple instruction to store the last return value into @[key][index?]
+storeLast = ($, i9n, last) ->
+  # An Instruction to write last to `this`
+  $.pop()
+  assert.ok i9n.key?, "storeLast requires set key."
+  if i9n.index?
+    @[i9n.key][i9n.index] = last
+  else
+    @[i9n.key] = last
+  return last
+storeLast._name = "storeLast"
 
 # dependencies
 require('joeson/src/translators/scope').install()
@@ -42,46 +53,44 @@ joe.Block::extend
     $.scope.__set__ $, variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
     if (length=@lines.length) > 1
       $.push this:@, func:joe.Block::interpretLoop, length:length, idx:0
-    firstLine = @lines[0]
-    $.push this:firstLine, func:firstLine.interpret
+    $.pushValue @lines[0]
     return
   interpretLoop: ($, i9n, last) ->
     assert.ok typeof i9n.idx is 'number'
     if i9n.idx is i9n.length-2
       $.pop() # pop this
-    nextLine = @lines[++i9n.idx]
-    $.push this:nextLine, func:nextLine.interpret
+    $.pushValue @lines[++i9n.idx]
     return
 
 joe.If::extend
   interpret: ($) ->
     $.pop()
     $.push this:this,  func:joe.If::interpret2
-    $.push this:@cond, func:@cond.interpret
+    $.pushValue @cond
     return
   interpret2: ($, i9n, cond) ->
     $.pop()
     if cond.__isTrue__?() or cond
-      $.push this:@block, func:@block.interpret
+      $.pushValue @block
     else if @else
-      $.push this:@else, func:@else.interpret
+      $.pushValue @else
     return
 
 joe.Assign::extend
   interpret: ($, i9n) ->
     assert.ok not @op?, "Dunno how to interpret Assign with @op #{@op}"
     i9n.func = joe.Assign::interpret2
-    $.push this:@value,  func:@value.interpret
+    $.pushValue @value
     if @target instanceof joe.Index
       {obj:targetObj, type, key} = @target
-      $.push this:i9n, func:setLast, key:'targetObj'
-      $.push this:targetObj, func:targetObj.interpret
+      $.push this:i9n, func:storeLast, key:'targetObj'
+      $.pushValue targetObj
       if type is '.'
         assert.ok key instanceof joe.Word, "Unexpected key of type #{key?.constructor.name}"
         i9n.key = key
       else
-        $.push this:i9n, func:setLast, key:'key'
-        $.push this:key, func:key.interpret
+        $.push this:i9n, func:storeLast, key:'key'
+        $.pushValue key
     return
   interpret2: ($, i9n, value) ->
     $.pop()
@@ -117,12 +126,12 @@ joe.Obj::extend
       if key instanceof joe.Word
         i9n.key = key
       else if key instanceof joe.Str
-        $.push this:i9n, func:setLast, key:'key'
-        $.push this:key, func:key.interpret
+        $.push this:i9n, func:storeLast, key:'key'
+        $.pushValue key
       else throw new Error "Unexpected object key of type #{key?.constructor.name}"
       # setup value
-      $.push this:i9n, func:setLast, key:'value'
-      $.push this:value, func:value.interpret
+      $.push this:i9n, func:storeLast, key:'value'
+      $.pushValue value
       i9n.idx++
       return
     else
@@ -150,7 +159,7 @@ joe.Arr::extend
     if i9n.idx < i9n.length
       value = @items[i9n.idx].value
       # setup value
-      $.push this:value, func:value.interpret
+      $.pushValue value
       i9n.idx++
       return
     else
@@ -161,21 +170,21 @@ joe.Operation::extend
   interpret: ($, i9n) ->
     i9n.func = joe.Operation::interpret2
     if @left?
-      $.push this:i9n, func:setLast, key:'left'
-      $.push this:@left, func:@left.interpret
+      $.push this:i9n, func:storeLast, key:'left'
+      $.pushValue @left
       if @left instanceof joe.Index and @op in ['--', '++']
         {obj:targetObj, key} = @left
-        $.push this:i9n, func:setLast, key:'targetObj'
-        $.push this:targetObj, func:targetObj.interpret
+        $.push this:i9n, func:storeLast, key:'targetObj'
+        $.pushValue targetObj
         if key instanceof joe.Word
           i9n.key = key
         else if key instanceof joe.Str
-          $.push this:i9n, func:setLast, key:'key'
-          $.push this:key, func:key.interpret
+          $.push this:i9n, func:storeLast, key:'key'
+          $.pushValue key
         else throw new Error "Unexpected object key of type #{key?.constructor.name}"
     if @right?
-      $.push this:i9n, func:setLast, key:'right'
-      $.push this:@right, func:@right.interpret
+      $.push this:i9n, func:storeLast, key:'right'
+      $.pushValue @right
     return
   interpret2: ($, i9n) ->
     $.pop()
@@ -225,10 +234,10 @@ joe.Undefined::extend
 joe.Index::extend
   interpret: ($, i9n) ->
     i9n.func = joe.Index::interpretTarget
-    $.push this:@obj, func:@obj.interpret
+    $.pushValue @obj
     return
   interpretTarget: ($, i9n, obj) ->
-    i9n.setSource.source = obj if i9n.setSource? # for invocations.
+    i9n.setSource?.source = obj # for invocations.
     if @type is '.'
       assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
       $.pop()
@@ -236,7 +245,7 @@ joe.Index::extend
     else
       i9n.obj = obj
       i9n.func = joe.Index::interpretKey
-      $.push this:@key, func:@key.interpret
+      $.pushValue @key
       return
   interpretKey: ($, i9n, key) ->
     $.pop()
@@ -254,10 +263,10 @@ joe.Invocation::extend
     i9n.func = joe.Invocation::interpretParams
     i9n.invokedFunctionRepr = ''+@func
     return @func if @func instanceof JBoundFunc or @func instanceof Function # HACK (?) data and code getting mixed up.
-    # setSource is a hack/trick to set i9n.source to the
+    # setSource is a HACK/trick to set i9n.source to the
     # 'obj' part of an index, if @func is indeed an object.
     # That way we can bind 'this' correctly.
-    $.push this:@func, func:@func.interpret, setSource:i9n
+    $.pushValue(@func).setSource = i9n
     return
   interpretParams: ($, i9n, func) ->
     unless func instanceof JBoundFunc or func instanceof Function
@@ -267,8 +276,8 @@ joe.Invocation::extend
     i9n.paramValues = []
     for param, i in @params ? []
       {value} = param
-      $.push this:i9n, func:setLast, key:'paramValues', index:i
-      $.push this:value, func:value.interpret
+      $.push this:i9n, func:storeLast, key:'paramValues', index:i
+      $.pushValue value
     i9n.func = joe.Invocation::interpretCall
     return
   interpretCall: ($, i9n) ->
@@ -321,7 +330,7 @@ joe.Statement::extend
   interpret: ($, i9n) ->
     if @expr?
       i9n.func = joe.Statement::interpretResult
-      $.push this:@expr, func:@expr.interpret
+      $.pushValue @expr
       return
     else
       return $.return JUndefined
@@ -337,7 +346,7 @@ joe.JSForC::extend
   interpret: ($, i9n) ->
     if @cond?
       i9n.func = joe.JSForC::interpretConditionalLoop
-      $.push this:@cond,  func:@cond.interpret
+      $.pushValue @cond
     else
       i9n.func = joe.JSForC::interpretUnconditionalLoop
     if @setup?
@@ -345,7 +354,7 @@ joe.JSForC::extend
     return
   interpretConditionalLoop: ($, i9n, cond) ->
     if cond.__bool__()
-      $.push this:@cond,    func:@cond.interpret
+      $.pushValue @cond
       $.push this:@counter, func:@counter.interpret
       $.push this:@block,   func:@block.interpret
     else
@@ -360,14 +369,14 @@ joe.Range::extend
   interpret: ($, i9n) ->
     i9n.func = joe.Range::interpret2
     if @start?
-      $.push this:i9n, func:setLast, key:'start'
-      $.push this:@start, func:@start.interpret
+      $.push this:i9n, func:storeLast, key:'start'
+      $.pushValue @start
     if @end?
-      $.push this:i9n, func:setLast, key:'end'
-      $.push this:@end, func:@end.interpret
+      $.push this:i9n, func:storeLast, key:'end'
+      $.pushValue @end
     if @by?
-      $.push this:i9n, func:setLast, key:'by'
-      $.push this:@by, func:@by.interpret
+      $.push this:i9n, func:storeLast, key:'by'
+      $.pushValue @by
     return
   interpret2: ($, i9n) ->
     # TODO Make range an iterator
@@ -383,6 +392,11 @@ joe.Range::extend
       else
         array = [i9n.start...i9n.end]
     return JArray creator:$.user, data:array
+
+clazz.extend JObject,
+  interpret: ($) ->
+    $.pop()
+    return @
     
 clazz.extend String,
   interpret: ($) ->

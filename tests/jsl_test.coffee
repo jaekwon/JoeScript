@@ -43,9 +43,6 @@ runNextTest = ->
   try
     kernel.run
       code:code
-      stdin:undefined
-      stdout: (msg) -> process.stdout.write(msg)
-      stderr: (msg) -> process.stderr.write(msg)
       callback: ->
         try
           if @error?

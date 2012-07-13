@@ -13,17 +13,7 @@ assert = require 'assert'
 # HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0
 isObject =  (o) -> o instanceof JObject or o instanceof JStub
-setLast = ($, i9n, last) ->
-  # An Instruction to write last to `this`
-  $.pop()
-  assert.ok i9n.key?, "setLast requires set key."
-  if i9n.index?
-    @[i9n.key][i9n.index] = last
-  else
-    @[i9n.key] = last
-  return last
-setLast._name = "setLast"
-@HELPERS = {isInteger, isObject, setLast}
+@HELPERS = {isInteger, isObject}
 
 JStub = @JStub = clazz 'JStub', ->
   init: ({@id, @type}) ->
@@ -81,7 +71,7 @@ JObject = @JObject = clazz 'JObject', ->
         # TODO then replace stub with value in @data[key] (or @proto)
         # TODO dont forget 'required'.
         console.log "WORKING"
-        return $.wait value.key
+        return $.wait value.id
       else
         return value
     else if @proto?

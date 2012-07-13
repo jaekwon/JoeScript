@@ -53,7 +53,7 @@ c.use (req, res) ->
 # server app
 app = http.createServer(c)
 io = require('socket.io').listen app
-app.listen 80
+app.listen 8080
 
 
 {NODES:joe} = require 'joeson/src/joescript'
@@ -91,7 +91,21 @@ io.sockets.on 'connection', (socket) ->
   socket.on 'input', (data) ->
     info "received input #{inspect data}"
     obj = CACHE[data.id]
-    obj.set 'text', data.text
+    KERNEL.run
+      user: ANON
+      code: new joe.Assign target:(new joe.Index(obj:obj, key:'text')), value:data.text
+      scope: scope
+      callback: ->
+        switch @state
+          when 'return'
+            #outputItem.__set__ @, 'result', @last
+            info "return: #{@last.__str__(@)}"
+          when 'error'
+            @printErrorStack()
+            # TODO push error to output
+          else
+            throw new Error "Unexpected state #{@state} during kernel callback"
+        @cleanup()
 
   # Invoke
   socket.on 'invoke', (data) ->

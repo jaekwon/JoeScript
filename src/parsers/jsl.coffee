@@ -4,7 +4,7 @@
 {
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
-  HELPERS:{isInteger,isObject,setLast}
+  HELPERS:{isInteger,isObject}
 } = require 'joeson/src/interpreter'
 
 

@@ -30,7 +30,7 @@ $(document).ready ->
     JKernel, JThread
     NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
     GLOBALS:{GOD, WORLD, ANON}
-    HELPERS:{isInteger,isObject,setLast}
+    HELPERS:{isInteger,isObject}
   } = require 'joeson/src/interpreter'
   JSL = require 'joeson/src/parsers/jsl'
   require 'joeson/src/client/dom' # DOM plugin

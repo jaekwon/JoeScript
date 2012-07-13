@@ -245,8 +245,8 @@ _loopStack = [] # trace stack
         start = $.stackPeek().pos
         end = $.code.pos
         result._origin =
-          start: line:$.code.posToLine(start), col:$.code.posToLine(start)
-          end: line:$.code.posToLine(end), col:$.code.posToLine(end)
+          start:  line:$.code.posToLine(start), col:$.code.posToLine(start)
+          end:    line:$.code.posToLine(end),   col:$.code.posToLine(end)
     return result
 
   @$wrap = (fn) ->
