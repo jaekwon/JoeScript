@@ -1,4 +1,6 @@
-{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{ clazz,
+  colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
+  collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
@@ -9,13 +11,18 @@ assert = require 'assert'
   NODES:joe
   HELPERS:{isWord,isVariable}
 } = require 'joeson/src/joescript'
+{Node} = require 'joeson/src/node'
 
 # HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0
 isObject =  (o) -> o instanceof JObject or o instanceof JStub
 @HELPERS = {isInteger, isObject}
 
-JStub = @JStub = clazz 'JStub', ->
+# DEFINED AT BOTTOM OF FILE
+RUNTIME = Set([JStub, JObject, JSingleton, JBoundFunc, Number, String, Function, Boolean])
+RUNTIME_FUNC = Set([joe.Func, Function])
+
+JStub = @JStub = clazz 'JStub', Node, ->
   init: ({@id, @type}) ->
     assert.ok @id?, "Stub wants id"
   jsValue: ($, $$) ->
@@ -28,7 +35,11 @@ JStub = @JStub = clazz 'JStub', ->
   toString: ->
     "<##{@id}>"
 
-JObject = @JObject = clazz 'JObject', ->
+JObject = @JObject = clazz 'JObject', Node, ->
+  children:
+    creator:  {type:JUser, required:yes}
+    data:     {type:{value:RUNTIME}}
+    proto:    {type:RUNTIME}
   # data:   An Object
   # acl:    A JArray of JAccessControlItems
   #         NOTE: the acl has its own acl!
@@ -272,6 +283,13 @@ JNaN        = @JNaN       = new Number NaN
 
 # Actually, not always bound to a scope.
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
+  children:
+    creator:  {type:JUser, required:yes}
+    data:     {type:{value:RUNTIME}}
+    proto:    {type:RUNTIME}
+    func:     {type:RUNTIME_FUNC, required:yes}
+    scope:    {type:JObject}
+    
   # func:    The joe.Func node, or a string for lazy parsing.
   # creator: The owner of the process that declared above function.
   # scope:   Runtime scope of process that declares above function.

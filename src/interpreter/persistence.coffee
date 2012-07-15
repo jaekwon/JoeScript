@@ -23,7 +23,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   on: ($, obj, event) ->
     debug "JPersistence::on for event: #{event.type}"
     # Delegate handling to JObject subclass
-    obj.persistence_on @, event
+    obj.persistence_on $, @, event
 
   # Handles adding objects recursively.
   listenOn: (obj) ->
@@ -34,17 +34,58 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
         @listenOn child
 
+  saveJObject$: (jobj) ->
+    assert.ok jobj instanceof JObject, "Dunno how to save anything but a JObject type"
+    assert.ok jobj.id, "JObject needs an id for it to be saved."
+    jobj._saving = yes # skip lock
+
+    @client.hmset jobj.id+':meta',
+      type:jobj.constructor.name,
+      creator:jobj.creator.id
+    , (err, res) ->
+      dataKeys = Object.keys jobj.data
+      async.forEach dataKeys, (key, next) ->
+        value = jobj.data[key]
+        saveJObjectItem jobj, key, value, next
+      , (err) ->
+        delete jobj._saving # skip lock
+        if err? then console.log "ERROR: "+err if err?
+        else cb?()
+
+  saveJObjectItem$: (jobj, key, value, cb) ->
+    # save a JObj value
+    if value instanceof JObject
+      return cb() if value._saving # skip
+      saveJObject value, ->
+        getClient().hset jobj.id, key, 'o:'+value.id, cb
+      return
+    # save a native value
+    switch typeof value
+      when 'string' then value = 's:'+value
+      when 'number' then value = 'n:'+value
+      when 'bool'   then value = 'b:'+value
+      when 'function'
+        assert.ok value.id?, "Cannot persist a native function with no id"
+        value = 'f:'+value.id
+      when 'object'
+        assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
+        assert.ok value.id, "Cannot persist a JObject without id"
+        value = 'o:'+value.id
+      else throw new Error "dunno how to persist value #{value} (#{typeof value})"
+    getClient().hset jobj.id, key, value, cb
+
 JObject::extend
   # Convenience
   persistence_on: ($$, event) ->
     switch event.type
       when 'new'
-        XXX created a new object.
+        $$.saveJObject @
       when 'set', 'update'
         {key, value} = event
         $$.listenOn value if value instanceof JObject
       # when 'delete'
       #   garbage collection routine
+
   # hmm... should JObjects be src/node/Nodes?... probably not
   # XXX refactor out?
   persistence_getChildren: ($$) ->

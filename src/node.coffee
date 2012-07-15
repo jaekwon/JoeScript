@@ -15,7 +15,8 @@ indent = (c) -> Array(c+1).join('  ')
   #   skipUndefined:  (default yes) Skip over undefined or null children
   withChildren: (cb, options) ->
     skipUndefined = options?.skipUndefined ? yes
-    for key, desc of @children||{}
+    return if not @children
+    for key, desc of @children
       value = this[key]
       # value is undefined
       if not value? and not desc.required

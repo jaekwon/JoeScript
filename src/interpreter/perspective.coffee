@@ -57,7 +57,7 @@ JObject::extend
         $$.listenOn value if value instanceof JObject
       # when 'delete'
       #   garbage collection routine
-  # hmm... should JObjects be src/node/Nodes?... probably not
+  # TODO consider refactoring out to JObject, since this is common already to persistence & perspective.
   perspective_getChildren: ->
     children = []
     if @data?
