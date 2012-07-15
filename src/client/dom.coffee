@@ -23,7 +23,7 @@ JView = @JView = clazz 'JView', ->
   # Receives messages from objects here.
   # obj: JObject that emitted event message
   # event: Event object, {type,...}
-  on: (obj, event) ->
+  on: ($, obj, event) ->
     objEl = @els[obj.id]
     debug "JView::on for event: #{event.type}"
     # Delegate handling to JObject subclass

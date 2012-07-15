@@ -48,6 +48,7 @@ JThread = @JThread = clazz 'JThread', ->
     @last = JUndefined # last return value.
     @state = null
     @push this:@start, func:@start.interpret
+    @waitCount = 0
     # if @user is GOD then @will = -> yes # optimization
 
   # Main run loop iteration.
@@ -130,12 +131,13 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    @waitKey = waitKey ? randid()
+    (@kernel.waitLists[waitKey]?=[]).push thread
+    @waitCount++
     @state = 'wait'
     return
 
-  resume: ->
-    @kernel.resumeForKey @waitKey
+  resume: (waitKey) ->
+    @kernel.resumeThreads waitKey
     return
 
   exit: ->
@@ -215,7 +217,7 @@ JThread = @JThread = clazz 'JThread', ->
     @cache ?= {}      # TODO should be weak etc.
     @index = 0
     @ticker = 0
-    @waitlists = {}   # waitKey -> [thread1,thread2,...]
+    @waitLists = {}   # waitKey -> [thread1,thread2,...]
 
   # Start processing another thread
   # user:     The same user object as returned by login.
@@ -256,6 +258,8 @@ JThread = @JThread = clazz 'JThread', ->
   runloop$: ->
     @ticker++
     thread = @threads[@index]
+    thread.state = null
+    thread.waitCount = 0
     debug "tick #{@ticker}. #{@threads.length} threads, try #{thread.id}" if trace.debug
     try
       # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
@@ -265,13 +269,6 @@ JThread = @JThread = clazz 'JThread', ->
         exitCode = thread.runStep()
         # Pop the thread off the run list
         if exitCode?
-          if exitCode is 'wait'
-            # Stash it into a waitlist to resume later
-            existing = @waitlists[thread.waitKey]
-            if existing?
-              @waitlists[thread.waitKey].push thread
-            else
-              @waitlists[thread.waitKey] = [thread]
           @threads[@index..@index] = [] # splice out
           @index = @index % @threads.length # oops, sometimes NaN
           process.nextTick @runloop if @threads.length > 0
@@ -288,9 +285,19 @@ JThread = @JThread = clazz 'JThread', ->
       thread.exit()
       return
 
-  resumeForKey: (waitKey) ->
-    assert.ok waitKey?, "JKernel::resumeForKey wants waitKey"
-    waitlist = @waitlists[waitKey]
-    return if not waitlist?.length # was already resumed some other how.
-    for thread in waitlist
-      @threads.push thread
+  resumeThreads: (waitKey) ->
+    assert.ok waitKey?, "JKernel::resumeThreads wants waitKey"
+    waitList = @waitLists[waitKey]
+    return if not waitList?.length # was already resumed some other how.
+    newWaitList = []
+    for thread in waitList
+      waitCount = --thread.waitCount
+      assert.ok waitCount >= 0, "waitCount shouldn't be negative."
+      if waitCount is 0
+        @threads.push thread
+      else
+        newWaitList.push thread
+    if newWaitList.length
+      @waitLists[waitKey] = newWaitList
+    else
+      delete @waitLists[waitKey]

@@ -71,13 +71,13 @@ $(document).ready ->
 
     # Attach listener for events
     socket.on 'event', _err_ (eventJSON) ->
-      obj = cache[eventJSON.targetId]
+      obj = cache[eventJSON.sourceId]
       info "new event #{inspect eventJSON} for obj ##{obj.id}"
       if not obj?
-        fatal "Event for unknown object ##{eventJSON.targetId}."
+        fatal "Event for unknown object ##{eventJSON.sourceId}."
         return
       for key, value of eventJSON
-        unless key in ['type', 'key', 'targetId']
+        unless key in ['type', 'key', 'sourceId']
           try
             eventJSON[key] = valueObj = JSL.parse value, env:{cache} #, newCallback:(newObj) -> newObj.addListener outputView}
           catch err

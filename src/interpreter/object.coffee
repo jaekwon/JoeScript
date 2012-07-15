@@ -45,17 +45,19 @@ JObject = @JObject = clazz 'JObject', ->
     CACHE[@id] = this
 
   # Event handling
+  # Returns whether listener was added
   addListener: (listener) ->
     assert.ok listener.id?, "Listener needs an id"
     assert.ok listener.on?, "Listener needs an 'on' method"
     listeners = @listeners ?= {}
-    assert.ok not listeners[listener.id]?, "Listener with id #{listener.id} already registered for ##{@id}"
+    return no if listeners[listener.id]?
     listeners[listener.id] = listener
-  emit: (event) ->
+    return yes
+  emit: ($, event) ->
     return unless @listeners?
-    shared = {} # listeners can share state here.
+    event.sourceId = @id
     for id, listener of @listeners
-      listener.on @, event, shared
+      listener.on $, @, event
 
   # Runtime functions
   __get__: ($, key, required=no) ->
@@ -71,7 +73,7 @@ JObject = @JObject = clazz 'JObject', ->
         # TODO then replace stub with value in @data[key] (or @proto)
         # TODO dont forget 'required'.
         console.log "WORKING"
-        return $.wait value.id
+        return $.wait value.id # TODO move waitKey construction to JStub
       else
         return value
     else if @proto?
@@ -93,16 +95,11 @@ JObject = @JObject = clazz 'JObject', ->
   __hasOwn__: ($, key) ->
     $.will('read', this)
     return @data[key]?
-  set: (key, value) -> # HACK
-    assert.ok key=key.__key__?(), "Key couldn't be stringified"
-    @data[key] = value
-    @emit {type:'set',key,value}
-    return
   __set__: ($, key, value) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
     @data[key] = value
-    @emit {type:'set',key,value}
+    @emit $, {type:'set',key,value}
     return
   # an __update__ only happens for scope objects.
   __update__: ($, key, value) ->
@@ -110,14 +107,14 @@ JObject = @JObject = clazz 'JObject', ->
     $.will('write', this)
     if key is '__proto__'
       @proto = value
-      @emit {type:'update',key,value} # TODO more complicated, the chain was updated.
+      @emit $, {type:'update',key,value} # TODO more complicated, the chain was updated.
       return
     else if @data[key]?
       @data[key] = value
-      @emit {type:'update',key,value}
+      @emit $, {type:'update',key,value}
       return
     else if @proto?
-      @emit {type:'update',key,value} # TODO this is wrong... should be asynchronous.
+      @emit $, {type:'update',key,value} # TODO this is wrong... should be asynchronous.
       if @proto instanceof JStub
         $.push func:($, i9n, proto) ->
           $.pop()
@@ -185,11 +182,11 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     $.will('write', this)
     if isInteger key
       @data[key] = value
-      @emit {type:'set',key,value}
+      @emit $, {type:'set',key,value}
       return
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     @data[key] = value
-    @emit {type:'set',key,value}
+    @emit $, {type:'set',key,value}
     return
   __keys__: ($) ->
     $.will('read', this)
@@ -225,7 +222,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   push: ($, [value]) ->
     Array.prototype.push.call @data, value
     # also emit the key, to mitigate syncrony issues
-    @emit {type:'push',key:@data.length-1, value}
+    @emit $, {type:'push',key:@data.length-1, value}
     return JUndefined
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->

@@ -14,42 +14,38 @@ assert = require 'assert'
 JPerspective = @JPerspective = clazz 'JPerspective', ->
   init: ({@socket, @root}) ->
     @id = "perspective:#{randid()}"
-    @objs = {}
-    @addObj @root
+    @listenOn @root
 
   # Receives messages from objects here.
   # obj: JObject that emitted event message
   # event: Event object, {type,...}
-  on: (obj, event, shared) ->
+  on: ($, obj, event) ->
     debug "JPerspective::on for event: #{event.type}"
-    assert.ok not event.targetId? or (event.targetId is obj.id), "event.targetId is reserved"
-    event.targetId = obj.id
-    unless shared.eventJSON?
+    # Cache-set eventJSON for wire transfer
+    unless event.eventJSON?
       debug "Serializing values of event to eventJSON"
       # __str__ the values of the event object.
-      shared.eventJSON = eventJSON = {}
+      event.eventJSON = eventJSON = {}
       for key, value of event
         # NOTE: mind the convention...
-        if key in ['type', 'key', 'targetId']
+        if key in ['type', 'key', 'sourceId']
           eventJSON[key] = value
         else
           eventJSON[key] = value.__str__()
     # Send event to client via socket.
-    @socket.emit 'event', shared.eventJSON
+    @socket.emit 'event', event.eventJSON
     # Delegate handling to JObject subclass
-    obj.perspective_on @, event, shared
+    obj.perspective_on @, event
 
   # Call to add a new object into the perspective.
   # Handles adding objects recursively.
-  addObj: (obj) ->
-    debug "JPerspective::addObj with obj: ##{obj.id}: #{obj.__str__()}"
-    return if @objs[obj.id]? # already in.
-    @objs[obj.id] = obj
-    obj.addListener @
-    # recursivey add children
-    for child in obj.perspective_withChildren @
-      assert.ok child instanceof JObject, "perspective_withChildren should have returned all JObject children"
-      @addObj child
+  listenOn: (obj) ->
+    debug "JPerspective::listenOn with obj: ##{obj.id}: #{obj.__str__()}"
+    if obj.addListener @
+      # recursivey add children
+      for child in obj.perspective_getChildren()
+        assert.ok child instanceof JObject, "perspective_getChildren should have returned all JObject children"
+        @listenOn child
 
 JObject::extend
   # Convenience
@@ -58,11 +54,11 @@ JObject::extend
     switch event.type
       when 'set', 'update'
         {key, value} = event
-        $$.addObj value if value instanceof JObject
+        $$.listenOn value if value instanceof JObject
       # when 'delete'
       #   garbage collection routine
   # hmm... should JObjects be src/node/Nodes?... probably not
-  perspective_withChildren: ($$) ->
+  perspective_getChildren: ->
     children = []
     if @data?
       children.push value for key, value of @data when value instanceof JObject
@@ -74,6 +70,6 @@ JArray::extend
     switch event.type
       when 'set', 'push'
         {key, value} = event
-        $$.addObj value if value instanceof JObject
+        $$.listenOn value if value instanceof JObject
       # when 'delete'
       #   garbage collection routine

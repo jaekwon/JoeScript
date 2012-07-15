@@ -2,7 +2,7 @@
 {inspect} = require 'util'
 assert = require 'assert'
 async = require 'async'
-{pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {
@@ -11,10 +11,65 @@ async = require 'async'
   HELPERS:HELPERS
 } = require 'joeson/src/interpreter'
 
-client = undefined
-getClient = ->
-  client ?= require('redis').createClient()
+# A JObject listener
+JPersistence = @JPersistence = clazz 'JPersistence', ->
+  init: ({@client, @root}) ->
+    @id = "persistence:#{randid()}"
+    @listenOn @root
 
+  # Receives messages from objects here.
+  # obj: JObject that emitted event message
+  # event: Event object, {type,...}
+  on: ($, obj, event) ->
+    debug "JPersistence::on for event: #{event.type}"
+    # Delegate handling to JObject subclass
+    obj.persistence_on @, event
+
+  # Handles adding objects recursively.
+  listenOn: (obj) ->
+    debug "JPerspective::listenOn with obj: ##{obj.id}: #{obj.__str__()}"
+    if obj.addListener @
+      # recursivey add children
+      for child in obj.persistence_getChildren @
+        assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
+        @listenOn child
+
+JObject::extend
+  # Convenience
+  persistence_on: ($$, event) ->
+    switch event.type
+      when 'new'
+        XXX created a new object.
+      when 'set', 'update'
+        {key, value} = event
+        $$.listenOn value if value instanceof JObject
+      # when 'delete'
+      #   garbage collection routine
+  # hmm... should JObjects be src/node/Nodes?... probably not
+  # XXX refactor out?
+  persistence_getChildren: ($$) ->
+    children = []
+    if @data?
+      children.push value for key, value of @data when value instanceof JObject
+    children.push @proto if @proto instanceof JObject
+    return children
+
+JArray::extend
+  persistence_on: ($$, event) ->
+    switch event.type
+      when 'set', 'push'
+        {key, value} = event
+        $$.listenOn value if value instanceof JObject
+      # when 'delete'
+      #   garbage collection routine
+
+
+
+
+
+
+
+# lookup for native functions
 NATIVE_FUNCTIONS = {}
 nativ = @nativ = (id, f) ->
   assert.ok id?, "nativ wants an id"
@@ -108,3 +163,4 @@ loadJObject = @loadJObject = (id, cb) ->
           data[key] = value
         obj.data = data
         cb(null, obj)
+
