@@ -35,7 +35,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
     # Send event to client via socket.
     @socket.emit 'event', event.eventJSON
     # Delegate handling to JObject subclass
-    obj.perspective_on @, event
+    obj.perspective_on $, @, event
 
   # Call to add a new object into the perspective.
   # Handles adding objects recursively.
@@ -50,7 +50,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
 JObject::extend
   # Convenience
   newPerspective: (socket) -> new JPerspective root:@, socket:socket
-  perspective_on: ($$, event) ->
+  perspective_on: ($, $$, event) ->
     switch event.type
       when 'set', 'update'
         {key, value} = event
@@ -66,7 +66,7 @@ JObject::extend
     return children
 
 JArray::extend
-  perspective_on: ($$, event) ->
+  perspective_on: ($, $$, event) ->
     switch event.type
       when 'set', 'push'
         {key, value} = event

@@ -12,6 +12,7 @@ async = require 'async'
 } = require 'joeson/src/interpreter'
 
 # A JObject listener
+# JPersistence saves objects onto redis
 JPersistence = @JPersistence = clazz 'JPersistence', ->
   init: ({@client, @root}) ->
     @id = "persistence:#{randid()}"
@@ -34,52 +35,12 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
         @listenOn child
 
-  saveJObject$: (jobj) ->
-    assert.ok jobj instanceof JObject, "Dunno how to save anything but a JObject type"
-    assert.ok jobj.id, "JObject needs an id for it to be saved."
-    jobj._saving = yes # skip lock
-
-    @client.hmset jobj.id+':meta',
-      type:jobj.constructor.name,
-      creator:jobj.creator.id
-    , (err, res) ->
-      dataKeys = Object.keys jobj.data
-      async.forEach dataKeys, (key, next) ->
-        value = jobj.data[key]
-        saveJObjectItem jobj, key, value, next
-      , (err) ->
-        delete jobj._saving # skip lock
-        if err? then console.log "ERROR: "+err if err?
-        else cb?()
-
-  saveJObjectItem$: (jobj, key, value, cb) ->
-    # save a JObj value
-    if value instanceof JObject
-      return cb() if value._saving # skip
-      saveJObject value, ->
-        getClient().hset jobj.id, key, 'o:'+value.id, cb
-      return
-    # save a native value
-    switch typeof value
-      when 'string' then value = 's:'+value
-      when 'number' then value = 'n:'+value
-      when 'bool'   then value = 'b:'+value
-      when 'function'
-        assert.ok value.id?, "Cannot persist a native function with no id"
-        value = 'f:'+value.id
-      when 'object'
-        assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
-        assert.ok value.id, "Cannot persist a JObject without id"
-        value = 'o:'+value.id
-      else throw new Error "dunno how to persist value #{value} (#{typeof value})"
-    getClient().hset jobj.id, key, value, cb
-
 JObject::extend
   # Convenience
-  persistence_on: ($$, event) ->
+  persistence_on: ($, $$, event) ->
     switch event.type
       when 'new'
-        $$.saveJObject @
+        @persistence_save $, $$
       when 'set', 'update'
         {key, value} = event
         $$.listenOn value if value instanceof JObject
@@ -95,6 +56,60 @@ JObject::extend
     children.push @proto if @proto instanceof JObject
     return children
 
+  ###
+    Naively save an object's metadata, then save the child recursively (if not saving already),
+    then the parent's association to the child, for all children.
+
+    It sets a _saving lock, which prevents circularity hell naively, but
+    it also guarantees that concurrent 'save' calls will inflict all kinds of
+    pain, as it simply skips saving.
+
+    This should only be used upon objects that get initialized by a single thread.
+    Normally there is no need to save all the items, as they get persisted on 'set' events.
+  ###
+  persistence_save: ($, $$, cb) ->
+    assert.ok @id, "JObject needs an id for it to be saved."
+    return if @_saving # nothing to do if already saving
+    @_saving = yes
+    $.wait waitKey="persist:#{@id}"
+
+    $$.client.hmset @id+':meta',
+      type:@constructor.name,
+      creator:@creator.id
+    , (err, res) =>
+      dataKeys = Object.keys @data
+      # Asynchronously persist each key-value pair
+      async.forEach dataKeys, (key, next) =>
+        value = @data[key]
+        switch typeof value
+          when 'string' then value = 's:'+value
+          when 'number' then value = 'n:'+value
+          when 'bool'   then value = 'b:'+value
+          when 'function'
+            assert.ok value.id?, "Cannot persist a native function with no id"
+            value = 'f:'+value.id
+          when 'object'
+            assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
+            assert.ok value.id, "Cannot persist a JObject without id"
+            # Special case, recursively persist children. Depth first, apparently.
+            value.persistence_save $, $$, (err) =>
+              return next(err) if err?
+              $$.client.hset @id, key, 'o:'+valud.id, next
+            return
+          else throw new Error "dunno how to persist value #{value} (#{typeof value})"
+        # Set key-value(ref) pair to redis
+        $$.client.hset @id, key, value, next
+        return
+      # After saving all key-value pairs (or upon error)
+      , (err) =>
+        delete @_saving
+        if err?
+          return cb(err) if cb?
+          fatal "ERROR: #{err.stack ? err}"
+          return $.throw 'PersistenceError', "Failed to persist object ##{@id}"
+        $.resume waitKey
+        return cb?()
+
 JArray::extend
   persistence_on: ($$, event) ->
     switch event.type
@@ -104,70 +119,15 @@ JArray::extend
       # when 'delete'
       #   garbage collection routine
 
-
-
-
-
-
-
-# lookup for native functions
+# XXX refactor
+# Lookup for native functions
 NATIVE_FUNCTIONS = {}
 nativ = @nativ = (id, f) ->
   assert.ok id?, "nativ wants an id"
   f.id = id
   NATIVE_FUNCTIONS[id] = f
   return f
-
-OBJECTS = {} # id to object.
-getOrStub = (id) ->
-  if cached=OBJECTS[id]
-    return cached
-  else
-    return new JStub {id}
-
-OBJECTS[value.id] = value for key, value of GLOBALS when value instanceof JObject
-
-# make sure objects in persistence store have everything here.
-saveJObject = @saveJObject = (jobj, cb) ->
-  assert.ok jobj instanceof JObject, "Dunno how to save anything but a JObject type"
-  assert.ok jobj.id, "JObject needs an id for it to be saved."
-  jobj._saving = yes # skip lock
-
-  getClient().hmset jobj.id+':meta',
-    type:jobj.constructor.name,
-    creator:jobj.creator.id
-  , (err, res) ->
-    dataKeys = Object.keys jobj.data
-    async.forEach dataKeys, (key, next) ->
-      value = jobj.data[key]
-      saveJObjectItem jobj, key, value, next
-    , (err) ->
-      delete jobj._saving # skip lock
-      if err? then console.log "ERROR: "+err if err?
-      else cb?()
-
-saveJObjectItem = @saveJObjectItem = (jobj, key, value, cb) ->
-  # save a JObj value
-  if value instanceof JObject
-    return cb() if value._saving # skip
-    saveJObject value, ->
-      getClient().hset jobj.id, key, 'o:'+value.id, cb
-    return
-  # save a native value
-  switch typeof value
-    when 'string' then value = 's:'+value
-    when 'number' then value = 'n:'+value
-    when 'bool'   then value = 'b:'+value
-    when 'function'
-      assert.ok value.id?, "Cannot persist a native function with no id"
-      value = 'f:'+value.id
-    when 'object'
-      assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
-      assert.ok value.id, "Cannot persist a JObject without id"
-      value = 'o:'+value.id
-    else throw new Error "dunno how to persist value #{value} (#{typeof value})"
-  getClient().hset jobj.id, key, value, cb
-
+# XXX refactor
 loadJObject = @loadJObject = (id, cb) ->
   console.log "loading #{id}"
   assert.ok id, "loadJObject wants an id to load"
