@@ -65,6 +65,8 @@ JObject = @JObject = clazz 'JObject', Node, ->
     listeners[listener.id] = listener
     return yes
   emit: ($, event) ->
+    assert.ok $.constructor.name is 'JThread', 'First argument to emit must be a JThread'
+    assert.ok typeof event is 'object', 'Event must be an object'
     return unless @listeners?
     event.sourceId = @id
     for id, listener of @listeners

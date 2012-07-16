@@ -131,7 +131,7 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    (@kernel.waitLists[waitKey]?=[]).push thread
+    (@kernel.waitLists[waitKey]?=[]).push @
     @waitCount++
     @state = 'wait'
     return
@@ -209,11 +209,13 @@ JThread = @JThread = clazz 'JThread', ->
       elements[''+key] = value for key, value of attributes
     return new JArray creator:@user, data:elements
 
+  toString: -> "[JThread #{@id}]"
+
 # Multi-user time-shared interpreter.
 @JKernel = JKernel = clazz 'JKernel', ->
 
   init: ({@cache}={}) ->
-    @threads = []
+    @runThreads = []
     @cache ?= {}      # TODO should be weak etc.
     @index = 0
     @ticker = 0
@@ -245,10 +247,8 @@ JThread = @JThread = clazz 'JThread', ->
         user:user
         scope:scope
         callback:callback
-      @threads.push thread
-      if @threads.length is 1
-        @index = 0 # might have been NaN
-        @runloop()
+      @runThreads.push thread
+      @runloop() if @runThreads.length is 1
     catch error
       if node?
         warn "Error in user code start:", error.stack, "\nfor node:\n", node.serialize()
@@ -257,10 +257,11 @@ JThread = @JThread = clazz 'JThread', ->
 
   runloop$: ->
     @ticker++
-    thread = @threads[@index]
+    debug "JKernel::runloop with #{@runThreads.length} runThreads, run @#{@index}"
+    thread = @runThreads[@index]
     thread.state = null
     thread.waitCount = 0
-    debug "tick #{@ticker}. #{@threads.length} threads, try #{thread.id}" if trace.debug
+    debug "tick #{@ticker}. #{@runThreads.length} threads, try #{thread.id}" if trace.debug
     try
       # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
@@ -269,34 +270,39 @@ JThread = @JThread = clazz 'JThread', ->
         exitCode = thread.runStep()
         # Pop the thread off the run list
         if exitCode?
-          @threads[@index..@index] = [] # splice out
-          @index = @index % @threads.length # oops, sometimes NaN
-          process.nextTick @runloop if @threads.length > 0
+          @runThreads[@index..@index] = [] # splice out
+          @index = @index % @runThreads.length or 0
+          process.nextTick @runloop if @runThreads.length > 0
           thread.exit()
           return
-      @index = (@index + 1) % @threads.length
+      @index = (@index + 1) % @runThreads.length
       process.nextTick @runloop
     catch error
       fatal "Error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
       thread.throw 'InternalError', "#{error.name}:#{error.message}"
-      @threads[@index..@index] = [] # splice out
-      @index = @index % @threads.length # oops, sometimes NaN
-      process.nextTick @runloop if @threads.length > 0
+      @runThreads[@index..@index] = [] # splice out
+      @index = @index % @runThreads.length or 0
+      process.nextTick @runloop if @runThreads.length > 0
       thread.exit()
       return
 
   resumeThreads: (waitKey) ->
     assert.ok waitKey?, "JKernel::resumeThreads wants waitKey"
+    debug "JKernel::resumeThreads #{waitKey}"
     waitList = @waitLists[waitKey]
+    debug "waitList = #{waitList}"
     return if not waitList?.length # was already resumed some other how.
     newWaitList = []
     for thread in waitList
       waitCount = --thread.waitCount
       assert.ok waitCount >= 0, "waitCount shouldn't be negative."
       if waitCount is 0
-        @threads.push thread
+        debug "JKernel inserting #{thread} into @runThreads"
+        @runThreads.push thread
+        process.nextTick @runloop if @runThreads.length is 1
       else
         newWaitList.push thread
+    debug "new waitList = #{newWaitList}"
     if newWaitList.length
       @waitLists[waitKey] = newWaitList
     else

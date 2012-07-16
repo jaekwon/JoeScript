@@ -15,6 +15,7 @@ async = require 'async'
 # JPersistence saves objects onto redis
 JPersistence = @JPersistence = clazz 'JPersistence', ->
   init: ({@client, @root}) ->
+    @client ?= require('redis').createClient()
     @id = "persistence:#{randid()}"
     @listenOn @root
 
@@ -22,18 +23,20 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # obj: JObject that emitted event message
   # event: Event object, {type,...}
   on: ($, obj, event) ->
-    debug "JPersistence::on for event: #{event.type}"
+    debug "#{@}::on for event: #{event.type}"
     # Delegate handling to JObject subclass
     obj.persistence_on $, @, event
 
   # Handles adding objects recursively.
   listenOn: (obj) ->
-    debug "JPerspective::listenOn with obj: ##{obj.id}: #{obj.__str__()}"
+    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj.__str__()}"
     if obj.addListener @
-      # recursivey add children
+      # Recursively add children
       for child in obj.persistence_getChildren @
         assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
         @listenOn child
+
+  toString: -> "[JPersistence #{@id}]"
 
 JObject::extend
   # Convenience
@@ -69,10 +72,11 @@ JObject::extend
   ###
   persistence_save: ($, $$, cb) ->
     assert.ok @id, "JObject needs an id for it to be saved."
-    return if @_saving # nothing to do if already saving
+    return cb() if @_saving # nothing to do if already saving
     @_saving = yes
     $.wait waitKey="persist:#{@id}"
 
+    debug "$$.client.hmset #{@id+':meta'}"
     $$.client.hmset @id+':meta',
       type:@constructor.name,
       creator:@creator.id
@@ -81,6 +85,7 @@ JObject::extend
       # Asynchronously persist each key-value pair
       async.forEach dataKeys, (key, next) =>
         value = @data[key]
+        debug "persistence_save saving key/value #{key}:#{value}"
         switch typeof value
           when 'string' then value = 's:'+value
           when 'number' then value = 'n:'+value
@@ -94,10 +99,12 @@ JObject::extend
             # Special case, recursively persist children. Depth first, apparently.
             value.persistence_save $, $$, (err) =>
               return next(err) if err?
-              $$.client.hset @id, key, 'o:'+valud.id, next
+              debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
+              $$.client.hset @id, key, 'o:'+value.id, next
             return
           else throw new Error "dunno how to persist value #{value} (#{typeof value})"
         # Set key-value(ref) pair to redis
+        debug "$$.client.hset #{@id}, #{key}, #{value}"
         $$.client.hset @id, key, value, next
         return
       # After saving all key-value pairs (or upon error)
@@ -107,6 +114,7 @@ JObject::extend
           return cb(err) if cb?
           fatal "ERROR: #{err.stack ? err}"
           return $.throw 'PersistenceError', "Failed to persist object ##{@id}"
+        debug "$.resume #{waitKey}"
         $.resume waitKey
         return cb?()
 
