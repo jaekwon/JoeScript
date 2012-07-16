@@ -35,7 +35,7 @@ try
         # Install persistence on @last.
         persistence = new JPersistence root:@last
         # Emit event to persist @last
-        @last.emit @, type:'new'
+        @last.emit thread:@, type:'new'
         equal @state, 'wait'
         # At this point the thread will become reanimated,
         # even though this is happening in the exit callback.

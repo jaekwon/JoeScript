@@ -64,13 +64,13 @@ JObject = @JObject = clazz 'JObject', Node, ->
     return no if listeners[listener.id]?
     listeners[listener.id] = listener
     return yes
-  emit: ($, event) ->
-    assert.ok $.constructor.name is 'JThread', 'First argument to emit must be a JThread'
+  # Emit an event from object to listeners
+  emit: (event) ->
     assert.ok typeof event is 'object', 'Event must be an object'
     return unless @listeners?
     event.sourceId = @id
     for id, listener of @listeners
-      listener.on $, @, event
+      listener.on @, event
 
   # Runtime functions
   __get__: ($, key, required=no) ->
@@ -112,7 +112,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('write', this)
     @data[key] = value
-    @emit $, {type:'set',key,value}
+    @emit {thread:$,type:'set',key,value}
     return
   # an __update__ only happens for scope objects.
   __update__: ($, key, value) ->
@@ -120,14 +120,14 @@ JObject = @JObject = clazz 'JObject', Node, ->
     $.will('write', this)
     if key is '__proto__'
       @proto = value
-      @emit $, {type:'update',key,value} # TODO more complicated, the chain was updated.
+      @emit {thread:$,type:'update',key,value} # TODO more complicated, the chain was updated.
       return
     else if @data[key]?
       @data[key] = value
-      @emit $, {type:'update',key,value}
+      @emit {thread:$,type:'update',key,value}
       return
     else if @proto?
-      @emit $, {type:'update',key,value} # TODO this is wrong... should be asynchronous.
+      @emit {thread:$,type:'update',key,value} # TODO this is wrong... should be asynchronous.
       if @proto instanceof JStub
         $.push func:($, i9n, proto) ->
           $.pop()
@@ -195,11 +195,11 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     $.will('write', this)
     if isInteger key
       @data[key] = value
-      @emit $, {type:'set',key,value}
+      @emit {thread:$,type:'set',key,value}
       return
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     @data[key] = value
-    @emit $, {type:'set',key,value}
+    @emit {thread:$,type:'set',key,value}
     return
   __keys__: ($) ->
     $.will('read', this)
@@ -235,7 +235,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   push: ($, [value]) ->
     Array.prototype.push.call @data, value
     # also emit the key, to mitigate syncrony issues
-    @emit $, {type:'push',key:@data.length-1, value}
+    @emit {thread:$,type:'push',key:@data.length-1, value}
     return JUndefined
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->

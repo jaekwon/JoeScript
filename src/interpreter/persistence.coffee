@@ -22,10 +22,10 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # Receives messages from objects here.
   # obj: JObject that emitted event message
   # event: Event object, {type,...}
-  on: ($, obj, event) ->
+  on: (obj, event) ->
     debug "#{@}::on for event: #{event.type}"
     # Delegate handling to JObject subclass
-    obj.persistence_on $, @, event
+    obj.persistence_on @, event
 
   # Handles adding objects recursively.
   listenOn: (obj) ->
@@ -40,10 +40,10 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
 
 JObject::extend
   # Convenience
-  persistence_on: ($, $$, event) ->
+  persistence_on: ($$, event) ->
     switch event.type
       when 'new'
-        @persistence_save $, $$
+        @persistence_save $$, event.thread
       when 'set', 'update'
         {key, value} = event
         $$.listenOn value if value instanceof JObject
@@ -70,11 +70,11 @@ JObject::extend
     This should only be used upon objects that get initialized by a single thread.
     Normally there is no need to save all the items, as they get persisted on 'set' events.
   ###
-  persistence_save: ($, $$, cb) ->
+  persistence_save: ($$, thread, cb) ->
     assert.ok @id, "JObject needs an id for it to be saved."
     return cb() if @_saving # nothing to do if already saving
     @_saving = yes
-    $.wait waitKey="persist:#{@id}"
+    thread.wait waitKey="persist:#{@id}"
 
     debug "$$.client.hmset #{@id+':meta'}"
     $$.client.hmset @id+':meta',
@@ -97,7 +97,7 @@ JObject::extend
             assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
             assert.ok value.id, "Cannot persist a JObject without id"
             # Special case, recursively persist children. Depth first, apparently.
-            value.persistence_save $, $$, (err) =>
+            value.persistence_save $$, thread, (err) =>
               return next(err) if err?
               debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
               $$.client.hset @id, key, 'o:'+value.id, next
@@ -113,9 +113,9 @@ JObject::extend
         if err?
           return cb(err) if cb?
           fatal "ERROR: #{err.stack ? err}"
-          return $.throw 'PersistenceError', "Failed to persist object ##{@id}"
-        debug "$.resume #{waitKey}"
-        $.resume waitKey
+          return thread.throw 'PersistenceError', "Failed to persist object ##{@id}"
+        debug "thread.resume #{waitKey}"
+        thread.resume waitKey
         return cb?()
 
 JArray::extend
