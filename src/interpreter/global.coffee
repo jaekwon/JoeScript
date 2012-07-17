@@ -1,3 +1,5 @@
+require 'sugar'
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
@@ -6,31 +8,37 @@ async = require 'async'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
-{nativ} = require 'joeson/src/interpreter/persistence'
 
 # Caches.
 # TODO weak references
 CACHE             = @CACHE =            {}
 NATIVE_FUNCTIONS  = @NATIVE_FUNCTIONS = {}
 
-GOD   = @GOD   = new JUser   id:'god',   name:'god'
-ANON  = @ANON  = new JUser   id:'anon',  name:'anon'
-USERS = @USERS = new JObject id:'users', creator:GOD, data:
+GOD   = @GOD   = CACHE['god']   = new JUser   id:'god',   name:'God'
+ANON  = @ANON  = CACHE['anon']  = new JUser   id:'anon',  name:'Anonymous'
+USERS = @USERS = CACHE['users'] = new JObject id:'users', creator:GOD, data:
   god:    GOD
   anon:   ANON
-WORLD = @WORLD = new JObject id:'world', creator:GOD, data:
+WORLD = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
   users:  USERS
   this:   USERS
 
 {JKernel} = require 'joeson/src/interpreter/kernel'
 KERNEL = @KERNEL = new JKernel cache:CACHE, nativeFunctions:NATIVE_FUNCTIONS
 
+# if not on a client, set up persistence listener
+if not window?
+  {JPersistence} = p = require 'joeson/src/interpreter/persistence'
+  PERSISTENCE = new JPersistence root:WORLD
+  KERNEL.persistence = PERSISTENCE # exposed for testing
+  KERNEL.emitter.on 'shutdown', -> PERSISTENCE.client.quit()
+
 # run this file to set up redis
 if require.main is module
-  {saveJObject, loadJObject} = require 'joeson/src/interpreter/persistence'
-  saveJObject WORLD, (err) ->
-    return console.log "FAIL!"+err if err?
-    console.log "done saving globals"
-
-    loadJObject 'world', (err, it) ->
-      console.log "test loaded world:\n#{inspect it.data}"
+  KERNEL.run user:GOD, code:'dontcare', callback: (err) ->
+    return console.log "FAIL!\n#{err.stack ? err}" if err?
+    WORLD.emit thread:@, type:'new'
+    @callback = (err) -> # callback after reanimation
+      return console.log "FAIL!\n#{err.stack ? err}" if err?
+      PERSISTENCE.client.quit() # TODO
+      console.log "done!"

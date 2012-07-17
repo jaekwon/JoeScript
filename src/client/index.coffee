@@ -13,7 +13,7 @@ $(document).ready ->
     default:
       file:   {write:(line)->domLog.append(toHTML line)}
       level: 'debug'
-  $('#log').before $('<span>π</span>').addClass('debug right').click (e) ->
+  $('#panel').append $('<span>π</span>').addClass('debug right').click (e) ->
     if domLogVisible
       domLogVisible = no
       domLog.css(display:'none')
@@ -29,7 +29,6 @@ $(document).ready ->
   {
     JKernel, JThread
     NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-    GLOBALS:{GOD, WORLD, ANON}
     HELPERS:{isInteger,isObject}
   } = require 'joeson/src/interpreter'
   JSL = require 'joeson/src/parsers/jsl'

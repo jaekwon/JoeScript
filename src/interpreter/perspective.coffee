@@ -4,11 +4,8 @@ assert = require 'assert'
 {randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{
-  NODES:{JObject, JArray, JUser, JSingleton, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:GLOBALS
-  HELPERS:{isInteger,isObject}
-} = require 'joeson/src/interpreter'
+{NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
+#{JKernel, JThread, JStackItem} = require 'joeson/src/interpreter/kernel'
 
 # A JObject listener
 # Sends events to the client.

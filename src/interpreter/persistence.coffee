@@ -5,12 +5,8 @@ async = require 'async'
 {randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{
-  JKernel, JThread
-  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:GLOBALS
-  HELPERS:HELPERS
-} = require 'joeson/src/interpreter'
+{NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
+{JKernel, JThread, JStackItem} = require 'joeson/src/interpreter/kernel'
 
 # A JObject listener
 # JPersistence saves objects onto redis
@@ -26,7 +22,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
   on: (obj, event) ->
-    debug "#{@}::on for event: #{event.type}"
+    debug "#{@}::on for obj:#{obj} event.type:#{event.type}"
     # Delegate handling to JObject subclass
     obj.persistence_on @, event
 

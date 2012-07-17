@@ -51,7 +51,9 @@ JObject = @JObject = clazz 'JObject', Node, ->
   init: ({@id, @creator, @data, @acl, @proto}) ->
     assert.ok not @proto? or isObject @proto, "JObject wants JObject proto or null"
     assert.ok isObject @creator, "JObject wants JObject creator"
-    @id ?= randid()
+    if not @id?
+      @id = randid()
+      debug "Created new object #{@id}"
     @data ?= {}
     @data.__proto__ = null # detatch prototype
 
@@ -67,6 +69,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
   # Emit an event from object to listeners
   emit: (event) ->
     assert.ok typeof event is 'object', 'Event must be an object'
+    debug "emit #{event} // #{@listeners}"
     return unless @listeners?
     event.sourceId = @id
     for id, listener of @listeners
@@ -254,7 +257,7 @@ JUser = @JUser = clazz 'JUser', JObject, ->
     $$[@id] = yes
     dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
     return "{U|##{@id} #{dataPart}}"
-  toString: -> "[JUser #{@name}]"
+  toString: -> "[JUser ##{@id} (#{@name})]"
 
 JSingleton = @JSingleton = clazz 'JSingleton', ->
   init: (@name, @_jsValue) ->

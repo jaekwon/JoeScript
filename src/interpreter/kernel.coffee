@@ -229,6 +229,7 @@ JThread = @JThread = clazz 'JThread', ->
     @index = 0
     @ticker = 0
     @waitLists = {}   # waitKey -> [thread1,thread2,...]
+    @emitter = new (require('events').EventEmitter)()
 
   # Start processing another thread
   # user:     The same user object as returned by login.
@@ -278,7 +279,7 @@ JThread = @JThread = clazz 'JThread', ->
           @runThreads[@index..@index] = [] # splice out
           @index = @index % @runThreads.length or 0
           process.nextTick @runloop if @runThreads.length > 0
-          thread.exit()
+          thread.exit() unless exitCode is 'wait'
           return
       @index = (@index + 1) % @runThreads.length
       process.nextTick @runloop
@@ -312,3 +313,5 @@ JThread = @JThread = clazz 'JThread', ->
       @waitLists[waitKey] = newWaitList
     else
       delete @waitLists[waitKey]
+
+  shutdown: -> @emitter.emit 'shutdown'

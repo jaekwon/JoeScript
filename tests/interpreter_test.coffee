@@ -4,7 +4,7 @@ require './setup'
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
 joe = require 'joeson/src/joescript'
-{JThread, JKernel, GLOBALS:{ANON}} = require 'joeson/src/interpreter'
+{JThread, JKernel, GLOBALS:{KERNEL, ANON}} = require 'joeson/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 
@@ -128,17 +128,15 @@ test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
 
 counter = 0
 runNextTest = ->
-  return if tests.length is 0
+  if tests.length is 0
+    KERNEL.shutdown()
+    return
   {code, callback} = tests.shift()
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  kernel = new JKernel()
   try
-    kernel.run
+    KERNEL.run
       user:ANON
       code:code
-      stdin:undefined
-      stdout: (msg) -> process.stdout.write(msg)
-      stderr: (msg) -> process.stderr.write(msg)
       callback: ->
         try
           if @error?

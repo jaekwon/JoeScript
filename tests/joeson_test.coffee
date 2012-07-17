@@ -44,13 +44,7 @@ RAW_GRAMMAR = [
             o "PRIMARY": [
               o "WORD", (it) -> new Ref it
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
-                {Func} = require('joeson/src/joescript').NODES
-                {BoundFunc, Context} = require('joeson/src/interpreter')
-                if code?
-                  params = expr.labels
-                  cbFunc = new Func params:params, type:'->', block:code
-                  cbBFunc = new BoundFunc func:cbFunc, context:Context(global:@env.global)
-                  expr.cb = cbBFunc.function
+                assert.ok not code?, "code in joeson deprecated"
                 return expr
               i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joeson/src/joescript').parse(it.join '')
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> new Str       it.join ''

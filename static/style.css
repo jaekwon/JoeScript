@@ -50,7 +50,7 @@ span.cm-operator,   span.operator   { color: #00cccc; }
   background-color: #2A395B !important;
 }
 .debug {
-  display: none; /* debug */
+  /* display: none; /* debug */
   opacity: 0.4;
   margin: 0 1em;
 }

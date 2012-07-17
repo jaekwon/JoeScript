@@ -6,7 +6,7 @@ require './setup'
 {
   JThread, JKernel,
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:{GOD,ANON}
+  GLOBALS:{GOD,ANON,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 
@@ -36,12 +36,13 @@ foo.foo = foo
 
 counter = 0
 runNextTest = ->
-  return if tests.length is 0
+  if tests.length is 0
+    KERNEL.shutdown()
+    return
   {code, str, callback} = tests.shift()
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  kernel = new JKernel()
   try
-    kernel.run
+    KERNEL.run
       user:ANON
       code:code
       callback: ->

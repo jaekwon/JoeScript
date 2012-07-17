@@ -30,7 +30,7 @@ JSL = Grammar ({o, i, tokens}) -> [
                       switch type
                         when 'O' then obj = new JObject id:id, creator:(new JStub {id:creator,type})
                         when 'A' then obj = new JArray  id:id, creator:(new JStub {id:creator,type})
-                        when 'U' then obj = new JUser   name:id
+                        when 'U' then obj = new JUser   id:id, name:id
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
                       obj.data[key] = value for {key, value} in items
                       $.env.cache?[id] = obj if id?

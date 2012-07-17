@@ -4,12 +4,10 @@ require './setup'
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
 {
-  JThread, JKernel, GOD,
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:{GOD,ANON}
+  GLOBALS:{GOD,ANON,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
-{JPersistence} = require 'joeson/src/interpreter/persistence'
 console.log blue "\n-= persistence test =-"
 
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
@@ -21,9 +19,9 @@ it.anArray = [1,2,3,4,"five"]
 it
 """
 
-kernel = new JKernel()
 try
-  kernel.run
+  ok KERNEL.persistence?, "This test requires JPersistence installed on the global kernel"
+  KERNEL.run
     user:ANON
     code:code
     callback: ->
@@ -35,9 +33,9 @@ try
           return
         obj = @last
         equal @state, 'return'
-        # Install persistence on obj
-        persistence = new JPersistence root:obj
+        ok not obj.listeners?, "No listeners expected for object unassociated with scope"
         # Emit event to persist obj
+        obj.addListener KERNEL.persistence
         obj.emit thread:@, type:'new'
         equal @state, 'wait'
 
@@ -48,15 +46,15 @@ try
         @callback = ->
           equal @state, 'return'
           # Clear the kernel cache 
-          kernel.cache = {}
+          KERNEL.cache = {}
           # Now try loading from persistence
-          persistence.loadJObject kernel, obj.id, (err, _obj) ->
+          KERNEL.persistence.loadJObject KERNEL, obj.id, (err, _obj) ->
             if err?
               console.log red "Error loading object:"
               console.log red err.stack ? err
             console.log "Loaded object #{_obj.serialize()}"
             equal obj.id, _obj.id
-            persistence.client.quit() # TODO
+            KERNEL.shutdown()
       catch err
         console.log red "Unknown Error:"
         console.log red err.stack ? err

@@ -753,14 +753,7 @@ St = -> Str arguments...
             o "PRIMARY": [
               o R("WORD"), (it) -> new Ref it
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
-                if code?
-                  # DEPRECATED
-                  {Func} = require('joeson/src/joescript').NODES
-                  {BoundFunc, Context} = require('joeson/src/interpreter')
-                  params = expr.labels
-                  cbFunc = new Func params:params, type:'->', block:code
-                  cbBFunc = new BoundFunc func:cbFunc, context:Context(global:@env?.global)
-                  expr.cb = cbBFunc.function
+                assert.ok not code?, "code in joeson deprecated"
                 return expr
               i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> require('joeson/src/joescript').parse(it.join '')
               o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> new Str       it.join ''
