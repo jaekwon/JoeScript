@@ -51,9 +51,6 @@ JObject = @JObject = clazz 'JObject', Node, ->
     @id ?= randid()
     @data ?= {}
     @data.__proto__ = null # detatch prototype
-    # HACK, SYSTEM GLOBAL CACHE OF OBJECTS
-    {CACHE} = require 'joeson/src/interpreter/global'
-    CACHE[@id] = this
 
   # Event handling
   # Returns whether listener was added
@@ -245,12 +242,10 @@ JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   toString: -> "[JAccessControlItem #{@who}: #{@what}]"
 
 JUser = @JUser = clazz 'JUser', JObject, ->
-  init: ({id, @name}) ->
+  init: ({id, creator, @name}) ->
     assert.equal typeof @name, 'string', "@name not string"
-    {GOD} = require('joeson/src/interpreter/global')
-    assert.ok @name is 'god', "Who else could it be?" unless GOD?
-    GOD ?= this
-    @super.init.call @, id:id, creator:GOD, data:{name:@name}
+    creator ?= this
+    @super.init.call @, {id, creator, data:{@name}}
   __str__:  ($, $$={}) ->
     return "<##{@id}>" if $$[@id]
     $$[@id] = yes

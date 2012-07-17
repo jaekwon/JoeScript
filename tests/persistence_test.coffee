@@ -6,7 +6,7 @@ require './setup'
 {
   JThread, JKernel, GOD,
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:GLOBALS
+  GLOBALS:{GOD,ANON}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 {JPersistence} = require 'joeson/src/interpreter/persistence'
@@ -23,6 +23,7 @@ it
 kernel = new JKernel()
 try
   kernel.run
+    user:ANON
     code:code
     callback: ->
       try

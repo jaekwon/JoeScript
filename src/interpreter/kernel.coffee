@@ -227,12 +227,8 @@ JThread = @JThread = clazz 'JThread', ->
   # user:     The same user object as returned by login.
   # callback: Called with thread after it exits.
   run: ({user, code, scope, callback}) ->
-    {WORLD, ANON} = require 'joeson/src/interpreter/global'
-    user ?= ANON
-    scope ?= WORLD.create user
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
-    assert.ok scope?, "Scope missing for user #{user.name}"
     try
       if typeof code is 'string'
         info "received code:\n#{code}" if trace.debug or trace.logCode

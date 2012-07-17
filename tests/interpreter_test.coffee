@@ -4,7 +4,7 @@ require './setup'
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
 joe = require 'joeson/src/joescript'
-{JThread, JKernel, GOD} = require 'joeson/src/interpreter'
+{JThread, JKernel, GLOBALS:{ANON}} = require 'joeson/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 
@@ -134,6 +134,7 @@ runNextTest = ->
   kernel = new JKernel()
   try
     kernel.run
+      user:ANON
       code:code
       stdin:undefined
       stdout: (msg) -> process.stdout.write(msg)

@@ -24,4 +24,4 @@ assert = require 'assert'
 
 {@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 {@JKernel, @JThread, @JStackItem} = require 'joeson/src/interpreter/kernel'
-@GLOBALS = {GOD, WORLD, ANON, KERNEL} = require 'joeson/src/interpreter/global'
+@GLOBALS = require 'joeson/src/interpreter/global'

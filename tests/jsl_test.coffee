@@ -4,9 +4,9 @@ require './setup'
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
 {
-  JThread, JKernel, GOD,
+  JThread, JKernel,
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:GLOBALS
+  GLOBALS:{GOD,ANON}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 
@@ -42,6 +42,7 @@ runNextTest = ->
   kernel = new JKernel()
   try
     kernel.run
+      user:ANON
       code:code
       callback: ->
         try
