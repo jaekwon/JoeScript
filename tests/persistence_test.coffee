@@ -17,6 +17,7 @@ console.log blue "\n-= persistence test =-"
 code = """
 it = {foo:1, bar:2}
 it.linkToIt = it
+it.anArray = [1,2,3,4,"five"]
 it
 """
 

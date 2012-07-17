@@ -26,7 +26,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
     unless event.eventJSON?
       debug "Serializing values of event to eventJSON"
       # __str__ the values of the event object.
-      event.eventJSON = eventJSON = {}
+      eventJSON = {}
       for key, value of event
         # NOTE: mind the convention...
         if key in ['type', 'key', 'sourceId']
@@ -35,6 +35,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
           'pass'
         else
           eventJSON[key] = value.__str__()
+      event.eventJSON = eventJSON
     # Send event to client via socket.
     @socket.emit 'event', event.eventJSON
     # Delegate handling to JObject subclass

@@ -111,7 +111,7 @@ io.sockets.on 'connection', (socket) ->
   socket.on 'invoke', (data) ->
     info "received invokation #{inspect data}"
     boundFunc = CACHE[data.id]
-    assert.ok boundFunc instanceof JBoundFunc, "Expected JBoundFunc to be invoked but got #{boundFunc} #{boundFunc?.constructor?.name}"
+    assert.ok boundFunc instanceof JBoundFunc, "Expected a JBoundFunc but got #{boundFunc} (#{boundFunc?.constructor?.name}) for ##{data.id}"
 
     KERNEL.run
       user: ANON
