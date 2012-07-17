@@ -1,3 +1,11 @@
+###
+
+Conventions
+  - Do not access thread.last directly, instead use the third argument of the instruction function.
+  -> I'm not sure that saving @last will always happen...
+
+###
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'

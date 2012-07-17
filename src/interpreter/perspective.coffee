@@ -18,7 +18,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
 
   # Receives messages from objects here.
   # obj: JObject that emitted event message
-  # event: Event object, {type,thread,...}
+  # event: Event object, {thread,type,...}
   on: (obj, event) ->
     debug "JPerspective::on for event: #{event.type}"
     # Cache-set eventJSON for wire transfer
@@ -30,6 +30,8 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
         # NOTE: mind the convention...
         if key in ['type', 'key', 'sourceId']
           eventJSON[key] = value
+        else if key is 'thread'
+          'pass'
         else
           eventJSON[key] = value.__str__()
     # Send event to client via socket.

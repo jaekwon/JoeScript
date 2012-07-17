@@ -67,6 +67,7 @@ JThread = @JThread = clazz 'JThread', ->
     throw new Error "Last i9n.func undefined!" if not func?
     throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
     # Call the topmost instruction
+    # TODO consider whether setting to @last all the time is a good idea.
     @last = func.call that ? i9n, this, i9n, @last
     switch @state
       when null
@@ -86,7 +87,7 @@ JThread = @JThread = clazz 'JThread', ->
           else if i9n.this instanceof joe.Try and not i9n.isHandlingError
             i9n.isHandlingError = true
             i9n.func = joe.Try::interpretCatch
-            last = @error
+            @last = @error
             return @state=null
       when 'return'
         info "             #{yellow 'return ->'} #{@last}" if trace.debug

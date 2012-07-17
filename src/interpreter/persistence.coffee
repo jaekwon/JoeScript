@@ -6,6 +6,7 @@ async = require 'async'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {
+  JKernel, JThread
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
   HELPERS:HELPERS
@@ -21,7 +22,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
 
   # Receives messages from objects here.
   # obj: JObject that emitted event message
-  # event: Event object, {type,...}
+  # event: Event object, {thread,type,...}
   on: (obj, event) ->
     debug "#{@}::on for event: #{event.type}"
     # Delegate handling to JObject subclass
@@ -126,6 +127,10 @@ JArray::extend
         $$.listenOn value if value instanceof JObject
       # when 'delete'
       #   garbage collection routine
+
+JStub::extend
+  persistence__load__: ($) ->
+    assert.ok $.persistence, "Where is the thread's persistence?"
 
 # XXX refactor
 # Lookup for native functions
