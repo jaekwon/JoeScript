@@ -196,6 +196,12 @@ JThread = @JThread = clazz 'JThread', ->
     @push i9n
     return i9n
 
+  # Add a new object jobj to the kernel cache
+  new: (jobj) ->
+    assert.ok jobj instanceof JObject
+    assert.ok jobj.id, "$.new(jobj) requires jobj.id, but id was undefined"
+    @kernel.cache[jobj.id] = jobj
+
   # DEPRECATED
   # for convenience, jml is available on a thread.
   jml: (args...) ->
@@ -212,6 +218,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   toString: -> "[JThread #{@id}]"
 
+## KERNEL ##
 # Multi-user time-shared interpreter.
 @JKernel = JKernel = clazz 'JKernel', ->
 

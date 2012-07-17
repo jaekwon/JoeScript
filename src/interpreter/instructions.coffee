@@ -115,14 +115,14 @@ joe.Obj::extend
     # setup
     length = @items?.length ? 0
     if length > 0
-      i9n.obj = new JObject(creator:$.user)
+      i9n.obj = $.new JObject(creator:$.user)
       i9n.idx = 0
       i9n.length = @items.length
       i9n.func = joe.Obj::interpretKV
       return
     else
       $.pop()
-      return new JObject(creator:$.user)
+      return $.new JObject(creator:$.user)
   interpretKV: ($, i9n) ->
     # store prior item
     if 0 < i9n.idx
@@ -151,14 +151,14 @@ joe.Arr::extend
     # setup
     length = @items?.length ? 0
     if length > 0
-      i9n.arr = new JArray(creator:$.user)
+      i9n.arr = $.new JArray(creator:$.user)
       i9n.idx = 0
       i9n.length = @items.length
       i9n.func = joe.Arr::interpretKV
       return
     else
       $.pop()
-      return new JArray(creator:$.user)
+      return $.new JArray(creator:$.user)
   interpretKV: ($, i9n, value) ->
     # store prior item
     if 0 < i9n.idx
@@ -262,7 +262,7 @@ joe.Index::extend
 joe.Func::extend
   interpret: ($, i9n) ->
     $.pop()
-    return new JBoundFunc func:this, creator:$.user, scope:$.scope
+    return $.new JBoundFunc func:this, creator:$.user, scope:$.scope
 
 joe.Invocation::extend
   interpret: ($, i9n) ->
@@ -298,12 +298,12 @@ joe.Invocation::extend
         if scope?
           $.scope = scope.__create__ $, {this:i9n.source}
         else
-          $.scope = new JObject creator:$.user, data:{this:i9n.source}
+          $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
       else
         if scope?
           $.scope = scope.__create__ $ # this isnt bound to global
         else
-          $.scope = new JObject creator:$.user
+          $.scope = $.new JObject creator:$.user
       if params?
         # Though params is an AssignList,
         assert.ok params instanceof joe.AssignList
@@ -399,7 +399,7 @@ joe.Range::extend
         array = [i9n.start..i9n.end]
       else
         array = [i9n.start...i9n.end]
-    return JArray creator:$.user, data:array
+    return $.new JArray creator:$.user, data:array
 
 clazz.extend JObject,
   interpret: ($) ->
