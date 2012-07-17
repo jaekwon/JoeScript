@@ -33,7 +33,7 @@ Undetermined = clazz 'Undetermined', Node, ->
     return @word.key
 
 Block = clazz 'Block', Node, ->
-  children:
+  @defineChildren
     lines:      {type:[type:EXPR]}
   init: (lines) ->
     assert.ok lines, "lines must be defined"
@@ -42,7 +42,7 @@ Block = clazz 'Block', Node, ->
     (''+line for line in @lines).join ';\n'
 
 If = clazz 'If', Node, ->
-  children:
+  @defineChildren
     cond:       {type:EXPR, isValue:yes}
     block:      {type:Node, required:yes}
     else:       {type:Node}
@@ -57,7 +57,7 @@ If = clazz 'If', Node, ->
 Unless = ({cond, block, _else}) -> If cond:Not(cond), block:block, else:_else
 
 Loop = clazz 'Loop', Node, ->
-  children:
+  @defineChildren
     label:      {type:Word}
     cond:       {type:EXPR, isValue:yes}
     block:      {type:Node, required:yes}
@@ -65,12 +65,9 @@ Loop = clazz 'Loop', Node, ->
   toString: -> "while(#{@cond}){#{@block}}"
 
 For = clazz 'For', Loop, ->
-  children:
-    label:      {type:Word}
-    block:      {type:Node}
+  @defineChildren
     keys:       {type:[type:Node]}
     obj:        {type:EXPR, isValue:yes}
-    cond:       {type:EXPR, isValue:yes}
   # types:
   #   in: Array / generator iteration,  e.g.  for @keys[0] in @obj {@block}
   #   of: Object key-value iteration,   e.g.  for @keys[0], @keys[1] of @obj {@block}
@@ -79,27 +76,23 @@ For = clazz 'For', Loop, ->
 
 # Javascript C-style For-loop
 JSForC = clazz 'JSForC', Loop, ->
-  children:
-    label:      {type:Word}
-    block:      {type:Node}
+  @defineChildren
     setup:      {type:Node}
-    cond:       {type:EXPR, isValue:yes}
     counter:    {type:Node}
   init: ({@label, @block, @setup, @cond, @counter}) ->
   toString: -> "for (#{@setup or ''};#{@cond or ''};#{@counter or ''}) {#{@block}}"
 
 # Javascript Object Key iteration
 JSForK = clazz 'JSForK', Loop, ->
-  children:
-    label:      {type:Word}
-    block:      {type:Node}
+  @defineChildren
+    cond:       null
     key:        {type:Word}
     obj:        {type:EXPR, isValue:yes}
   init: ({@label, @block, @key, @obj}) ->
   toString: -> "for (#{@key} in #{@obj}) {#{@block}}"
 
 Switch = clazz 'Switch', Node, ->
-  children:
+  @defineChildren
     obj:        {type:EXPR, isValue:yes, required:yes}
     cases:      {type:[type:Case]}
     default:    {type:EXPR, isValue:yes}
@@ -107,7 +100,7 @@ Switch = clazz 'Switch', Node, ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
 
 Try = clazz 'Try', Node, ->
-  children:
+  @defineChildren
     block:      {type:Node, required:yes}
     catchVar:   {type:Word}
     catch:      {type:Node}
@@ -118,14 +111,14 @@ Try = clazz 'Try', Node, ->
                 @finally and "finally {#{@finally}}" or ''}"
 
 Case = clazz 'Case', Node, ->
-  children:
+  @defineChildren
     matches:    {type:[type:EXPR], required:yes}
     block:      {type:Node}
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
 
 Operation = clazz 'Operation', Node, ->
-  children:
+  @defineChildren
     left:       {type:EXPR, isValue:yes}
     right:      {type:EXPR, isValue:yes}
   init: ({@left, @op, @right}) ->
@@ -136,13 +129,13 @@ Operation = clazz 'Operation', Node, ->
 Not = (it) -> Operation op:'not', right:it
 
 Statement = clazz 'Statement', Node, ->
-  children:
+  @defineChildren
     expr:       {type:EXPR, isValue:yes}
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
-  children:
+  @defineChildren
     func:       {type:EXPR, isValue:yes}
     params:     {type:[type:Item,isValue:yes]}
   init: ({@func, @params}) ->
@@ -151,7 +144,7 @@ Invocation = clazz 'Invocation', Node, ->
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
-  children:
+  @defineChildren
     target:     {type:Node, required:yes}
     value:      {type:EXPR, isValue:yes, required:yes}
   init: ({@target, type, @op, @value}) ->
@@ -160,14 +153,14 @@ Assign = clazz 'Assign', Node, ->
   toString: -> "#{@target} #{@op or ''}= (#{@value})"
 
 Slice = clazz 'Slice', Node, ->
-  children:
+  @defineChildren
     obj:        {type:EXPR, isValue:yes}
     range:      {type:Range, required:yes}
   init: ({@obj, @range}) ->
   toString: -> "#{@obj}[#{@range}]"
 
 Index = clazz 'Index', Node, ->
-  children:
+  @defineChildren
     obj:        {type:EXPR, isValue:yes}
     key:        {type:EXPR, isValue:yes}
   init: ({obj, key, type}) ->
@@ -186,13 +179,13 @@ Index = clazz 'Index', Node, ->
     "#{@obj}#{@type}#{@key}#{close}"
 
 Soak = clazz 'Soak', Node, ->
-  children:
+  @defineChildren
     obj:        {type:EXPR, isValue:yes}
   init: (@obj) ->
   toString: -> "(#{@obj})?"
 
 Obj = clazz 'Obj', Node, ->
-  children:
+  @defineChildren
     items:      {type:[type:Item]}
   # NOTE Items may contain Heredocs.
   # TODO consider filtering them out or organizing the heredocs
@@ -200,12 +193,10 @@ Obj = clazz 'Obj', Node, ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 Arr = clazz 'Arr', Obj, ->
-  children:
-    items:      {type:[type:Item]}
   toString: -> "[#{if @items? then @items.join ',' else ''}]"
 
 Item = clazz 'Item', Node, ->
-  children:
+  @defineChildren
     key:        {type:KEY}
     value:      {type:EXPR, isValue:yes}
   init: ({@key, @value, @splat}) ->
@@ -230,7 +221,7 @@ Undefined = clazz 'Undefined', Node, ->
 Undefined.undefined = new Undefined(yes)
 
 Str = clazz 'Str', Node, ->
-  children:
+  @defineChildren
     parts:      {type:[type:EXPR, isValue:yes]}
   init: (parts) ->
     @parts = []
@@ -259,7 +250,7 @@ Str = clazz 'Str', Node, ->
       '"' + parts.join('') + '"'
 
 Func = clazz 'Func', Node, ->
-  children:
+  @defineChildren
     params:     {type:AssignList}
     block:      {type:Block} # must be block
   init: ({@params, @type, @block}) ->
@@ -269,7 +260,7 @@ Func = clazz 'Func', Node, ->
     }#{ '{'+@block+'}' }"
 
 AssignObj = clazz 'AssignObj', Node, ->
-  children:
+  @defineChildren
     items:      {type:[type:AssignItem]}
   init: (@items) ->
   targetNames$: get: ->
@@ -288,8 +279,6 @@ AssignObj = clazz 'AssignObj', Node, ->
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 AssignList = clazz 'AssignList', AssignObj, ->
-  children:
-    items:    {type:[type:AssignItem]}
   init: (@items) ->
     # need to consider splats.
     # TODO
@@ -301,7 +290,7 @@ AssignList = clazz 'AssignList', AssignObj, ->
     }#{ if braces  then ']'             else '' }"
 
 AssignItem = clazz 'AssignItem', Node, ->
-  children:
+  @defineChildren
     key:      {type:new Set([Word, Index, Number])}
     target:   {type:Node}
     default:  {type:EXPR, isValue:yes}
@@ -314,7 +303,7 @@ AssignItem = clazz 'AssignItem', Node, ->
     }#{ if @default?          then '='+@default else '' }"
 
 Range = clazz 'Range', Node, ->
-  children:
+  @defineChildren
     start:    {type:EXPR, isValue:yes}
     end:      {type:EXPR, isValue:yes}
     by:       {type:EXPR, isValue:yes}

@@ -51,35 +51,33 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
 
     $P.client.hgetall id+':meta', (err, meta) ->
       return cb(err) if err?
-      assert.ok meta.creator?, "user had no creator?"
-      assert.ok meta.creator isnt id, "heresy!"
 
-      $P.loadJObject kernel, meta.creator, (err, creator) ->
-        return cb(err) if err?
-        switch meta.type
-          when 'JObject' then obj = new JObject creator:creator
-          when 'JArray'  then obj = new JArray  creator:creator
-          when 'JUser'   then obj = new JUser   name:id
-          else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
+      creator = cache[meta.creator] ? new JStub {id:meta.creator} if meta.creator?
 
-        $P.client.hgetall id, (err, _data) ->
-          if meta.type is 'JArray'
-            return cb("Loadded JArray had no length?") unless _data.length?
-            data = new Array(data.length)
-          else
-            data = _data
-          for key, value of _data
-            t = value[0]
-            value = value[2...]
-            switch t
-              when 's' then value = value
-              when 'n' then value = Number(value)
-              when 'b' then value = Bool(value)
-              when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
-              when 'o' then value = cache[value] ? new JStub {id:value}
-            data[key] = value
-          obj.data = data
-          cb(null, obj)
+      switch meta.type
+        when 'JObject' then obj = new JObject {id,creator}
+        when 'JArray'  then obj = new JArray  {id,creator}
+        when 'JUser'   then obj = new JUser   {id,creator,name}
+        else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
+
+      $P.client.hgetall id, (err, _data) ->
+        if meta.type is 'JArray'
+          return cb("Loadded JArray had no length?") unless _data.length?
+          data = new Array(data.length)
+        else
+          data = _data
+        for key, value of _data
+          t = value[0]
+          value = value[2...]
+          switch t
+            when 's' then value = value
+            when 'n' then value = Number(value)
+            when 'b' then value = Bool(value)
+            when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
+            when 'o' then value = cache[value] ? new JStub {id:value}
+          data[key] = value
+        obj.data = data
+        cb(null, obj)
 
 JObject::extend
 

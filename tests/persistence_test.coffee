@@ -53,8 +53,8 @@ try
             if err?
               console.log red "Error loading object:"
               console.log red err.stack ? err
-            console.log "Loaded object #{_obj}"
-            assert.equal obj.id, _obj.id
+            console.log "Loaded object #{_obj.serialize()}"
+            equal obj.id, _obj.id
             persistence.client.quit() # TODO
       catch err
         console.log red "Unknown Error:"

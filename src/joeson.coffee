@@ -262,8 +262,9 @@ _loopStack = [] # trace stack
         @parse = parse = fn.bind(this)
       return parse($)
 
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
+
   capture:   yes
   labels$:   get: -> @_labels ?= (if @label then [@label] else [])
   captures$: get: -> @_captures ?= (if @capture then [this] else [])
@@ -296,7 +297,7 @@ _loopStack = [] # trace stack
       parent = parent.parent
 
 @Choice = Choice = clazz 'Choice', GNode, ->
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     choices:    {type:[type:GNode]}
   init: (@choices=[]) ->
@@ -327,7 +328,7 @@ _loopStack = [] # trace stack
       else
         throw new Error "Unknown line type, expected 'o' or 'i' line, got '#{line}' (#{typeof line})"
     rank
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     choices:    {type:[type:GNode]}
   init: (@name, @choices=[], includes={}) ->
@@ -339,10 +340,10 @@ _loopStack = [] # trace stack
   contentString: -> blue("Rank(")+(@choices.map((c)->red(c.name)).join blue(','))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
-  handlesChildLabel: yes
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     sequence:   {type:[type:GNode]}
+  handlesChildLabel: yes
   init:       (@sequence) ->
   labels$:    get: -> @_labels ?= (if @label? then [@label] else (child.labels for child in @sequence).flatten())
   captures$:  get: -> @_captures ?= (child.captures for child in @sequence).flatten()
@@ -392,10 +393,10 @@ _loopStack = [] # trace stack
     blue("(")+(labeledStrs.join ' ')+blue(")")
 
 @Lookahead = Lookahead = clazz 'Lookahead', GNode, ->
-  capture: no
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     expr:       {type:GNode}
+  capture: no
   init: ({@expr}) ->
   parse$: @$wrap ($) ->
     pos = $.code.pos
@@ -405,10 +406,10 @@ _loopStack = [] # trace stack
   contentString: -> "#{blue "(?"}#{@expr}#{blue ")"}"
 
 @Existential = Existential = clazz 'Existential', GNode, ->
-  handlesChildLabel$: get: -> @parent?.handlesChildLabel
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     it:         {type:GNode}
+  handlesChildLabel$: get: -> @parent?.handlesChildLabel
   init: (@it) ->
   prepare: ->
     labels   = if @label? and @label not in ['@','&'] then [@label] else @it.labels
@@ -425,7 +426,7 @@ _loopStack = [] # trace stack
   contentString: -> '' + @it + blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     value:      {type:GNode}
     join:       {type:GNode}
@@ -458,10 +459,10 @@ _loopStack = [] # trace stack
     "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 
 @Not = Not = clazz 'Not', GNode, ->
-  capture: no
-  children:
+  @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
     it:         {type:GNode}
+  capture: no
   init: (@it) ->
   parse$: @$wrap ($) ->
     pos = $.code.pos
@@ -508,7 +509,7 @@ _loopStack = [] # trace stack
 # in some glue language.
 @Grammar = Grammar = clazz 'Grammar', GNode, ->
 
-  children: rank: {type:Rank}
+  @defineChildren rank: {type:Rank}
 
   init: (rank) ->
     rank = rank(MACROS) if typeof rank is 'function'

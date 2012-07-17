@@ -8,6 +8,13 @@ indent = (c) -> Array(c+1).join('  ')
 
 # A base node class, used for both Joescript code nodes, and Joeson AST nodes.
 @Node = Node = clazz 'Node', ->
+
+  @defineChildren = (descriptors) ->
+    orig = @prototype.children
+    if orig
+      @prototype.children = Object.merge Object.clone(orig), descriptors
+    else
+      @prototype.children = descriptors
   
   # Iterate cb function over all child keys
   # cb:       (child, parent, key, descriptor, key2?) -> ...
@@ -16,7 +23,7 @@ indent = (c) -> Array(c+1).join('  ')
   withChildren: (cb, options) ->
     skipUndefined = options?.skipUndefined ? yes
     return if not @children
-    for key, desc of @children
+    for key, desc of @children when desc?
       value = this[key]
       # value is undefined
       if not value? and not desc.required

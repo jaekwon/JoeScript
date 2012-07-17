@@ -36,10 +36,13 @@ JStub = @JStub = clazz 'JStub', Node, ->
     "<##{@id}>"
 
 JObject = @JObject = clazz 'JObject', Node, ->
-  children:
+
+  @defineChildren
+    id:       {type:String}
     creator:  {type:JUser, required:yes}
     data:     {type:{value:RUNTIME}}
     proto:    {type:RUNTIME}
+
   # data:   An Object
   # acl:    A JArray of JAccessControlItems
   #         NOTE: the acl has its own acl!
@@ -280,10 +283,8 @@ JNaN        = @JNaN       = new Number NaN
 
 # Actually, not always bound to a scope.
 JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
-  children:
-    creator:  {type:JUser, required:yes}
-    data:     {type:{value:RUNTIME}}
-    proto:    {type:RUNTIME}
+
+  @defineChildren
     func:     {type:RUNTIME_FUNC, required:yes}
     scope:    {type:JObject}
     
