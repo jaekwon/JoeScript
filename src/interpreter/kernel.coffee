@@ -215,9 +215,10 @@ JThread = @JThread = clazz 'JThread', ->
 # Multi-user time-shared interpreter.
 @JKernel = JKernel = clazz 'JKernel', ->
 
-  init: ({@cache}={}) ->
+  init: ({@cache, @nativeFunctions}={}) ->
     @runThreads = []
     @cache ?= {}      # TODO should be weak etc.
+    @nativeFunctions ?= {}
     @index = 0
     @ticker = 0
     @waitLists = {}   # waitKey -> [thread1,thread2,...]

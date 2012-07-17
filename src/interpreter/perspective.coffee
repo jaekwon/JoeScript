@@ -11,6 +11,7 @@ assert = require 'assert'
 } = require 'joeson/src/interpreter'
 
 # A JObject listener
+# Sends events to the client.
 JPerspective = @JPerspective = clazz 'JPerspective', ->
   init: ({@socket, @root}) ->
     @id = "perspective:#{randid()}"

@@ -20,6 +20,8 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
     @id = "persistence:#{randid()}"
     @listenOn @root
 
+  toString: -> "[JPersistence #{@id}]"
+
   # Receives messages from objects here.
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
@@ -37,10 +39,51 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
         @listenOn child
 
-  toString: -> "[JPersistence #{@id}]"
+  loadJObject: (kernel, id, cb) ->
+    debug "JPersistence::loadJObject #{kernel}, #{id}, #{cb?} (cb?)"
+    assert.ok kernel?.cache?,               "loadJObject wants kernel.cache"
+    assert.ok kernel?.nativeFunctions?,     "loadJObject wants kernel.nativeFunctions"
+    assert.ok id,                           "loadJObject wants an id to load"
+    $P = @
+    cache = kernel.cache
+    nativ = kernel.nativeFunctions
+    return cb(null, cached) if cached=cache[id]
+
+    $P.client.hgetall id+':meta', (err, meta) ->
+      return cb(err) if err?
+      assert.ok meta.creator?, "user had no creator?"
+      assert.ok meta.creator isnt id, "heresy!"
+
+      $P.loadJObject kernel, meta.creator, (err, creator) ->
+        return cb(err) if err?
+        switch meta.type
+          when 'JObject' then obj = new JObject creator:creator
+          when 'JArray'  then obj = new JArray  creator:creator
+          when 'JUser'   then obj = new JUser   name:id
+          else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
+
+        $P.client.hgetall id, (err, _data) ->
+          if meta.type is 'JArray'
+            return cb("Loadded JArray had no length?") unless _data.length?
+            data = new Array(data.length)
+          else
+            data = _data
+          for key, value of _data
+            t = value[0]
+            value = value[2...]
+            switch t
+              when 's' then value = value
+              when 'n' then value = Number(value)
+              when 'b' then value = Bool(value)
+              when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
+              when 'o' then value = cache[value] ? new JStub {id:value}
+            data[key] = value
+          obj.data = data
+          cb(null, obj)
 
 JObject::extend
-  # Convenience
+
+  # This is the event handler delegated by JPersistence.
   persistence_on: ($$, event) ->
     switch event.type
       when 'new'
@@ -52,7 +95,7 @@ JObject::extend
       #   garbage collection routine
 
   # hmm... should JObjects be src/node/Nodes?... probably not
-  # XXX refactor out?
+  # XXX refactor out? This is already duped
   persistence_getChildren: ($$) ->
     children = []
     if @data?
@@ -129,52 +172,9 @@ JArray::extend
       #   garbage collection routine
 
 JStub::extend
-  persistence__load__: ($) ->
-    assert.ok $.persistence, "Where is the thread's persistence?"
-
-# XXX refactor
-# Lookup for native functions
-NATIVE_FUNCTIONS = {}
-nativ = @nativ = (id, f) ->
-  assert.ok id?, "nativ wants an id"
-  f.id = id
-  NATIVE_FUNCTIONS[id] = f
-  return f
-# XXX refactor
-loadJObject = @loadJObject = (id, cb) ->
-  console.log "loading #{id}"
-  assert.ok id, "loadJObject wants an id to load"
-  return cb(null, cached) if cached=OBJECTS[id]
-
-  getClient().hgetall id+':meta', (err, meta) ->
-    return cb(err) if err?
-    assert.ok meta.creator?, "user had no creator?"
-    assert.ok meta.creator isnt id, "heresy!"
-
-    loadJObject meta.creator, (err, creator) ->
-      return cb(err) if err?
-      switch meta.type
-        when 'JObject' then obj = new JObject creator:creator
-        when 'JArray'  then obj = new JArray  creator:creator
-        when 'JUser'   then obj = new JUser   name:id
-        else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
-
-      getClient().hgetall id, (err, _data) ->
-        if meta.type is 'JArray'
-          return cb("Loadded JArray had no length?") unless _data.length?
-          data = new Array(data.length)
-        else
-          data = _data
-        for key, value of _data
-          t = value[0]
-          value = value[2...]
-          switch t
-            when 's' then value = value
-            when 'n' then value = Number(value)
-            when 'b' then value = Bool(value)
-            when 'f' then value = NATIVE_FUNCTIONS[value] ? -> throw new Error "Invalid native function"
-            when 'o' then value = getOrStub value
-          data[key] = value
-        obj.data = data
-        cb(null, obj)
-
+  persistence_loadDeep: ($$, thread, cb) ->
+    thread.wait waitKey="load:#{@id}"
+    $$.loadJObject thread.kernel, @id, (err, obj) ->
+      return thread.error 'InternalError', err if err?
+      thread.last = obj
+      return thread.resume waitKey

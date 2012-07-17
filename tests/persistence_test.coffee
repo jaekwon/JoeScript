@@ -31,20 +31,30 @@ try
           @printErrorStack()
           process.exit(1)
           return
+        obj = @last
         equal @state, 'return'
-        # Install persistence on @last.
-        persistence = new JPersistence root:@last
-        # Emit event to persist @last
-        @last.emit thread:@, type:'new'
+        # Install persistence on obj
+        persistence = new JPersistence root:obj
+        # Emit event to persist obj
+        obj.emit thread:@, type:'new'
         equal @state, 'wait'
+
         # At this point the thread will become reanimated,
         # even though this is happening in the exit callback.
         # Since we don't want this callback to run again,
         # just replace the thread's callback function...
         @callback = ->
           equal @state, 'return'
-          console.log 'ok'
-          persistence.client.quit() # TODO
+          # Clear the kernel cache 
+          kernel.cache = {}
+          # Now try loading from persistence
+          persistence.loadJObject kernel, obj.id, (err, _obj) ->
+            if err?
+              console.log red "Error loading object:"
+              console.log red err.stack ? err
+            console.log "Loaded object #{_obj}"
+            assert.equal obj.id, _obj.id
+            persistence.client.quit() # TODO
       catch err
         console.log red "Unknown Error:"
         console.log red err.stack ? err
