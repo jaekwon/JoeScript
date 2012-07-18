@@ -79,12 +79,21 @@ JObject::extend
 
   # This is the event handler delegated by JPersistence.
   persistence_on: ($$, event) ->
+    thread = event.thread
+    assert.ok thread?, "JObject::persistence_on wants event.thread"
     switch event.type
       when 'new'
-        @persistence_save $$, event.thread
+        thread.wait waitKey="persist:#{@id}"
+        @persistence_save $$, (err) ->
+          return thread.throw 'PersistenceError', "Failed to persist object ##{@id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
       when 'set', 'update'
         {key, value} = event
         $$.listenOn value if value instanceof JObject
+        thread.wait waitKey="persist:#{@id}[#{key}]"
+        @persistence_saveItem $$, key, value, (err) ->
+          return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
       # when 'delete'
       #   garbage collection routine
 
@@ -108,11 +117,10 @@ JObject::extend
     This should only be used upon objects that get initialized by a single thread.
     Normally there is no need to save all the items, as they get persisted on 'set' events.
   ###
-  persistence_save: ($$, thread, cb) ->
+  persistence_save: ($$, cb) ->
     assert.ok @id, "JObject needs an id for it to be saved."
     return cb() if @_saving # nothing to do if already saving
     @_saving = yes
-    thread.wait waitKey="persist:#{@id}"
 
     debug "$$.client.hmset #{@id+':meta'}"
     $$.client.hmset @id+':meta',
@@ -123,38 +131,38 @@ JObject::extend
       # Asynchronously persist each key-value pair
       async.forEach dataKeys, (key, next) =>
         value = @data[key]
-        debug "persistence_save saving key/value #{key}:#{value}"
-        switch typeof value
-          when 'string' then value = 's:'+value
-          when 'number' then value = 'n:'+value
-          when 'bool'   then value = 'b:'+value
-          when 'function'
-            assert.ok value.id?, "Cannot persist a native function with no id"
-            value = 'f:'+value.id
-          when 'object'
-            assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
-            assert.ok value.id, "Cannot persist a JObject without id"
-            # Special case, recursively persist children. Depth first, apparently.
-            value.persistence_save $$, thread, (err) =>
-              return next(err) if err?
-              debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
-              $$.client.hset @id, key, 'o:'+value.id, next
-            return
-          else throw new Error "dunno how to persist value #{value} (#{typeof value})"
-        # Set key-value(ref) pair to redis
-        debug "$$.client.hset #{@id}, #{key}, #{value}"
-        $$.client.hset @id, key, value, next
+        @persistence_saveItem $$, key, value, next
         return
       # After saving all key-value pairs (or upon error)
       , (err) =>
         delete @_saving
-        if err?
-          return cb(err) if cb?
-          fatal "ERROR: #{err.stack ? err}"
-          return thread.throw 'PersistenceError', "Failed to persist object ##{@id}"
-        debug "thread.resume #{waitKey}"
-        thread.resume waitKey
-        return cb?()
+        return cb(err)
+
+  persistence_saveItem: ($$, key, value, cb) ->
+    assert.ok @id, "JObject needs an id for it to be saved."
+    debug "persistence_save saving key/value #{key}:#{value}"
+
+    switch typeof value
+      when 'string' then value = 's:'+value
+      when 'number' then value = 'n:'+value
+      when 'bool'   then value = 'b:'+value
+      when 'function'
+        assert.ok value.id?, "Cannot persist a native function with no id"
+        value = 'f:'+value.id
+      when 'object'
+        assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
+        assert.ok value.id, "Cannot persist a JObject without id"
+        # Special case, recursively persist children. Depth first, apparently.
+        value.persistence_save $$, (err) =>
+          return cb(err) if err?
+          debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
+          $$.client.hset @id, key, 'o:'+value.id, cb
+        return
+      else throw new Error "dunno how to persist value #{value} (#{typeof value})"
+    # Set key-value(ref) pair to redis
+    debug "$$.client.hset #{@id}, #{key}, #{value}"
+    $$.client.hset @id, key, value, cb
+    return
 
 JArray::extend
   persistence_on: ($$, event) ->
@@ -165,6 +173,7 @@ JArray::extend
       # when 'delete'
       #   garbage collection routine
 
+### XXX wrong
 JStub::extend
   persistence_loadDeep: ($$, thread, cb) ->
     thread.wait waitKey="load:#{@id}"
@@ -172,3 +181,4 @@ JStub::extend
       return thread.error 'InternalError', err if err?
       thread.last = obj
       return thread.resume waitKey
+###
