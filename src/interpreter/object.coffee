@@ -1,3 +1,28 @@
+###
+
+## On Interpretation ##
+
+JObject is the base runtime object class.
+
+The __xyz__ methods are methods meant to be called in a runtime context (with a thread).
+(except some like __str__, where the thread ($) may be optional)
+Some methods like __get__ can pause the thread. The value is available in @last when
+the thread is resumed. This means the bitcode instruction wants to return obj.__get__(...),
+which preserves the behavior of returning a value. However, these methods will return null
+when pausing the thread, so you could alternatively check for that.
+
+  if value=obj.__get__($, key) is null
+    # do something else
+  else i9n.value = value
+  # continue bitcode instruction
+
+Sometimes it is necessary to perform actions after a method call, though the
+instruction doesn't depend on the result of these actions. In this case the JObject::emit
+mechanism is suitable. Just add a handler to the object via JObject::addHandler and listen.
+TODO mechanism to remove a listener...
+
+###
+
 { clazz,
   colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
   collections:{Set}} = require('cardamom')
@@ -23,17 +48,18 @@ RUNTIME = Set([JStub, JObject, JSingleton, JBoundFunc, Number, String, Function,
 RUNTIME_FUNC = Set([joe.Func, Function])
 
 JStub = @JStub = clazz 'JStub', Node, ->
-  init: ({@id, @type}) ->
+  init: ({@persistence, @id, @type}) ->
     assert.ok @id?, "Stub wants id"
   jsValue: ($, $$) ->
+    throw new Error "Deprecated implementation of JStub::jsValue"
     cached1 = $$[@id]
     return cached1 if cached1?
     cached2 = $.kernel.cache[@id]
     return cached2.jsValue($, $$) if cached2?
     #throw new Error "DereferenceError: Broken reference: #{@}"
     return @
-  toString: ->
-    "<##{@id}>"
+  __str__: ($) -> "<##{@id}>"
+  toString: -> "<##{@id}>"
 
 JObject = @JObject = clazz 'JObject', Node, ->
 
@@ -66,30 +92,45 @@ JObject = @JObject = clazz 'JObject', Node, ->
     return no if listeners[listener.id]?
     listeners[listener.id] = listener
     return yes
+
   # Emit an event from object to listeners
   emit: (event) ->
     assert.ok typeof event is 'object', 'Event must be an object'
-    debug "emit #{event} // #{@listeners}"
+    debug "emit event:#{event} // #{Object.values @listeners}"
     return unless @listeners?
     event.sourceId = @id
     for id, listener of @listeners
       listener.on @, event
 
-  # Runtime functions
+  ## Runtime functions ##
+  
+  # Asynchronous. See doc on the top of this file.
   __get__: ($, key, required=no) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('read', this)
+    debug "#{@}.__get__ #{key}, required=#{required}"
     if key is '__proto__'
       value = @proto
     else
       value = @data[key]
     if value?
       if value instanceof JStub
-        # TODO make a call to aynchronously fetch value
-        # TODO then replace stub with value in @data[key] (or @proto)
-        # TODO dont forget 'required'.
-        console.log "WORKING"
-        return $.wait value.id # TODO move waitKey construction to JStub
+        debug "#{@}.__get__ #{key} --> got stub, loading..."
+        return cached if cached=$.kernel.cache[value.id]
+        assert.ok value.persistence?, "JObject::__get__ wants <JStub>.persistence"
+        $.wait waitKey="load:#{value.id}"
+        # Make a call to aynchronously fetch value
+        value.persistence.loadJObject $.kernel, value.id, (err, obj) =>
+          return $.throw 'InternalError', "Failed to load stub ##{value.id}:\n#{err.stack ? err}" if err?
+          return $.throw 'ReferenceError', "#{key} is a broken stub." if required and not obj?
+          # Replace stub with value in @data[key] (or @proto)
+          if key is '__proto__'
+            @proto = obj
+          else
+            @data[key] = obj
+          $.last = obj
+          $.resume waitKey
+        return null # null means waiting
       else
         return value
     else if @proto?
@@ -173,7 +214,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
     jsObj = $$[@id] = {}
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
-  toString: -> "[JObject]"
+  toString: -> "[JObject #{@id}]"
 
 JArray = @JArray = clazz 'JArray', JObject, ->
   protoKeys = ['push']
@@ -232,7 +273,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     jsObj = $$[@id] = []
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
-  toString: -> "[JArray]"
+  toString: -> "[JArray #{@id}]"
 
   # protokeys
   push: ($, [value]) ->

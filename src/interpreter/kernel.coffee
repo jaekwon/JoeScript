@@ -132,12 +132,14 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
+    debug "#{@}.wait waitKey:#{waitKey}"
     (@kernel.waitLists[waitKey]?=[]).push @
     @waitCount++
     @state = 'wait'
     return
 
   resume: (waitKey) ->
+    debug "#{@}.resume waitKey:#{waitKey}"
     @kernel.resumeThreads waitKey
     return
 
@@ -315,3 +317,5 @@ JThread = @JThread = clazz 'JThread', ->
       delete @waitLists[waitKey]
 
   shutdown: -> @emitter.emit 'shutdown'
+
+  toString: -> "[JKernel]"

@@ -14,6 +14,8 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
     @id = "perspective:#{randid()}"
     @listenOn @root
 
+  toString: -> "[JPerspective ##{@id} socket:#{@socket}]"
+
   # Receives messages from objects here.
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
@@ -21,15 +23,13 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
     debug "JPerspective::on for event: #{event.type}"
     # Cache-set eventJSON for wire transfer
     unless event.eventJSON?
-      debug "Serializing values of event to eventJSON"
       # __str__ the values of the event object.
       eventJSON = {}
       for key, value of event
         # NOTE: mind the convention...
+        continue if key is 'thread' # no need to be passing thread info
         if key in ['type', 'key', 'sourceId']
           eventJSON[key] = value
-        else if key is 'thread'
-          'pass'
         else
           eventJSON[key] = value.__str__()
       event.eventJSON = eventJSON

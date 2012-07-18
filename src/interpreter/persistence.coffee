@@ -11,10 +11,10 @@ async = require 'async'
 # A JObject listener
 # JPersistence saves objects onto redis
 JPersistence = @JPersistence = clazz 'JPersistence', ->
-  init: ({@client, @root}) ->
+  init: ({@client, @root}={}) ->
     @client ?= require('redis').createClient()
     @id = "persistence:#{randid()}"
-    @listenOn @root
+    @listenOn @root if @root?
 
   toString: -> "[JPersistence #{@id}]"
 
@@ -35,6 +35,8 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
         @listenOn child
 
+  # Load an object with the given id for the given kernel
+  # cb: (err, obj) -> ...
   loadJObject: (kernel, id, cb) ->
     debug "JPersistence::loadJObject #{kernel}, #{id}, #{cb?} (cb?)"
     assert.ok kernel?.cache?,               "loadJObject wants kernel.cache"
@@ -48,13 +50,14 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
     $P.client.hgetall id+':meta', (err, meta) ->
       return cb(err) if err?
 
-      creator = cache[meta.creator] ? new JStub {id:meta.creator} if meta.creator?
+      creator = cache[meta.creator] ? new JStub {persistence:$P, id:meta.creator} if meta.creator?
 
       switch meta.type
-        when 'JObject' then obj = new JObject {id,creator}
-        when 'JArray'  then obj = new JArray  {id,creator}
-        when 'JUser'   then obj = new JUser   {id,creator,name}
+        when 'JObject' then obj = kernel.cache[id] = new JObject {id,creator}
+        when 'JArray'  then obj = kernel.cache[id] = new JArray  {id,creator}
+        when 'JUser'   then obj = kernel.cache[id] = new JUser   {id,creator,name}
         else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
+      obj.addListener $P
 
       $P.client.hgetall id, (err, _data) ->
         if meta.type is 'JArray'
@@ -70,7 +73,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             when 'n' then value = Number(value)
             when 'b' then value = Bool(value)
             when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
-            when 'o' then value = cache[value] ? new JStub {id:value}
+            when 'o' then value = cache[value] ? new JStub {persistence:$P, id:value}
           data[key] = value
         obj.data = data
         cb(null, obj)
