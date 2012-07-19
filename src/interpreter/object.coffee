@@ -290,7 +290,7 @@ JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
 
 JUser = @JUser = clazz 'JUser', JObject, ->
   init: ({id, creator, name}) ->
-    assert.equal typeof name, 'string', "@name not string"
+    assert.equal typeof name, 'string', "@name not string" if name?
     creator ?= this
     @super.init.call @, {id, creator, data:{name}}
   name$: get: -> @data.name
