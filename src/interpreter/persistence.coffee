@@ -65,6 +65,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           data = new Array(data.length)
         else
           data = _data
+        debug "loadJObject now setting up items: #{inspect _data}"
         for key, value of _data
           t = value[0]
           value = value[2...]
@@ -76,6 +77,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             when 'o' then value = cache[value] ? new JStub {persistence:$P, id:value}
           data[key] = value
         obj.data = data
+        debug "loadJObject obj is now #{obj.serialize()}"
         cb(null, obj)
 
 JObject::extend

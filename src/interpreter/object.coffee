@@ -107,14 +107,13 @@ JObject = @JObject = clazz 'JObject', Node, ->
   __get__: ($, key, required=no) ->
     assert.ok key=key.__key__?($), "Key couldn't be stringified"
     $.will('read', this)
-    debug "#{@}.__get__ #{key}, required=#{required}"
     if key is '__proto__'
       value = @proto
     else
       value = @data[key]
+    debug "#{@}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})"
     if value?
       if value instanceof JStub
-        debug "#{@}.__get__ #{key} --> got stub, loading..."
         return cached if cached=$.kernel.cache[value.id]
         assert.ok value.persistence?, "JObject::__get__ wants <JStub>.persistence"
         $.wait waitKey="load:#{value.id}"

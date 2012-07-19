@@ -48,7 +48,7 @@ JThread = @JThread = clazz 'JThread', ->
     @last = JUndefined # last return value.
     @state = null
     @push this:@start, func:@start.interpret
-    @waitCount = 0
+    @waitKeys = []
     # if @user is GOD then @will = -> yes # optimization
 
   # Main run loop iteration.
@@ -123,8 +123,16 @@ JThread = @JThread = clazz 'JThread', ->
 
   throw: (name, message) ->
     @error = name:name, message:message, stack:@callStack()
-    @state = 'error'
-    return
+    if @state is 'wait'
+      while waitKey=@waitKeys.pop()
+        (waitList=@kernel.waitLists[waitKey]).remove @
+        delete @kernel.waitLists[waitKey] if waitList.length is 0
+      @state = 'error'
+      return @exit()
+    else
+      assert.ok @waitKeys.length is 0, "During a throw, found thread with @state != 'wait' that had waitKeys ?!"
+      @state = 'error'
+      return
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"
@@ -134,14 +142,22 @@ JThread = @JThread = clazz 'JThread', ->
   wait: (waitKey) ->
     debug "#{@}.wait waitKey:#{waitKey}"
     (@kernel.waitLists[waitKey]?=[]).push @
-    @waitCount++
+    @waitKeys.push waitKey
     @state = 'wait'
     return
 
   resume: (waitKey) ->
     debug "#{@}.resume waitKey:#{waitKey}"
-    @kernel.resumeThreads waitKey
-    return
+    switch @state
+      when 'wait'
+        # resume ALL threads waiting on this key
+        @kernel.resumeThreads waitKey
+        return
+      when 'error'
+        # forget about the waitkey
+        assert.ok @waitKeys.length is 0, "Errored thread's waitKeys should already have been cleared"
+        return
+      else throw new Error "Unexpected thread state for resuming: #{@state}"
 
   exit: ->
     if @callback?
@@ -268,7 +284,7 @@ JThread = @JThread = clazz 'JThread', ->
     debug "JKernel::runloop with #{@runThreads.length} runThreads, run @#{@index}"
     thread = @runThreads[@index]
     thread.state = null
-    thread.waitCount = 0
+    assert.ok thread.waitKeys.length is 0
     debug "tick #{@ticker}. #{@runThreads.length} threads, try #{thread.id}" if trace.debug
     try
       # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
@@ -302,9 +318,8 @@ JThread = @JThread = clazz 'JThread', ->
     return if not waitList?.length # was already resumed some other how.
     newWaitList = []
     for thread in waitList
-      waitCount = --thread.waitCount
-      assert.ok waitCount >= 0, "waitCount shouldn't be negative."
-      if waitCount is 0
+      thread.waitKeys.remove waitKey
+      if thread.waitKeys.length is 0
         debug "JKernel inserting #{thread} into @runThreads"
         @runThreads.push thread
         process.nextTick @runloop if @runThreads.length is 1

@@ -51,7 +51,7 @@ $(document).ready ->
         fatal "Uncaught error in socket callback: #{err.stack ? err}"
         console.log "Uncaught error in socket callback: #{err.stack ? err}"
 
-  # (re)initialize the output.
+  ## (re)initialize the output.
   socket.on 'output', _err_ (outputStr) ->
     console.log "received output"
 
@@ -94,3 +94,11 @@ $(document).ready ->
         socket.emit 'run', codeStr
 
       $(document.body).click -> editor.focus()
+
+  ## Server diagnostic info
+  socket.on 'server_info.', _err_ (data) ->
+    for key, value of data.memory
+      data.memory[key] = (Math.floor(value/10000)/100.0)+"Mb"
+    $('#server_info').text(inspect data)
+
+  window.setInterval (-> socket.emit 'server_info?'), 1000

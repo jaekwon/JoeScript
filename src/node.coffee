@@ -63,6 +63,12 @@ indent = (c) -> Array(c+1).join('  ')
     , skipUndefined:no
 
   serialize: (filter, _indent=0) ->
+    if filter is undefined # sensible default filter to avoid infinite recursion
+      cache = {}
+      filter = (node) ->
+        seen = cache[node.id]
+        cache[node.id] = yes
+        return not seen
     return '-- filtered --' if filter? and not filter @
     throw new Error "_indent (#{_indent}) too high, stack overflow?" if _indent > 1024
     valueStr = this.toString()

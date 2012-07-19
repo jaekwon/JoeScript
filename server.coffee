@@ -134,7 +134,7 @@ io.sockets.on 'connection', (socket) ->
     info "received code #{codeStr}"
 
     # Create a new entry for output.
-    outputItem = new JObject creator:ANON, data:{code:codeStr, result:JUndefined}
+    outputItem = new JObject creator:ANON, data:{code:codeStr, result:'running...'}
     output.push undefined, [outputItem]
 
     KERNEL.run
@@ -153,3 +153,6 @@ io.sockets.on 'connection', (socket) ->
           else
             throw new Error "Unexpected state #{@state} during kernel callback"
         @cleanup()
+
+  # Server Diagnostics
+  socket.on 'server_info?', -> socket.emit 'server_info.', memory:process.memoryUsage()
