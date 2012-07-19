@@ -54,7 +54,7 @@ try
             if err?
               console.log red "Error loading object:"
               console.log red err.stack ? err
-            console.log "Loaded object #{_obj.serialize()}"
+            console.log "Loaded object #{_obj.serialize( (c={}; (n)->seen=c[n.id];c[n.id]=yes; not seen) )}"
             equal obj.id, _obj.id
             KERNEL.shutdown()
             persistence.client.quit()

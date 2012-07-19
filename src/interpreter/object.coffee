@@ -51,7 +51,6 @@ JStub = @JStub = clazz 'JStub', Node, ->
   init: ({@persistence, @id, @type}) ->
     assert.ok @id?, "Stub wants id"
   jsValue: ($, $$) ->
-    throw new Error "Deprecated implementation of JStub::jsValue"
     cached1 = $$[@id]
     return cached1 if cached1?
     cached2 = $.kernel.cache[@id]
@@ -211,6 +210,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
     )
   jsValue: ($, $$={}) ->
     return $$[@id] if $$[@id]
+    # console.log @serialize( (c={}; (n)->seen=c[n.id];c[n.id]=yes; not seen) )
     jsObj = $$[@id] = {}
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
@@ -289,10 +289,11 @@ JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   toString: -> "[JAccessControlItem #{@who}: #{@what}]"
 
 JUser = @JUser = clazz 'JUser', JObject, ->
-  init: ({id, creator, @name}) ->
-    assert.equal typeof @name, 'string', "@name not string"
+  init: ({id, creator, name}) ->
+    assert.equal typeof name, 'string', "@name not string"
     creator ?= this
-    @super.init.call @, {id, creator, data:{@name}}
+    @super.init.call @, {id, creator, data:{name}}
+  name$: get: -> @data.name
   __str__:  ($, $$={}) ->
     return "<##{@id}>" if $$[@id]
     $$[@id] = yes

@@ -26,13 +26,18 @@ foo = {}
 foo.bar = 1
 foo.baz = ->
 ''+foo
-""",                                      '{O|#@ \"bar\":1,\"baz\":<F|#>}', -> js=@it.jsValue(@thread); equal js.bar, 1
+""",                                      '{O|#@ \"bar\":1,\"baz\":<F|#>}', ->
+  js = @it.jsValue(@thread)
+  equal js.bar, 1
 test """
 foo = {}
 foo.bar = 1
 foo.foo = foo
 ''+foo
-""",                                      '{O|#@ \"bar\":1,\"foo\":<#>}', -> js=@it.jsValue(@thread); equal js.bar, 1; equal js.foo, js
+""",                                      '{O|#@ \"bar\":1,\"foo\":<#>}', ->
+  js = @it.jsValue(@thread)
+  equal js.bar, 1
+  equal js.foo, js
 
 counter = 0
 runNextTest = ->

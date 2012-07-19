@@ -62,7 +62,9 @@ indent = (c) -> Array(c+1).join('  ')
       child.validate() if child instanceof Node
     , skipUndefined:no
 
-  serialize: (_indent=0) ->
+  serialize: (filter, _indent=0) ->
+    return '-- filtered --' if filter? and not filter @
+    throw new Error "_indent (#{_indent}) too high, stack overflow?" if _indent > 1024
     valueStr = this.toString()
     if @ownScope?.variables?.length > 0
       valueStr += yellow (@ownScope.variables.join ' ')
@@ -70,7 +72,7 @@ indent = (c) -> Array(c+1).join('  ')
     @withChildren (child, parent, key, desc, key2) ->
       str += "#{indent _indent+1}#{red '@'+key}#{if key2? then red '['+key2+']' else ''}: " ##{blue inspect desc}\n"
       if child.serialize?
-        str += "#{child.serialize(_indent+1)}\n"
+        str += "#{child.serialize(filter, _indent+1)}\n"
       else
         str += "#{''+child} #{"("+child.constructor.name+")"}\n"
     return str.trimRight()
