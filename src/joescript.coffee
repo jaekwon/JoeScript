@@ -253,7 +253,7 @@ Func = clazz 'Func', Node, ->
   @defineChildren
     params:     {type:AssignList}
     block:      {type:Block} # must be block
-  init: ({@params, @type, @block}) ->
+  init: ({@params, @type, @block, @_origin}, $) -> $?.env.newFuncCallback? @
   toString: ->
     "#{ if @params? then '('+@params.toString(no)+')' else '()'
     }#{ @type
@@ -491,11 +491,11 @@ resetIndent = (ws, $) ->
                 o OP30: [
                   i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
                   o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", ({left, _not, op, right}) ->
-                                                                                                invo = new Invocation(func:op, params:[left, right])
-                                                                                                if _not
-                                                                                                  return new Not invo
-                                                                                                else
-                                                                                                  return invo
+                                                                                        invo = new Invocation(func:op, params:[left, right])
+                                                                                        if _not
+                                                                                          return new Not invo
+                                                                                        else
+                                                                                          return invo
                   o OP40: [
                     i OP40_OP:      " _NOT | '!' | '~' "
                     o               " _ op:OP40_OP right:OP40 ", make Operation

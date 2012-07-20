@@ -239,14 +239,15 @@ _loopStack = [] # trace stack
         # syntax proposal:
         # result = ( it <- (it={})[@label] = result )
         result = ( (it={})[@label] = result; it )
-      result = @cb.call this, result, $ if @cb?
-      # if result is an object, set the line/startpos on it
-      if result instanceof Object
-        start = $.stackPeek().pos
-        end = $.code.pos
-        result._origin =
-          start:  line:$.code.posToLine(start), col:$.code.posToLine(start)
-          end:    line:$.code.posToLine(end),   col:$.code.posToLine(end)
+      start = $.stackPeek().pos
+      end = $.code.pos
+      _origin =
+        start:  line:$.code.posToLine(start), col:$.code.posToLine(start), pos: start
+        end:    line:$.code.posToLine(end),   col:$.code.posToLine(end),   pos: end
+      if @cb?
+        result._origin = _origin if result instanceof Object
+        result = @cb.call this, result, $
+      # result._origin ?= _origin if result instanceof Object # set it again
     return result
 
   @$wrap = (fn) ->
@@ -714,7 +715,7 @@ OLine = clazz 'OLine', Line, ->
       regexAll.include name, rule
     OLine regexAll
   # Helper for clazz construction in callbacks
-  make: (clazz) -> (it) -> new clazz it
+  make: (clazz) -> (it, $) -> new clazz it, $
 
 C  = -> Choice (x for x in arguments)
 E  = -> Existential arguments...

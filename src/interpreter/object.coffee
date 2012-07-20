@@ -340,6 +340,9 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok (@scope is null) or isObject @scope, "scope, if present, must be a JObject"
     if func instanceof joe.Func
       @func = func
+      @data.__module__ =  func._origin.module
+      @data.__start__ =   func._origin.start.pos
+      @data.__end__ =     func._origin.end.pos
     else if typeof func is 'string'
       @_func = func
     else

@@ -140,7 +140,8 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    debug "#{@}.wait waitKey:#{waitKey}"
+    debug "#{@}.wait waitKey:#{waitKey} when state was #{@state}"
+    assert.ok @state is null, "JThread::wait wants null state for waiting"
     (@kernel.waitLists[waitKey]?=[]).push @
     @waitKeys.push waitKey
     @state = 'wait'

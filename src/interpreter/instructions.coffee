@@ -262,7 +262,7 @@ joe.Index::extend
 joe.Func::extend
   interpret: ($, i9n) ->
     $.pop()
-    return $.new JBoundFunc func:this, creator:$.user, scope:$.scope
+    bfunc = $.new JBoundFunc func:this, creator:$.user, scope:$.scope
 
 joe.Invocation::extend
   interpret: ($, i9n) ->
