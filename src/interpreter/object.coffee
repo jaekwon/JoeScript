@@ -320,9 +320,9 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   jsValue: -> @_jsValue
   toString: -> "Singleton(#{@name})"
 
-JNull       = @JNull      = new JSingleton 'null', null
-JUndefined  = @JUndefined = new JSingleton 'undefined', undefined
-JNaN        = @JNaN       = new Number NaN
+JNull       = @JNull      = JSingleton.null       = new JSingleton 'null', null
+JUndefined  = @JUndefined = JSingleton.undefined  = new JSingleton 'undefined', undefined
+JNaN        = @JNaN       = JSingleton.NaN        = new Number NaN # is this better, since op instructions carry over?
 # JFalse/JTrue don't exist, just use native booleans.
 
 # Actually, not always bound to a scope.
@@ -335,18 +335,24 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   # func:    The joe.Func node, or a string for lazy parsing.
   # creator: The owner of the process that declared above function.
   # scope:   Runtime scope of process that declares above function.
-  init: ({id, creator, acl, func, @scope}) ->
+  init: ({id, creator, acl, func, scope}) ->
     @super.init.call @, {id, creator, acl}
-    assert.ok (@scope is null) or isObject @scope, "scope, if present, must be a JObject"
+    assert.ok (scope is null) or isObject scope, "scope, if present, must be a JObject"
+    @data.scope = scope
     if func instanceof joe.Func
       @func = func
       @data.__module__ =  func._origin.module if func._origin.module?
       @data.__start__ =   func._origin.start.pos
       @data.__end__ =     func._origin.end.pos
+    # Convenient for creating functions procedurally
     else if typeof func is 'string'
       @_func = func
+      @data.__module__ = func
+      @data.__start__ = 0
+      @data.__end__ = func.length
     else
       throw new Error "funky func"
+  scope$: get: -> @data.scope
   func$: get: ->
     node = parse @_func
     node = node.toJSNode(toValue:yes).installScope().determine()

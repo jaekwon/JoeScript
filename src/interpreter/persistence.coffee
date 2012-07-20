@@ -5,7 +5,7 @@ async = require 'async'
 {randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
+{NODES:{JStub, JObject, JArray, JUser, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 {JKernel, JThread, JStackItem} = require 'joeson/src/interpreter/kernel'
 
 # A JObject listener
@@ -75,6 +75,9 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             when 'b' then value = Bool(value)
             when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
             when 'o' then value = cache[value] ? new JStub {persistence:$P, id:value}
+            when 'z' then value = JSingleton[value]
+          # TODO currently invalid values just become strings.
+          # reconsider, this might mask bugs.
           data[key] = value
         obj.data = data
         debug "loadJObject obj is now #{obj.serialize()}"
@@ -155,14 +158,17 @@ JObject::extend
         assert.ok value.id?, "Cannot persist a native function with no id"
         value = 'f:'+value.id
       when 'object'
-        assert.ok value instanceof JObject, "Unexpected value of #{value?.constructor.name}"
-        assert.ok value.id, "Cannot persist a JObject without id"
-        # Special case, recursively persist children. Depth first, apparently.
-        value.persistence_save $$, (err) =>
-          return cb(err) if err?
-          debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
-          $$.client.hset @id, key, 'o:'+value.id, cb
-        return
+        if value instanceof JObject
+          assert.ok value.id, "Cannot persist a JObject without id"
+          # Special case, recursively persist children. Depth first, apparently.
+          value.persistence_save $$, (err) =>
+            return cb(err) if err?
+            debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
+            $$.client.hset @id, key, 'o:'+value.id, cb
+          return
+        else if value instanceof JSingleton
+          value = 'z:'+value.name
+        else return cb("Unexpected value #{value} (#{value?.constructor.name})")
       else throw new Error "dunno how to persist value #{value} (#{typeof value})"
     # Set key-value(ref) pair to redis
     debug "$$.client.hset #{@id}, #{key}, #{value}"
