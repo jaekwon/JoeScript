@@ -38,6 +38,11 @@ assert = require 'assert'
 } = require 'joeson/src/joescript'
 {Node} = require 'joeson/src/node'
 
+# dependencies
+require('joeson/src/translators/scope').install()
+require('joeson/src/translators/javascript').install()
+require('joeson/src/translators/etc').install()
+
 # HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0
 isObject =  (o) -> o instanceof JObject or o instanceof JStub
@@ -337,28 +342,39 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   # scope:   Runtime scope of process that declares above function.
   init: ({id, creator, acl, func, scope}) ->
     @super.init.call @, {id, creator, acl}
-    assert.ok (scope is null) or isObject scope, "scope, if present, must be a JObject"
+    assert.ok (scope is null) or isObject scope, "JBoundFunc::__init__ wants null scope or a JObject, but got #{scope?.constructor.name}"
     @data.scope = scope
     if func instanceof joe.Func
       @func = func
-      @data.__module__ =  func._origin.module if func._origin.module?
-      @data.__start__ =   func._origin.start.pos
-      @data.__end__ =     func._origin.end.pos
+      assert.ok func._origin.code?, "JBoundFunc::__init__ wants func._origin.code"
+      @data.__code__ =  func._origin.code
+      @data.__start__ = func._origin.start.pos
+      @data.__end__ =   func._origin.end.pos
     # Convenient for creating functions procedurally
     else if typeof func is 'string'
-      @_func = func
-      @data.__module__ = func
+      @data.__code__ =  func
       @data.__start__ = 0
-      @data.__end__ = func.length
+      @data.__end__ =   func.length
+    # Will get set later
+    else if func is null
+      'dontcare'
     else
       throw new Error "funky func"
-  scope$: get: -> @data.scope
+  scope$:
+    get: -> @data.scope,
+    set: (scope) -> @data.scope = scope
   func$: get: ->
-    node = parse @_func
+    assert.ok @data.__code__, "JBoundFunc::$func expects @data.__code__"
+    assert.ok @data.__start__, "JBoundFunc::$func expects @data.__start__"
+    # TODO cache of code --> parsed nodes.
+    node = parse @data.__code__
     node = node.toJSNode(toValue:yes).installScope().determine()
     assert.ok node instanceof joe.Block, "Expected Block at root node, but got #{node?.constructor?.name}"
-    assert.ok node.lines.length is 1 and node.lines[0] instanceof joe.Func, "Expected one Func"
-    return @func=node.lines[0]
+    node = node.collectFunctions()
+    assert.ok node._functions?, "Expected collected functions at node._functions"
+    func = node._functions[@data.__start__]
+    assert.ok func?, "Didn't get the func at the expoected pos #{@data.__start__}. Code:\n#{@data.__code__}"
+    return @func = func
   __str__: ($) -> "<F|##{@id}>"
   __repr__: ($) ->
     dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)

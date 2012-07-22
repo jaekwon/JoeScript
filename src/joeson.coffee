@@ -242,12 +242,13 @@ _loopStack = [] # trace stack
       start = $.stackPeek().pos
       end = $.code.pos
       _origin =
+        code:   $.code.text
         start:  line:$.code.posToLine(start), col:$.code.posToLine(start), pos: start
         end:    line:$.code.posToLine(end),   col:$.code.posToLine(end),   pos: end
       if @cb?
         result._origin = _origin if result instanceof Object
         result = @cb.call this, result, $
-      # result._origin ?= _origin if result instanceof Object # set it again
+      result._origin ?= _origin if result instanceof Object # set it again
     return result
 
   @$wrap = (fn) ->

@@ -36,6 +36,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       {           l:'joeson/src/interpreter/persistence', f:'src/interpreter/persistence'}
       {           l:'joeson/src/translators/javascript',  f:'src/translators/javascript'}
       {           l:'joeson/src/translators/scope',       f:'src/translators/scope'}
+      {           l:'joeson/src/translators/etc',         f:'src/translators/etc'}
       {           l:'joeson/src/client',                  f:'src/client/index'}
       {           l:'joeson/src/client/dom',              f:'src/client/dom'}
       {           l:'joeson/src/client/editor',           f:'src/client/editor'}

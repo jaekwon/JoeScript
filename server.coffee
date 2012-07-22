@@ -113,21 +113,30 @@ io.sockets.on 'connection', (socket) ->
     boundFunc = CACHE[data.id]
     assert.ok boundFunc instanceof JBoundFunc, "Expected a JBoundFunc but got #{boundFunc} (#{boundFunc?.constructor?.name}) for ##{data.id}"
 
-    KERNEL.run
-      user: ANON
-      code: new joe.Invocation func:boundFunc # eww did you see that? maybe consider adding i9ns stead of hacking the AST. HACK.
-      scope: scope
-      callback: ->
-        switch @state
-          when 'return'
-            #outputItem.__set__ @, 'result', @last
-            info "return: #{@last.__str__(@)}"
-          when 'error'
-            @printErrorStack()
-            # TODO push error to output
-          else
-            throw new Error "Unexpected state #{@state} during kernel callback"
-        @cleanup()
+    invoke = ->
+      KERNEL.run
+        user: ANON
+        code: 'bfunc()'
+        scope: scope.create ANON, {bfunc:boundFunc}
+        callback: ->
+          switch @state
+            when 'return'
+              #outputItem.__set__ @, 'result', @last
+              info "return: #{@last.__str__(@)}"
+            when 'error'
+              @printErrorStack()
+              # TODO push error to output
+            else
+              throw new Error "Unexpected state #{@state} during kernel callback"
+          @cleanup()
+
+    if boundFunc.scope instanceof JStub
+      # HACK, JStubs should have a URL for the appropriate persistence, when decentralized.
+      WORLD.hack_persistence.loadJObject KERNEL, boundFunc.scope.id, (err, scope) ->
+        boundFunc.scope = scope
+        invoke()
+    else
+      invoke()
 
   # Run code
   socket.on 'run', (codeStr) ->
@@ -141,11 +150,8 @@ io.sockets.on 'connection', (socket) ->
 
     # Parse the codeStr and associate functions with the output Item
     try
-      newFuncCallback = (func) ->
-        assert.ok func.constructor.name is 'Func'
-        func._origin.module = outputItem
       # info "received code:\n#{code}"
-      node = require('joeson/src/joescript').parse codeStr, env:{newFuncCallback}
+      node = require('joeson/src/joescript').parse codeStr
       # info "unparsed node:\n" + node.serialize()
       node = node.toJSNode(toValue:yes).installScope().determine()
       # info "parsed node:\n" + node.serialize()

@@ -201,6 +201,9 @@ JThread = @JThread = clazz 'JThread', ->
   printErrorStack: -> warn @errorStack()
 
   printScope: (scope, lvl=0) ->
+    if scope instanceof JStub
+      info "#{black pad left:13, lvl}#{red scope.__str__()}"
+      return
     for key, value of scope.data when key isnt '__proto__'
       try
         valueStr = value.__str__(@)

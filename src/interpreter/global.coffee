@@ -31,7 +31,7 @@ else
 WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
   users:  USERS
   this:   USERS
-PERSISTENCE?.listenOn WORLD
+WORLD.hack_persistence = PERSISTENCE # FIX
 
 {JKernel} = require 'joeson/src/interpreter/kernel'
 KERNEL = @KERNEL = new JKernel cache:CACHE, nativeFunctions:NATIVE_FUNCTIONS
@@ -39,6 +39,7 @@ KERNEL.emitter.on 'shutdown', -> PERSISTENCE?.client.quit()
 
 # run this file to set up redis
 if require.main is module
+  PERSISTENCE?.listenOn WORLD
   KERNEL.run user:GOD, code:'dontcare', callback: (err) ->
     return console.log "FAIL!\n#{err.stack ? err}" if err?
     WORLD.emit thread:@, type:'new'
@@ -46,3 +47,5 @@ if require.main is module
       return console.log "FAIL!\n#{err.stack ? err}" if err?
       PERSISTENCE.client.quit() # TODO
       console.log "done!"
+else
+  PERSISTENCE?.listenOn WORLD, recursive:yes # HACK, we could just load the globals from REDIS instead?

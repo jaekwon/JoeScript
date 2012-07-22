@@ -253,7 +253,7 @@ Func = clazz 'Func', Node, ->
   @defineChildren
     params:     {type:AssignList}
     block:      {type:Block} # must be block
-  init: ({@params, @type, @block, @_origin}, $) -> $?.env?.newFuncCallback? @
+  init: ({@params, @type, @block}) ->
   toString: ->
     "#{ if @params? then '('+@params.toString(no)+')' else '()'
     }#{ @type

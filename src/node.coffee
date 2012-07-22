@@ -45,7 +45,7 @@ indent = (c) -> Array(c+1).join('  ')
   # Depth first walk of entire tree.
   # parent, key, desc, key2: One-time use values for the root node.
   walk: ({pre, post}, parent=undefined, key=undefined, desc=undefined, key2=undefined) ->
-    # pre, post: (parent, childnode) -> where childnode in parent.children.
+    # pre, post: (child, parent, key, desc, key2?) -> for each child as described in @::children.
     pre @, parent, key, desc, key2 if pre?
     @withChildren (child, parent, key, desc, key2) ->
       if child not instanceof Node

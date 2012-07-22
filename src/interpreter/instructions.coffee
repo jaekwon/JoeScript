@@ -268,18 +268,24 @@ joe.Invocation::extend
   interpret: ($, i9n) ->
     i9n.oldScope = $.scope # remember
     # interpret the func synchronously.
-    i9n.func = joe.Invocation::interpretParams
-    i9n.invokedFunctionRepr = ''+@func
+    i9n.func = joe.Invocation::interpretScope
     return @func if @func instanceof JBoundFunc or @func instanceof Function # HACK (?) data and code getting mixed up.
     # setSource is a HACK/trick to set i9n.source to the
     # 'obj' part of an index, if @func is indeed an object.
     # That way we can bind 'this' correctly.
     $.pushValue(@func).setSource = i9n
     return
-  interpretParams: ($, i9n, func) ->
-    unless func instanceof JBoundFunc or func instanceof Function
-      return $.throw 'TypeError', "#{@func} cannot be called."
-    i9n.invokedFunction = func
+  interpretScope: ($, i9n, bfunc) ->
+    unless bfunc instanceof JBoundFunc or bfunc instanceof Function
+      return $.throw 'TypeError', "#{@func} is not callable"
+    i9n.invokedFunction = bfunc
+    i9n.func = joe.Invocation::interpretParams
+    if bfunc instanceof JBoundFunc and bfunc.scope instanceof JStub
+      # dereference if bfunc.scope is JStub
+      $.push this:bfunc.data, func:storeLast, key:'scope'
+      return bfunc.__get__ $, 'scope', yes
+    return
+  interpretParams: ($, i9n) ->
     # interpret the parameters
     i9n.paramValues = []
     for param, i in @params ? []

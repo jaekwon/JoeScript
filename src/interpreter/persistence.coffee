@@ -27,13 +27,17 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
     obj.persistence_on @, event
 
   # Handles adding objects recursively.
-  listenOn: (obj) ->
-    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj.__str__()}"
+  # Returns yes if obj is newly being listened on.
+  listenOn: (obj, options) ->
+    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj.__str__()}. Listeners"
     if obj.addListener @
+      return yes unless options?.recursive
       # Recursively add children
       for child in obj.persistence_getChildren @
         assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
-        @listenOn child
+        @listenOn child, options
+      return yes
+    return no
 
   # Load an object with the given id for the given kernel
   # cb: (err, obj) -> ...
@@ -53,9 +57,10 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
       creator = cache[meta.creator] ? new JStub {persistence:$P, id:meta.creator} if meta.creator?
 
       switch meta.type
-        when 'JObject' then obj = kernel.cache[id] = new JObject {id,creator}
-        when 'JArray'  then obj = kernel.cache[id] = new JArray  {id,creator}
-        when 'JUser'   then obj = kernel.cache[id] = new JUser   {id,creator,name}
+        when 'JObject'    then obj = kernel.cache[id] = new JObject {id,creator}
+        when 'JArray'     then obj = kernel.cache[id] = new JArray  {id,creator}
+        when 'JUser'      then obj = kernel.cache[id] = new JUser   {id,creator,name}
+        when 'JBoundFunc' then obj = kernel.cache[id] = new JBoundFunc {id,creator,func:null,scope:null} # func/scope will get loaded below
         else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
       obj.addListener $P
 
@@ -77,8 +82,11 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             when 'o' then value = cache[value] ? new JStub {persistence:$P, id:value}
             when 'z' then value = JSingleton[value]
           # TODO currently invalid values just become strings.
-          # reconsider, this might mask bugs.
-          data[key] = value
+          #   Reconsider, this might mask bugs.
+          if key is '__proto__' # special case
+            obj.proto = value
+          else
+            data[key] = value
         obj.data = data
         debug "loadJObject obj is now #{obj.serialize()}"
         cb(null, obj)
@@ -97,9 +105,8 @@ JObject::extend
           return thread.resume waitKey
       when 'set', 'update'
         {key, value} = event
-        $$.listenOn value if value instanceof JObject
         thread.wait waitKey="persist:#{@id}[#{key}]"
-        @persistence_saveItem $$, key, value, (err) ->
+        @persistence_saveItem $$, key, value, (err) =>
           return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
           return thread.resume waitKey
       # when 'delete'
@@ -115,6 +122,8 @@ JObject::extend
     return children
 
   ###
+    Persist the object if object is dirty, recursively.
+
     Naively save an object's metadata, then save the child recursively (if not saving already),
     then the parent's association to the child, for all children.
 
@@ -122,8 +131,8 @@ JObject::extend
     it also guarantees that concurrent 'save' calls will inflict all kinds of
     pain, as it simply skips saving.
 
-    This should only be used upon objects that get initialized by a single thread.
-    Normally there is no need to save all the items, as they get persisted on 'set' events.
+    Note that descendants that are dirty do not have dirty parents won't get saved,
+    as there is no way to know how to reach them.
   ###
   persistence_save: ($$, cb) ->
     assert.ok @id, "JObject needs an id for it to be saved."
@@ -136,9 +145,10 @@ JObject::extend
       creator:@creator.id
     , (err, res) =>
       dataKeys = Object.keys @data
+      dataKeys.push '__proto__' if @proto? # special case
       # Asynchronously persist each key-value pair
       async.forEach dataKeys, (key, next) =>
-        value = @data[key]
+        value = if key is '__proto__' then @proto else @data[key]
         @persistence_saveItem $$, key, value, next
         return
       # After saving all key-value pairs (or upon error)
@@ -160,9 +170,12 @@ JObject::extend
       when 'object'
         if value instanceof JObject
           assert.ok value.id, "Cannot persist a JObject without id"
-          # Special case, recursively persist children. Depth first, apparently.
-          value.persistence_save $$, (err) =>
-            return cb(err) if err?
+          if $$.listenOn value
+            value.persistence_save $$, (err) =>
+              return cb(err) if err?
+              debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
+              $$.client.hset @id, key, 'o:'+value.id, cb
+          else
             debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
             $$.client.hset @id, key, 'o:'+value.id, cb
           return
@@ -177,10 +190,14 @@ JObject::extend
 
 JArray::extend
   persistence_on: ($$, event) ->
+    thread = event.thread
     switch event.type
       when 'set', 'push'
         {key, value} = event
-        $$.listenOn value if value instanceof JObject
+        thread.wait waitKey="persist:#{@id}[#{key}]"
+        @persistence_saveItem $$, key, value, (err) =>
+          return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
       # when 'delete'
       #   garbage collection routine
 
