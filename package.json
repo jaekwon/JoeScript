@@ -13,7 +13,8 @@
       "socket.io": "",
       "redis": "",
       "uglify-js": "",
-      "browserify": "git://github.com/jaekwon/node-browserify.git"
+      "browserify": "git://github.com/jaekwon/node-browserify.git",
+      "optimist": ""
     },
   "main": "./src/joeson",
   "keywords": [],

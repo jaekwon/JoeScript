@@ -5,6 +5,12 @@ connect = require 'connect'
 {inspect} = require 'util'
 assert = require 'assert'
 
+# options
+argv = require('optimist')
+  .usage('Usage: $0 -p [port, default 8080]')
+  .argv
+console.log argv
+
 # logging
 require('nogg').configure
   'default': [
@@ -53,7 +59,7 @@ c.use (req, res) ->
 # server app
 app = http.createServer(c)
 io = require('socket.io').listen app
-app.listen 8080
+app.listen argv.p
 
 
 {NODES:joe} = require 'joeson/src/joescript'
