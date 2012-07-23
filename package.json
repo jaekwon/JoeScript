@@ -7,9 +7,8 @@
   "dependencies": {
       "async": "",
       "sugar": "",
-      "coffee-script": "git://github.com/jaekwon/coffee-script.git",
       "cardamom": ">= 0.0.9",
-      "connect": ">= 2.0.2",
+      "connect": "= 2.3.3",
       "nogg": ">= 0.0.8",
       "socket.io": "",
       "redis": "",
@@ -20,5 +19,8 @@
   "keywords": [],
   "engines": {"node": ">= 0.4.6"},
   "contributors": [
-  ]
+  ],
+  "not_dependencies": {
+      "coffee-script": "git://github.com/jaekwon/coffee-script.git"
+  }
 }

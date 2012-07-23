@@ -7,30 +7,32 @@ require './setup'
 
 {
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:{GOD,ANON,KERNEL}
+  GLOBALS:{GOD,ANON,WORLD,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'joeson/src/interpreter'
 {JPersistence} = p = require 'joeson/src/interpreter/persistence'
 
 console.log blue "\n-= persistence test =-"
 
-code = """
-it = {foo:1, bar:2}
-it.linkToIt = it
-it.anArray = [1,2,3,4,"five"]
-it
-"""
+# convenience handler
+_err_ = (fn) ->
+  (err, args...) ->
+    if err?
+      fatal "Error in callback: #{err.stack ? err}"
+      process.exit(1)
+    fn.call this, args...
 
 persistence = new JPersistence()
 KERNEL.run
   user:ANON
-  code:code
-  callback: ->
-    if @error?
-      console.log red "Error in running code:"
-      @printErrorStack()
-      process.exit(1)
-      return
+  code: """
+  it = {foo:1, bar:2}
+  it.linkToIt = it
+  it.anArray = [1,2,3,4,"five"]
+  it.closure = -> it.foo + it.bar
+  it
+  """
+  callback: _err_ ->
     obj = @last
     equal @state, 'return'
     ok not obj.listeners?, "No listeners expected for object unassociated with scope"
@@ -43,16 +45,27 @@ KERNEL.run
     # even though this is happening in the exit callback.
     # Since we don't want this callback to run again,
     # just replace the thread's callback function...
-    @callback = ->
+    @callback = _err_ ->
       equal @state, 'return'
       # Clear the kernel cache 
       KERNEL.cache = {}
+      # Get a new persistence. (this isn't strictly necessary)
+      persistence.client.quit()
+      persistence = new JPersistence()
       # Now try loading from persistence
-      persistence.loadJObject KERNEL, obj.id, (err, _obj) ->
-        if err?
-          console.log red "Error loading object:"
-          console.log red err.stack ? err
-        console.log "Loaded object #{_obj.serialize( (c={}; (n)->seen=c[n.id];c[n.id]=yes; not seen) )}"
+      persistence.loadJObject KERNEL, obj.id, _err_ (_obj) ->
+        console.log "Loaded object #{_obj.serialize()}"
         equal obj.id, _obj.id
-        KERNEL.shutdown()
-        persistence.client.quit()
+
+        # Now try running some code
+        KERNEL.run
+          user:ANON
+          code: """
+          it.closure()
+          """
+          scope: new JObject creator:ANON, data:{it:(new JStub id:obj.id)}
+          callback: _err_ ->
+            equal @last, 3
+            console.log "done!"
+            KERNEL.shutdown()
+            persistence.client.quit()

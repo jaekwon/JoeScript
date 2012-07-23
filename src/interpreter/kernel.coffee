@@ -163,7 +163,7 @@ JThread = @JThread = clazz 'JThread', ->
   exit: ->
     if @callback?
       try
-        @callback()
+        @callback(@error)
       catch err
         @kernel.errorCallback(err)
     else

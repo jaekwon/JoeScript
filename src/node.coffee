@@ -48,9 +48,7 @@ indent = (c) -> Array(c+1).join('  ')
     # pre, post: (child, parent, key, desc, key2?) -> for each child as described in @::children.
     pre @, parent, key, desc, key2 if pre?
     @withChildren (child, parent, key, desc, key2) ->
-      if child not instanceof Node
-        throw Error "Unexpected object encountered walking children: #{child} (#{child?.constructor.name})"
-      child.walk {pre:pre, post:post}, parent, key, desc, key2
+      child.walk {pre:pre, post:post}, parent, key, desc, key2 if child instanceof Node
     post @, parent, key, desc, key2 if post?
 
   # Validate types recursively for all children
