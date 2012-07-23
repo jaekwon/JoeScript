@@ -110,7 +110,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
   
   # Asynchronous. See doc on the top of this file.
   __get__: ($, key, required=no) ->
-    assert.ok key=key.__key__?($), "Key couldn't be stringified"
+    key = key.__key__($)
     $.will('read', this)
     if key is '__proto__'
       value = @proto
@@ -156,14 +156,14 @@ JObject = @JObject = clazz 'JObject', Node, ->
     $.will('read', this)
     return @data[key]?
   __set__: ($, key, value) ->
-    assert.ok key=key.__key__?($), "Key couldn't be stringified"
+    key = key.__key__($)
     $.will('write', this)
     @data[key] = value
     @emit {thread:$,type:'set',key,value}
     return
   # an __update__ only happens for scope objects.
   __update__: ($, key, value) ->
-    assert.ok key=key.__key__?($), "Key couldn't be stringified"
+    key = key.__key__($)
     $.will('write', this)
     if key is '__proto__'
       @proto = value
@@ -232,7 +232,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     if isInteger key
       return @data[key] ? JUndefined
     else
-      assert.ok key=key.__key__?($), "Key couldn't be stringified"
+      key = key.__key__($)
       #console.log "GET:", key
       value = @data[key]
       return value if value?
@@ -245,7 +245,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
       @data[key] = value
       @emit {thread:$,type:'set',key,value}
       return
-    assert.ok key=key.__key__?($), "Key couldn't be stringified"
+    key = key.__key__($)
     @data[key] = value
     @emit {thread:$,type:'set',key,value}
     return
