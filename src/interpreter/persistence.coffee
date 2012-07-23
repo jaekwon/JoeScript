@@ -8,6 +8,8 @@ async = require 'async'
 {NODES:{JStub, JObject, JArray, JUser, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 {JKernel, JThread, JStackItem} = require 'joeson/src/interpreter/kernel'
 
+trace = no
+
 # A JObject listener
 # JPersistence saves objects onto redis
 JPersistence = @JPersistence = clazz 'JPersistence', ->
@@ -22,14 +24,14 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
   on: (obj, event) ->
-    debug "#{@}::on for obj:#{obj} event.type:#{event.type}"
+    debug "#{@}::on for obj:#{obj} event.type:#{event.type}" if trace
     # Delegate handling to JObject subclass
     obj.persistence_on @, event
 
   # Handles adding objects recursively.
   # Returns yes if obj is newly being listened on.
   listenOn: (obj, options) ->
-    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj.__str__()}. Listeners"
+    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj.__str__()}. Listeners" if trace
     if obj.addListener @
       return yes unless options?.recursive
       # Recursively add children
@@ -42,7 +44,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # Load an object with the given id for the given kernel
   # cb: (err, obj) -> ...
   loadJObject: (kernel, id, cb) ->
-    debug "JPersistence::loadJObject #{kernel}, #{id}, #{cb?} (cb?)"
+    debug "JPersistence::loadJObject #{kernel}, #{id}, #{cb?} (cb?)" if trace
     assert.ok kernel?.cache?,               "loadJObject wants kernel.cache"
     assert.ok kernel?.nativeFunctions?,     "loadJObject wants kernel.nativeFunctions"
     assert.ok id,                           "loadJObject wants an id to load"
@@ -70,7 +72,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           data = new Array(data.length)
         else
           data = _data
-        debug "loadJObject now setting up items: #{inspect _data}"
+        debug "loadJObject now setting up items: #{inspect _data}" if trace
         for key, value of _data
           t = value[0]
           value = value[2...]
@@ -88,7 +90,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           else
             data[key] = value
         obj.data = data
-        debug "loadJObject obj is now #{obj.serialize()}"
+        debug "loadJObject obj is now #{obj.serialize()}" if trace
         cb(null, obj)
 
 JObject::extend
@@ -139,7 +141,7 @@ JObject::extend
     return cb() if @_saving # nothing to do if already saving
     @_saving = yes
 
-    debug "$$.client.hmset #{@id+':meta'}"
+    debug "$$.client.hmset #{@id+':meta'}" if trace
     $$.client.hmset @id+':meta',
       type:@constructor.name,
       creator:@creator.id
@@ -158,7 +160,7 @@ JObject::extend
 
   persistence_saveItem: ($$, key, value, cb) ->
     assert.ok @id, "JObject needs an id for it to be saved."
-    debug "persistence_save saving key/value #{key}:#{value}"
+    debug "persistence_save saving key/value #{key}:#{value}" if trace
 
     switch typeof value
       when 'string' then value = 's:'+value
@@ -173,10 +175,10 @@ JObject::extend
           if $$.listenOn value
             value.persistence_save $$, (err) =>
               return cb(err) if err?
-              debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
+              debug "$$.client.hset #{@id}, #{key}, o:#{value.id}" if trace
               $$.client.hset @id, key, 'o:'+value.id, cb
           else
-            debug "$$.client.hset #{@id}, #{key}, o:#{value.id}"
+            debug "$$.client.hset #{@id}, #{key}, o:#{value.id}" if trace
             $$.client.hset @id, key, 'o:'+value.id, cb
           return
         else if value instanceof JSingleton
@@ -184,7 +186,7 @@ JObject::extend
         else return cb("Unexpected value #{value} (#{value?.constructor.name})")
       else throw new Error "dunno how to persist value #{value} (#{typeof value})"
     # Set key-value(ref) pair to redis
-    debug "$$.client.hset #{@id}, #{key}, #{value}"
+    debug "$$.client.hset #{@id}, #{key}, #{value}" if trace
     $$.client.hset @id, key, value, cb
     return
 

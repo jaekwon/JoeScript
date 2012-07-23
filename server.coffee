@@ -67,7 +67,7 @@ require 'joeson/src/interpreter/perspective' # Perspective plugin
 
 # KERNEL = new JKernel
 
-# connect.io <-> kernel
+# Client <--> Server Connection
 io.sockets.on 'connection', (socket) ->
 
   # Setup default view and user-specific scope

@@ -365,7 +365,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     set: (scope) -> @data.scope = scope
   func$: get: ->
     assert.ok @data.__code__, "JBoundFunc::$func expects @data.__code__"
-    assert.ok @data.__start__, "JBoundFunc::$func expects @data.__start__"
+    assert.ok @data.__start__?, "JBoundFunc::$func expects @data.__start__"
     # TODO cache of code --> parsed nodes.
     node = parse @data.__code__
     node = node.toJSNode(toValue:yes).installScope().determine()
