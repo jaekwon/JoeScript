@@ -46,40 +46,30 @@ runNextTest = ->
     return
   {code, str, callback} = tests.shift()
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  try
-    KERNEL.run
-      user:ANON
-      code:code
-      callback: ->
+  KERNEL.run
+    user:ANON
+    code:code
+    callback: ->
+      if @error?
+        console.log red "Error in running code:"
+        @printErrorStack()
+        process.exit(1)
+        return
+      # first, see if str matches.
+      resStr = @last.jsValue()
+      equal canon(resStr), str, "Expected serialized '#{str}' but got '#{canon(resStr)}'"
+      # now parse it back
+      try
+        resObj = JSL.parse resStr, env:{cache:{}}
+      catch err
+        console.log red "Error in parsing resStr '#{resStr}':"
+        console.log red err.stack ? err
         try
-          if @error?
-            console.log red "Error in running code:"
-            @printErrorStack()
-            process.exit(1)
-            return
-          # first, see if str matches.
-          resStr = @last.jsValue()
-          equal canon(resStr), str, "Expected serialized '#{str}' but got '#{canon(resStr)}'"
-          # now parse it back
-          try
-            resObj = JSL.parse resStr, env:{cache:{}}
-          catch err
-            console.log red "Error in parsing resStr '#{resStr}':"
-            console.log red err.stack ? err
-            try
-              resObj = JSL.parse resStr, env:{debug:yes,cache:{}}
-            process.exit(1)
-          # now try the callback if exists.
-          callback?.call context:@, it:resObj, thread:@
-          # callbacks are synchronous.
-          # if it didn't throw, it was successful.
-          runNextTest()
-        catch err
-          console.log red "Unknown Error:"
-          console.log red err.stack ? err
-          process.exit(1)
-  catch err
-    console.log red "KERNEL ERROR:"
-    console.log red err.stack ? err
-    process.exit(1)
+          resObj = JSL.parse resStr, env:{debug:yes,cache:{}}
+        process.exit(1)
+      # now try the callback if exists.
+      callback?.call context:@, it:resObj, thread:@
+      # callbacks are synchronous.
+      # if it didn't throw, it was successful.
+      runNextTest()
 runNextTest()

@@ -133,27 +133,17 @@ runNextTest = ->
     return
   {code, callback} = tests.shift()
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  try
-    KERNEL.run
-      user:ANON
-      code:code
-      callback: ->
-        try
-          if @error?
-            console.log red "TEST ERROR:"
-            @printErrorStack()
-            process.exit(1)
-            return
-          callback.call context:@, it:@last.jsValue(@)
-          # callbacks are synchronous.
-          # if it didn't throw, it was successful.
-          runNextTest()
-        catch err
-          console.log red "TEST ERROR:"
-          console.log red err.stack ? err
-          process.exit(1)
-  catch err
-    console.log red "KERNEL ERROR:"
-    console.log red err.stack ? err
-    process.exit(1)
+  KERNEL.run
+    user:ANON
+    code:code
+    callback: ->
+      if @error?
+        console.log red "TEST ERROR:"
+        @printErrorStack()
+        process.exit(1)
+        return
+      callback.call context:@, it:@last.jsValue(@)
+      # callbacks are synchronous.
+      # if it didn't throw, it was successful.
+      runNextTest()
 runNextTest()

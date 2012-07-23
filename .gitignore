@@ -1,4 +1,5 @@
 *.swp
+*.bak
 node_modules
 \.*
 foo.coffee

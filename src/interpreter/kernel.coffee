@@ -162,7 +162,10 @@ JThread = @JThread = clazz 'JThread', ->
 
   exit: ->
     if @callback?
-      @callback()
+      try
+        @callback()
+      catch err
+        @kernel.errorCallback(err)
     else
       @cleanup()
 
@@ -244,7 +247,10 @@ JThread = @JThread = clazz 'JThread', ->
 # Multi-user time-shared interpreter.
 @JKernel = JKernel = clazz 'JKernel', ->
 
-  init: ({@cache, @nativeFunctions}={}) ->
+  # cache:            cache of JObjects
+  # nativeFunctions:  all registered native functions
+  # errorCallback:    when thread callbacks error out
+  init: ({@cache, @nativeFunctions, @errorCallback}={}) ->
     @runThreads = []
     @cache ?= {}      # TODO should be weak etc.
     @nativeFunctions ?= {}
@@ -252,10 +258,15 @@ JThread = @JThread = clazz 'JThread', ->
     @ticker = 0
     @waitLists = {}   # waitKey -> [thread1,thread2,...]
     @emitter = new (require('events').EventEmitter)()
+    @errorCallback ?= @defaultErrorCallback
+
+  defaultErrorCallback: (error) ->
+    fatal "KERNEL ERROR!\n#{error.stack ? error}"
 
   # Start processing another thread
   # user:     The same user object as returned by login.
   # callback: Called with thread after it exits.
+  # CONTRACT: Caller shouldn't have to worry about catching errors from run. See @errorCallback
   run: ({user, code, scope, callback}) ->
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
@@ -279,9 +290,9 @@ JThread = @JThread = clazz 'JThread', ->
       @runloop() if @runThreads.length is 1
     catch error
       if node?
-        warn "Error in user code start:", error.stack, "\nfor node:\n", node.serialize()
+        @errorCallback "Error in user code start:\n#{error.stack ? error}\nfor node:\n#{node.serialize()}"
       else
-        warn "Error parsing code:", error.stack, "\nfor code text:\n", code
+        @errorCallback "Error parsing code:\n#{error.stack}\nfor code text:\n#{code}"
 
   runloop$: ->
     @ticker++
@@ -307,11 +318,14 @@ JThread = @JThread = clazz 'JThread', ->
       process.nextTick @runloop
     catch error
       fatal "Error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
-      thread.throw 'InternalError', "#{error.name}:#{error.message}"
-      @runThreads[@index..@index] = [] # splice out
-      @index = @index % @runThreads.length or 0
-      process.nextTick @runloop if @runThreads.length > 0
-      thread.exit()
+      if thread?
+        thread.throw 'InternalError', "#{error.name}:#{error.message}"
+        @runThreads[@index..@index] = [] # splice out
+        @index = @index % @runThreads.length or 0
+        process.nextTick @runloop if @runThreads.length > 0
+        thread.exit()
+      else
+        @errorCallback(error)
       return
 
   resumeThreads: (waitKey) ->
