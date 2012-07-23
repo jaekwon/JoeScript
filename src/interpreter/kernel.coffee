@@ -140,7 +140,7 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    debug "#{@}.wait waitKey:#{waitKey} when state was #{@state}"
+    debug "#{@}.wait waitKey:#{waitKey} when state was #{@state}" if trace.debug
     # assert.ok @state is null, "JThread::wait wants null state for waiting but got #{@state}"
     (@kernel.waitLists[waitKey]?=[]).push @
     @waitKeys.push waitKey
@@ -148,7 +148,7 @@ JThread = @JThread = clazz 'JThread', ->
     return
 
   resume: (waitKey) ->
-    debug "#{@}.resume waitKey:#{waitKey}"
+    debug "#{@}.resume waitKey:#{waitKey}" if trace.debug
     switch @state
       when 'wait'
         # resume ALL threads waiting on this key
@@ -296,7 +296,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   runloop$: ->
     @ticker++
-    debug "JKernel::runloop with #{@runThreads.length} runThreads, run @#{@index}"
+    debug "JKernel::runloop with #{@runThreads.length} runThreads, run @#{@index}" if trace.debug
     thread = @runThreads[@index]
     thread.state = null
     assert.ok thread.waitKeys.length is 0
@@ -330,20 +330,20 @@ JThread = @JThread = clazz 'JThread', ->
 
   resumeThreads: (waitKey) ->
     assert.ok waitKey?, "JKernel::resumeThreads wants waitKey"
-    debug "JKernel::resumeThreads #{waitKey}"
+    debug "JKernel::resumeThreads #{waitKey}" if trace.debug
     waitList = @waitLists[waitKey]
-    debug "waitList = #{waitList}"
+    debug "waitList = #{waitList}" if trace.debug
     return if not waitList?.length # was already resumed some other how.
     newWaitList = []
     for thread in waitList
       thread.waitKeys.remove waitKey
       if thread.waitKeys.length is 0
-        debug "JKernel inserting #{thread} into @runThreads"
+        debug "JKernel inserting #{thread} into @runThreads" if trace.debug
         @runThreads.push thread
         process.nextTick @runloop if @runThreads.length is 1
       else
         newWaitList.push thread
-    debug "new waitList = #{newWaitList}"
+    debug "new waitList = #{newWaitList}" if trace.debug
     if newWaitList.length
       @waitLists[waitKey] = newWaitList
     else
