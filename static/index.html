@@ -2,7 +2,8 @@
 <link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=Anonymous+Pro'/>
 <link rel='stylesheet' type='text/css' href='/s/style.css'/>
 <script src='/s/jquery-1.7.2.js'></script>
-<script src='/s/sembly.js'></script>
+<script src='/s/jquery.layout.min-1.2.0.js'></script>
+<script src='/s/sembly.min.js'></script>
 
 <link rel="stylesheet" href="/s/codemirror.css">
 <link rel="stylesheet" href="/s/theme/joeson.css">
@@ -14,13 +15,19 @@
 <!--<script src="/s/keymap/emacs.js"></script>-->
 
 <body>
-  <div id="header">
+  <div id="header" class="ui-layout-north">
     <span id="server_info"></span>
     <button id="server_info_refresh">refresh</button>
   </div>
-  <div id="output"></div>
-  <div id="input"></div>
-  <div id="panel"></div>
-  <pre id="log"></pre>
+  <div id="main" class="ui-layout-center">
+    <div id="output"></div>
+    <div id="input">
+      <div id="input_editor"></div>
+      <button id="input_submit">submit</button>
+    </div>
+  </div>
+  <div id="footer" class="ui-layout-south">
+    <pre id="log"></pre>
+  </div>
 </body>
 </html>

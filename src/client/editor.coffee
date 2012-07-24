@@ -32,7 +32,7 @@ Editor = @Editor = clazz 'Editor', ->
     # Gutter
     # mirror.setMarker 0, '● ', 'cm-bracket'
     # Events
-    mirror.submit = @onSave
+    mirror.submit = @submit
     return mirror
 
   # Utility method to replace all tabs with spaces
@@ -53,7 +53,7 @@ Editor = @Editor = clazz 'Editor', ->
         accum.push '\n'
     return accum.join ''
 
-  onSave$: ->
+  submit$: ->
     value = @mirror.sanitize()
     return if value.trim().length is 0
     @callback? value

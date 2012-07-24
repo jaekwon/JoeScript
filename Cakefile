@@ -111,10 +111,10 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       }
     }(this));
   """
-  #unless process.env.MINIFY is 'false'
-  #  {parser, uglify} = require 'uglify-js'
-  #  code = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
   fs.writeFileSync 'static/sembly.js', code
+  {parser, uglify} = require 'uglify-js'
+  minCode = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
+  fs.writeFileSync 'static/sembly.min.js', minCode
   console.log "built ... running browser tests:"
 
 run = (args...) ->

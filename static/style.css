@@ -1,6 +1,6 @@
 body {
   /*background-color: #CECCD2;*/
-  background: #0a001f;
+  background-color: #0a001f;
   color: #f8f8f8;
   font-family: 'Anonymous Pro', monospace;
   font-size: 16px;
@@ -13,9 +13,15 @@ body {
   text-align: right;
 }
 
+#main {
+  overflow-y: auto;
+}
+
+#footer {
+  background-color: #0a001f !important; /* hack around UILayout defaults */
+}
+
 #log {
-  height: 400px;
-  overflow: auto;
 }
 
 span.cm-comment,    span.comment    { color: #668ee2; }

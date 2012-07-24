@@ -1,5 +1,9 @@
 @require = require
 
+_scrollDown = (el) ->
+  height = el.prop('scrollHeight')
+  el.scrollTop(height)
+
 # init. keep the DOM minimal so that this loads fast.
 $(document).ready ->
 
@@ -7,19 +11,24 @@ $(document).ready ->
 
   # configure logging
   {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
-  domLogVisible = yes
-  domLog = window.domLog = $('#log').css(if domLogVisible then display:'block' else display:'none')
+  domLog = window.domLog = $('#log')
   require('nogg').configure
     default:
-      file:   {write:(line)->domLog.append(toHTML line)}
+      file:
+        write: (line) ->
+          domLog.append toHTML line
+          _scrollDown $('#footer')
       level: 'debug'
-  $('#panel').append $('<span>π</span>').addClass('debug right').click (e) ->
-    if domLogVisible
-      domLogVisible = no
-      domLog.css(display:'none')
-    else
-      domLogVisible = yes
-      domLog.css(display:'block')
+
+  # UILayout
+  $('body').layout
+    defaults:
+      applyDefaultStyles: no
+    south:
+      size:               500 # TODO
+      applyDefaultStyles: yes
+      initClosed:         yes
+      onopen_end:         -> process.nextTick -> _scrollDown $('#main'); _scrollDown $('#footer')
 
   # load libraries
   {clazz} = require 'cardamom'
@@ -84,17 +93,31 @@ $(document).ready ->
             # XXX not sure what should go here.
       try
         obj.emit eventJSON
-        #$('body').animate({scrollTop: $('body').height()}, 800);
       catch err
         fatal "Error while emitting event to object ##{obj.id}:\n#{err.stack ? err}"
 
+      # HACK to scroll down for output.push
+      _scrollDown $('#main') if obj is output
+
     # Attach an editor now that output is available.
     unless window.editor?
-      editor = window.editor = new Editor el:$('#input'), callback: (codeStr) ->
+      editor = window.editor = new Editor el:$('#input_editor'), callback: (codeStr) ->
         console.log "sending code"
         socket.emit 'run', codeStr
+        _scrollDown $('#main')
 
-      $(document.body).click -> editor.focus()
+      # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
+      if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
+        $('#output').append($('<input id="ipadhack" type="text"></input>'))
+        $('#ipadhack').focus().hide()
+      else
+        editor.focus()
+      # ipad hack end
+      $('#input_editor').click -> editor.focus()
+      $(document.body).click -> editor.focus(); no
+      $('#input_submit').click (e) ->
+        editor.submit()
+        no
 
   ## Server diagnostic info
   socket.on 'server_info.', _err_ (data) ->
@@ -103,4 +126,4 @@ $(document).ready ->
     $('#server_info').text(inspect data)
 
   process.nextTick -> socket.emit 'server_info?'
-  $('#server_info_refresh').click -> socket.emit 'server_info?'
+  $('#server_info_refresh').click -> socket.emit 'server_info?'; no
