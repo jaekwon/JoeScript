@@ -7,8 +7,8 @@ $(document).ready ->
 
   # configure logging
   {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
-  domLog = window.domLog = $('#log').css(display:'none')
-  domLogVisible = no
+  domLogVisible = yes
+  domLog = window.domLog = $('#log').css(if domLogVisible then display:'block' else display:'none')
   require('nogg').configure
     default:
       file:   {write:(line)->domLog.append(toHTML line)}
@@ -84,6 +84,7 @@ $(document).ready ->
             # XXX not sure what should go here.
       try
         obj.emit eventJSON
+        #$('body').animate({scrollTop: $('body').height()}, 800);
       catch err
         fatal "Error while emitting event to object ##{obj.id}:\n#{err.stack ? err}"
 
@@ -101,4 +102,5 @@ $(document).ready ->
       data.memory[key] = (Math.floor(value/10000)/100.0)+"Mb"
     $('#server_info').text(inspect data)
 
-  window.setInterval (-> socket.emit 'server_info?'), 1000
+  process.nextTick -> socket.emit 'server_info?'
+  $('#server_info_refresh').click -> socket.emit 'server_info?'

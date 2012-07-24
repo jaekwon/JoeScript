@@ -13,6 +13,11 @@ body {
   text-align: right;
 }
 
+#log {
+  height: 400px;
+  overflow: auto;
+}
+
 span.cm-comment,    span.comment    { color: #668ee2; }
 span.cm-atom,       span.atom       { color: #F59BF0; }
 span.cm-number,     span.number     { color: #F59BF0; }

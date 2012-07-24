@@ -40,7 +40,7 @@ KERNEL.emitter.on 'shutdown', -> PERSISTENCE?.client.quit()
 # run this file to set up redis
 if require.main is module
   PERSISTENCE?.listenOn WORLD
-  KERNEL.run user:GOD, code:'dontcare', callback: (err) ->
+  KERNEL.run user:GOD, code:'yes', callback: (err) ->
     return console.log "FAIL!\n#{err.stack ? err}" if err?
     WORLD.emit thread:@, type:'new'
     @callback = (err) -> # callback after reanimation

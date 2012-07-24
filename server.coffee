@@ -59,7 +59,7 @@ c.use (req, res) ->
 # server app
 app = http.createServer(c)
 io = require('socket.io').listen app
-app.listen argv.p
+app.listen argv.p ? 8080
 
 
 {NODES:joe} = require 'joeson/src/joescript'
