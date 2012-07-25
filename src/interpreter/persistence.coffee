@@ -68,8 +68,9 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
 
       $P.client.hgetall id, (err, _data) ->
         if meta.type is 'JArray'
-          return cb("Loadded JArray had no length?") unless _data.length?
-          data = new Array(data.length)
+          # return cb("Loadded JArray had no length?") unless _data.length?
+          # data = new Array(data.length)
+          data = []
         else
           data = _data
         debug "loadJObject now setting up items: #{inspect _data}" if trace
@@ -192,6 +193,7 @@ JObject::extend
 
 JArray::extend
   persistence_on: ($$, event) ->
+    console.log "~~ JArray::persistence_on"
     thread = event.thread
     switch event.type
       when 'set', 'push'

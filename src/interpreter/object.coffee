@@ -283,6 +283,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   push: ($, [value]) ->
     Array.prototype.push.call @data, value
     # also emit the key, to mitigate syncrony issues
+    console.log "~~ JArray::push #{$}"
     @emit {thread:$,type:'push',key:@data.length-1, value}
     return JUndefined
 

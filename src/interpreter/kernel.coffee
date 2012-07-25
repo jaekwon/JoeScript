@@ -16,6 +16,15 @@ assert = require 'assert'
 # installs instructions to joescript prototypes
 require 'joeson/src/interpreter/instructions'
 
+_parseCode = (code) ->
+  return code if code instanceof joe.Node
+  info "received code:\n#{code}" if trace.debug or trace.logCode
+  node = require('joeson/src/joescript').parse code
+  info "unparsed node:\n" + node.serialize() if trace.debug or trace.logCode
+  node = node.toJSNode(toValue:yes).installScope().determine()
+  info "parsed node:\n" + node.serialize() if trace.debug or trace.logCode
+  return node
+
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->
     # figure out which function this node is declared in
@@ -34,12 +43,12 @@ JStackItem = @JStackItem = clazz 'JStackItem', ->
 JThread = @JThread = clazz 'JThread', ->
 
   # kernel: JKernel to which this thread belongs
-  # start:  The start node of program to run
+  # code:   The code node of next program to run
   # user:   The user associated with this thread
   # scope:  Immediate local lexical scope object
-  init: ({@kernel, @start, @user, @scope, @callback}) ->
+  init: ({@kernel, code, @user, @scope, @callback}) ->
     assert.ok @kernel instanceof JKernel,  "JThread wants kernel"
-    assert.ok @start  instanceof joe.Node, "JThread wants Joescript node"
+    assert.ok code instanceof joe.Node, "JThread wants Joescript node"
     assert.ok @user   instanceof JObject,  "JThread wants user"
     @scope ?= new JObject creator:@user
     assert.ok @scope  instanceof JObject,  "JThread scope not JObject"
@@ -47,9 +56,10 @@ JThread = @JThread = clazz 'JThread', ->
     @i9ns = [] # i9n stack
     @last = JUndefined # last return value.
     @state = null
-    @push this:@start, func:@start.interpret
+    @push this:code, func:code.interpret
     @waitKeys = []
     # if @user is GOD then @will = -> yes # optimization
+    @queue = []
 
   # Main run loop iteration.
   # return:
@@ -169,6 +179,27 @@ JThread = @JThread = clazz 'JThread', ->
     else
       @cleanup()
 
+  # Run more code after current code exits.
+  # If the callback is not specified, it gets set to null.
+  enqueue: ({code, callback}) ->
+    if @state is 'return' or 'error'
+      # reset state
+      @state = null
+      @start {code, callback}
+      # TODO refactor the below two lines
+      @kernel.runThreads.push @
+      process.nextTick @kernel.runloop if @kernel.runThreads.length is 1
+    else
+      @queue.push {code, callback}
+
+  start: ({code, callback}) ->
+    assert.ok @state is null, "JThread::start wants null @state"
+    @i9ns = []
+    if code
+      node = _parseCode code
+      @i9ns.push this:node, func:node.interpret
+    @callback = callback ? null
+
   cleanup: ->
     # pass
 
@@ -271,18 +302,10 @@ JThread = @JThread = clazz 'JThread', ->
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
     try
-      if typeof code is 'string'
-        info "received code:\n#{code}" if trace.debug or trace.logCode
-        node = require('joeson/src/joescript').parse code
-        info "unparsed node:\n" + node.serialize() if trace.debug or trace.logCode
-        node = node.toJSNode(toValue:yes).installScope().determine()
-        info "parsed node:\n" + node.serialize() if trace.debug or trace.logCode
-      else
-        assert.ok code instanceof joe.Node
-        node = code
+      node = _parseCode code
       thread = new JThread
         kernel:@
-        start:node
+        code:node
         user:user
         scope:scope
         callback:callback
@@ -309,11 +332,15 @@ JThread = @JThread = clazz 'JThread', ->
         exitCode = thread.runStep()
         # Pop the thread off the run list
         if exitCode?
-          @runThreads[@index..@index] = [] # splice out
-          @index = @index % @runThreads.length or 0
-          process.nextTick @runloop if @runThreads.length > 0
-          thread.exit() unless exitCode is 'wait'
-          return
+          if exitCode is 'wait' or thread.queue.length is 0
+            @runThreads[@index..@index] = [] # splice out
+            @index = @index % @runThreads.length or 0
+            process.nextTick @runloop if @runThreads.length > 0
+            thread.exit() unless exitCode is 'wait'
+            return
+          else
+            assert.ok exitCode in ['return', 'error'], "Unexpected exitCode #{exitCode}"
+            thread.start thread.queue.shift()
       @index = (@index + 1) % @runThreads.length
       process.nextTick @runloop
     catch error

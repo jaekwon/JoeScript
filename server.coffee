@@ -148,33 +148,32 @@ io.sockets.on 'connection', (socket) ->
   socket.on 'run', (codeStr) ->
     info "received code #{codeStr}"
 
-    # Create a new entry for output.
-    outputItem = new JObject creator:ANON, data:{code:codeStr, result:'running...'}
-    output.push undefined, [outputItem]
+    KERNEL.run user:ANON, code:'yes', scope:scope, callback: ->
 
-    # TODO make the 'code' property of output immutable.
+      # Create a new entry for output.
+      outputItem = new JObject creator:ANON, data:{code:codeStr, result:'running...'}
+      output.push @, [outputItem]
 
-    # Parse the codeStr and associate functions with the output Item
-    try
-      # info "received code:\n#{code}"
-      node = require('joeson/src/joescript').parse codeStr
-      # info "unparsed node:\n" + node.serialize()
-      node = node.toJSNode(toValue:yes).installScope().determine()
-      # info "parsed node:\n" + node.serialize()
-    catch err
-      # TODO better error message for syntax issues
-      KERNEL.run user:ANON, code:'dontcare', callback: (_err) ->
-        outputItem.__set__ @, 'result', JUndefined
-        outputItem.__set__ @, 'error', "#{err.stack ? err}"
-        @cleanup()
-      return
+      # TODO make the 'code' property of output immutable.
 
-    # Run the parsed code
-    KERNEL.run
-      user: ANON
-      code: node
-      scope: scope
-      callback: ->
+      # Parse the codeStr and associate functions with the output Item
+      try
+        # info "received code:\n#{code}"
+        node = require('joeson/src/joescript').parse codeStr
+        # info "unparsed node:\n" + node.serialize()
+        node = node.toJSNode(toValue:yes).installScope().determine()
+        # info "parsed node:\n" + node.serialize()
+      catch err
+        # TODO better error message for syntax issues
+        @enqueue callback: ->
+          outputItem.__set__ @, 'result', JUndefined
+          outputItem.__set__ @, 'error', "#{err.stack ? err}"
+          @cleanup()
+        return
+
+      console.log "~~ server swizzle callback"
+      @enqueue code:node, callback: ->
+        console.log "~~ server upon callback (After push)"
         switch @state
           when 'return'
             @state = @callback = null # reset thread state. TODO maybe run on another thread

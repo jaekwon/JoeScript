@@ -18,7 +18,10 @@ console.log blue "\n-= persistence test =-"
 _err_ = (fn) ->
   (err, args...) ->
     if err?
-      fatal "Error in callback: #{err.stack ? err}"
+      if err instanceof Error
+        fatal "Native error in callback: #{err.stack ? err}"
+      else
+        fatal "Error in callback: #{inspect err}"
       process.exit(1)
     fn.call this, args...
 
@@ -29,7 +32,7 @@ KERNEL.run
   it = {foo:1, bar:2}
   it.linkToIt = it
   it.anArray = [1,2,3,4,"five"]
-  it.closure = -> it.foo + it.bar
+  it.closure = -> it.foo + it.bar + it.anArray.length # 1 + 2 + 5 is 8
   it
   """
   callback: _err_ ->
@@ -65,7 +68,7 @@ KERNEL.run
           """
           scope: new JObject creator:ANON, data:{it:(new JStub id:obj.id)}
           callback: _err_ ->
-            equal @last, 3
+            equal @last, 8
             console.log "done!"
             KERNEL.shutdown()
             persistence.client.quit()
