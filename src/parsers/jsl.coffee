@@ -26,7 +26,7 @@ JSL = Grammar ({o, i, tokens}) -> [
                       if $.env.cache
                         cached = $.env.cache[id]
                         return cached if cached?
-                      creator = $.env.cache[creatorId] ?= new JStub {id:creatorId,type:'U'} if creatorId
+                      creator = $.env.cache[creatorId] ? new JStub {id:creatorId,type:'U'} if creatorId
                       switch type
                         when 'O' then obj = new JObject {id,creator}
                         when 'A' then obj = new JArray  {id,creator}

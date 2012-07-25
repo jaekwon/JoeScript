@@ -9,9 +9,8 @@
 }
 
 .CodeMirror-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  height: 300px;
+  height: auto;
+  overflow: visible;
   /* This is needed to prevent an IE[67] bug where the scrolled content
      is visible outside of the scrolling box. */
   position: relative;
@@ -20,9 +19,10 @@
 
 /* Vertical scrollbar */
 .CodeMirror-scrollbar {
+  display: none;
   float: right;
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: hidden;
 
   /* This corrects for the 1px gap introduced to the left of the scrollbar
      by the rule for .CodeMirror-scrollbar-inner. */

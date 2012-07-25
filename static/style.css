@@ -17,6 +17,26 @@ body {
   overflow-y: auto;
 }
 
+#input_editor {
+  margin-bottom: 1em;
+}
+
+/* these are in static/codemirror.css
+.CodeMirror-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  height: auto;
+  position: relative;
+  outline: none;
+}
+.CodeMirror-scrollbar {
+  float: right;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  margin-left: -1px;
+}
+*/
+
 #footer {
   background-color: #0a001f !important; /* hack around UILayout defaults */
 }

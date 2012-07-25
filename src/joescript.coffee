@@ -4,7 +4,8 @@
 {inspect} = require 'util'
 assert    = require 'assert'
 {Grammar} = require 'joeson'
-{Node} = require 'joeson/src/node'
+Node = require('joeson/src/node').createNodeClazz('CodeNode')
+
 
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source

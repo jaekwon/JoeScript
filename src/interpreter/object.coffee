@@ -36,7 +36,7 @@ assert = require 'assert'
   NODES:joe
   HELPERS:{isWord,isVariable}
 } = require 'joeson/src/joescript'
-{Node} = require 'joeson/src/node'
+Node = require('joeson/src/node').createNodeClazz('ObjectNode')
 
 # dependencies
 require('joeson/src/translators/scope').install()

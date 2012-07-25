@@ -20,7 +20,7 @@ just admit that the current implementation is imperfect, and limit grammar usage
 {inspect} = require 'util'
 assert = require 'assert'
 {CodeStream} = require 'joeson/src/codestream'
-{Node} = require 'joeson/src/node'
+Node = require('joeson/src/node').createNodeClazz('GrammarNode')
 {pad, escape} = require 'joeson/lib/helpers'
 
 @trace = trace =
