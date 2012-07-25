@@ -29,7 +29,6 @@ Undetermined = clazz 'Undetermined', Node, ->
   init: (@prefix) -> @word = undefined
   toString: -> "[Undetermined prefix:#{@prefix}]"
   toKeyString: ->
-    console.log @word, typeof @word
     assert.ok @word instanceof Word, "Variable name not yet determined!"
     return @word.key
 

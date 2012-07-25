@@ -7,7 +7,7 @@
   "dependencies": {
       "async": "",
       "sugar": "",
-      "cardamom": ">= 0.0.9",
+      "cardamom": ">= 0.0.9b",
       "connect": "= 2.3.3",
       "nogg": ">= 0.0.8",
       "socket.io": "",
