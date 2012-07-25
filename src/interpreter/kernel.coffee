@@ -145,7 +145,7 @@ JThread = @JThread = clazz 'JThread', ->
       @state = 'error'
       return undefined
     else
-      assert.ok @waitKeys.length is 0, "During a throw, found thread with @state != 'wait' that had waitKeys ?!"
+      assert.ok @waitKeys.length is 0, "During a throw, #{@} with @state=#{@state} != 'wait' had waitKeys #{@waitKeys}"
       @state = 'error'
       return undefined
 
