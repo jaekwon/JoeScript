@@ -111,7 +111,7 @@ io.sockets.on 'connection', (socket) ->
             # TODO push error to output
           else
             throw new Error "Unexpected state #{@state} during kernel callback"
-        @cleanup()
+        # @cleanup()
 
   # Invoke a closure on the server.
   socket.on 'invoke', (data) ->
@@ -134,7 +134,7 @@ io.sockets.on 'connection', (socket) ->
               # TODO push error to output
             else
               throw new Error "Unexpected state #{@state} during kernel callback"
-          @cleanup()
+          # @cleanup()
 
     if boundFunc.scope instanceof JStub
       # HACK, JStubs should have a URL for the appropriate persistence, when decentralized.
@@ -168,12 +168,10 @@ io.sockets.on 'connection', (socket) ->
         @enqueue callback: ->
           outputItem.__set__ @, 'result', JUndefined
           outputItem.__set__ @, 'error', "#{err.stack ? err}"
-          @cleanup()
+          # @cleanup()
         return
 
-      console.log "~~ server swizzle callback"
       @enqueue code:node, callback: ->
-        console.log "~~ server upon callback (After push)"
         switch @state
           when 'return'
             @state = @callback = null # reset thread state. TODO maybe run on another thread
@@ -187,7 +185,7 @@ io.sockets.on 'connection', (socket) ->
             outputItem.__set__ @, 'error', @errorStack()
           else
             throw new Error "Unexpected state #{@state} during kernel callback"
-        @cleanup()
+        # @cleanup()
 
   # Server Diagnostics
   socket.on 'server_info?', -> socket.emit 'server_info.', memory:process.memoryUsage()

@@ -71,8 +71,10 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           # return cb("Loadded JArray had no length?") unless _data.length?
           # data = new Array(data.length)
           data = []
+          data.__proto__ = null # detach native Array::
         else
           data = _data
+          data.__proto__ = null # detach native Object::
         debug "loadJObject now setting up items: #{inspect _data}" if trace
         for key, value of _data
           t = value[0]
@@ -193,7 +195,6 @@ JObject::extend
 
 JArray::extend
   persistence_on: ($$, event) ->
-    console.log "~~ JArray::persistence_on"
     thread = event.thread
     switch event.type
       when 'set', 'push'

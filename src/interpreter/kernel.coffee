@@ -1,4 +1,4 @@
-trace = debug:no, logCode:no
+log = trace = no
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -11,18 +11,18 @@ assert = require 'assert'
   HELPERS: {extend, isVariable}
 } = require('joeson/src/joescript')
 
-{@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
+{@NODES, @HELPERS} = {NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 
 # installs instructions to joescript prototypes
 require 'joeson/src/interpreter/instructions'
 
 _parseCode = (code) ->
   return code if code instanceof joe.Node
-  info "received code:\n#{code}" if trace.debug or trace.logCode
+  info "received code:\n#{code}" if log
   node = require('joeson/src/joescript').parse code
-  info "unparsed node:\n" + node.serialize() if trace.debug or trace.logCode
+  info "unparsed node:\n" + node.serialize() if log
   node = node.toJSNode(toValue:yes).installScope().determine()
-  info "parsed node:\n" + node.serialize() if trace.debug or trace.logCode
+  info "parsed node:\n" + node.serialize() if log
   return node
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
@@ -62,56 +62,51 @@ JThread = @JThread = clazz 'JThread', ->
     @queue = []
 
   # Main run loop iteration.
-  # return:
+  # In this function, set @state to:
   #   'error'     for uncaught errors. see @error
-  #   'return'    for the final return value. see @last
+  #   'return'    for the final return value. see @last.
   #   'wait'      to wait for IO.
-  #   null        all other intermediate cases.
+  #   null        to continue stepping.
   runStep: ->
     if @i9ns.length is 0
       return @state='return'
-    {func, this:that, target, targetKey, targetIndex} = i9n = @i9ns[@i9ns.length-1]
-    info blue "             -- runStep --" if trace.debug
-    @printScope @scope if trace.debug
-    @printStack() if trace.debug
+    {func, this:that} = i9n = @i9ns[@i9ns.length-1]
+    info blue "             -- runStep --" if trace
+    @printScope @scope if trace
+    @printStack() if trace
     throw new Error "Last i9n.func undefined!" if not func?
-    throw new Error "target and targetKey must be present together" if (target? or targetKey?) and not (target? and targetKey?)
     # Call the topmost instruction
     # TODO consider whether setting to @last all the time is a good idea.
     @last = func.call that ? i9n, this, i9n, @last
     switch @state
       when null
-        info "             #{blue 'last ->'} #{@last}" if trace.debug
-        if targetIndex?
-          target[targetKey][targetIndex] = @last
-        else if target?
-          target[targetKey] = @last
-        return null
+        info "             #{blue 'last ->'} #{@last}" if trace
+        return # @state=null
       when 'error'
-        info "             #{red 'throw ->'} #{@last}" if trace.debug
+        info "             #{red 'throw ->'} #{@last}" if trace
         loop # unwind loop
           dontcare = @pop()
           i9n = @peek()
           if not i9n?
-            return 'error'
+            return # @state='error'
           else if i9n.this instanceof joe.Try and not i9n.isHandlingError
             i9n.isHandlingError = true
             i9n.func = joe.Try::interpretCatch
             @last = @error
             return @state=null
       when 'return'
-        info "             #{yellow 'return ->'} #{@last}" if trace.debug
+        info "             #{yellow 'return ->'} #{@last}" if trace
         loop # unwind loop
           dontcare = @pop()
           i9n = @peek()
           if not i9n?
-            return 'return'
+            return # @state='return'
           else if i9n.this instanceof joe.Invocation
             assert.ok i9n.func is joe.Invocation::interpretFinal, "Unexpected i9n.func #{i9n.func?._name or i9n.func?._name}"
             return @state=null
       when 'wait'
-        info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace.debug
-        return 'wait'
+        info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace
+        return # @state='wait'
       else
         throw new Error "Unexpected state #{@state}"
 
@@ -129,7 +124,17 @@ JThread = @JThread = clazz 'JThread', ->
       stack.push JStackItem node:item.this
     return stack
 
-  ### FLOW CONTROL ###
+  ### FLOW CONTROL
+
+    $.throw, $.return, $.wait are methods to change the state of the thread.
+    They set the state on the thread appropriately, and if needed modify
+    kernel waitlists. The handling of removing the thread from the runloop,
+    and calling thread callbacks, happen in the kernel loop.
+
+    For coding convenience, the result of these functions get returned
+    and set in thread.last, so be deliberate about what is returned, usually 'undefined'.
+
+  ###
 
   throw: (name, message) ->
     @error = name:name, message:message, stack:@callStack()
@@ -138,11 +143,11 @@ JThread = @JThread = clazz 'JThread', ->
         (waitList=@kernel.waitLists[waitKey]).remove @
         delete @kernel.waitLists[waitKey] if waitList.length is 0
       @state = 'error'
-      return @exit()
+      return undefined
     else
       assert.ok @waitKeys.length is 0, "During a throw, found thread with @state != 'wait' that had waitKeys ?!"
       @state = 'error'
-      return
+      return undefined
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"
@@ -150,34 +155,34 @@ JThread = @JThread = clazz 'JThread', ->
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    debug "#{@}.wait waitKey:#{waitKey} when state was #{@state}" if trace.debug
+    debug "#{@}.wait waitKey:#{waitKey} when state was #{@state}" if log
     # assert.ok @state is null, "JThread::wait wants null state for waiting but got #{@state}"
     (@kernel.waitLists[waitKey]?=[]).push @
     @waitKeys.push waitKey
     @state = 'wait'
-    return
+    return undefined
 
+  # Resuming is flow control, but its caller is not this thread.
   resume: (waitKey) ->
-    debug "#{@}.resume waitKey:#{waitKey}" if trace.debug
+    debug "#{@}.resume waitKey:#{waitKey}" if log
     switch @state
       when 'wait'
         # resume ALL threads waiting on this key
         @kernel.resumeThreads waitKey
-        return
+        return undefined
       when 'error'
         # forget about the waitkey
         assert.ok @waitKeys.length is 0, "Errored thread's waitKeys should already have been cleared"
-        return
+        return undefined
       else throw new Error "Unexpected thread state for resuming: #{@state}"
 
+  # A process of the thread has ended. Call callback functions and clean up.
   exit: ->
     if @callback?
       try
         @callback(@error)
       catch err
         @kernel.errorCallback(err)
-    else
-      @cleanup()
 
   # Run more code after current code exits.
   # If the callback is not specified, it gets set to null.
@@ -187,11 +192,12 @@ JThread = @JThread = clazz 'JThread', ->
       @state = null
       @start {code, callback}
       # TODO refactor the below two lines
-      @kernel.runThreads.push @
-      process.nextTick @kernel.runloop if @kernel.runThreads.length is 1
+      @kernel.runloop.push @
+      process.nextTick @kernel.runRunloop if @kernel.runloop.length is 1
     else
       @queue.push {code, callback}
 
+  # Set the thread to start the next process.
   start: ({code, callback}) ->
     assert.ok @state is null, "JThread::start wants null @state"
     @i9ns = []
@@ -199,9 +205,6 @@ JThread = @JThread = clazz 'JThread', ->
       node = _parseCode code
       @i9ns.push this:node, func:node.interpret
     @callback = callback ? null
-
-  cleanup: ->
-    # pass
 
   ### ACCESS CONTROL ###
 
@@ -223,10 +226,10 @@ JThread = @JThread = clazz 'JThread', ->
       i9nCopy = Object.clone i9n
       delete i9nCopy.this
       delete i9nCopy.func
-      info        "#{ blue pad right:12, "#{i9n.this?.constructor.name}"
+      info        "#{ blue pad right:12, "#{i9n.this?.constructor?.name}"
                  }.#{ yellow i9n.func?._name
              }($, {#{ white Object.keys(i9nCopy).join ','
-            }}, _) #{ black escape i9n.this }"
+            }}, _) #{ black if i9n.this.toString? then escape(i9n.this) else "(#{typeof i9n.this}) with no toString" }"
 
   errorStack: ->
     stackTrace = @error.stack.map((x)->'  at '+x).join('\n') or '  -- no stack trace available --'
@@ -282,7 +285,7 @@ JThread = @JThread = clazz 'JThread', ->
   # nativeFunctions:  all registered native functions
   # errorCallback:    when thread callbacks error out
   init: ({@cache, @nativeFunctions, @errorCallback}={}) ->
-    @runThreads = []
+    @runloop = []  # TODO threads pushed here must have state=null. better API.
     @cache ?= {}      # TODO should be weak etc.
     @nativeFunctions ?= {}
     @index = 0
@@ -309,47 +312,53 @@ JThread = @JThread = clazz 'JThread', ->
         user:user
         scope:scope
         callback:callback
-      @runThreads.push thread
-      @runloop() if @runThreads.length is 1
+      @runloop.push thread
+      @runRunloop() if @runloop.length is 1
     catch error
       if node?
         @errorCallback "Error in user code start:\n#{error.stack ? error}\nfor node:\n#{node.serialize()}"
       else
         @errorCallback "Error parsing code:\n#{error.stack}\nfor code text:\n#{code}"
 
-  runloop$: ->
-    @ticker++
-    debug "JKernel::runloop with #{@runThreads.length} runThreads, run @#{@index}" if trace.debug
-    thread = @runThreads[@index]
-    thread.state = null
-    assert.ok thread.waitKeys.length is 0
-    debug "tick #{@ticker}. #{@runThreads.length} threads, try #{thread.id}" if trace.debug
+  runRunloop$: ->
+    info "JKernel::runRunloop. #{thread} (of #{@runloop.length} @#{@index})" if log
+    # A thread polled from the runloop can have any @state.
+    # After it gets polled, the state gets handled, and the thread
+    # may get removed from the runloop.
+    thread = @runloop[@index]
     try
-      # TODO this reduces nextTick overhead, which is more significant when server is running (vs just testing)
+      # This reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
       for i in [0..20]
-        # Run thread one step
-        exitCode = thread.runStep()
-        # Pop the thread off the run list
-        if exitCode?
-          if exitCode is 'wait' or thread.queue.length is 0
-            @runThreads[@index..@index] = [] # splice out
-            @index = @index % @runThreads.length or 0
-            process.nextTick @runloop if @runThreads.length > 0
-            thread.exit() unless exitCode is 'wait'
+        @ticker++
+        info "tick #{@ticker}. #{thread} (of #{@runloop.length})" if log
+        info "thread.state: #{thread.state}" if log
+        # First consider state.
+        if thread.state?
+          # thread winddown: call callbacks
+          thread.exit() unless thread.state is 'wait'
+          # splice out and stop?
+          if thread.queue.length is 0 or thread.state is 'wait'
+            @runloop[@index..@index] = [] # splice out
+            @index = @index % @runloop.length or 0
+            process.nextTick @runRunloop if @runloop.length > 0
             return
+          # run something else?
           else
-            assert.ok exitCode in ['return', 'error'], "Unexpected exitCode #{exitCode}"
+            assert.ok thread.state in ['return', 'error'], "Unexpected thread state #{thread.state}"
+            thread.state = null
             thread.start thread.queue.shift()
-      @index = (@index + 1) % @runThreads.length
-      process.nextTick @runloop
+        # Run thread one step
+        thread.runStep()
+      @index = (@index + 1) % @runloop.length
+      process.nextTick @runRunloop
     catch error
       fatal "Error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
       if thread?
         thread.throw 'InternalError', "#{error.name}:#{error.message}"
-        @runThreads[@index..@index] = [] # splice out
-        @index = @index % @runThreads.length or 0
-        process.nextTick @runloop if @runThreads.length > 0
+        @runloop[@index..@index] = [] # splice out
+        @index = @index % @runloop.length or 0
+        process.nextTick @runRunloop if @runloop.length > 0
         thread.exit()
       else
         @errorCallback(error)
@@ -357,20 +366,21 @@ JThread = @JThread = clazz 'JThread', ->
 
   resumeThreads: (waitKey) ->
     assert.ok waitKey?, "JKernel::resumeThreads wants waitKey"
-    debug "JKernel::resumeThreads #{waitKey}" if trace.debug
+    debug "JKernel::resumeThreads #{waitKey}" if log
     waitList = @waitLists[waitKey]
-    debug "waitList = #{waitList}" if trace.debug
+    debug "waitList = #{waitList}" if log
     return if not waitList?.length # was already resumed some other how.
     newWaitList = []
     for thread in waitList
       thread.waitKeys.remove waitKey
       if thread.waitKeys.length is 0
-        debug "JKernel inserting #{thread} into @runThreads" if trace.debug
-        @runThreads.push thread
-        process.nextTick @runloop if @runThreads.length is 1
+        debug "JKernel inserting #{thread} into @runloop" if log
+        thread.state = null
+        @runloop.push thread
+        process.nextTick @runRunloop if @runloop.length is 1
       else
         newWaitList.push thread
-    debug "new waitList = #{newWaitList}" if trace.debug
+    debug "new waitList = #{newWaitList}" if log
     if newWaitList.length
       @waitLists[waitKey] = newWaitList
     else

@@ -68,7 +68,6 @@ JObject::extend
 
 JArray::extend
   perspective_on: ($$, event) ->
-    console.log "~~ JArray::perspective_on"
     switch event.type
       when 'set', 'push'
         {key, value} = event

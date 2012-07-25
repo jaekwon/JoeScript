@@ -282,7 +282,7 @@ joe.Invocation::extend
     i9n.func = joe.Invocation::interpretParams
     if bfunc instanceof JBoundFunc and bfunc.scope instanceof JStub
       # dereference if bfunc.scope is JStub
-      $.push this:bfunc.data, func:storeLast, key:'scope'
+      $.push this:bfunc, func:storeLast, key:'data', index:'scope'
       return bfunc.__get__ $, 'scope', yes
     return
   interpretParams: ($, i9n) ->

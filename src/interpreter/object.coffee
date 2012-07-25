@@ -283,7 +283,6 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   push: ($, [value]) ->
     Array.prototype.push.call @data, value
     # also emit the key, to mitigate syncrony issues
-    console.log "~~ JArray::push #{$}"
     @emit {thread:$,type:'push',key:@data.length-1, value}
     return JUndefined
 
@@ -374,7 +373,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     node = node.collectFunctions()
     assert.ok node._functions?, "Expected collected functions at node._functions"
     func = node._functions[@data.__start__]
-    assert.ok func?, "Didn't get the func at the expoected pos #{@data.__start__}. Code:\n#{@data.__code__}"
+    assert.ok func?, "Didn't get a func at the expected pos #{@data.__start__}. Code:\n#{@data.__code__}"
     return @func = func
   __str__: ($) -> "<F|##{@id}>"
   __repr__: ($) ->
