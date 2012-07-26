@@ -35,13 +35,13 @@ JView = @JView = clazz 'JView', ->
 
   # analogous to Document.createElement
   newEl: ({id,tag,cls,attr,text,data,children}={}, setupCb) ->
-    if id? and (existingEl=@els[id])?
+    if id? and @els[id]?
       debug "JView::newEl returning a link for ##{id}"
-      link = @newLink {id}, (el) ->
-        el.hover (e) ->
-          existingEl.addClass('highlight')
-        , (e) ->
-          existingEl.removeClass('highlight')
+      link = @newLink {id}, (el) =>
+        el.hover (e) =>
+          @els[id].addClass('highlight')
+        , (e) =>
+          @els[id].removeClass('highlight')
       return link
     debug "JView::newEl creating new el for ##{id}"
     tag ?= 'div'

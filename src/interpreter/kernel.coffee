@@ -1,4 +1,4 @@
-log = no; trace = no
+log = trace = no
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -161,7 +161,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   # A process of the thread has ended. Call callback functions and clean up.
   exit: ->
-    debug "#{@}.exit, @callback?:#{@callback}"
+    debug "#{@}.exit, @callback?:#{@callback?}"
     if @callback?
       try
         callback = @callback
@@ -335,7 +335,7 @@ JThread = @JThread = clazz 'JThread', ->
       @index = (@index + 1) % @runloop.length
       process.nextTick @runRunloop
     catch error
-      fatal "Error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
+      fatal "Native error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
       if thread?
         thread.throw 'InternalError', "#{error.name}:#{error.message}"
         @runloop[@index..@index] = [] # splice out

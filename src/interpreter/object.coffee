@@ -145,7 +145,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
       else
         return @proto.__get__ $, key, required
     else
-      if (bridgedKey=@bridgedKeys[key])?
+      if (bridgedKey=@bridgedKeys?[key])?
         return @[bridgedKey]
       return $.throw 'ReferenceError', "#{key} is not defined" if required
       return JUndefined
@@ -218,7 +218,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
     jsObj = $$[@id] = {}
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
-  toString: -> "[JObject #{@id}]"
+  toString: -> "[JObject ##{@id}]"
 
 JArray = @JArray = clazz 'JArray', JObject, ->
   bridgedKeys: {
@@ -273,7 +273,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     jsObj = $$[@id] = []
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
-  toString: -> "[JArray #{@id}]"
+  toString: -> "[JArray ##{@id}]"
   push: ($, value) ->
     Array.prototype.push.call @data, value
     # also emit the key, to mitigate syncrony issues
