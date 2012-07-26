@@ -60,6 +60,8 @@ $(document).ready ->
         fatal "Uncaught error in socket callback: #{err.stack ? err}"
         console.log "Uncaught error in socket callback: #{err.stack ? err}"
 
+  screen = undefined
+
   ## (re)initialize the screen.
   socket.on 'screen', _err_ (screenStr) ->
     console.log "received screen"
@@ -77,47 +79,49 @@ $(document).ready ->
     catch err
       fatal "Error in attaching screen view to DOM\n#{err.stack ? err}"
 
-    # Attach listener for events
-    socket.on 'event', _err_ (eventJSON) ->
-      obj = cache[eventJSON.sourceId]
-      info "new event #{inspect eventJSON} for obj ##{obj.id}"
-      if not obj?
-        fatal "Event for unknown object ##{eventJSON.sourceId}."
-        return
-      for key, value of eventJSON
-        unless key in ['type', 'key', 'sourceId']
-          try
-            eventJSON[key] = valueObj = JSL.parse value, env:{cache} #, newCallback:(newObj) -> newObj.addListener screenView}
-          catch err
-            fatal "Error in parsing event item '#{key}':#{value} :\n#{err.stack ? err}"
-            # XXX not sure what should go here.
-      try
-        obj.emit eventJSON
-      catch err
-        fatal "Error while emitting event to object ##{obj.id}:\n#{err.stack ? err}"
+  # Attach listener for events
+  socket.on 'event', _err_ (eventJSON) ->
+    # console.log "eventJSON", eventJSON
+    obj = cache[eventJSON.sourceId]
+    info "new event #{inspect eventJSON} for obj ##{obj.id}"
+    if not obj?
+      fatal "Event for unknown object ##{eventJSON.sourceId}."
+      return
 
-      # HACK to scroll down for screen.push
-      _scrollDown $('#main') if obj is screen
+    for key, value of eventJSON
+      unless key in ['type', 'key', 'sourceId']
+        try
+          eventJSON[key] = valueObj = JSL.parse value, env:{cache} #, newCallback:(newObj) -> newObj.addListener screenView}
+        catch err
+          fatal "Error in parsing event item '#{key}':#{value} :\n#{err.stack ? err}"
+          # XXX not sure what should go here.
+    try
+      obj.emit eventJSON
+    catch err
+      fatal "Error while emitting event to object ##{obj.id}:\n#{err.stack ? err}"
 
-    # Attach an editor now that screen is available.
-    unless window.editor?
-      editor = window.editor = new Editor el:$('#input_editor'), callback: (codeStr) ->
-        console.log "sending code"
-        socket.emit 'run', codeStr
-        _scrollDown $('#main')
+    # HACK to scroll down for screen.push
+    _scrollDown $('#main') if obj is screen
 
-      # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
-      if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
-        $('#screen').append($('<input id="ipadhack" type="text"></input>'))
-        $('#ipadhack').focus().hide()
-      else
-        editor.focus()
-      # ipad hack end
-      $('#input_editor').click -> editor.focus()
-      $(document.body).click -> editor.focus(); no
-      $('#input_submit').click (e) ->
-        editor.submit()
-        no
+  # Attach an editor now that screen is available.
+  unless window.editor?
+    editor = window.editor = new Editor el:$('#input_editor'), callback: (codeStr) ->
+      console.log "sending code"
+      socket.emit 'run', codeStr
+      _scrollDown $('#main')
+
+    # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
+    if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
+      $('#screen').append($('<input id="ipadhack" type="text"></input>'))
+      $('#ipadhack').focus().hide()
+    else
+      editor.focus()
+    # ipad hack end
+    $('#input_editor').click -> editor.focus()
+    $(document.body).click -> editor.focus(); no
+    $('#input_submit').click (e) ->
+      editor.submit()
+      no
 
   ## Server diagnostic info
   socket.on 'server_info.', _err_ (data) ->

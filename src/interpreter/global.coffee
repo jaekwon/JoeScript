@@ -7,7 +7,7 @@ async = require 'async'
 {pad, escape, starts, ends} = require 'joeson/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN} = require 'joeson/src/interpreter/object'
+{JObject, JArray, JUser, JUndefined, JNull, JNaN, JStub, JBoundFunc} = require 'joeson/src/interpreter/object'
 
 # Caches.
 # TODO weak references
@@ -29,8 +29,18 @@ if require.main is module
 else
   USERS = @USERS                  = new JStub   id:'users', persistence:PERSISTENCE
 WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
-  users:  USERS
   this:   USERS
+  users:  USERS
+  print:  new JBoundFunc creator:ANON, scope:JUndefined, func:"""
+            (data) -> output.push data
+          """
+  clear:  new JBoundFunc creator:ANON, scope:JUndefined, func:"""
+            -> output.length = 0
+          """
+  login:  ($, something) ->
+          console.log something
+          return "it worked!"
+
 WORLD.hack_persistence = PERSISTENCE # FIX
 
 {JKernel} = require 'joeson/src/interpreter/kernel'

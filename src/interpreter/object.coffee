@@ -472,7 +472,7 @@ clazz.extend Function, # native functions
   __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> yes
   __key__:        ($) -> $.throw 'TypeError', "Can't use a function as a key"
-  __str__:        ($) -> "(<##{@id}>)"
+  __str__:        ($) -> "[NativeFunction ##{@id}]"
   __repr__:       ($) ->
     name = @name ? @_name
     if name

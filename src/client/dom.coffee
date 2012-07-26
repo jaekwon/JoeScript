@@ -169,7 +169,7 @@ JStub::extend
             socket.emit 'invoke', {id:@id}
             no
       else
-        $$.newLink id:@id, cls:'link', text:"[link:##{@id}]", (el) =>
+        $$.newLink id:@id, cls:'link', text:"[stub:##{@id}]", (el) =>
         
 # Never rendered on the client yet, since the client never instantiates JBoundFunc objects.
 JBoundFunc::extend

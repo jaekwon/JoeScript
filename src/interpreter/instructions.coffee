@@ -302,19 +302,19 @@ joe.Invocation::extend
       {func:{block,params}, scope} = i9n.invokedFunction
       paramValues = i9n.paramValues
       if i9n.source?
-        if scope?
-          $.scope = scope.__create__ $, {this:i9n.source}
-        else if scope is JNull
+        if scope is JNull
           $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
         else if scope is JUndefined
           $.scope = oldScope.__create__ $, {this:i9n.source}
+        else
+          $.scope = scope.__create__ $, {this:i9n.source}
       else
-        if scope?
-          $.scope = scope.__create__ $ # this isnt bound to global
-        else if scope is JNull
+        if scope is JNull
           $.scope = $.new JObject creator:$.user
         else if scope is JUndefined
           $.scope = oldScope.__create__ $
+        else if scope?
+          $.scope = scope.__create__ $ # this isnt bound to global
       if params?
         # Though params is an AssignList,
         assert.ok params instanceof joe.AssignList
