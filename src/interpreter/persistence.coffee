@@ -8,7 +8,7 @@ async = require 'async'
 {NODES:{JStub, JObject, JArray, JUser, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
 {JKernel, JThread, JStackItem} = require 'joeson/src/interpreter/kernel'
 
-trace = no
+trace = yes
 
 # A JObject listener
 # JPersistence saves objects onto redis
@@ -44,7 +44,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # Load an object with the given id for the given kernel
   # cb: (err, obj) -> ...
   loadJObject: (kernel, id, cb) ->
-    debug "JPersistence::loadJObject #{kernel}, #{id}, #{cb?} (cb?)" if trace
+    debug "loadJObject ##{id} (#{cb?})" if trace
     assert.ok kernel?.cache?,               "loadJObject wants kernel.cache"
     assert.ok kernel?.nativeFunctions?,     "loadJObject wants kernel.nativeFunctions"
     assert.ok id,                           "loadJObject wants an id to load"
@@ -93,7 +93,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           else
             data[key] = value
         obj.data = data
-        debug "loadJObject obj is now #{obj.serialize()}" if trace
+        debug "loaded\n#{obj.serialize()}" if trace
         cb(null, obj)
 
 JObject::extend
@@ -163,7 +163,7 @@ JObject::extend
 
   persistence_saveItem: ($$, key, value, cb) ->
     assert.ok @id, "JObject needs an id for it to be saved."
-    debug "persistence_save saving key/value #{key}:#{value}" if trace
+    debug "persistence_saveItem saving key/value #{key}:#{value}" if trace
 
     switch typeof value
       when 'string' then value = 's:'+value

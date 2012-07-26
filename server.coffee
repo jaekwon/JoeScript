@@ -152,7 +152,7 @@ io.sockets.on 'connection', (socket) ->
 
       # Create a new entry for output.
       outputItem = new JObject creator:ANON, data:{code:codeStr, result:'running...'}
-      output.push @, [outputItem]
+      output.push @, outputItem
 
       # TODO make the 'code' property of output immutable.
 
@@ -174,12 +174,10 @@ io.sockets.on 'connection', (socket) ->
       @enqueue code:node, callback: ->
         switch @state
           when 'return'
-            @state = @callback = null # reset thread state. TODO maybe run on another thread
             outputItem.__set__ @, 'result', @last
             info "return: #{@last.__str__(@)}"
             # view = @last.newView()
           when 'error'
-            @state = @callback = null # reset thread state. TODO maybe run on another thread.
             @printErrorStack()
             outputItem.__set__ @, 'result', JUndefined
             outputItem.__set__ @, 'error', @errorStack()

@@ -100,7 +100,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
   # Emit an event from object to listeners
   emit: (event) ->
     assert.ok typeof event is 'object', 'Event must be an object'
-    debug "emit event:#{event} // #{Object.values @listeners}"
+    debug "emit: {type:#{event?.type},...} // listeners: #{Object.values @listeners}" # // #{inspect event}"
     return unless @listeners?
     event.sourceId = @id
     for id, listener of @listeners
@@ -145,8 +145,8 @@ JObject = @JObject = clazz 'JObject', Node, ->
       else
         return @proto.__get__ $, key, required
     else
-      if starts(key, '__') and ends(key, '__') and nativeValue=@[key]
-        return nativeValue
+      if (bridgedKey=@bridgedKeys[key])?
+        return @[bridgedKey]
       return $.throw 'ReferenceError', "#{key} is not defined" if required
       return JUndefined
   create: (creator, newData={}) ->
@@ -221,7 +221,9 @@ JObject = @JObject = clazz 'JObject', Node, ->
   toString: -> "[JObject #{@id}]"
 
 JArray = @JArray = clazz 'JArray', JObject, ->
-  protoKeys = ['push']
+  bridgedKeys: {
+    'push': 'push'
+  }
 
   init: ({id, creator, data, acl}) ->
     data ?= []
@@ -232,13 +234,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     if isInteger key
       return @data[key] ? JUndefined
     else
-      key = key.__key__($)
-      #console.log "GET:", key
-      value = @data[key]
-      return value if value?
-      return @[key] ? JUndefined if starts(key, '__') and ends(key, '__')
-      return @[key] if key in protoKeys
-      return JUndefined
+      return @super.__get__.call @, $, key
   __set__: ($, key, value) ->
     $.will('write', this)
     if isInteger key
@@ -278,9 +274,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
   toString: -> "[JArray #{@id}]"
-
-  # protokeys
-  push: ($, [value]) ->
+  push: ($, value) ->
     Array.prototype.push.call @data, value
     # also emit the key, to mitigate syncrony issues
     @emit {thread:$,type:'push',key:@data.length-1, value}

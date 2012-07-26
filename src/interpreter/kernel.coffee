@@ -1,4 +1,4 @@
-log = trace = no
+log = no; trace = no
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -46,38 +46,30 @@ JThread = @JThread = clazz 'JThread', ->
   # code:   The code node of next program to run
   # user:   The user associated with this thread
   # scope:  Immediate local lexical scope object
-  init: ({@kernel, code, @user, @scope, @callback}) ->
+  init: ({@kernel, code, @user, @scope, callback}) ->
     assert.ok @kernel instanceof JKernel,  "JThread wants kernel"
     assert.ok code instanceof joe.Node, "JThread wants Joescript node"
     assert.ok @user   instanceof JObject,  "JThread wants user"
     @scope ?= new JObject creator:@user
     assert.ok @scope  instanceof JObject,  "JThread scope not JObject"
     @id = randid()
-    @i9ns = [] # i9n stack
-    @last = JUndefined # last return value.
-    @state = null
-    @push this:code, func:code.interpret
-    @waitKeys = []
-    # if @user is GOD then @will = -> yes # optimization
     @queue = []
+    @waitKeys = []
+    @start {code, callback}
 
   # Main run loop iteration.
-  # In this function, set @state to:
-  #   'error'     for uncaught errors. see @error
-  #   'return'    for the final return value. see @last.
-  #   'wait'      to wait for IO.
-  #   null        to continue stepping.
   runStep: ->
     if @i9ns.length is 0
-      return @state='return'
+      @state = if @error then 'error' else 'return'
+      return
     {func, this:that} = i9n = @i9ns[@i9ns.length-1]
     info blue "             -- runStep --" if trace
     @printScope @scope if trace
     @printStack() if trace
     throw new Error "Last i9n.func undefined!" if not func?
-    # Call the topmost instruction
-    # TODO consider whether setting to @last all the time is a good idea.
-    @last = func.call that ? i9n, this, i9n, @last
+    result = func.call that ? i9n, this, i9n, @last
+    @last = result
+    
     switch @state
       when null
         info "             #{blue 'last ->'} #{@last}" if trace
@@ -145,51 +137,44 @@ JThread = @JThread = clazz 'JThread', ->
       @state = 'error'
       return undefined
     else
-      assert.ok @waitKeys.length is 0, "During a throw, #{@} with @state=#{@state} != 'wait' had waitKeys #{@waitKeys}"
+      assert.ok @waitKeys.length is 0, "During a throw, #{@} @state!='wait' had waitKeys #{@waitKeys}"
       @state = 'error'
       return undefined
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"
+    debug "#{@}.return result = #{result}" if log
     @state = 'return'
     return result # return the result of this to set @last.
 
   wait: (waitKey) ->
-    debug "#{@}.wait waitKey:#{waitKey} when state was #{@state}" if log
+    debug "#{@}.wait waitKey = #{waitKey}" if log
     # assert.ok @state is null, "JThread::wait wants null state for waiting but got #{@state}"
     (@kernel.waitLists[waitKey]?=[]).push @
     @waitKeys.push waitKey
     @state = 'wait'
     return undefined
 
-  # Resuming is flow control, but its caller is not this thread.
   resume: (waitKey) ->
-    debug "#{@}.resume waitKey:#{waitKey}" if log
-    switch @state
-      when 'wait'
-        # resume ALL threads waiting on this key
-        @kernel.resumeThreads waitKey
-        return undefined
-      when 'error'
-        # forget about the waitkey
-        assert.ok @waitKeys.length is 0, "Errored thread's waitKeys should already have been cleared"
-        return undefined
-      else throw new Error "Unexpected thread state for resuming: #{@state}"
+    debug "#{@}.resume waitKey = #{waitKey}" if log
+    @kernel.resumeThreads waitKey
 
   # A process of the thread has ended. Call callback functions and clean up.
   exit: ->
+    debug "#{@}.exit, @callback?:#{@callback}"
     if @callback?
       try
-        @callback(@error)
+        callback = @callback
+        @callback = null
+        callback.call(@, @error)
       catch err
         @kernel.errorCallback(err)
 
   # Run more code after current code exits.
   # If the callback is not specified, it gets set to null.
   enqueue: ({code, callback}) ->
-    if @state is 'return' or 'error'
+    if @state in ['return', 'error']
       # reset state
-      @state = null
       @start {code, callback}
       # TODO refactor the below two lines
       @kernel.runloop.push @
@@ -199,8 +184,10 @@ JThread = @JThread = clazz 'JThread', ->
 
   # Set the thread to start the next process.
   start: ({code, callback}) ->
-    assert.ok @state is null, "JThread::start wants null @state"
     @i9ns = []
+    @last = JUndefined
+    @error = null
+    @state = null
     if code
       node = _parseCode code
       @i9ns.push this:node, func:node.interpret
@@ -215,8 +202,6 @@ JThread = @JThread = clazz 'JThread', ->
     #return yes if obj.creator is @user
     #acl = obj.acl ? obj
     #throw new Error 'TODO determine permissing using ACL'
-
-  toString: -> "[JThread]"
 
   ### DEBUG ###
 
@@ -275,7 +260,7 @@ JThread = @JThread = clazz 'JThread', ->
       elements[''+key] = value for key, value of attributes
     return new JArray creator:@user, data:elements
 
-  toString: -> "[JThread #{@id}]"
+  toString: -> "[JThread ##{@id} s:#{@state} l:#{@last}]"
 
 ## KERNEL ##
 # Multi-user time-shared interpreter.
@@ -321,7 +306,7 @@ JThread = @JThread = clazz 'JThread', ->
         @errorCallback "Error parsing code:\n#{error.stack}\nfor code text:\n#{code}"
 
   runRunloop$: ->
-    info "JKernel::runRunloop. #{thread} (of #{@runloop.length} @#{@index})" if log
+    info "JKernel::runRunloop. @#{@index} (of #{@runloop.length})" if log
     # A thread polled from the runloop can have any @state.
     # After it gets polled, the state gets handled, and the thread
     # may get removed from the runloop.
@@ -332,24 +317,21 @@ JThread = @JThread = clazz 'JThread', ->
       for i in [0..20]
         @ticker++
         info "tick #{@ticker}. #{thread} (of #{@runloop.length})" if log
-        info "thread.state: #{thread.state}" if log
-        # First consider state.
+        thread.runStep()
         if thread.state?
-          # thread winddown: call callbacks
+          # Run callbacks. Callbacks may enqueue more callbacks.
           thread.exit() unless thread.state is 'wait'
-          # splice out and stop?
+          # Pull the thread out,
           if thread.queue.length is 0 or thread.state is 'wait'
             @runloop[@index..@index] = [] # splice out
             @index = @index % @runloop.length or 0
             process.nextTick @runRunloop if @runloop.length > 0
             return
-          # run something else?
+          # or, run what's next in the queue.
           else
+            # thread.queue.length > 0 and thread.state != 'wait'
             assert.ok thread.state in ['return', 'error'], "Unexpected thread state #{thread.state}"
-            thread.state = null
             thread.start thread.queue.shift()
-        # Run thread one step
-        thread.runStep()
       @index = (@index + 1) % @runloop.length
       process.nextTick @runRunloop
     catch error
@@ -366,7 +348,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   resumeThreads: (waitKey) ->
     assert.ok waitKey?, "JKernel::resumeThreads wants waitKey"
-    debug "JKernel::resumeThreads #{waitKey}" if log
+    debug "JKernel::resumeThreads waitKey = #{waitKey}" if log
     waitList = @waitLists[waitKey]
     debug "waitList = #{waitList}" if log
     return if not waitList?.length # was already resumed some other how.

@@ -326,7 +326,7 @@ joe.Invocation::extend
       try
         # NOTE: i9n is unavailable to native functions
         # me don't see why it should be needed.
-        return i9n.invokedFunction.call i9n.source, $, i9n.paramValues
+        return i9n.invokedFunction.call i9n.source, $, i9n.paramValues...
       catch error
         fatal "Internal error: \n#{error.stack ? error}"
         return $.throw 'InternalError:'+(error?.name ? 'UnknownError'), error?.message ? ''+error
