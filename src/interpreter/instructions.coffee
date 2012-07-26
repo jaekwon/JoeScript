@@ -205,6 +205,7 @@ joe.Operation::extend
           when '-'  then return left.__sub__ $, right
           when '*'  then return left.__mul__ $, right
           when '/'  then return left.__div__ $, right
+          when '%'  then return left.__mod__ $, right
           when '<'  then return left.__cmp__($, right) < 0
           when '>'  then return left.__cmp__($, right) > 0
           when '<=' then return left.__cmp__($, right) <= 0

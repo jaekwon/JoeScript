@@ -23,6 +23,8 @@ TODO mechanism to remove a listener...
 
 ###
 
+log = no
+
 { clazz,
   colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
   collections:{Set}} = require('cardamom')
@@ -83,7 +85,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
     assert.ok isObject @creator, "JObject wants JObject creator"
     if not @id?
       @id = randid()
-      debug "Created new object #{@id}"
+      debug "Created new object #{@id}" if log
     @data ?= {}
     @data.__proto__ = null # detatch prototype
 
@@ -100,7 +102,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
   # Emit an event from object to listeners
   emit: (event) ->
     assert.ok typeof event is 'object', 'Event must be an object'
-    debug "emit: {type:#{event?.type},...} // listeners: #{Object.values @listeners}" # // #{inspect event}"
+    debug "emit: {type:#{event?.type},...} // listeners: #{Object.values @listeners}" if log # // #{inspect event}"
     return unless @listeners?
     event.sourceId = @id
     for id, listener of @listeners
@@ -116,7 +118,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
       value = @proto
     else
       value = @data[key]
-    debug "#{@}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})"
+    debug "#{@}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
     if value?
       if value instanceof JStub
         return cached if cached=$.kernel.cache[value.id]
@@ -195,6 +197,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
   __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
   __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
   __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
+  __mod__:  ($, other) -> $.throw 'TypeError', "Can't modulate an object yet"
   __eq__:   ($, other) -> other instanceof JObject and other.id is @id
   __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
   __bool__: ($, other) -> yes
@@ -253,6 +256,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
   __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
   __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
+  __mod__: ($, other) -> $.throw 'TypeError', "Can't modulate an array yet"
   __eq__:  ($, other) -> other instanceof JArray and other.id is @id
   __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
   __bool__: ($, other) -> yes
@@ -310,6 +314,7 @@ JSingleton = @JSingleton = clazz 'JSingleton', ->
   __sub__:  ($, other) -> JNaN
   __mul__:  ($, other) -> JNaN
   __div__:  ($, other) -> JNaN
+  __mod__:  ($, other) -> JNaN
   __eq__:   ($, other) -> other instanceof JSingleton and @name is other.name
   __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare with #{@name}"
   __bool__: ($, other) -> no
@@ -405,6 +410,7 @@ clazz.extend String,
   __sub__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __mul__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __div__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
+  __mod__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __eq__:   ($, other) -> @valueOf() is other
   __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Implement me"
   __bool__:        ($) -> @length > 0
@@ -423,6 +429,7 @@ clazz.extend Number,
   __sub__: ($, other) -> @valueOf() - other.__num__()
   __mul__: ($, other) -> @valueOf() * other.__num__()
   __div__: ($, other) -> @valueOf() / other.__num__()
+  __mod__: ($, other) -> @valueOf() % other.__num__()
   __eq__:  ($, other) -> @valueOf() is other
   __cmp__: ($, other) -> @valueOf() - other.__num__()
   __bool__:       ($) -> @valueOf() isnt 0
@@ -441,6 +448,7 @@ clazz.extend Boolean,
   __sub__: ($, other) -> JNaN
   __mul__: ($, other) -> JNaN
   __div__: ($, other) -> JNaN
+  __mod__: ($, other) -> JNaN
   __eq__:  ($, other) -> @valueOf() is other
   __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> @valueOf()
@@ -459,6 +467,7 @@ clazz.extend Function, # native functions
   __sub__: ($, other) -> JNaN
   __mul__: ($, other) -> JNaN
   __div__: ($, other) -> JNaN
+  __mod__: ($, other) -> JNaN
   __eq__:  ($, other) -> @valueOf() is other
   __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> yes
