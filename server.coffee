@@ -76,24 +76,83 @@ require 'joeson/src/interpreter/perspective' # Perspective plugin
 # Client <--> Server Connection
 io.sockets.on 'connection', (socket) ->
 
-  # Setup default view and user-specific scope
+  # Setup default view and user-specific session
   scope = WORLD.create ANON, {}
   Object.merge scope.data,
-    output: output=(new JArray creator:ANON)
-    clear:  new JBoundFunc creator:ANON, scope:scope, func:"""
+    screen: screen=(new JArray creator:ANON)
+    clear:  new JBoundFunc creator:ANON, scope:JUndefined, func:"""
               -> output.length = 0
             """
-    print:  new JBoundFunc creator:ANON, scope:scope, func:"""
+    print:  new JBoundFunc creator:ANON, scope:JUndefined, func:"""
               (data) -> output.push data
             """
 
-  # Ship 'output' over the wire.
-  socket.emit 'output', output.__str__()
+  # Ship 'screen' over the wire.
+  socket.emit 'screen', screen.__str__()
 
-  # Link client and server via perspective on output.
-  perspective = output.newPerspective(socket)
+  # Link client and server via perspective on screen.
+  perspective = screen.newPerspective(socket)
 
+  # Run code
+  socket.on 'run', (codeStr) ->
+    info "received code #{codeStr}"
+
+    # Create a module to hold the code and results.
+    # Module holds the code, output, result, error...
+    # It doesn't hold the lexical scope, which should be throw-away and not persisted.
+    _module = new JObject creator:ANON, data:{code:codeStr, status:'running'}
+    # Output from code goes here.
+    output = new JArray creator:ANON
+    _module.data.output = output
+    # TODO make the 'code' property of output immutable.
+    # Create the scope
+    _moduleScope = scope.create ANON, {module:_module, output:output}
+
+    # Start a new thread. Note the 'yes' code. TODO refactor
+    KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
+
+      screen.push @, _module
+      
+      @enqueue callback: ->
+
+        # Parse the codeStr and associate functions with the output Item
+        try
+          # info "received code:\n#{code}"
+          node = require('joeson/src/joescript').parse codeStr
+          # info "unparsed node:\n" + node.serialize()
+          node = node.toJSNode(toValue:yes).installScope().determine()
+          # info "parsed node:\n" + node.serialize()
+        catch err
+          # TODO better error message for syntax issues
+          @enqueue callback: ->
+            _module.__set__ @, 'status', 'error'
+            # _module.__set__ @, 'result', JUndefined
+            _module.__set__ @, 'error', "#{err.stack ? err}"
+            # @cleanup()
+          return
+
+        @enqueue code:node, callback: ->
+          switch @state
+            when 'return'
+              _module.__set__ @, 'status', 'complete'
+              _module.__set__ @, 'result', @last
+              info "return: #{@last.__str__(@)}"
+              # view = @last.newView()
+            when 'error'
+              @printErrorStack()
+              _module.__set__ @, 'status', 'error'
+              # _module.__set__ @, 'result', JUndefined
+              _module.__set__ @, 'error', @errorStack()
+            else
+              throw new Error "Unexpected state #{@state} during kernel callback"
+          # @cleanup()
+
+  # Server Diagnostics
+  socket.on 'server_info?', -> socket.emit 'server_info.', memory:process.memoryUsage()
+
+  ###
   # Input, as in I/O.
+  # DEPRECATED
   socket.on 'input', (data) ->
     info "received input #{inspect data}"
     obj = CACHE[data.id]
@@ -114,6 +173,7 @@ io.sockets.on 'connection', (socket) ->
         # @cleanup()
 
   # Invoke a closure on the server.
+  # DEPRECATED
   socket.on 'invoke', (data) ->
     info "received invokation #{inspect data}"
     boundFunc = CACHE[data.id]
@@ -143,47 +203,4 @@ io.sockets.on 'connection', (socket) ->
         invoke()
     else
       invoke()
-
-  # Run code
-  socket.on 'run', (codeStr) ->
-    info "received code #{codeStr}"
-
-    KERNEL.run user:ANON, code:'yes', scope:scope, callback: ->
-
-      # Create a new entry for output.
-      outputItem = new JObject creator:ANON, data:{code:codeStr, result:'running...'}
-      output.push @, outputItem
-
-      # TODO make the 'code' property of output immutable.
-
-      # Parse the codeStr and associate functions with the output Item
-      try
-        # info "received code:\n#{code}"
-        node = require('joeson/src/joescript').parse codeStr
-        # info "unparsed node:\n" + node.serialize()
-        node = node.toJSNode(toValue:yes).installScope().determine()
-        # info "parsed node:\n" + node.serialize()
-      catch err
-        # TODO better error message for syntax issues
-        @enqueue callback: ->
-          outputItem.__set__ @, 'result', JUndefined
-          outputItem.__set__ @, 'error', "#{err.stack ? err}"
-          # @cleanup()
-        return
-
-      @enqueue code:node, callback: ->
-        switch @state
-          when 'return'
-            outputItem.__set__ @, 'result', @last
-            info "return: #{@last.__str__(@)}"
-            # view = @last.newView()
-          when 'error'
-            @printErrorStack()
-            outputItem.__set__ @, 'result', JUndefined
-            outputItem.__set__ @, 'error', @errorStack()
-          else
-            throw new Error "Unexpected state #{@state} during kernel callback"
-        # @cleanup()
-
-  # Server Diagnostics
-  socket.on 'server_info?', -> socket.emit 'server_info.', memory:process.memoryUsage()
+  ###

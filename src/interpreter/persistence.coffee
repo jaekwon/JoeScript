@@ -62,7 +62,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         when 'JObject'    then obj = kernel.cache[id] = new JObject {id,creator}
         when 'JArray'     then obj = kernel.cache[id] = new JArray  {id,creator}
         when 'JUser'      then obj = kernel.cache[id] = new JUser   {id,creator,name}
-        when 'JBoundFunc' then obj = kernel.cache[id] = new JBoundFunc {id,creator,func:null,scope:null} # func/scope will get loaded below
+        when 'JBoundFunc' then obj = kernel.cache[id] = new JBoundFunc {id,creator,func:null,scope:JNull} # func/scope will get loaded below
         else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
       obj.addListener $P
 

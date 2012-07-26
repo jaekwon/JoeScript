@@ -297,19 +297,23 @@ joe.Invocation::extend
   interpretCall: ($, i9n) ->
     i9n.func = joe.Invocation::interpretFinal
     if i9n.invokedFunction instanceof JBoundFunc
-      i9n.oldScope = $.scope
+      i9n.oldScope = oldScope = $.scope
       {func:{block,params}, scope} = i9n.invokedFunction
       paramValues = i9n.paramValues
       if i9n.source?
         if scope?
           $.scope = scope.__create__ $, {this:i9n.source}
-        else
+        else if scope is JNull
           $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
+        else if scope is JUndefined
+          $.scope = oldScope.__create__ $, {this:i9n.source}
       else
         if scope?
           $.scope = scope.__create__ $ # this isnt bound to global
-        else
+        else if scope is JNull
           $.scope = $.new JObject creator:$.user
+        else if scope is JUndefined
+          $.scope = oldScope.__create__ $
       if params?
         # Though params is an AssignList,
         assert.ok params instanceof joe.AssignList

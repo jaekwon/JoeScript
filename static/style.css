@@ -108,6 +108,7 @@ div.array {
   padding-left: 2em;
 }
 div.object > div.item {
+  min-height: 1em; /* blank strings */
 }
 div.object > div.item > span.key {
   position: absolute;

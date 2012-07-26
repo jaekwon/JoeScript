@@ -334,9 +334,12 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   # func:    The joe.Func node, or a string for lazy parsing.
   # creator: The owner of the process that declared above function.
   # scope:   Runtime scope of process that declares above function.
+  #          If scope is null, this function creates a new scope upon invocation.
+  #          If scope is undefined, this function inherits the caller's scope.
+  #           - for lazy lexical scoping.
   init: ({id, creator, acl, func, scope}) ->
     @super.init.call @, {id, creator, acl}
-    assert.ok (scope is null) or isObject scope, "JBoundFunc::__init__ wants null scope or a JObject, but got #{scope?.constructor.name}"
+    assert.ok scope is JUndefined or scope is JNull or isObject scope, "JBoundFunc::__init__ wants null scope or a JObject, but got #{scope?.constructor.name}"
     @data.scope = scope
     if func instanceof joe.Func
       @func = func

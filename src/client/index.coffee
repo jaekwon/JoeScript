@@ -60,22 +60,22 @@ $(document).ready ->
         fatal "Uncaught error in socket callback: #{err.stack ? err}"
         console.log "Uncaught error in socket callback: #{err.stack ? err}"
 
-  ## (re)initialize the output.
-  socket.on 'output', _err_ (outputStr) ->
-    console.log "received output"
+  ## (re)initialize the screen.
+  socket.on 'screen', _err_ (screenStr) ->
+    console.log "received screen"
 
     try
-      output = JSL.parse outputStr, env:{cache}
+      screen = JSL.parse screenStr, env:{cache}
     catch err
-      fatal "Error in parsing outputStr '#{outputStr}':\n#{err.stack ? err}"
+      fatal "Error in parsing screenStr '#{screenStr}':\n#{err.stack ? err}"
       return
 
-    # Attach output JView
+    # Attach screen JView
     try
-      window.outputView = output.newView()
-      $('#output').empty().append outputView.rootEl
+      window.screenView = screen.newView()
+      $('#screen').empty().append screenView.rootEl
     catch err
-      fatal "Error in attaching output view to DOM\n#{err.stack ? err}"
+      fatal "Error in attaching screen view to DOM\n#{err.stack ? err}"
 
     # Attach listener for events
     socket.on 'event', _err_ (eventJSON) ->
@@ -87,7 +87,7 @@ $(document).ready ->
       for key, value of eventJSON
         unless key in ['type', 'key', 'sourceId']
           try
-            eventJSON[key] = valueObj = JSL.parse value, env:{cache} #, newCallback:(newObj) -> newObj.addListener outputView}
+            eventJSON[key] = valueObj = JSL.parse value, env:{cache} #, newCallback:(newObj) -> newObj.addListener screenView}
           catch err
             fatal "Error in parsing event item '#{key}':#{value} :\n#{err.stack ? err}"
             # XXX not sure what should go here.
@@ -96,10 +96,10 @@ $(document).ready ->
       catch err
         fatal "Error while emitting event to object ##{obj.id}:\n#{err.stack ? err}"
 
-      # HACK to scroll down for output.push
-      _scrollDown $('#main') if obj is output
+      # HACK to scroll down for screen.push
+      _scrollDown $('#main') if obj is screen
 
-    # Attach an editor now that output is available.
+    # Attach an editor now that screen is available.
     unless window.editor?
       editor = window.editor = new Editor el:$('#input_editor'), callback: (codeStr) ->
         console.log "sending code"
@@ -108,7 +108,7 @@ $(document).ready ->
 
       # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
       if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
-        $('#output').append($('<input id="ipadhack" type="text"></input>'))
+        $('#screen').append($('<input id="ipadhack" type="text"></input>'))
         $('#ipadhack').focus().hide()
       else
         editor.focus()
