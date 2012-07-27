@@ -62,14 +62,14 @@ io = require('socket.io').listen app
 app.listen argv.p ? 8080
 
 
-{NODES:joe} = require 'joeson/src/joescript'
+{NODES:joe} = require 'sembly/src/joescript'
 {
   JKernel, JThread
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{CACHE, GOD, WORLD, ANON, KERNEL}
   HELPERS:{isInteger,isObject,setLast}
-} = require 'joeson/src/interpreter'
-require 'joeson/src/interpreter/perspective' # Perspective plugin
+} = require 'sembly/src/interpreter'
+require 'sembly/src/interpreter/perspective' # Perspective plugin
 
 # KERNEL = new JKernel
 
@@ -121,7 +121,7 @@ io.sockets.on 'connection', (socket) ->
         # Parse the codeStr and associate functions with the output Item
         try
           # info "received code:\n#{code}"
-          node = require('joeson/src/joescript').parse codeStr
+          node = require('sembly/src/joescript').parse codeStr
           # info "unparsed node:\n" + node.serialize()
           node = node.toJSNode(toValue:yes).installScope().determine()
           # info "parsed node:\n" + node.serialize()
