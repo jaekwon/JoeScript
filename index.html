@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Sembly by jaekwon</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/jaekwon/Sembly">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/jaekwon/Sembly/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/jaekwon/Sembly/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Sembly</h1>
+          <p>Cloud Operating System</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/jaekwon">jaekwon</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+        </div>
+
+        <h3>Welcome to Sembly</h3>
+
+<p>Sembly is an operating system for the web. It is designed for the common man to author, run, and share programs and data amongst peers and across devices.</p>
+
+<p>Imagine if everyone were available in a global namespace...</p>
+
+<div class="highlight"><pre><span class="nx">@Bob</span>  <span class="c1"># {name: 'Bob Dylan', location: undefined}</span>
+<span class="nx">@Joe</span>  <span class="c1"># {name: 'Joe Shmoe', location: 'San Francisco, CA'}</span>
+</pre></div>
+
+<p>To send a message to <code>@Joe</code>, it would be great if all <code>@Bob</code> had to do was:</p>
+
+<div class="highlight"><pre><span class="c1"># Logged in as user @Bob</span>
+<span class="nx">@Joe</span><span class="p">.</span><span class="nx">write</span> <span class="s">"Whatup!"</span>
+</pre></div>
+
+<p>With Sembly, it's as simple as can be.</p>
+
+<div class="highlight"><pre><span class="c1"># Logged in as user @Joe</span>
+<span class="vi">@Joe.write = </span><span class="nf">(msg) -&gt;</span>
+  <span class="vi">@messages = </span><span class="p">[]</span> <span class="k">if</span> <span class="nx">@messages</span> <span class="o">is</span> <span class="kc">undefined</span>
+  <span class="nx">@messages</span><span class="p">.</span><span class="nx">push</span> <span class="nx">msg</span>
+  <span class="s">'Message sent successfully'</span>
+</pre></div>
+
+<h5>Technical details</h5>
+
+<ul>
+<li>Programs are authored in JoeScript (a language derived from Javascript/CoffeeScript),</li>
+<li>and run in a multi-user/multi-threaded environment</li>
+<li>Objects are shared and persisted by a Redis bridge,</li>
+<li>and synchronized with the client, which updates the view.</li>
+</ul>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+    
+  </body>
+</html>
