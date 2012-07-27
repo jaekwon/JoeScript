@@ -119,7 +119,7 @@ JObject::extend
     else
       items = el.data('items')
       switch event.type
-        when 'set', 'update'
+        when 'set'
           {key, value} = event
           itemEl = @dom_drawItem $$, key, value
           if existingEl=items[key]
@@ -129,6 +129,12 @@ JObject::extend
             #debug "JObject::dom_on appending new item el for #{key}"
             el.append itemEl
           items[key] = itemEl
+        when 'delete'
+          {key} = event
+          if existingEl=items[key]
+            existingEl.remove()
+            delete items[key]
+            # TODO re-attach to a link, if one exists.
         else
           throw new Error "Unexpected event type #{event.type}"
   
@@ -137,7 +143,7 @@ JArray::extend
   dom_on: ($$, el, event) ->
     items = el.data('items') # item els
     switch event.type
-      when 'set', 'push'
+      when 'set'
         {key, value} = event
         # hack to remove DOM items when array is truncated
         if key is 'length'

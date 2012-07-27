@@ -108,13 +108,18 @@ JObject::extend
         @persistence_save $$, (err) ->
           return thread.throw 'PersistenceError', "Failed to persist object ##{@id}\n#{err.stack ? err}" if err?
           return thread.resume waitKey
-      when 'set', 'update'
+      when 'set'
         {key, value} = event
         thread.wait waitKey="persist:#{@id}[#{key}]"
         @persistence_saveItem $$, key, value, (err) =>
           return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
           return thread.resume waitKey
-      # when 'delete'
+      when 'delete'
+        {key} = event
+        thread.wait waitKey="delete:#{@id}[#{key}]"
+        @persistence_saveItem $$, key, null, (err) =>
+          return thread.throw 'PersistenceError', "Failed to delete key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
       #   garbage collection routine
 
   # hmm... should JObjects be src/node/Nodes?... probably not
@@ -184,6 +189,9 @@ JObject::extend
             debug "$$.client.hset #{@id}, #{key}, o:#{value.id}" if trace
             $$.client.hset @id, key, 'o:'+value.id, cb
           return
+        else if value is null
+          $$.client.hdel @id, key, cb
+          return
         else if value instanceof JSingleton
           value = 'z:'+value.name
         else return cb("Unexpected value #{value} (#{value?.constructor.name})")
@@ -192,19 +200,6 @@ JObject::extend
     debug "$$.client.hset #{@id}, #{key}, #{value}" if trace
     $$.client.hset @id, key, value, cb
     return
-
-JArray::extend
-  persistence_on: ($$, event) ->
-    thread = event.thread
-    switch event.type
-      when 'set', 'push'
-        {key, value} = event
-        thread.wait waitKey="persist:#{@id}[#{key}]"
-        @persistence_saveItem $$, key, value, (err) =>
-          return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
-          return thread.resume waitKey
-      # when 'delete'
-      #   garbage collection routine
 
 ### XXX wrong
 JStub::extend

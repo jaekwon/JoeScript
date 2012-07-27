@@ -80,6 +80,10 @@ io.sockets.on 'connection', (socket) ->
   scope = WORLD.create ANON, {}
   Object.merge scope.data,
     screen: screen=(new JArray creator:ANON)
+    clear:  new JBoundFunc creator:ANON, scope:scope, func:"""
+              -> screen.length = 0
+            """
+
 
   # Ship 'screen' over the wire.
   socket.emit 'screen', screen.__str__()
@@ -95,12 +99,17 @@ io.sockets.on 'connection', (socket) ->
     # Module holds the code, output, result, error...
     # It doesn't hold the lexical scope, which should be throw-away and not persisted.
     _module = new JObject creator:ANON, data:{code:codeStr, status:'running'}
-    # Output from code goes here.
-    output = new JArray creator:ANON
-    _module.data.output = output
     # TODO make the 'code' property of output immutable.
-    # Create the scope
-    _moduleScope = scope.create ANON, {module:_module, output:output}
+    # Create the lexical scope.
+    _moduleScope = scope.create ANON, {module:_module}
+    _moduleScope.data.print = new JBoundFunc creator:ANON, scope:_moduleScope, func:"""
+      (data) ->
+        output = module.output
+        if output is undefined
+          module.output = output = []
+        output.push data
+        return
+    """
 
     # Start a new thread. Note the 'yes' code. TODO refactor
     KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
@@ -119,7 +128,7 @@ io.sockets.on 'connection', (socket) ->
         catch err
           # TODO better error message for syntax issues
           @enqueue callback: ->
-            _module.__set__ @, 'status', 'error'
+            _module.__del__ @, 'status'
             # _module.__set__ @, 'result', JUndefined
             _module.__set__ @, 'error', "#{err.stack ? err}"
             # @cleanup()
@@ -128,13 +137,13 @@ io.sockets.on 'connection', (socket) ->
         @enqueue code:node, callback: ->
           switch @state
             when 'return'
-              _module.__set__ @, 'status', 'complete'
+              _module.__del__ @, 'status'
               _module.__set__ @, 'result', @last
               info "return: #{@last.__str__(@)}"
               # view = @last.newView()
             when 'error'
               @printErrorStack()
-              _module.__set__ @, 'status', 'error'
+              _module.__del__ @, 'status'
               # _module.__set__ @, 'result', JUndefined
               _module.__set__ @, 'error', @errorStack()
             else

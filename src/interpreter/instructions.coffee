@@ -247,18 +247,33 @@ joe.Index::extend
     return
   interpretTarget: ($, i9n, obj) ->
     i9n.setSource?.source = obj # for invocations.
-    if @type is '.'
-      assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
-      $.pop()
-      return obj.__get__ $, @key
-    else
-      i9n.obj = obj
-      i9n.func = joe.Index::interpretKey
-      $.pushValue @key
-      return
+    switch @type
+      when '.'
+        assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
+        $.pop()
+        return obj.__get__ $, @key
+      when '!'
+        assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
+        $.pop()
+        return obj.__del__ $, @key
+      when '?'
+        return $.throw 'InternalError', "Meta not yet supported"
+      when '[', '!['
+        i9n.obj = obj
+        i9n.func = joe.Index::interpretKey
+        $.pushValue @key
+        return
+      else throw new Error "Unexpected index type #{@type}"
+        
   interpretKey: ($, i9n, key) ->
-    $.pop()
-    return i9n.obj.__get__ $, key
+    switch @type
+      when '['
+        $.pop()
+        return i9n.obj.__get__ $, key
+      when '!['
+        $.pop()
+        return i9n.obj.__del__ $, key
+      else throw new Error "Unexpected index type #{@type}"
 
 joe.Func::extend
   interpret: ($, i9n) ->
@@ -304,15 +319,17 @@ joe.Invocation::extend
       if i9n.source?
         if scope is JNull
           $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
-        else if scope is JUndefined
-          $.scope = oldScope.__create__ $, {this:i9n.source}
+        # else if scope is JUndefined
+        #   This is bad:
+        #   $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
         else
           $.scope = scope.__create__ $, {this:i9n.source}
       else
         if scope is JNull
           $.scope = $.new JObject creator:$.user
-        else if scope is JUndefined
-          $.scope = oldScope.__create__ $
+        # else if scope is JUndefined
+        #   This is bad:
+        #   $.scope = oldScope.__create__ $
         else if scope?
           $.scope = scope.__create__ $ # this isnt bound to global
       if params?

@@ -31,12 +31,6 @@ else
 WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
   this:   USERS
   users:  USERS
-  print:  new JBoundFunc creator:ANON, scope:JUndefined, func:"""
-            (data) -> output.push data
-          """
-  clear:  new JBoundFunc creator:ANON, scope:JUndefined, func:"""
-            -> output.length = 0
-          """
   login:  ($, something) ->
           console.log something
           return "it worked!"

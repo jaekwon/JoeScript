@@ -53,11 +53,12 @@ JObject::extend
   newPerspective: (socket) -> new JPerspective root:@, socket:socket
   perspective_on: ($$, event) ->
     switch event.type
-      when 'set', 'update'
+      when 'set'
         {key, value} = event
         $$.listenOn value if value instanceof JObject
-      # when 'delete'
-      #   garbage collection routine
+      when 'delete'
+        # Would unlisten from the value but this is a GC situation.
+        'TODO'
   # TODO consider refactoring out to JObject, since this is common already to persistence & perspective.
   perspective_getChildren: ->
     children = []
@@ -65,12 +66,3 @@ JObject::extend
       children.push value for key, value of @data when value instanceof JObject
     children.push @proto if @proto instanceof JObject
     return children
-
-JArray::extend
-  perspective_on: ($$, event) ->
-    switch event.type
-      when 'set', 'push'
-        {key, value} = event
-        $$.listenOn value if value instanceof JObject
-      # when 'delete'
-      #   garbage collection routine

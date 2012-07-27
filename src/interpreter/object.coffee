@@ -160,23 +160,36 @@ JObject = @JObject = clazz 'JObject', Node, ->
   __set__: ($, key, value) ->
     key = key.__key__($)
     $.will('write', this)
-    @data[key] = value
-    @emit {thread:$,type:'set',key,value}
+    if key is '__proto__'
+      @proto = value
+      @emit {thread:$,type:'set',key,value}
+    else
+      @data[key] = value
+      @emit {thread:$,type:'set',key,value}
     return
+  __del__: ($, key, value) ->
+    key = key.__key__($)
+    $.will('write', this)
+    if key is '__proto__'
+      delete @proto
+      @emit {thread:$,type:'delete',key}
+    else
+      delete @data[key]
+      @emit {thread:$,type:'delete',key}
+    return yes # TODO reconsider?
   # an __update__ only happens for scope objects.
   __update__: ($, key, value) ->
     key = key.__key__($)
     $.will('write', this)
     if key is '__proto__'
       @proto = value
-      @emit {thread:$,type:'update',key,value} # TODO more complicated, the chain was updated.
+      @emit {thread:$,type:'set',key,value}
       return
     else if @data[key]?
       @data[key] = value
-      @emit {thread:$,type:'update',key,value}
+      @emit {thread:$,type:'set',key,value}
       return
     else if @proto?
-      @emit {thread:$,type:'update',key,value} # TODO this is wrong... should be asynchronous.
       if @proto instanceof JStub
         $.push func:($, i9n, proto) ->
           $.pop()
@@ -232,22 +245,6 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     data ?= []
     data.__proto__ = null # detatch prototype
     @super.init.call @, {id, creator, data, acl}
-  __get__: ($, key) ->
-    $.will('read', this)
-    if isInteger key
-      return @data[key] ? JUndefined
-    else
-      return @super.__get__.call @, $, key
-  __set__: ($, key, value) ->
-    $.will('write', this)
-    if isInteger key
-      @data[key] = value
-      @emit {thread:$,type:'set',key,value}
-      return
-    key = key.__key__($)
-    @data[key] = value
-    @emit {thread:$,type:'set',key,value}
-    return
   __keys__: ($) ->
     $.will('read', this)
     return Object.keys(@data)
@@ -280,8 +277,7 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   toString: -> "[JArray ##{@id}]"
   push: ($, value) ->
     Array.prototype.push.call @data, value
-    # also emit the key, to mitigate syncrony issues
-    @emit {thread:$,type:'push',key:@data.length-1, value}
+    @emit {thread:$,type:'set',key:@data.length-1, value}
     return JUndefined
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
@@ -344,7 +340,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   #           - for lazy lexical scoping.
   init: ({id, creator, acl, func, scope}) ->
     @super.init.call @, {id, creator, acl}
-    assert.ok scope is JUndefined or scope is JNull or isObject scope, "JBoundFunc::__init__ wants null scope or a JObject, but got #{scope?.constructor.name}"
+    assert.ok scope is JNull or isObject scope, "JBoundFunc::__init__ wants JNull scope or a JObject, but got #{scope?.constructor.name}"
     @data.scope = scope
     if func instanceof joe.Func
       @func = func

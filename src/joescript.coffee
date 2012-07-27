@@ -549,8 +549,11 @@ resetIndent = (ws, $) ->
   i VALUE: [
     # left recursive
     o SLICE:        " obj:VALUE range:RANGE ", make Slice
-    o INDEX0:       " obj:VALUE type:'['  key:LINEEXPR _ ']' ", make Index
+    o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", make Index
+    o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", make Index
     o INDEX1:       " obj:VALUE _SOFTLINE? type:'.'  key:WORD ", make Index
+    o DELETE1:      " obj:VALUE _SOFTLINE? type:'!' !__ key:WORD ", make Index # NEW foo.bar!baz  <=> delete foo.bar.baz
+    o META:         " obj:VALUE _SOFTLINE? type:'?' !__ key:WORD ", make Index # NEW foo.bar?type <=> tyepof foo.bar
     o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", make Index
     o INVOC_EXPL:   " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
     o SOAK:         " VALUE '?' ", make Soak
@@ -559,10 +562,10 @@ resetIndent = (ws, $) ->
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", (it) -> Number it
     o SYMBOL:       " !_KEYWORD WORD "
     o BOOLEAN:      " _TRUE | _FALSE | _YES | _NO | _SI ", (it) -> it in ['true', 'yes', 'si']
-    o TYPEOF: [
-      o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make Invocation
-      o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
-    ]
+    #o TYPEOF: [
+    #  o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make Invocation
+    #  o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
+    #]
     # starts with symbol
     o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", make Item
@@ -619,7 +622,7 @@ resetIndent = (ws, $) ->
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'yes', 'no', 'si', 'by',
-                      'not', 'and', 'or', 'instanceof', 'typeof', 'try', 'catch', 'finally')
+                      'not', 'and', 'or', 'instanceof', 'try', 'catch', 'finally')
   i _BTICK:         " '`'         "
   i _QUOTE:         " '\\''       "
   i _DQUOTE:        " '\"'        "
