@@ -141,29 +141,16 @@ JObject::extend
 JArray::extend
   domClass: 'object array'
   dom_on: ($$, el, event) ->
-    items = el.data('items') # item els
-    switch event.type
-      when 'set'
-        {key, value} = event
-        # hack to remove DOM items when array is truncated
-        if key is 'length'
-          newLength = value
-          for itemKey, itemEl of items
-            if itemKey >= newLength
-              itemEl.remove()
-              delete items[itemKey]
-          # no need to display the length
-          return
-        itemEl = @dom_drawItem $$, key, value
-        if existingEl=items[key]
-          #debug "JObject::dom_on found existing item el for #{key}"
-          existingEl.replaceWith itemEl
-        else
-          #debug "JObject::dom_on appending new item el for #{key}"
-          el.append itemEl
-        items[key] = itemEl
-      else
-        throw new Error "Unexpected event type #{event.type}"
+    if event.type is 'set' and event.key is 'length'
+      # hack to remove DOM items when array is truncated
+      newLength = value
+      for itemKey, itemEl of items
+        if itemKey >= newLength
+          itemEl.remove()
+          delete items[itemKey]
+      # no need to display the length
+      return
+    @super.dom_on.call @, $$, el, event
 
 JStub::extend
   domClass: 'stub'

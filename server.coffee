@@ -32,7 +32,7 @@ http://debuggable.com/posts/node-js-dealing-with-uncaught-exceptions:4c933d54-14
 vvvvvvvvvvvvvvvvv
 """
 
-# server
+# Server
 c = connect()
   .use(connect.logger())
   #.use(connect.staticCache())
@@ -42,26 +42,25 @@ c = connect()
   .use(connect.session({ cookie: { maxAge: 1000*60*60*24*30 }}))
   .use(connect.query())
   .use(connect.bodyParser())
-c.use (req, res) ->
-  res.writeHead 200, {'Content-Type': 'text/html'}
-  res.end """
-<html>
-<link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=Anonymous+Pro'/>
-<link rel='stylesheet' type='text/css' href='/s/style.css'/>
-<script src='/s/jquery-1.7.2.js'></script>
-<script src='/s/boot.js'></script>
-<body>
-  hello<a href="/s/index.html" style="text-decoration: none; color:white; ">!</a>
-</body>
-</html>
-"""
 
-# server app
+# For all non /s/* requests (and /s/* that failed...)
+c.use (req, res) ->
+  # TODO cache file
+  require('fs').readFile('static/index.html', (err, data) ->
+    if err?
+      res.writeHead 500, {'Content-Type': 'text/plain'}
+      res.end "InternalError: #{err.stack ? err}"
+      return
+    res.writeHead 200, {'Content-Type': 'text/html'}
+    res.end data
+  )
+
+# Connect to socket.io and start
 app = http.createServer(c)
 io = require('socket.io').listen app
 app.listen argv.p ? 8080
 
-
+# App dependencies
 {NODES:joe} = require 'sembly/src/joescript'
 {
   JKernel, JThread

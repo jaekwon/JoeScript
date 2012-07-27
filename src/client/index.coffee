@@ -45,8 +45,10 @@ $(document).ready ->
   require 'sembly/src/client/misc' # DOM plugin
   {Editor} = require 'sembly/src/client/editor'
 
-  # TODO reconsider.
-  cache = window.cache = {} # Can't use CACHE because that'll overwrite client state.
+  # Can't use CACHE because that'll overwrite client state.
+  # TODO reword. I don't know what ^^^ means.
+  # Don't I want to overwrite the client state?
+  cache = window.cache = {}
 
   # connect to server
   socket = window.socket = io.connect()
