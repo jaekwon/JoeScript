@@ -1,14 +1,14 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, htmlEscape, escape, starts, ends} = require 'sembly/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {
   NODES:{JObject, JArray, JUser, JSingleton, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
   HELPERS:{isInteger,isObject}
-} = require 'joeson/src/interpreter'
+} = require 'sembly/src/interpreter'
 
 # A JObject listener
 JView = @JView = clazz 'JView', ->

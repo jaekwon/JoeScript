@@ -3,7 +3,7 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{CodeStream} = require 'joeson/src/codestream'
+{CodeStream} = require 'sembly/src/codestream'
 
 console.log blue "\n-= codestream test =-"
 

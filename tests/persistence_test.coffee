@@ -9,8 +9,8 @@ require './setup'
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{GOD,ANON,WORLD,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
-} = require 'joeson/src/interpreter'
-{JPersistence} = p = require 'joeson/src/interpreter/persistence'
+} = require 'sembly/src/interpreter'
+{JPersistence} = p = require 'sembly/src/interpreter/persistence'
 
 console.log blue "\n-= persistence test =-"
 
@@ -66,7 +66,7 @@ KERNEL.run
           code: """
           it.closure()
           """
-          scope: new JObject creator:ANON, data:{it:(new JStub id:obj.id)}
+          scope: new JObject(creator:ANON, data:{it:(new JStub id:obj.id)})
           callback: _err_ ->
             equal @last, 8
             console.log "done!"

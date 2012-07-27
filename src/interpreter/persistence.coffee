@@ -2,11 +2,11 @@
 {inspect} = require 'util'
 assert = require 'assert'
 async = require 'async'
-{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, escape, starts, ends} = require 'sembly/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{NODES:{JStub, JObject, JArray, JUser, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
-{JKernel, JThread, JStackItem} = require 'joeson/src/interpreter/kernel'
+{NODES:{JStub, JObject, JArray, JUser, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{JKernel, JThread, JStackItem} = require 'sembly/src/interpreter/kernel'
 
 trace = yes
 

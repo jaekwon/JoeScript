@@ -5,9 +5,9 @@ assert    = require 'assert'
 {
   NODES:joe
   HELPERS:{isWord,isVariable}
-} = require 'joeson/src/joescript'
+} = require 'sembly/src/joescript'
 
-{randid}  = require 'joeson/lib/helpers'
+{randid}  = require 'sembly/lib/helpers'
 
 # A heirarchical lexical scope structure.
 @LScope = LScope = clazz 'LScope', ->

@@ -1,27 +1,23 @@
 {
-  "name": "joeson",
-  "description": "Joeson Parser",
+  "name": "Sembly",
+  "description": "Cloud Operating System",
   "version": "0.0.0",
   "author": "Jae Kwon <jkwon.work@gmail.com>",
-  "repository": {"type": "git", "url": "git://github.com/jaekwon/joeson.git"},
+  "repository": {"type": "git", "url": "git://github.com/jaekwon/Sembly.git"},
   "dependencies": {
-      "async": "",
-      "sugar": "",
-      "cardamom": ">= 0.0.9b",
-      "connect": "= 2.3.3",
-      "nogg": ">= 0.0.8",
-      "socket.io": "",
-      "redis": "",
-      "uglify-js": "",
+      "async": "0.1.22",
+      "sugar": "1.2.5",
+      "cardamom": "0.0.9b",
+      "connect": "2.3.3",
+      "nogg": "0.0.8",
+      "socket.io": "0.9.6",
+      "redis": "0.7.2",
+      "uglify-js": "1.3.2",
       "browserify": "git://github.com/jaekwon/node-browserify.git",
-      "optimist": ""
+      "optimist": "0.3.4"
     },
-  "main": "./src/joeson",
   "keywords": [],
-  "engines": {"node": ">= 0.4.6"},
+  "engines": {"node": ">= 0.8.2"},
   "contributors": [
-  ],
-  "not_dependencies": {
-      "coffee-script": "git://github.com/jaekwon/coffee-script.git"
-  }
+  ]
 }

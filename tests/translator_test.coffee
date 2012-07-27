@@ -3,8 +3,8 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-joe = require 'joeson/src/joescript'
-jsx = require 'joeson/src/translators/javascript'
+joe = require 'sembly/src/joescript'
+jsx = require 'sembly/src/translators/javascript'
 
 console.log blue "\n-= translator test =-"
 

@@ -8,11 +8,11 @@ require './setup'
 # NOTE: keep this grammar in sync with src/joeson.coffee
 # Once we have a compiler, we'll just move this into src/joeson.coffee.
 
-{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'joeson'
+{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'sembly/src/joeson'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{pad, escape} = require 'joeson/lib/helpers'
+{pad, escape} = require 'sembly/lib/helpers'
 
 {o, i, t} = MACROS
 QUOTE = "'\\''"
@@ -46,7 +46,7 @@ RAW_GRAMMAR = [
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
                 assert.ok not code?, "code in joeson deprecated"
                 return expr
-              i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joeson/src/joescript').parse(it.join '')
+              i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('sembly/src/joescript').parse(it.join '')
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> new Str       it.join ''
               o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> new Regex     it.join ''
               o "#{LBRAK} (!#{RBRAK} (ESC2 | .))* #{RBRAK}", (it) -> new Regex "[#{it.join ''}]"
@@ -83,7 +83,7 @@ testGrammar = (rule, indent=0, name=undefined) ->
     {result, code} = PARSED_GRAMMAR.parse rule, env:{debug:no}, returnContext:yes #, env:{global:NODES}
     #{result, code} = GRAMMAR.parse rule, env:{debug:no}, returnContext:yes
     console.log "#{Array(indent*2+1).join ' '
-                }#{if name? then red pad(left:(10-indent*2), name+':') else ''
+                }#{if name? then red(pad({left:(10-indent*2)}, name+':')) else ''
                 }#{if result? then yellow result else red result} #{white code.peek afterChars:10}"
   else
     for name, r of rule

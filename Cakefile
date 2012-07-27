@@ -10,13 +10,14 @@ task 'build', ->
   #run 'coffee -c lib/**/*.coffee'
 
 task 'test', ->
-  run 'coffee tests/joeson_test.coffee', ->
-    run 'coffee tests/joescript_test.coffee', ->
-      run 'coffee tests/translator_test.coffee', ->
-        run 'coffee tests/interpreter_test.coffee', ->
-          run 'coffee tests/jsl_test.coffee', ->
-            run 'coffee tests/persistence_test.coffee', ->
-              console.log "All tests OK"
+  run 'coffee tests/codestream_test.coffee', ->
+    run 'coffee tests/joeson_test.coffee', ->
+      run 'coffee tests/joescript_test.coffee', ->
+        run 'coffee tests/translator_test.coffee', ->
+          run 'coffee tests/interpreter_test.coffee', ->
+            run 'coffee tests/jsl_test.coffee', ->
+              run 'coffee tests/persistence_test.coffee', ->
+                console.log "All tests OK"
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = """
@@ -24,26 +25,26 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
   """
   for {l:libname, f:filepath} in [
       # ./src/*
-      {           l:'joeson',                   f:'src/joeson'}
-      {           l:'joeson/src/codestream',    f:'src/codestream'}
-      {           l:'joeson/src/joescript',     f:'src/joescript'}
-      {           l:'joeson/src/node',          f:'src/node'}
-      {           l:'joeson/src/interpreter',             f:'src/interpreter/index'}
-      {           l:'joeson/src/interpreter/instructions',f:'src/interpreter/instructions'}
-      {           l:'joeson/src/interpreter/object',      f:'src/interpreter/object'}
-      {           l:'joeson/src/interpreter/global',      f:'src/interpreter/global'}
-      {           l:'joeson/src/interpreter/kernel',      f:'src/interpreter/kernel'}
-      {           l:'joeson/src/interpreter/persistence', f:'src/interpreter/persistence'}
-      {           l:'joeson/src/translators/javascript',  f:'src/translators/javascript'}
-      {           l:'joeson/src/translators/scope',       f:'src/translators/scope'}
-      {           l:'joeson/src/translators/etc',         f:'src/translators/etc'}
-      {           l:'joeson/src/client',                  f:'src/client/index'}
-      {           l:'joeson/src/client/dom',              f:'src/client/dom'}
-      {           l:'joeson/src/client/editor',           f:'src/client/editor'}
-      {           l:'joeson/src/client/misc',             f:'src/client/misc'}
-      {           l:'joeson/src/parsers/ansi',            f:'src/parsers/ansi'}
-      {           l:'joeson/src/parsers/jsl',             f:'src/parsers/jsl'}
-      {           l:'joeson/lib/helpers',       f:'lib/helpers'}
+      {           l:'sembly/src/joeson',                  f:'src/joeson'}
+      {           l:'sembly/src/codestream',              f:'src/codestream'}
+      {           l:'sembly/src/joescript',               f:'src/joescript'}
+      {           l:'sembly/src/node',                    f:'src/node'}
+      {           l:'sembly/src/interpreter',             f:'src/interpreter/index'}
+      {           l:'sembly/src/interpreter/instructions',f:'src/interpreter/instructions'}
+      {           l:'sembly/src/interpreter/object',      f:'src/interpreter/object'}
+      {           l:'sembly/src/interpreter/global',      f:'src/interpreter/global'}
+      {           l:'sembly/src/interpreter/kernel',      f:'src/interpreter/kernel'}
+      {           l:'sembly/src/interpreter/persistence', f:'src/interpreter/persistence'}
+      {           l:'sembly/src/translators/javascript',  f:'src/translators/javascript'}
+      {           l:'sembly/src/translators/scope',       f:'src/translators/scope'}
+      {           l:'sembly/src/translators/etc',         f:'src/translators/etc'}
+      {           l:'sembly/src/client',                  f:'src/client/index'}
+      {           l:'sembly/src/client/dom',              f:'src/client/dom'}
+      {           l:'sembly/src/client/editor',           f:'src/client/editor'}
+      {           l:'sembly/src/client/misc',             f:'src/client/misc'}
+      {           l:'sembly/src/parsers/ansi',            f:'src/parsers/ansi'}
+      {           l:'sembly/src/parsers/jsl',             f:'src/parsers/jsl'}
+      {           l:'sembly/lib/helpers',                 f:'lib/helpers'}
       # browserify builtins
       {           l:'_process',                 f:'node_modules/browserify/builtins/__browserify_process'}
       {           l:'assert',                   f:'node_modules/browserify/builtins/assert'}
@@ -101,7 +102,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
         }
         #{code}
         require('sugar');
-        return require('joeson/src/client');
+        return require('sembly/src/client');
       }();
 
       if (typeof define === 'function' && define.amd) {

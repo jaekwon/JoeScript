@@ -11,16 +11,16 @@ Conventions
 assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, htmlEscape, escape, starts, ends} = require 'sembly/lib/helpers'
 {
   parse,
   NODES:joe
   HELPERS:{isWord,isVariable}
-} = require 'joeson/src/joescript'
+} = require 'sembly/src/joescript'
 {
   NODES: {JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc}
   HELPERS: {isInteger, isObject}
-} = require 'joeson/src/interpreter/object'
+} = require 'sembly/src/interpreter/object'
 
 # A simple instruction to store the last return value into @[key][index?]
 storeLast = ($, i9n, last) ->
@@ -35,8 +35,8 @@ storeLast = ($, i9n, last) ->
 storeLast._name = "storeLast"
 
 # dependencies
-require('joeson/src/translators/scope').install()
-require('joeson/src/translators/javascript').install()
+require('sembly/src/translators/scope').install()
+require('sembly/src/translators/javascript').install()
 
 
 joe.Node::extend

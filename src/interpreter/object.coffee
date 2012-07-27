@@ -25,25 +25,26 @@ TODO mechanism to remove a listener...
 
 log = no
 
-{ clazz,
+{
+  clazz,
   colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
   collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{randid, pad, htmlEscape, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, htmlEscape, escape, starts, ends} = require 'sembly/lib/helpers'
 {
   parse,
   NODES:joe
   HELPERS:{isWord,isVariable}
-} = require 'joeson/src/joescript'
-Node = require('joeson/src/node').createNodeClazz('ObjectNode')
+} = require 'sembly/src/joescript'
+Node = require('sembly/src/node').createNodeClazz('ObjectNode')
 
 # dependencies
-require('joeson/src/translators/scope').install()
-require('joeson/src/translators/javascript').install()
-require('joeson/src/translators/etc').install()
+require('sembly/src/translators/scope').install()
+require('sembly/src/translators/javascript').install()
+require('sembly/src/translators/etc').install()
 
 # HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0

@@ -8,9 +8,9 @@ require './setup'
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{GOD,ANON,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
-} = require 'joeson/src/interpreter'
+} = require 'sembly/src/interpreter'
 
-JSL = require 'joeson/src/parsers/jsl'
+JSL = require 'sembly/src/parsers/jsl'
 
 console.log blue "\n-= JSL test =-"
 

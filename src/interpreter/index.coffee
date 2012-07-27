@@ -16,12 +16,12 @@ trace = debug:no, logCode:no
 assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, escape, starts, ends} = require 'sembly/lib/helpers'
 {
   NODES:joe
   HELPERS: {extend, isVariable}
-} = require('joeson/src/joescript')
+} = require('sembly/src/joescript')
 
-{@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
-{@JKernel, @JThread, @JStackItem} = require 'joeson/src/interpreter/kernel'
-@GLOBALS = require 'joeson/src/interpreter/global'
+{@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{@JKernel, @JThread, @JStackItem} = require 'sembly/src/interpreter/kernel'
+@GLOBALS = require 'sembly/src/interpreter/global'

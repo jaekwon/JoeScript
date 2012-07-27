@@ -3,8 +3,8 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = require 'assert'
-joe = require 'joeson/src/joescript'
-{JThread, JKernel, GLOBALS:{KERNEL, ANON}} = require 'joeson/src/interpreter'
+joe = require 'sembly/src/joescript'
+{JThread, JKernel, GLOBALS:{KERNEL, ANON}} = require 'sembly/src/interpreter'
 
 console.log blue "\n-= interpreter test =-"
 

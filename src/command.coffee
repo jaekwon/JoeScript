@@ -8,9 +8,9 @@
 # External dependencies.
 fs             = require 'fs'
 path           = require 'path'
-helpers        = require 'joeson/lib/helpers'
-optparse       = require 'joeson/lib/optparse'
-JoeScript      = require 'joeson/src/joescript'
+helpers        = require 'sembly/lib/helpers'
+optparse       = require 'sembly/lib/optparse'
+JoeScript      = require 'sembly/src/joescript'
 {inspect}      = require 'util'
 {spawn, exec}  = require 'child_process'
 {EventEmitter} = require 'events'

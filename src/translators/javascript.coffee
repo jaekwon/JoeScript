@@ -4,7 +4,7 @@
 
   This is responsible for transforming a JoeScript AST into valid Javascript AST.
   Actually, the result needs to be a subset of Javascript so as to be interpretable
-  from the joeson/src/interpreter. (this may change in the future).
+  from the sembly/src/interpreter. (this may change in the future).
 
   Here are the properties of RJavascript. (Restricted Javascript).
 
@@ -72,8 +72,8 @@ assert = require 'assert'
 {
   NODES:joe
   HELPERS:{isWord,isVariable,isIndex}
-} = require 'joeson/src/joescript'
-{escape, compact, flatten} = require('joeson/lib/helpers')
+} = require 'sembly/src/joescript'
+{escape, compact, flatten} = require('sembly/lib/helpers')
 
 js = (obj) -> obj?.toJavascript?() ? obj
 
@@ -81,7 +81,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
 @install = install = ->
   return if joe.Node::toJSNode? # already defined.
-  require('joeson/src/translators/scope').install() # dependency
+  require('sembly/src/translators/scope').install() # dependency
 
   joe.Node::extend
     toJSNode: ({toValue,inject}={}) ->

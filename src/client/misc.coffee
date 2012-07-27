@@ -1,4 +1,4 @@
-{htmlEscape:hE, randid} = require 'joeson/lib/helpers'
+{htmlEscape:hE, randid} = require 'sembly/lib/helpers'
 
 # jquery extensions
 jQuery.fn.extend(

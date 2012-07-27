@@ -1,6 +1,8 @@
-{ clazz,
+{
+  clazz,
   colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
-  collections:{Set}} = require('cardamom')
+  collections:{Set}
+} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
 

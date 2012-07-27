@@ -5,21 +5,21 @@ log = trace = no
 assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{randid, pad, escape, starts, ends} = require 'joeson/lib/helpers'
+{randid, pad, escape, starts, ends} = require 'sembly/lib/helpers'
 {
   NODES:joe
   HELPERS: {extend, isVariable}
-} = require('joeson/src/joescript')
+} = require('sembly/src/joescript')
 
-{@NODES, @HELPERS} = {NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'joeson/src/interpreter/object'
+{@NODES, @HELPERS} = {NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
 
 # installs instructions to joescript prototypes
-require 'joeson/src/interpreter/instructions'
+require 'sembly/src/interpreter/instructions'
 
 _parseCode = (code) ->
   return code if code instanceof joe.Node
   info "received code:\n#{code}" if log
-  node = require('joeson/src/joescript').parse code
+  node = require('sembly/src/joescript').parse code
   info "unparsed node:\n" + node.serialize() if log
   node = node.toJSNode(toValue:yes).installScope().determine()
   info "parsed node:\n" + node.serialize() if log

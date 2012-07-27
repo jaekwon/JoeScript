@@ -80,9 +80,9 @@ io.sockets.on 'connection', (socket) ->
   scope = WORLD.create ANON, {}
   Object.merge scope.data,
     screen: screen=(new JArray creator:ANON)
-    clear:  new JBoundFunc creator:ANON, scope:scope, func:"""
+    clear:  (new JBoundFunc creator:ANON, scope:scope, func:"""
               -> screen.length = 0
-            """
+            """)
 
 
   # Ship 'screen' over the wire.

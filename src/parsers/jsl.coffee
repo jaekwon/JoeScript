@@ -1,11 +1,11 @@
 # Joescript Serialization Language
 # Joeson is the parser, so this is called something else. JSL, why not?
-{Grammar} = require 'joeson'
+{Grammar} = require 'sembly/src/joeson'
 {
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
   HELPERS:{isInteger,isObject}
-} = require 'joeson/src/interpreter'
+} = require 'sembly/src/interpreter'
 
 
 JSL = Grammar ({o, i, tokens}) -> [

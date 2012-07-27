@@ -1,10 +1,11 @@
-{ clazz,
+{
+  clazz,
   colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}
   collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
-{Grammar} = require 'joeson'
-Node = require('joeson/src/node').createNodeClazz('CodeNode')
+{Grammar} = require 'sembly/src/joeson'
+Node = require('sembly/src/node').createNodeClazz('CodeNode')
 
 
 # Helpers, exported to HELPERS
@@ -435,77 +436,77 @@ resetIndent = (ws, $) ->
 
 @GRAMMAR = GRAMMAR = Grammar ({o, i, tokens, make}) -> [
   o                                 " _SETUP _BLANKLINE* LINES ___ "
-  i _SETUP:                         " '' ", (dontcare, $) -> $.stack[0].indent = ''
-  i LINES:                          " LINE*_NEWLINE _ _SEMICOLON? ", make Block
+  i _SETUP:                         " '' ", ((dontcare, $) -> $.stack[0].indent = '')
+  i LINES:                          " LINE*_NEWLINE _ _SEMICOLON? ", (make Block)
   i LINE: [
-    o HEREDOC:                      " _ '###' !'#' (!'###' .)* '###' ", (it) -> Heredoc it.join ''
+    o HEREDOC:                      " _ '###' !'#' (!'###' .)* '###' ", ((it) -> Heredoc it.join '')
     o LINEEXPR: [
       # left recursive
-      o POSTIF:                     " block:LINEEXPR _IF cond:EXPR ", make If
-      o POSTUNLESS:                 " block:LINEEXPR _UNLESS cond:EXPR ", make Unless
-      o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", make For
-      o POSTWHILE:                  " block:LINEEXPR _WHILE cond:EXPR ", make Loop
+      o POSTIF:                     " block:LINEEXPR _IF cond:EXPR ", (make If)
+      o POSTUNLESS:                 " block:LINEEXPR _UNLESS cond:EXPR ", (make Unless)
+      o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", (make For)
+      o POSTWHILE:                  " block:LINEEXPR _WHILE cond:EXPR ", (make Loop)
       # rest
-      o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", make Statement
+      o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", (make Statement)
       o EXPR: [
-        o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", make Func
+        o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", (make Func)
         # RIGHT_RECURSIVE
-        o OBJ_IMPL:                 " _INDENT? &:OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", make Obj
+        o OBJ_IMPL:                 " _INDENT? &:OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", (make Obj)
         i OBJ_IMPL_ITEM: [
-          o                         " _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", make Item
+          o                         " _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", (make Item)
           o                         " HEREDOC "
         ]
-        o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", make Assign
-        o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) ", make Invocation
+        o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
+        o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) ", (make Invocation)
 
         # COMPLEX
         o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
         i _COMPLEX: [
-          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", make If
-          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", make Unless
-          o FOR:                    " _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", make For
-          o LOOP:                   " _LOOP block:BLOCK ", make Loop
-          o WHILE:                  " _WHILE cond:EXPR block:BLOCK ", make Loop
-          o SWITCH:                 " _SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT? ", make Switch
-          i CASE:                   " _WHEN matches:EXPR+_COMMA block:BLOCK ", make Case
+          o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", (make If)
+          o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", (make Unless)
+          o FOR:                    " _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? block:BLOCK ", (make For)
+          o LOOP:                   " _LOOP block:BLOCK ", (make Loop)
+          o WHILE:                  " _WHILE cond:EXPR block:BLOCK ", (make Loop)
+          o SWITCH:                 " _SWITCH obj:EXPR _INDENT cases:CASE*_NEWLINE default:DEFAULT? ", (make Switch)
+          i CASE:                   " _WHEN matches:EXPR+_COMMA block:BLOCK ", (make Case)
           i DEFAULT:                " _NEWLINE _ELSE BLOCK "
           o TRY:                    " _TRY block:BLOCK
                                       (_NEWLINE? _CATCH catchVar:EXPR? catch:BLOCK?)?
-                                      (_NEWLINE? _FINALLY finally:BLOCK)? ", make Try
+                                      (_NEWLINE? _FINALLY finally:BLOCK)? ", (make Try)
         ]
 
         # OPERATIONS
         o OP_OPTIMIZATION:          " OP40 _ !/[&\\|\\^=\\!\\<\\>\\+\\-\\*\\/\\%]|(and|or|is|isnt|not|in|instanceof)[^a-zA-Z\\$_0-9]/ " #(OP00_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP) "
         o OP00: [
           i OP00_OP:                " '&&' | '||' | '&' | '|' | '^' | _AND | _OR "
-          o                         " left:OP00 _ op:OP00_OP _SOFTLINE? right:OP05 ", make Operation
+          o                         " left:OP00 _ op:OP00_OP _SOFTLINE? right:OP05 ", (make Operation)
           o OP05: [
             i OP05_OP:              " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
-            o                       " left:OP05 _ op:OP05_OP _SOFTLINE? right:OP10 ", make Operation
+            o                       " left:OP05 _ op:OP05_OP _SOFTLINE? right:OP10 ", (make Operation)
             o OP10: [
               i OP10_OP:            " '+' | '-' "
-              o                     " left:OP10 _ op:OP10_OP _SOFTLINE? right:OP20 ", make Operation
+              o                     " left:OP10 _ op:OP10_OP _SOFTLINE? right:OP20 ", (make Operation)
               o OP20: [
                 i OP20_OP:          " '*' | '/' | '%' "
-                o                   " left:OP20 _ op:OP20_OP _SOFTLINE? right:OP30 ", make Operation
+                o                   " left:OP20 _ op:OP20_OP _SOFTLINE? right:OP30 ", (make Operation)
                 o OP30: [
                   i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
-                  o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", ({left, _not, op, right}) ->
+                  o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", (({left, _not, op, right}) ->
                                                                                         invo = new Invocation(func:op, params:[left, right])
                                                                                         if _not
                                                                                           return new Not invo
                                                                                         else
-                                                                                          return invo
+                                                                                          return invo)
                   o OP40: [
                     i OP40_OP:      " _NOT | '!' | '~' "
-                    o               " _ op:OP40_OP right:OP40 ", make Operation
+                    o               " _ op:OP40_OP right:OP40 ", (make Operation)
                     o OP45: [
                       i OP45_OP:    " '?' "
-                      o             " left:OP45 _ op:OP45_OP _SOFTLINE? right:OP50 ", make Operation
+                      o             " left:OP45 _ op:OP45_OP _SOFTLINE? right:OP50 ", (make Operation)
                       o OP50: [
                         i OP50_OP:  " '--' | '++' "
-                        o           " left:OPATOM op:OP50_OP ", make Operation
-                        o           " _ op:OP50_OP right:OPATOM ", make Operation
+                        o           " left:OPATOM op:OP50_OP ", (make Operation)
+                        o           " _ op:OP50_OP right:OPATOM ", (make Operation)
                         o OPATOM:   " FUNC | OBJ_IMPL | ASSIGN | INVOC_IMPL | COMPLEX | _ VALUE "
                       ] # end OP50
                     ] # end OP45
@@ -531,8 +532,8 @@ resetIndent = (ws, $) ->
   # > We could alternatively wipe out all cache items for a given position, but this proved to be
   # > significantly slower.
   i ASSIGNABLE:           " ASSIGN_LIST | ASSIGN_OBJ | VALUE "
-  i PARAM_LIST:           " _ '(' &:ASSIGN_LIST_ITEM*_COMMA _ ')' ", make AssignList
-  i ASSIGN_LIST:          " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' ", make AssignList
+  i PARAM_LIST:           " _ '(' &:ASSIGN_LIST_ITEM*_COMMA _ ')' ", (make AssignList)
+  i ASSIGN_LIST:          " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' ", (make AssignList)
   i ASSIGN_LIST_ITEM:     " _ target:(
                               | SYMBOL
                               | PROPERTY
@@ -540,57 +541,57 @@ resetIndent = (ws, $) ->
                               | ASSIGN_LIST
                             )
                             splat:'...'?
-                            default:(_ '=' LINEEXPR)? ", make AssignItem
-  i ASSIGN_OBJ:           " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'", make AssignObj
+                            default:(_ '=' LINEEXPR)? ", (make AssignItem)
+  i ASSIGN_OBJ:           " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'", (make AssignObj)
   i ASSIGN_OBJ_ITEM:      " _ key:(SYMBOL|PROPERTY|NUMBER)
                             target:(_ ':' _ (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
-                            default:(_ '=' LINEEXPR)?", make AssignItem
+                            default:(_ '=' LINEEXPR)?", (make AssignItem)
 
   i VALUE: [
     # left recursive
-    o SLICE:        " obj:VALUE range:RANGE ", make Slice
-    o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", make Index
-    o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", make Index
-    o INDEX1:       " obj:VALUE _SOFTLINE? type:'.'  key:WORD ", make Index
-    o DELETE1:      " obj:VALUE _SOFTLINE? type:'!' !__ key:WORD ", make Index # NEW foo.bar!baz  <=> delete foo.bar.baz
-    o META:         " obj:VALUE _SOFTLINE? type:'?' !__ key:WORD ", make Index # NEW foo.bar?type <=> tyepof foo.bar
-    o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", make Index
-    o INVOC_EXPL:   " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", make Invocation
-    o SOAK:         " VALUE '?' ", make Soak
+    o SLICE:        " obj:VALUE range:RANGE ", (make Slice)
+    o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", (make Index)
+    o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", (make Index)
+    o INDEX1:       " obj:VALUE _SOFTLINE? type:'.'  key:WORD ", (make Index)
+    o DELETE1:      " obj:VALUE _SOFTLINE? type:'!' !__ key:WORD ", (make Index) # NEW foo.bar!baz  <=> delete foo.bar.baz
+    o META:         " obj:VALUE _SOFTLINE? type:'?' !__ key:WORD ", (make Index) # NEW foo.bar?type <=> tyepof foo.bar
+    o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", (make Index)
+    o INVOC_EXPL:   " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
+    o SOAK:         " VALUE '?' ", (make Soak)
 
     # rest
-    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", (it) -> Number it
+    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", ((it) -> Number it)
     o SYMBOL:       " !_KEYWORD WORD "
-    o BOOLEAN:      " _TRUE | _FALSE | _YES | _NO | _SI ", (it) -> it in ['true', 'yes', 'si']
+    o BOOLEAN:      " _TRUE | _FALSE | _YES | _NO | _SI ", ((it) -> it in ['true', 'yes', 'si'])
     #o TYPEOF: [
-    #  o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", make Invocation
-    #  o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", make Invocation
+    #  o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", (make Invocation)
+    #  o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", (make Invocation)
     #]
     # starts with symbol
-    o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", make Arr
-    i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", make Item
-    i ARR_IMPL_ITEM: " value:EXPR splat:'...'? ", make Item
-    o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", make Range
-    o OBJ_EXPL:     " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", make Obj
-    i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", make Item
-    o PROPERTY:     " '@' (WORD|STRING) ", (key) -> Index obj:Word('this'), key:key
-    o THIS:         " '@' ", -> Word('this')
+    o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", (make Arr)
+    i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)
+    i ARR_IMPL_ITEM: " value:EXPR splat:'...'? ", (make Item)
+    o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", (make Range)
+    o OBJ_EXPL:     " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", (make Obj)
+    i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", (make Item)
+    o PROPERTY:     " '@' (WORD|STRING) ", ((key) -> Index obj:Word('this'), key:key)
+    o THIS:         " '@' ", (-> Word('this'))
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [
-      o             " _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", make Str
-      o             " _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", make Str
-      o             " _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", make Str
-      o             " _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE             ", make Str
-      i _ESCSTR:    " _SLASH . ", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
+      o             " _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", (make Str)
+      o             " _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", (make Str)
+      o             " _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", (make Str)
+      o             " _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE             ", (make Str)
+      i _ESCSTR:    " _SLASH . ", ((it) -> {n:'\n', t:'\t', r:'\r'}[it] or it)
       i _INTERP:    " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]
-    o REGEX:        " _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", make Str
-    o NATIVE:       " _BTICK (!_BTICK .)* _BTICK ", make NativeExpression
+    o REGEX:        " _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", (make Str)
+    o NATIVE:       " _BTICK (!_BTICK .)* _BTICK ", (make NativeExpression)
   ]
 
   # WHITESPACES:
-  i _:              " /( |\\\\\\n)*/ ",                  skipLog:yes, (ws) -> ws.replace /\\\\\\n/g, ''
-  i __:             " /( |\\\\\\n)+/ ",                  skipLog:yes, (ws) -> ws.replace /\\\\\\n/g, ''
+  i _:              " /( |\\\\\\n)*/ ",                  skipLog:yes, ((ws) -> ws.replace /\\\\\\n/g, '')
+  i __:             " /( |\\\\\\n)+/ ",                  skipLog:yes, ((ws) -> ws.replace /\\\\\\n/g, '')
   i _TERM:          " _ ('\r\n'|'\n') ",                 skipLog:no
   i _COMMENT:       " _ !HEREDOC '#' (!_TERM .)* ",      skipLog:no
   i _BLANKLINE:     " _COMMENT? _TERM ",                 skipLog:no
@@ -598,12 +599,12 @@ resetIndent = (ws, $) ->
 
   # BLOCKS:
   i BLOCK: [
-    o               " _INDENT LINE+_NEWLINE ", make Block
-    o               " _THEN?  LINE+(_ ';') ", make Block
-    o               " _INDENTED_COMMENT+ ", -> new Block []
-    i _INDENTED_COMMENT: " _BLANKLINE ws:_ _COMMENT ", ({ws}, $) ->
+    o               " _INDENT LINE+_NEWLINE ", (make Block)
+    o               " _THEN?  LINE+(_ ';') ", (make Block)
+    o               " _INDENTED_COMMENT+ ", (-> new Block [])
+    i _INDENTED_COMMENT: " _BLANKLINE ws:_ _COMMENT ", (({ws}, $) ->
                       return null if checkIndent(ws,$) is null
-                      return undefined
+                      return undefined)
   ]
   i BLOCKEXPR:      " _INDENT? EXPR "
   i _INDENT:        " _BLANKLINE+ &:_ ", checkIndent, skipCache:yes
@@ -618,7 +619,7 @@ resetIndent = (ws, $) ->
   i _COMMA_NEWLINE: " _BLANKLINE+ &:_ ", checkCommaNewline, skipCache:yes
 
   # TOKENS:
-  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", make Word
+  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", (make Word)
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'true', 'false', 'yes', 'no', 'si', 'by',

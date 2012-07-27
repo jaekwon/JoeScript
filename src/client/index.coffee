@@ -33,17 +33,17 @@ $(document).ready ->
   # load libraries
   {clazz} = require 'cardamom'
   {inspect} = require 'util'
-  {randid} = require 'joeson/lib/helpers'
-  {toHTML} = require 'joeson/src/parsers/ansi'
+  {randid} = require 'sembly/lib/helpers'
+  {toHTML} = require 'sembly/src/parsers/ansi'
   {
     JKernel, JThread
     NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
     HELPERS:{isInteger,isObject}
-  } = require 'joeson/src/interpreter'
-  JSL = require 'joeson/src/parsers/jsl'
-  require 'joeson/src/client/dom' # DOM plugin
-  require 'joeson/src/client/misc' # DOM plugin
-  {Editor} = require 'joeson/src/client/editor'
+  } = require 'sembly/src/interpreter'
+  JSL = require 'sembly/src/parsers/jsl'
+  require 'sembly/src/client/dom' # DOM plugin
+  require 'sembly/src/client/misc' # DOM plugin
+  {Editor} = require 'sembly/src/client/editor'
 
   # TODO reconsider.
   cache = window.cache = {} # Can't use CACHE because that'll overwrite client state.
