@@ -98,23 +98,31 @@ textarea {
   font-size: 16px;
 }
 
-/* this isnt perfect, esp not for long keys */
 div.object {
-  position: relative;
-  padding-left: 7em;
 }
 div.array {
-  position: relative;
-  padding-left: 2em;
 }
 div.object > div.item {
+  position: relative;
   min-height: 1em; /* blank strings */
+  padding-left: 7em;
+}
+div.array > div.item {
+  position: relative;
+  min-height: 1em; /* blank strings */
+  padding-left: 2em;
 }
 div.object > div.item > span.key {
   position: absolute;
   left: 0px;
 }
-
+div.object > div.item > span.value {
+}
 span.string {
   white-space: pre;
+}
+
+div.editor {
+  min-height: 1em;
+  height: 2em;
 }

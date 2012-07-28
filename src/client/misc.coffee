@@ -1,7 +1,23 @@
 {htmlEscape:hE, randid} = require 'sembly/lib/helpers'
+{debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
+
+jQuery.catch = (fn) ->
+  wrapped = ->
+    try
+      fn.apply this, arguments
+    catch err
+      fatal "Uncaught error: #{err.stack ? err}"
+      console.log "Uncaught error: #{err.stack ? err}"
 
 # jquery extensions
 jQuery.fn.extend(
+
+  # scroll element down
+  scrollDown: ->
+    this.each ->
+      elem = $(this)
+      height = elem.prop('scrollHeight')
+      elem.scrollTop(height)
 
   # value change event, triggers when the value actually changes upon user input
   valueChange: (options, callback) ->

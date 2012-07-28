@@ -13,7 +13,7 @@ Editor = @Editor = clazz 'Editor', ->
     assert.ok target.length is 1, "Editor target el not unique"
     # Setup CodeMirror instance.
     mirror = CodeMirror target[0],
-      value:        ''
+      value:        '' # see mirror.setValue below.
       mode:         'coffeescript'
       theme:        'joeson'
       keyMap:       'sembly'
@@ -22,6 +22,7 @@ Editor = @Editor = clazz 'Editor', ->
       fixedGutter:  yes
       lineNumbers:  yes
       tabSize:      tabSize
+      onChange: -> target.height($(mirror.getWrapperElement()).height())
     # Sanitization.
     mirror.sanitize = =>
       cursor = mirror.getCursor()
@@ -33,6 +34,8 @@ Editor = @Editor = clazz 'Editor', ->
     # mirror.setMarker 0, '● ', 'cm-bracket'
     # Events
     mirror.submit = @submit
+    # Fix to set height of editor
+    setTimeout (->mirror.setValue('')), 0
     return mirror
 
   # Utility method to replace all tabs with spaces

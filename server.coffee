@@ -86,7 +86,7 @@ io.sockets.on 'connection', (socket) ->
     # TODO garbage collection of perspectives.
     socket.set 'session', session, ->
 
-      switch @path
+      switch path
         when ''
           # Construct a development screen
           session.screen = screen = new JArray creator:ANON
@@ -95,6 +95,8 @@ io.sockets.on 'connection', (socket) ->
           session.scope.data.clear = new JBoundFunc creator:ANON, scope:scope, func:"""
             -> screen.length = 0
           """
+          # Add an editor to the screen
+          screen.data[0] = new JObject creator:ANON, data:{type:'editor'}
           socket.emit 'screen', screen.__str__()
         else
           # Show the path on the screen.
