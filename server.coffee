@@ -75,24 +75,40 @@ require 'sembly/src/interpreter/perspective' # Perspective plugin
 # Client <--> Server Connection
 io.sockets.on 'connection', (socket) ->
 
-  # Setup default view and user-specific session
-  scope = WORLD.create ANON, {}
-  Object.merge scope.data,
-    screen: screen=(new JArray creator:ANON)
-    clear:  (new JBoundFunc creator:ANON, scope:scope, func:"""
-              -> screen.length = 0
-            """)
+  # Main connection entrypoint.
+  # Loads a resource and creates a screen for the client.
+  socket.on 'load', (path) ->
 
+    # Setup default view and socket-specific session
+    session = {}
 
-  # Ship 'screen' over the wire.
-  socket.emit 'screen', screen.__str__()
+    # Save session and ship screen over to client
+    # TODO garbage collection of perspectives.
+    socket.set 'session', session, ->
 
-  # Link client and server via perspective on screen.
-  perspective = screen.newPerspective(socket)
+      switch @path
+        when ''
+          # Construct a development screen
+          session.screen = screen = new JArray creator:ANON
+          session.perspective = screen.newPerspective(socket)
+          session.scope = scope = WORLD.create ANON, {screen}
+          session.scope.data.clear = new JBoundFunc creator:ANON, scope:scope, func:"""
+            -> screen.length = 0
+          """
+          socket.emit 'screen', screen.__str__()
+        else
+          # Show the path on the screen.
+          # NOTE keep user as ANON, arbitrary code execution happens here.
+          KERNEL.run user:ANON, code:path, scope:WORLD, callback: ->
+            session.screen = screen = @last ? JUndefined
+            socket.emit 'screen', screen.__str__()
 
   # Run code
-  socket.on 'run', (codeStr) ->
-    info "received code #{codeStr}"
+  socket.on 'run', (codeStr) -> socket.get 'session', (err, session) ->
+    if err?
+      fatal "Error in socket.get 'session': #{err.stack ? err}"
+      return
+    info "Received code #{codeStr}"
 
     # Create a module to hold the code and results.
     # Module holds the code, output, result, error...
@@ -100,7 +116,7 @@ io.sockets.on 'connection', (socket) ->
     _module = new JObject creator:ANON, data:{code:codeStr, status:'running'}
     # TODO make the 'code' property of output immutable.
     # Create the lexical scope.
-    _moduleScope = scope.create ANON, {module:_module}
+    _moduleScope = session.scope.create ANON, {module:_module}
     _moduleScope.data.print = new JBoundFunc creator:ANON, scope:_moduleScope, func:"""
       (data) ->
         output = module.output
@@ -113,7 +129,7 @@ io.sockets.on 'connection', (socket) ->
     # Start a new thread. Note the 'yes' code. TODO refactor
     KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
 
-      screen.push @, _module
+      session.screen.push @, _module
       
       @enqueue callback: ->
 

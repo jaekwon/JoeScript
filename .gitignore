@@ -8,3 +8,4 @@ static/sembly.js
 static/sembly.min.js
 src/**/*.js
 src/*.js
+lib/*.js

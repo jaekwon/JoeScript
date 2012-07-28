@@ -64,9 +64,12 @@ $(document).ready ->
 
   screen = undefined
 
+  ## Send url to server.
+  socket.emit 'load', window.location.pathname[1...]
+
   ## (re)initialize the screen.
   socket.on 'screen', _err_ (screenStr) ->
-    console.log "received screen"
+    console.log "received screen:", screenStr
 
     try
       screen = JSL.parse screenStr, env:{cache}

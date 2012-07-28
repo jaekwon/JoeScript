@@ -173,21 +173,26 @@ JBoundFunc::extend
         console.log "JBoundFunc hover"
 
 JSingleton::extend
+  newView: -> new JView root:@
   dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'singleton', text:@name
 
 clazz.extend Function,
+  newView: -> new JView root:@
   dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'function', text:'[Function]'
 
 clazz.extend String,
+  newView: -> new JView root:@
   dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'string', text:@
 
 clazz.extend Number,
+  newView: -> new JView root:@
   dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'number', text:@
 
 clazz.extend Boolean,
+  newView: -> new JView root:@
   dom_draw: ($$) ->
     $$.newEl tag:'span', cls:'boolean', text:@

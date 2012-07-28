@@ -18,6 +18,7 @@ tests = []
 test = (code, str, callback) -> tests.push {code,str,callback}
 canon = (str) -> str.replace(/#[a-zA-Z0-9]{1,64}/g, '#').replace(/@[a-zA-Z0-9]{1,64}/g, '@')
 
+test " ''+undefined ",                    'undefined',                    -> equal @it.jsValue(@thread), undefined
 test " ''+[1,2,3] ",                      '{A|#@ 0:1,1:2,2:3}',           -> deepEqual @it.jsValue(@thread), [1,2,3]
 test " ''+[] ",                           '{A|#@ }',                      -> deepEqual @it.jsValue(@thread), []
 test " ''+{foo:'bar'} ",                  '{O|#@ "foo":"bar"}',           -> deepEqual @it.jsValue(@thread), {foo:'bar'}
