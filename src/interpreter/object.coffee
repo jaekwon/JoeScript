@@ -51,9 +51,30 @@ isInteger = (n) -> n%1 is 0
 isObject =  (o) -> o instanceof JObject or o instanceof JStub
 @HELPERS = {isInteger, isObject}
 
-# DEFINED AT BOTTOM OF FILE
-RUNTIME = Set([JStub, JObject, JSingleton, JBoundFunc, Number, String, Function, Boolean])
+RUNTIME = Set([]) # elements defined at the bottom
 RUNTIME_FUNC = Set([joe.Func, Function])
+
+# DEFAULT OPERATIONS ON ALL NODES
+Node::extend DEFAULT_OPERATIONS =
+  # asynchronous
+  __get__:    ($, key) -> $.throw 'TypeError', "__get__ not define for #{@}"
+  # synchronous:
+  __set__: ($, key, value) -> $.throw 'TypeError', "__set__ not defined for #{@}"
+  __keys__:        ($) -> $.throw 'TypeError', "__keys__ not defined for #{@}"
+  __iter__:        ($) -> $.throw 'TypeError', "__iter__ not defined for #{@}"
+  __num__:         ($) -> JNaN
+  __add__:  ($, other) -> JNaN
+  __sub__:  ($, other) -> JNaN
+  __mul__:  ($, other) -> JNaN
+  __div__:  ($, other) -> JNaN
+  __mod__:  ($, other) -> JNaN
+  __or__:   ($, other) -> @__bool__($) or other
+  __and__:  ($, other) -> @__bool__($) and other
+  __eq__:   ($, other) -> @ is other
+  __cmp__:  ($, other) -> $.throw 'TypeError', "__cmp__ not defined for #{@}"
+  __bool__:        ($) -> no
+  __key__:         ($) -> $.throw 'TypeError', "Can't use #{@} as key"
+  __str__:         ($) -> $.throw 'TypeError', "Dunno how to serialzie #{@}"
 
 JStub = @JStub = clazz 'JStub', Node, ->
   init: ({@persistence, @id, @type}) ->
@@ -119,7 +140,6 @@ JObject = @JObject = clazz 'JObject', Node, ->
 
   ## Runtime functions ##
   
-  # Asynchronous. See doc on the top of this file.
   __get__: ($, key, required=no) ->
     key = key.__key__($)
     $.will('read', this)
@@ -214,29 +234,19 @@ JObject = @JObject = clazz 'JObject', Node, ->
   __iter__: ($) ->
     $.will('read', this)
     return new SimpleIterator Object.keys @data
-  __num__:         ($) -> JNaN
-  __add__:  ($, other) -> $.throw 'TypeError', "Can't add to object yet"
-  __sub__:  ($, other) -> $.throw 'TypeError', "Can't subtract from object yet"
-  __mul__:  ($, other) -> $.throw 'TypeError', "Can't multiply with object yet"
-  __div__:  ($, other) -> $.throw 'TypeError', "Can't divide an object yet"
-  __mod__:  ($, other) -> $.throw 'TypeError', "Can't modulate an object yet"
+  __add__:  ($, other) -> $.throw 'NotImplementedError', "Can't add to object yet"
+  __sub__:  ($, other) -> $.throw 'NotImplementedError', "Can't subtract from object yet"
+  __mul__:  ($, other) -> $.throw 'NotImplementedError', "Can't multiply with object yet"
+  __div__:  ($, other) -> $.throw 'NotImplementedError', "Can't divide an object yet"
+  __mod__:  ($, other) -> $.throw 'NotImplementedError', "Can't modulate an object yet"
   __eq__:   ($, other) -> other instanceof JObject and other.id is @id
-  __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare objects yet"
-  __bool__: ($, other) -> yes
-  __key__:         ($) -> $.throw 'TypeError', "Can't use object as a key"
+  __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Can't compare objects yet"
+  __bool__:        ($) -> yes
   __str__:  ($, $$={}) ->
     return "<##{@id}>" if $$[@id]
     $$[@id] = yes
     dataPart = ("#{key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')
     return "{O|##{@id}@#{@creator.id} #{dataPart}}"
-  __repr__: ($) ->
-    # this is what it would look like in joescript
-    # <"{#< ([key.__str__(),':',value.__repr__()] for key, value of @data).weave ', ', flattenItems:yes >}">
-    $.jml(
-      '{',
-      $.jml(([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)),
-      '}'
-    )
   jsValue: ($, $$={}) ->
     return $$[@id] if $$[@id]
     # console.log @serialize( (c={}; (n)->seen=c[n.id];c[n.id]=yes; not seen) )
@@ -257,27 +267,19 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   __keys__: ($) ->
     $.will('read', this)
     return Object.keys(@data)
-  __num__:        ($) -> JNaN
-  __add__: ($, other) -> $.throw 'TypeError', "Can't add to array yet"
-  __sub__: ($, other) -> $.throw 'TypeError', "Can't subtract from array yet"
-  __mul__: ($, other) -> $.throw 'TypeError', "Can't multiply with array yet"
-  __div__: ($, other) -> $.throw 'TypeError', "Can't divide an array yet"
-  __mod__: ($, other) -> $.throw 'TypeError', "Can't modulate an array yet"
-  __eq__:  ($, other) -> other instanceof JArray and other.id is @id
-  __cmp__: ($, other) -> $.throw 'TypeError', "Can't compare arrays yet"
-  __bool__: ($, other) -> yes
-  __key__:        ($) -> $.throw 'TypeError', "Can't use an array as a key"
-  __str__: ($, $$={}) ->
+  __num__:         ($) -> JNaN
+  __add__:  ($, other) -> $.throw 'NotImplementedError', "Can't add to array yet"
+  __sub__:  ($, other) -> $.throw 'NotImplementedError', "Can't subtract from array yet"
+  __mul__:  ($, other) -> $.throw 'NotImplementedError', "Can't multiply with array yet"
+  __div__:  ($, other) -> $.throw 'NotImplementedError', "Can't divide an array yet"
+  __mod__:  ($, other) -> $.throw 'NotImplementedError', "Can't modulate an array yet"
+  __eq__:   ($, other) -> other instanceof JArray and other.id is @id
+  __cmp__:  ($, other) -> $.throw 'NotImplementedError', "Can't compare arrays yet"
+  __bool__:       ($) -> yes
+  __str__:  ($, $$={}) ->
     return "<##{@id}>" if $$[@id]
     $$[@id] = yes
     return "{A|##{@id}@#{@creator.id} #{("#{if isInteger key then ''+key else key.__str__($)}:#{value.__str__($, $$)}" for key, value of @data).join(',')}}"
-  __repr__: ($) ->
-    arrayPart = (item.__repr__($) for item in @data).weave(',')
-    dataPart = $.jml ([key, ':', value.__repr__($)] for key, value of @data when not isInteger key).weave(', ')
-    if dataPart.length > 0
-      return $.jml '[',arrayPart...,' ',dataPart,']'
-    else
-      return $.jml '[',arrayPart...,']'
   jsValue: ($, $$={}) ->
     return $$[@id] if $$[@id]
     jsObj = $$[@id] = []
@@ -308,25 +310,10 @@ JUser = @JUser = clazz 'JUser', JObject, ->
     return "{U|##{@id} #{dataPart}}"
   toString: -> "[JUser ##{@id} (#{@name})]"
 
-JSingleton = @JSingleton = clazz 'JSingleton', ->
+JSingleton = @JSingleton = clazz 'JSingleton', Node, ->
   init: (@name, @_jsValue) ->
-  __get__:    ($, key) -> $.throw 'TypeError', "Cannot read property '#{key}' of #{@name}"
-  __set__: ($, key, value) -> $.throw 'TypeError', "Cannot set property '#{key}' of #{@name}"
-  __keys__:        ($) -> $.throw 'TypeError', "Cannot get keys of #{@name}"
-  __iter__:        ($) -> $.throw 'TypeError', "Cannot get iterator of #{@name}"
-  __num__:         ($) -> JNaN
-  __add__:  ($, other) -> JNaN
-  __sub__:  ($, other) -> JNaN
-  __mul__:  ($, other) -> JNaN
-  __div__:  ($, other) -> JNaN
-  __mod__:  ($, other) -> JNaN
-  __eq__:   ($, other) -> other instanceof JSingleton and @name is other.name
-  __cmp__:  ($, other) -> $.throw 'TypeError', "Can't compare with #{@name}"
-  __bool__: ($, other) -> no
-  __key__:         ($) -> $.throw 'TypeError', "Can't use #{@name} as key"
-  __str__:         ($) -> @name
-  __repr__:        ($) -> @name
   jsValue: -> @_jsValue
+  __str__: -> ''+@_jsValue
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = JSingleton.null       = new JSingleton 'null', null
@@ -383,12 +370,6 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok func?, "Didn't get a func at the expected pos #{@data.__start__}. Code:\n#{@data.__code__}"
     return @func = func
   __str__: ($) -> "<F|##{@id}>"
-  __repr__: ($) ->
-    dataPart = ([key, ':', value.__repr__($)] for key, value of @data).weave(', ', flattenItems:yes)
-    if dataPart.length > 0
-      return $.jml('[JBoundFunc ', $.jml(dataPart), ']')
-    else
-      return "[JBoundFunc]"
   toString: -> "[JBoundFunc]"
 
 SimpleIterator = clazz 'SimpleIterator', ->
@@ -401,12 +382,11 @@ SimpleIterator = clazz 'SimpleIterator', ->
     else throw 'StopIteration'
 
 # Extensions on native objects
+clazz.extend String, DEFAULT_OPERATIONS
 clazz.extend String,
   __get__:    ($, key) -> JUndefined
   __set__: ($, key, value) -> # pass
-  __keys__:        ($) -> $.throw 'TypeError', "Object.keys called on non-object"
   __iter__:        ($) -> new SimpleIterator @valueOf()
-  __num__:         ($) -> JNaN
   __add__:  ($, other) ->
     if typeof other is 'string' or other instanceof String
       @ + other
@@ -421,14 +401,10 @@ clazz.extend String,
   __bool__:        ($) -> @length > 0
   __key__:         ($) -> @valueOf()
   __str__:         ($) -> "\"#{escape @}\""
-  __repr__:        ($) -> "\"#{escape @}\""
   jsValue: -> @valueOf()
 
+clazz.extend Number, DEFAULT_OPERATIONS
 clazz.extend Number,
-  __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
-  __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
-  __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
-  __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
   __num__:        ($) -> @valueOf() # prototype methods of native types, @ becomes object.
   __add__: ($, other) -> @valueOf() + other.__num__()
   __sub__: ($, other) -> @valueOf() - other.__num__()
@@ -440,53 +416,26 @@ clazz.extend Number,
   __bool__:       ($) -> @valueOf() isnt 0
   __key__:        ($) -> @valueOf()
   __str__:        ($) -> ''+@
-  __repr__:       ($) -> ''+@
   jsValue: -> @valueOf()
 
+clazz.extend Boolean, DEFAULT_OPERATIONS
 clazz.extend Boolean,
-  __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
-  __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
-  __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
-  __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
-  __num__:        ($) -> JNaN
-  __add__: ($, other) -> JNaN
-  __sub__: ($, other) -> JNaN
-  __mul__: ($, other) -> JNaN
-  __div__: ($, other) -> JNaN
-  __mod__: ($, other) -> JNaN
+  __num__:        ($) -> if @valueOf() then 1 else 0
   __eq__:  ($, other) -> @valueOf() is other
-  __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> @valueOf()
-  __key__:        ($) -> $.throw 'TypeError', "Can't use a boolean as a key"
   __str__:        ($) -> ''+@
-  __repr__:       ($) -> ''+@
   jsValue: -> @valueOf()
 
+clazz.extend Function, DEFAULT_OPERATIONS
 clazz.extend Function, # native functions
-  __get__:        ($) -> $.throw 'NotImplementedError', "Implement me"
-  __set__:        ($) -> $.throw 'NotImplementedError', "Implement me"
-  __keys__:       ($) -> $.throw 'NotImplementedError', "Implement me"
-  __iter__:       ($) -> $.throw 'NotImplementedError', "Implement me"
-  __num__:        ($) -> JNaN
-  __add__: ($, other) -> JNaN
-  __sub__: ($, other) -> JNaN
-  __mul__: ($, other) -> JNaN
-  __div__: ($, other) -> JNaN
-  __mod__: ($, other) -> JNaN
   __eq__:  ($, other) -> @valueOf() is other
-  __cmp__: ($, other) -> JNaN
   __bool__:       ($) -> yes
-  __key__:        ($) -> $.throw 'TypeError', "Can't use a function as a key"
   __str__:        ($) -> "[NativeFunction ##{@id}]"
-  __repr__:       ($) ->
-    name = @name ? @_name
-    if name
-      "[NativeFunction: #{name}]"
-    else
-      "[NativeFunction]"
   jsValue: -> @valueOf()
 
 # EXPORTS
 @NODES = {
   JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc
 }
+
+RUNTIME.elements = [JStub, JObject, JSingleton, JBoundFunc, Number, String, Function, Boolean]

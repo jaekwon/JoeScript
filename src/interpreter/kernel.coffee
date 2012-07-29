@@ -246,20 +246,6 @@ JThread = @JThread = clazz 'JThread', ->
     assert.ok jobj.id, "$.new(jobj) requires jobj.id, but id was undefined"
     @kernel.cache[jobj.id] = jobj
 
-  # DEPRECATED
-  # for convenience, jml is available on a thread.
-  jml: (args...) ->
-    attributes = undefined
-    if args[0] instanceof Object and args[0] not instanceof JObject
-      attributes = args.shift()
-    if args.length is 1 and args[0] instanceof Array
-      elements = args[0]
-    else
-      elements = args
-    if attributes?
-      elements[''+key] = value for key, value of attributes
-    return new JArray creator:@user, data:elements
-
   toString: -> "[JThread ##{@id} s:#{@state} l:#{@last}]"
 
 ## KERNEL ##

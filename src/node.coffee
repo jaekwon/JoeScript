@@ -42,9 +42,10 @@ indent = (c) -> Array(c+1).join('  ')
         else if desc.type instanceof Object and desc.type.value?
           for _key, _value of value when _value?
             cb(_value, this, key, desc.type.value, _key)
-        # all other cases
-        else if value? or not skipUndefined
-          cb(value, this, key, desc)
+        else
+          # all other cases
+          if value? or not skipUndefined
+            cb(value, this, key, desc)
       return
 
     # Depth first walk of entire tree.
@@ -82,8 +83,10 @@ indent = (c) -> Array(c+1).join('  ')
         str += "#{indent _indent+1}#{red '@'+key}#{if key2? then red '['+key2+']' else ''}: " ##{blue inspect desc}\n"
         if child.serialize?
           str += "#{child.serialize(filter, _indent+1)}\n"
-        else
-          str += "#{''+child} #{"("+child.constructor.name+")"}\n"
+        else #if child.toString?
+          str += "#{''+child} (#{child.constructor.name})\n"
+        #else
+        #  str += "#{inspect child} (#{child?.constructor?.name})\n"
       return str.trimRight()
 
   # Returns an error message if validation fails.
