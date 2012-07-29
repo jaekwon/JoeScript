@@ -102,7 +102,7 @@ div.array > div.item {
   min-height: 1em; /* blank strings */
   padding-left: 2em;
 
-  border-bottom: 1px solid #515B7E;
+  border-bottom: 1px dotted #515B7E;
   margin-bottom: 5px;
   padding-bottom: 5px;
 }
