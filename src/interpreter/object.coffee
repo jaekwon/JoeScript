@@ -21,6 +21,21 @@ instruction doesn't depend on the result of these actions. In this case the JObj
 mechanism is suitable. Just add a handler to the object via JObject::addHandler and listen.
 TODO mechanism to remove a listener...
 
+## Common methods ##
+
+  valueOf:  Returns a native value if this is a String, Number, Function, or Boolean.
+            These values are used directly in the interpreter.
+            Undefined, Null, and NaN on the other hand, are represented by a
+            JSingleton instance. Objects are represented by JObject instances, and so on.
+            'valueOf' for these representations return themselves.
+
+  jsValue:  Kind of like valueOf, but also converts JObjects and JSingletons into native
+            types. Used for testing, and will be used in the future for other things.
+
+  __str__:  Returns a compact serialized value suitable for wire transfer.
+
+  __key__:  Convert an object to a key string.
+
 ###
 
 log = no
@@ -68,13 +83,13 @@ Node::extend DEFAULT_OPERATIONS =
   __mul__:  ($, other) -> JNaN
   __div__:  ($, other) -> JNaN
   __mod__:  ($, other) -> JNaN
-  __or__:   ($, other) -> @__bool__($) or other
-  __and__:  ($, other) -> @__bool__($) and other
-  __eq__:   ($, other) -> @ is other
-  __cmp__:  ($, other) -> $.throw 'TypeError', "__cmp__ not defined for #{@}"
+  __or__:   ($, other) -> if @__bool__($) then @valueOf() else other
+  __and__:  ($, other) -> if @__bool__($) then other.valueOf() else @
+  __eq__:   ($, other) -> @valueOf() is other.valueOf()
+  __cmp__:  ($, other) -> $.throw 'TypeError', "__cmp__ not defined for #{@valueOf()}"
   __bool__:        ($) -> no
-  __key__:         ($) -> $.throw 'TypeError', "Can't use #{@} as key"
-  __str__:         ($) -> $.throw 'TypeError', "Dunno how to serialzie #{@}"
+  __key__:         ($) -> $.throw 'TypeError', "Can't use #{@valueOf()} as key"
+  __str__:         ($) -> $.throw 'TypeError', "Dunno how to serialzie #{@valueOf()}"
 
 JStub = @JStub = clazz 'JStub', Node, ->
   init: ({@persistence, @id, @type}) ->
@@ -253,6 +268,7 @@ JObject = @JObject = clazz 'JObject', Node, ->
     jsObj = $$[@id] = {}
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
+  valueOf: -> @
   toString: -> "[JObject ##{@id}]"
 
 JArray = @JArray = clazz 'JArray', JObject, ->
@@ -314,6 +330,7 @@ JSingleton = @JSingleton = clazz 'JSingleton', Node, ->
   init: (@name, @_jsValue) ->
   jsValue: -> @_jsValue
   __str__: -> ''+@_jsValue
+  valueOf: -> @
   toString: -> "Singleton(#{@name})"
 
 JNull       = @JNull      = JSingleton.null       = new JSingleton 'null', null

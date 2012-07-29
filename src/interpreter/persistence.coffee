@@ -82,7 +82,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           switch t
             when 's' then value = value
             when 'n' then value = Number(value)
-            when 'b' then value = Bool(value)
+            when 'b' then value = Boolean(value)
             when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
             when 'o' then value = cache[value] ? new JStub {persistence:$P, id:value}
             when 'z' then value = JSingleton[value]
@@ -171,9 +171,9 @@ JObject::extend
     debug "persistence_saveItem saving key/value #{key}:#{value}" if trace
 
     switch typeof value
-      when 'string' then value = 's:'+value
-      when 'number' then value = 'n:'+value
-      when 'bool'   then value = 'b:'+value
+      when 'string'   then value = 's:'+value
+      when 'number'   then value = 'n:'+value
+      when 'boolean'  then value = 'b:'+value
       when 'function'
         assert.ok value.id?, "Cannot persist a native function with no id"
         value = 'f:'+value.id
