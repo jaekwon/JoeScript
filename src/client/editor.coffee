@@ -7,7 +7,8 @@ tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
 Editor = @Editor = clazz 'Editor', ->
   init: ({@el, @mirror, @callback}) ->
     assert.ok @el? or @mirror?, "Editor wants an @el or a premade @mirror"
-    @mirror ?= @makeMirror(@el)
+    @el.append(@elInner=$('<div class="editor_inner"/>'))
+    @mirror ?= @makeMirror(@elInner)
 
   makeMirror: (target) ->
     assert.ok target.length is 1, "Editor target el not unique"

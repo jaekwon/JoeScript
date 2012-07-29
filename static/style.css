@@ -65,21 +65,6 @@ span.cm-punctuation, span.punctuation { color: #8da6ce; }
 span.cm-operator,   span.operator   { color: #00cccc; }
 
 /* formatting */
-.item {
-  border-bottom: 1px solid #515B7E;
-  margin-bottom: 5px;
-  padding-bottom: 5px;
-}
-.item:last-child {
-  margin-bottom: 0;
-}
-.item .item {
-  border: none;
-  padding-bottom: 0;
-}
-.array, .object {
-  min-height: 1em;
-}
 .highlight {
   background-color: #2A395B !important;
 }
@@ -91,6 +76,9 @@ span.cm-operator,   span.operator   { color: #00cccc; }
 .right {
   float: right;
 }
+.clear {
+  clear: both;
+}
 textarea {
   background: transparent;
   color: #f8f8f8;
@@ -99,8 +87,10 @@ textarea {
 }
 
 div.object {
+  min-height: 1em;
 }
 div.array {
+  min-height: 1em;
 }
 div.object > div.item {
   position: relative;
@@ -111,6 +101,15 @@ div.array > div.item {
   position: relative;
   min-height: 1em; /* blank strings */
   padding-left: 2em;
+
+  border-bottom: 1px solid #515B7E;
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+}
+div.array > div.item:last-child {
+  margin-bottom: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 div.object > div.item > span.key {
   position: absolute;
@@ -118,11 +117,16 @@ div.object > div.item > span.key {
 }
 div.object > div.item > span.value {
 }
+div.hideKeys > div.item {
+  padding-left: 0;
+}
+div.hideKeys > div.item > span.key {
+  display: none;
+}
 span.string {
   white-space: pre;
 }
 
 div.editor {
   min-height: 1em;
-  height: 2em;
 }

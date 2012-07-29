@@ -100,6 +100,14 @@ JObject = @JObject = clazz 'JObject', Node, ->
     listeners[listener.id] = listener
     return yes
 
+  # Remove listener...
+  removeListener: (listener) ->
+    assert.ok listener.id?, "removeListener wants listener.id"
+    if @listeners?[listener.id]
+      delete @listeners[listener.id]
+      return yes
+    return no
+
   # Emit an event from object to listeners
   emit: (event) ->
     assert.ok typeof event is 'object', 'Event must be an object'

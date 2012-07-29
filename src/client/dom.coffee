@@ -117,7 +117,7 @@ JView = @JView = clazz 'JView', ->
 
 JObject::extend
   domClass: 'object'
-  newView: ($S) -> new JView root:@, socket:$S # Convenience
+  newView: (socket) -> new JView root:@, socket:socket # Convenience
 
   # Handle an event for this object.
   # See documentation above.
@@ -147,10 +147,12 @@ JObject::extend
           items[key] = itemEl
         when 'delete'
           {key} = event
+          # TODO cannot just removeListener here.
+          # value.removeListener $V
           if existingEl=items[key]
             existingEl.remove()
             delete items[key]
-            # TODO re-attach to a link, if one exists.
+            # TODO re-attach to a link, if one exists. (tree grafting)
         else
           throw new Error "Unexpected event type #{event.type}"
 
@@ -160,16 +162,18 @@ JObject::extend
       when 'input'
         # DEPRECATED draw an input field
         $V.newEl id:@id, tag:'textarea', attr:{rows:'6', style:'line-height:1; width: 100%; min-height:20px;'}, (el) =>
-          # TODO consider putting elsewhere. HACK
+          # HACK consider putting elsewhere.
+          # When refactoring out, make sure addListener happens recursively.
           debug "Adding JView listener to ##{@id}"
           @addListener $V
+          # HACK end
           el.val @data.text if @data.text?
           el.make_autoresizable()
           el.click (e) -> no # consume event
           el.valueChange {debounce:300}, (e) =>
             # @data.text = el.val() # ??
             # HACK
-            @socket.emit 'input', {id:@id, text:el.val()}
+            $V.socket.emit 'input', {id:@id, text:el.val()}
             #console.log el.val()
 
       when 'editor'
@@ -177,33 +181,31 @@ JObject::extend
           {Editor} = require 'sembly/src/client/editor'
           editor = new Editor el:el, callback: (codeStr) =>
             console.log "sending code", codeStr
-            @socket.emit 'run', codeStr
+            $V.socket.emit 'run', codeStr
             # $('#main').scrollDown()
-
-          ###
-          # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
-          if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
-            $('#screen').append($('<input id="ipadhack" type="text"></input>'))
-            $('#ipadhack').focus().hide()
-          else
-            editor.focus()
-          # ipad hack end
-          $('#input_editor').click -> editor.focus()
-          $(document.body).click -> editor.focus(); no
-          $('#input_submit').click (e) ->
-            editor.submit()
-            no
-          ###
+          el.append submit=$('<button>submit</submit>')
+          submit.click -> editor.submit(); no
+          process.nextTick ->
+            # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
+            if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
+              $('#screen').append($('<input id="ipadhack" type="text"></input>'))
+              $('#ipadhack').focus().hide()
+            else
+              editor.focus()
 
       else # POJO
         #debug "JObject::dom_draw for #{@}"
         items = {}
         $V.newEl id:@id, tag:'div', cls:@domClass, data:{items}, (el) =>
-          # TODO consider putting elsewhere. HACK
+          # HACK consider putting elsewhere.
+          # When refactoring out, make sure addListener happens recursively.
           debug "Adding JView listener to ##{@id}"
           @addListener $V
+          # HACK end
           el.append $V.newEl tag:'span', cls:'debug right', text:''+@id # debug
-          for key, value of @data
+          if @data.__class__ # HACK
+            el.addClass @data.__class__
+          for key, value of @data when key isnt '__class__'
             el.append items[key]=@dom_drawItem $V, key, value
 
   # Draw key/value pairs for a POJO
@@ -234,7 +236,7 @@ JStub::extend
       when 'F'
         $V.newLink id:@id, cls:'link', text:"[closure:##{@id}]", (el) =>
           el.click (e) =>
-            @socket.emit 'invoke', {id:@id}
+            $V.socket.emit 'invoke', {id:@id}
             no
       else
         $V.newLink id:@id, cls:'link', text:"[stub:##{@id}]", (el) =>
@@ -248,26 +250,26 @@ JBoundFunc::extend
         console.log "JBoundFunc hover"
 
 JSingleton::extend
-  newView: ($S) -> new JView root:@, socket:$S
+  newView: (socket) -> new JView root:@, socket:socket
   dom_draw: ($V) ->
     $V.newEl tag:'span', cls:'singleton', text:@name
 
 clazz.extend Function,
-  newView: ($S) -> new JView root:@, socket:$S
+  newView: (socket) -> new JView root:@, socket:socket
   dom_draw: ($V) ->
     $V.newEl tag:'span', cls:'function', text:'[Function]'
 
 clazz.extend String,
-  newView: ($S) -> new JView root:@, socket:$S
+  newView: (socket) -> new JView root:@, socket:socket
   dom_draw: ($V) ->
     $V.newEl tag:'span', cls:'string', text:@
 
 clazz.extend Number,
-  newView: ($S) -> new JView root:@, socket:$S
+  newView: (socket) -> new JView root:@, socket:socket
   dom_draw: ($V) ->
     $V.newEl tag:'span', cls:'number', text:@
 
 clazz.extend Boolean,
-  newView: ($S) -> new JView root:@, socket:$S
+  newView: (socket) -> new JView root:@, socket:socket
   dom_draw: ($V) ->
     $V.newEl tag:'span', cls:'boolean', text:@

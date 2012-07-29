@@ -89,14 +89,18 @@ io.sockets.on 'connection', (socket) ->
       switch path
         when ''
           # Construct a development screen
-          session.screen = screen = new JArray creator:ANON
-          session.perspective = screen.newPerspective(socket)
-          session.scope = scope = WORLD.create ANON, {screen}
+          session.screen = screen = new JArray creator:ANON, data:{__class__:'hideKeys'}
+          session.modules = modules = new JArray creator:ANON
+          session.scope = scope = WORLD.create ANON, {modules}
           session.scope.data.clear = new JBoundFunc creator:ANON, scope:scope, func:"""
-            -> screen.length = 0
+            -> modules.length = 0
           """
-          # Add an editor to the screen
-          screen.data[0] = new JObject creator:ANON, data:{type:'editor'}
+          # Add modules and editor to screen
+          screen.data[0] = modules
+          screen.data[1] = new JObject creator:ANON, data:{type:'editor'}
+          # Finally add perspective on everything.
+          # It doesn't work if you manually add data after newPerspective.
+          session.perspective = screen.newPerspective(socket)
           socket.emit 'screen', screen.__str__()
         else
           # Show the path on the screen.
@@ -123,7 +127,9 @@ io.sockets.on 'connection', (socket) ->
       (data) ->
         output = module.output
         if output is undefined
-          module.output = output = []
+          output = []
+          output.__class__ = 'hideKeys'
+          module.output = output
         output.push data
         return
     """
@@ -131,7 +137,7 @@ io.sockets.on 'connection', (socket) ->
     # Start a new thread. Note the 'yes' code. TODO refactor
     KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
 
-      session.screen.push @, _module
+      session.modules.push @, _module
       
       @enqueue callback: ->
 
