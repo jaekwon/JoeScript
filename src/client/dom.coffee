@@ -13,6 +13,11 @@
         <JView>::on(obj, event) ->
           <JObject>::dom_on($V, el, event)
 
+  Concerns: currently, removed elements are detached so as to preserve data and events.
+    If a removed element had a parent, the element is detached and swapped for a simple
+    link to the element. This imposes a (probably good) limitation on how DOM elements,
+    data, and events are related, by making things as isolated as possible.
+
 ###
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
@@ -79,14 +84,27 @@ JView = @JView = clazz 'JView', ->
 
   # analogous to Document.createElement
   newEl: ({id,tag,cls,attr,text,data,children}={}, setupCb) ->
-    if id? and @els[id]?
-      debug "JView::newEl returning a link for ##{id}"
+
+    # Element already exists?
+    if id? and (existingEl=@els[id])?
       link = @newLink {id}, (el) =>
         el.hover (e) =>
           @els[id].addClass('highlight')
         , (e) =>
           @els[id].removeClass('highlight')
-      return link
+      # Element still exists in the DOM
+      if existingEl.closest('html').length > 0
+        return link
+      # Element is detached from the DOM
+      else
+        # Element has a parent
+        if existingEl.parent().length > 0
+          parent = existingEl.parent()
+          existingEl.after link
+          existingEl.detach()
+          return existingEl
+        return existingEl
+      
     debug "JView::newEl creating new el for ##{id}"
     tag ?= 'div'
     el = $ document.createElement tag
@@ -98,6 +116,7 @@ JView = @JView = clazz 'JView', ->
       delete data.id
       for key, value of data
         el.data key, value
+    el.attr 'id', id
     el.attr attr if attr?
     el.addClass cls if cls?
     el.text text if text?
@@ -140,7 +159,8 @@ JObject::extend
           itemEl = @dom_drawItem $V, key, value
           if existingEl=items[key]
             #debug "JObject::dom_on found existing item el for #{key}"
-            existingEl.replaceWith itemEl
+            existingEl.after itemEl
+            exsitingEl.detach()
           else
             #debug "JObject::dom_on appending new item el for #{key}"
             el.append itemEl
@@ -150,7 +170,7 @@ JObject::extend
           # TODO cannot just removeListener here.
           # value.removeListener $V
           if existingEl=items[key]
-            existingEl.remove()
+            existingEl.detach()
             delete items[key]
             # TODO re-attach to a link, if one exists. (tree grafting)
         else
@@ -220,10 +240,11 @@ JArray::extend
   dom_on: ($V, el, event) ->
     if event.type is 'set' and event.key is 'length'
       # hack to remove DOM items when array is truncated
-      newLength = value
+      newLength = event.value
+      items = el.data('items')
       for itemKey, itemEl of items
         if itemKey >= newLength
-          itemEl.remove()
+          itemEl.detach()
           delete items[itemKey]
       # no need to display the length
       return

@@ -1,7 +1,14 @@
-## just run a for-loop and watch threads compete for ticks.
+## Just run a for-loop and watch threads compete for ticks.
 
 a = 1
 loop
   if a % 1000 is 0
     output[0] = a
   a += 1
+
+## Simple inbox for messages.
+
+@jae.send = (msg) ->
+  @messages ||= []
+  @messages.push msg
+  'message sent'
