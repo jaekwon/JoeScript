@@ -107,6 +107,7 @@ io.sockets.on 'connection', (socket) ->
           # NOTE keep user as ANON, arbitrary code execution happens here.
           KERNEL.run user:ANON, code:path, scope:WORLD, callback: ->
             session.screen = screen = @last ? JUndefined
+            session.perspective = screen.newPerspective?(socket)
             socket.emit 'screen', screen.__str__()
 
   # Run code
@@ -122,6 +123,7 @@ io.sockets.on 'connection', (socket) ->
     _module = new JObject creator:ANON, data:{code:codeStr, status:'running'}
     # TODO make the 'code' property of output immutable.
     # Create the lexical scope.
+    session.scope ?= WORLD.create ANON # HACK
     _moduleScope = session.scope.create ANON, {module:_module}
     _moduleScope.data.print = new JBoundFunc creator:ANON, scope:_moduleScope, func:"""
       (data) ->
@@ -137,7 +139,7 @@ io.sockets.on 'connection', (socket) ->
     # Start a new thread. Note the 'yes' code. TODO refactor
     KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
 
-      session.modules.push @, _module
+      session.modules?.push? @, _module
       
       @enqueue callback: ->
 
