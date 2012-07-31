@@ -1,4 +1,5 @@
 log = trace = no
+perf = no
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -11,7 +12,7 @@ assert = require 'assert'
   HELPERS: {extend, isVariable}
 } = require('sembly/src/joescript')
 
-{@NODES, @HELPERS} = {NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{@NODES, @HELPERS} = {NODES:{JStub, JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
 
 # installs instructions to joescript prototypes
 require 'sembly/src/interpreter/instructions'
@@ -34,6 +35,9 @@ JStackItem = @JStackItem = clazz 'JStackItem', ->
     declaringFunc = declaringFunc.parent while declaringFunc? and declaringFunc not instanceof joe.Func
     @declaringFunc = declaringFunc
   toString: -> "'#{@node?.toJavascript?()}' (source:#{@declaringFunc}, line:#{@node._origin?.start.line}, col:#{@node._origin?.start.col})"
+
+
+_i9nPerf = {}
 
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process
@@ -63,42 +67,30 @@ JThread = @JThread = clazz 'JThread', ->
       @state = if @error then 'error' else 'return'
       return
     {func, this:that} = i9n = @i9ns[@i9ns.length-1]
+    i9nKey = "#{that.constructor.name}.#{func._name}" if perf
     info blue "             -- runStep --" if trace
     @printScope @scope if trace
     @printStack() if trace
     throw new Error "Last i9n.func undefined!" if not func?
+    before = new Date() if perf
     result = func.call that ? i9n, this, i9n, @last
+    if perf
+      after = new Date()
+      _i9nPerf[i9nKey] ?= total:0, count:0
+      _i9nPerf[i9nKey].total += (after-before)
+      _i9nPerf[i9nKey].count += 1
+      _i9nPerf.counter ?= 0
+      if _i9nPerf.counter++ % 1000000 is 0
+        console.log perf:_i9nPerf
     @last = result
     
     switch @state
       when null
         info "             #{blue 'last ->'} #{@last}" if trace
-        return # @state=null
-      when 'error'
-        info "             #{red 'throw ->'} #{@last}" if trace
-        loop # unwind loop
-          dontcare = @pop()
-          i9n = @peek()
-          if not i9n?
-            return # @state='error'
-          else if i9n.this instanceof joe.Try and not i9n.isHandlingError
-            i9n.isHandlingError = true
-            i9n.func = joe.Try::interpretCatch
-            @last = @error
-            return @state=null
       when 'return'
         info "             #{yellow 'return ->'} #{@last}" if trace
-        loop # unwind loop
-          dontcare = @pop()
-          i9n = @peek()
-          if not i9n?
-            return # @state='return'
-          else if i9n.this instanceof joe.Invocation
-            assert.ok i9n.func is joe.Invocation::interpretFinal, "Unexpected i9n.func #{i9n.func?._name or i9n.func?._name}"
-            return @state=null
       when 'wait'
         info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace
-        return # @state='wait'
       else
         throw new Error "Unexpected state #{@state}"
 
@@ -128,24 +120,47 @@ JThread = @JThread = clazz 'JThread', ->
 
   ###
 
+  # NOTE: Throw may actually throw a native exception.
   throw: (name, message) ->
     @error = name:name, message:message, stack:@callStack()
+    # An error can be thrown during a wait, such as
+    # due to an IO error
     if @state is 'wait'
       while waitKey=@waitKeys.pop()
         (waitList=@kernel.waitLists[waitKey]).remove @
         delete @kernel.waitLists[waitKey] if waitList.length is 0
       @state = 'error'
-      return undefined
     else
       assert.ok @waitKeys.length is 0, "During a throw, #{@} @state!='wait' had waitKeys #{@waitKeys}"
       @state = 'error'
-      return undefined
+    # unwind the stack as necessary
+    loop
+      dontcare = @pop()
+      i9n = @peek()
+      if not i9n?
+        @last = JUndefined
+        throw 'error' # TODO
+      else if i9n.this instanceof joe.Try and not i9n.isHandlingError
+        i9n.isHandlingError = true
+        i9n.func = joe.Try::interpretCatch
+        @last = @error
+        @state=null
+        throw 'caught' # TODO
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"
     debug "#{@}.return result = #{result}" if log
     @state = 'return'
-    return result # return the result of this to set @last.
+    # unwind the stack as necessary
+    loop
+      dontcare = @pop()
+      i9n = @peek()
+      if not i9n?
+        return result
+      else if i9n.this instanceof joe.Invocation
+        assert.ok i9n.func is joe.Invocation::interpretFinal, "Unexpected i9n.func #{i9n.func?._name or i9n.func?._name}"
+        @state = null
+        return result
 
   wait: (waitKey) ->
     debug "#{@}.wait waitKey = #{waitKey}" if log
@@ -224,11 +239,11 @@ JThread = @JThread = clazz 'JThread', ->
 
   printScope: (scope, lvl=0) ->
     if scope instanceof JStub
-      info "#{black pad left:13, lvl}#{red scope.__str__()}"
+      info "#{black pad left:13, lvl}#{red scope}"
       return
     for key, value of scope.data when key isnt '__proto__'
       try
-        valueStr = value.__str__(@)
+        valueStr = ''+value
       catch error
         valueStr = "<ERROR IN __STR__: #{error}>"
       info "#{black pad left:13, lvl}#{red key}#{ blue ':'} #{valueStr}"
@@ -274,7 +289,7 @@ JThread = @JThread = clazz 'JThread', ->
   # CONTRACT: Caller shouldn't have to worry about catching errors from run. See @errorCallback
   run: ({user, code, scope, callback}) ->
     assert.ok user?, "User must be provided."
-    assert.ok user instanceof JUser, "User not instanceof JUser, got #{user?.constructor.name}"
+    assert.ok user instanceof JObject, "User not instanceof JObject, got #{user?.constructor.name}"
     try
       node = _parseCode code
       thread = new JThread
@@ -300,7 +315,7 @@ JThread = @JThread = clazz 'JThread', ->
     try
       # This reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
-      for i in [0..20]
+      for i in [0..100]
         @ticker++
         info "tick #{@ticker}. #{thread} (of #{@runloop.length})" if log
         thread.runStep()
@@ -318,19 +333,36 @@ JThread = @JThread = clazz 'JThread', ->
             # thread.queue.length > 0 and thread.state != 'wait'
             assert.ok thread.state in ['return', 'error'], "Unexpected thread state #{thread.state}"
             thread.start thread.queue.shift()
-      @index = (@index + 1) % @runloop.length
-      process.nextTick @runRunloop
     catch error
-      fatal "Native error thrown in runStep. Stopping execution, setting error. stack:\n" + (error.stack ? error)
-      if thread?
-        thread.throw 'InternalError', "#{error.name}:#{error.message}"
-        @runloop[@index..@index] = [] # splice out
-        @index = @index % @runloop.length or 0
-        process.nextTick @runRunloop if @runloop.length > 0
-        thread.exit()
-      else
-        @errorCallback(error)
-      return
+      # Hook to handle native errors, which are unexpected.
+      if error not in ['error', 'caught']
+        nativeError = error
+        fatal "Native error thrown in runStep. thread.throw'ing:\n" + (error.stack ? error)
+        try
+          thread.throw 'InternalError', "#{error.name}:#{error.message}"
+        catch error
+          'pass'
+      # Switch on what thread.throw returned.
+      switch error
+        # Userland error
+        when 'error'
+          @runloop[@index..@index] = [] # splice out
+          @index = @index % @runloop.length or 0
+          process.nextTick @runRunloop if @runloop.length > 0
+          thread.exit()
+          return
+        # Error thrown but caught in userland.
+        when 'caught'
+          'pass'
+        # Unexpected native errors
+        else
+          fatal "Unexpected error #{error}, should be 'error' or 'caught'"
+          @errorCallback(error)
+          return
+
+    # Schedule another runloop call
+    @index = (@index + 1) % @runloop.length
+    process.nextTick @runRunloop
 
   resumeThreads: (waitKey) ->
     assert.ok waitKey?, "JKernel::resumeThreads wants waitKey"

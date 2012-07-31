@@ -22,6 +22,7 @@ assert = require 'assert'
   HELPERS: {extend, isVariable}
 } = require('sembly/src/joescript')
 
-{@NODES, @HELPERS} = {NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{@NODES, @HELPERS} = {NODES:{JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{@INSTR} = require 'sembly/src/interpreter/instructions'
 {@JKernel, @JThread, @JStackItem} = require 'sembly/src/interpreter/kernel'
 @GLOBALS = require 'sembly/src/interpreter/global'

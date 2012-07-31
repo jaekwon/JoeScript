@@ -7,7 +7,7 @@ async = require 'async'
 {pad, escape, starts, ends} = require 'sembly/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{JObject, JArray, JUser, JUndefined, JNull, JNaN, JStub, JBoundFunc} = require 'sembly/src/interpreter/object'
+{JObject, JArray, JUndefined, JNull, JNaN, JStub, JBoundFunc} = require 'sembly/src/interpreter/object'
 
 # Caches.
 # TODO weak references
@@ -20,8 +20,8 @@ else
   {JPersistence} = p = require 'sembly/src/interpreter/persistence'
   PERSISTENCE = new JPersistence()
 
-GOD     = @GOD   = CACHE['god']   = new JUser   id:'god',   name:'God'
-ANON    = @ANON  = CACHE['anon']  = new JUser   id:'anon',  name:'Anonymous'
+GOD     = @GOD   = CACHE['god']   = new JObject id:'god',   creator:null, data:name:'God'
+ANON    = @ANON  = CACHE['anon']  = new JObject id:'anon',  creator:GOD, data:name:'Anonymous'
 if require.main is module
   USERS = @USERS = CACHE['users'] = new JObject id:'users', creator:GOD, data:
     god:    GOD

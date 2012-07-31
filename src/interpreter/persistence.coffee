@@ -5,7 +5,7 @@ async = require 'async'
 {randid, pad, escape, starts, ends} = require 'sembly/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{NODES:{JStub, JObject, JArray, JUser, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{NODES:{JStub, JObject, JArray, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
 {JKernel, JThread, JStackItem} = require 'sembly/src/interpreter/kernel'
 
 trace = yes
@@ -31,7 +31,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # Handles adding objects recursively.
   # Returns yes if obj is newly being listened on.
   listenOn: (obj, options) ->
-    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj.__str__()}. Listeners" if trace
+    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj}. Listeners" if trace
     if obj.addListener @
       return yes unless options?.recursive
       # Recursively add children
@@ -61,7 +61,6 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
       switch meta.type
         when 'JObject'    then obj = kernel.cache[id] = new JObject {id,creator}
         when 'JArray'     then obj = kernel.cache[id] = new JArray  {id,creator}
-        when 'JUser'      then obj = kernel.cache[id] = new JUser   {id,creator,name}
         when 'JBoundFunc' then obj = kernel.cache[id] = new JBoundFunc {id,creator,func:null,scope:JNull} # func/scope will get loaded below
         else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
       obj.addListener $P

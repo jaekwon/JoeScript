@@ -27,7 +27,7 @@ assert = require 'assert'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {
-  NODES:{JObject, JArray, JUser, JSingleton, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  NODES:{JObject, JArray, JSingleton, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{CACHE,KERNEL}
   HELPERS:{isInteger,isObject}
 } = require 'sembly/src/interpreter'

@@ -63,7 +63,7 @@ app.listen argv.p ? 8080
 # App dependencies
 {NODES:joe} = require 'sembly/src/joescript'
 {
-  JKernel, JThread
+  JKernel, JThread, INSTR
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{CACHE, GOD, WORLD, ANON, KERNEL}
   HELPERS:{isInteger,isObject,setLast}
@@ -100,15 +100,16 @@ io.sockets.on 'connection', (socket) ->
           screen.data[1] = new JObject creator:ANON, data:{type:'editor'}
           # Finally add perspective on everything.
           # It doesn't work if you manually add data after newPerspective.
-          session.perspective = screen.newPerspective(socket)
-          socket.emit 'screen', screen.__str__()
+          KERNEL.run user:ANON, code:'yes', scope:WORLD, callback: ->
+            session.perspective = screen.newPerspective(socket)
+            socket.emit 'screen', INSTR.__str__ @, screen
         else
           # Show the path on the screen.
           # NOTE keep user as ANON, arbitrary code execution happens here.
           KERNEL.run user:ANON, code:path, scope:WORLD, callback: ->
             session.screen = screen = @last ? JUndefined
             session.perspective = screen.newPerspective?(socket)
-            socket.emit 'screen', screen.__str__()
+            socket.emit 'screen', INSTR.__str__ @, screen
 
   # Run code
   socket.on 'run', (codeStr) -> socket.get 'session', (err, session) ->
@@ -153,24 +154,24 @@ io.sockets.on 'connection', (socket) ->
         catch err
           # TODO better error message for syntax issues
           @enqueue callback: ->
-            _module.__del__ @, 'status'
+            INSTR.__del__ @, _module, 'status'
             # _module.__set__ @, 'result', JUndefined
-            _module.__set__ @, 'error', "#{err.stack ? err}"
+            INSTR.__set__ @, _module, 'error', "#{err.stack ? err}"
             # @cleanup()
           return
 
         @enqueue code:node, callback: ->
           switch @state
             when 'return'
-              _module.__del__ @, 'status'
-              _module.__set__ @, 'result', @last
-              info "return: #{@last.__str__(@)}"
+              INSTR.__del__ @, _module, 'status'
+              INSTR.__set__ @, _module, 'result', @last
+              info "return: #{INSTR.__str__ @, @last}"
               # view = @last.newView()
             when 'error'
               @printErrorStack()
-              _module.__del__ @, 'status'
+              INSTR.__del__ @, _module, 'status'
               # _module.__set__ @, 'result', JUndefined
-              _module.__set__ @, 'error', @errorStack()
+              INSTR.__set__ @, _module, 'error', @errorStack()
             else
               throw new Error "Unexpected state #{@state} during kernel callback"
           # @cleanup()

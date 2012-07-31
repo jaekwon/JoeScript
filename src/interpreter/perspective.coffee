@@ -4,7 +4,8 @@ assert = require 'assert'
 {randid, pad, htmlEscape, escape, starts, ends} = require 'sembly/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{NODES:{JStub, JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{NODES:{JStub, JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
+{INSTR} = require 'sembly/src/interpreter/instructions'
 #{JKernel, JThread, JStackItem} = require 'sembly/src/interpreter/kernel'
 
 # A JObject listener
@@ -31,7 +32,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
         if key in ['type', 'key', 'sourceId']
           eventJSON[key] = value
         else
-          eventJSON[key] = value.__str__()
+          eventJSON[key] = INSTR.__str__ null, value # TODO null thread?
       event.eventJSON = eventJSON
     # Send event to client via socket.
     @socket.emit 'event', event.eventJSON
@@ -41,7 +42,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
   # Call to add a new object into the perspective.
   # Handles adding objects recursively.
   listenOn: (obj) ->
-    debug "JPerspective::listenOn with obj: ##{obj.id}: #{obj.__str__()}"
+    debug "JPerspective::listenOn with obj: ##{obj.id}: #{INSTR.__str__ null, obj}"
     if obj.addListener @
       # recursivey add children
       for child in obj.perspective_getChildren()

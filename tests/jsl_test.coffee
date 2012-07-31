@@ -5,7 +5,7 @@ require './setup'
 {equal, deepEqual, ok} = require 'assert'
 {
   JThread, JKernel,
-  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  NODES:{JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{GOD,ANON,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'sembly/src/interpreter'

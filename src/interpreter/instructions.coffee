@@ -4,6 +4,46 @@ Conventions
   - Do not access thread.last directly, instead use the third argument of the instruction function.
   -> I'm not sure that saving @last will always happen...
 
+The INSTR object holds all the __xyz__ methods to be called in a JThread context.
+NOTE: The thread context for __str__ is optional??
+Some methods like __get__ can pause the thread. The value is available in @last when
+the thread is resumed. This means the bitcode instruction wants to return obj.__get__(...),
+which preserves the behavior of returning a value. However, these methods will return null
+when pausing the thread, so you could alternatively check for that.
+
+  if value=obj.__get__($, key) is null
+    # do something else
+  else i9n.value = value
+  # continue bitcode instruction
+
+Sometimes it is necessary to perform actions after a method call, though the
+instruction doesn't depend on the result of these actions. In this case the JObject::emit
+mechanism is suitable. Just add a handler to the object via JObject::addHandler and listen.
+TODO mechanism to remove a listener...
+
+TODO document instructions
+  __get__:
+  __set__:
+  __del__:
+  __update__:
+  __create__:
+  __hasOwn__:
+  __keys__:
+  __iter__:
+  __num__:
+  __bool__:
+  __key__:  Convert an object to a key string.
+  __str__:  Returns a compact serialized value suitable for wire transfer.
+  __add__:
+  __sub__:
+  __mul__:
+  __div__:
+  __mod__:
+  __or__:
+  __and__:
+  __eq__:
+  __cmp__:
+
 ###
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
@@ -18,7 +58,7 @@ assert = require 'assert'
   HELPERS:{isWord,isVariable}
 } = require 'sembly/src/joescript'
 {
-  NODES: {JStub, JObject, JArray, JUser, JSingleton, JNull, JUndefined, JNaN, JBoundFunc}
+  NODES: {JStub, JObject, JArray, JSingleton, JNull, JUndefined, JNaN, JBoundFunc, SimpleIterator}
   HELPERS: {isInteger, isObject}
 } = require 'sembly/src/interpreter/object'
 
@@ -46,19 +86,13 @@ joe.Node::extend
 joe.Word::extend
   interpret: ($) ->
     $.pop()
-    return $.scope.__get__ $, @, yes
-  __key__: ($) -> @key
-
-joe.Undetermined::extend
-  __key__: ($) ->
-    assert.ok @word?, "Undetermined not yet determined!"
-    return @word.key
+    return INSTR.__get__ $, $.scope, @, yes
 
 joe.Block::extend
   interpret: ($) ->
     $.pop()
     # lucky us these can just be synchronous
-    $.scope.__set__ $, variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
+    INSTR.__set__ $, $.scope, variable, JUndefined for variable in @ownScope.nonparameterVariables if @ownScope?
     if (length=@lines.length) > 1
       $.push this:@, func:joe.Block::interpretLoop, length:length, idx:0
     $.pushValue @lines[0]
@@ -78,7 +112,7 @@ joe.If::extend
     return
   interpret2: ($, i9n, cond) ->
     $.pop()
-    if cond.__isTrue__?() or cond
+    if INSTR.__bool__ $, cond
       $.pushValue @block
     else if @else
       $.pushValue @else
@@ -103,9 +137,9 @@ joe.Assign::extend
   interpret2: ($, i9n, value) ->
     $.pop()
     if isVariable @target
-      $.scope.__update__ $, @target, value
+      INSTR.__update__ $, $.scope, @target, value
     else if @target instanceof joe.Index
-      i9n.targetObj.__set__($, i9n.key, value)
+      INSTR.__set__ $, i9n.targetObj, i9n.key, value
     else
       throw new Error "Dunno how to assign to #{@target} (#{@target.constructor.name})"
     return value
@@ -126,7 +160,7 @@ joe.Obj::extend
   interpretKV: ($, i9n) ->
     # store prior item
     if 0 < i9n.idx
-      i9n.obj.__set__($, i9n.key, i9n.value)
+      INSTR.__set__ $, i9n.obj, i9n.key, i9n.value
     # push next item evaluation
     if i9n.idx < i9n.length
       {key, value} = @items[i9n.idx]
@@ -162,7 +196,7 @@ joe.Arr::extend
   interpretKV: ($, i9n, value) ->
     # store prior item
     if 0 < i9n.idx
-      i9n.arr.__set__($, i9n.idx-1, value)
+      INSTR.__set__ $, i9n.arr, i9n.idx-1, value
     # push next item evaluation
     if i9n.idx < i9n.length
       value = @items[i9n.idx].value
@@ -201,29 +235,29 @@ joe.Operation::extend
       if @right?
         right = i9n.right
         switch @op
-          when '+'  then return left.__add__ $, right
-          when '-'  then return left.__sub__ $, right
-          when '*'  then return left.__mul__ $, right
-          when '/'  then return left.__div__ $, right
-          when '%'  then return left.__mod__ $, right
-          when '<'  then return left.__cmp__($, right) < 0
-          when '>'  then return left.__cmp__($, right) > 0
-          when '<=' then return left.__cmp__($, right) <= 0
-          when '>=' then return left.__cmp__($, right) >= 0
-          when '==','is' then return left.__eq__($, right)
-          when '!=','isnt' then return not left.__eq__($, right)
-          when '||','or' then return left.__or__($, right)
-          when '&&','and' then return left.__and__($, right)
+          when '+'  then return INSTR.__add__ $, left, right
+          when '-'  then return INSTR.__sub__ $, left, right
+          when '*'  then return INSTR.__mul__ $, left, right
+          when '/'  then return INSTR.__div__ $, left, right
+          when '%'  then return INSTR.__mod__ $, left, right
+          when '<'  then return INSTR.__cmp__($, left, right) < 0
+          when '>'  then return INSTR.__cmp__($, left, right) > 0
+          when '<=' then return INSTR.__cmp__($, left, right) <= 0
+          when '>=' then return INSTR.__cmp__($, left, right) >= 0
+          when '==','is' then return INSTR.__eq__($, left, right)
+          when '!=','isnt' then return not INSTR.__eq__($, left, right)
+          when '||','or' then return INSTR.__or__($, left, right)
+          when '&&','and' then return INSTR.__and__($, left, right)
           else throw new Error "Unexpected operation #{@op}"
       else # left++, left--...
         switch @op
-          when '++' then value = left.__add__ $, 1
-          when '--' then value = left.__sub__ $, 1
+          when '++' then value = INSTR.__add__ $, left, 1
+          when '--' then value = INSTR.__sub__ $, left, 1
           else throw new Error "Unexpected operation #{@op}"
         if isVariable @left
-          $.scope.__update__ $, @left, value
+          INSTR.__update__ $, $.scope, @left, value
         else if @left instanceof joe.Index
-          i9n.targetObj.__set__ $, i9n.key, value
+          INSTR.__set__ $, i9n.targetObj, i9n.key, value
         else
           throw new Error "Dunno how to operate with #{left} (#{left.constructor.name})"
         return value
@@ -251,11 +285,11 @@ joe.Index::extend
       when '.'
         assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
         $.pop()
-        return obj.__get__ $, @key
+        return INSTR.__get__ $, obj, @key
       when '!'
         assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
         $.pop()
-        return obj.__del__ $, @key
+        return INSTR.__del__ $, obj, @key
       when '?'
         return $.throw 'InternalError', "Meta not yet supported"
       when '[', '!['
@@ -269,10 +303,10 @@ joe.Index::extend
     switch @type
       when '['
         $.pop()
-        return i9n.obj.__get__ $, key
+        return INSTR.__get__ $, i9n.obj, key
       when '!['
         $.pop()
-        return i9n.obj.__del__ $, key
+        return INSTR.__del__ $, i9n.obj, key
       else throw new Error "Unexpected index type #{@type}"
 
 joe.Func::extend
@@ -299,7 +333,7 @@ joe.Invocation::extend
     if bfunc instanceof JBoundFunc and bfunc.scope instanceof JStub
       # dereference if bfunc.scope is JStub
       $.push this:bfunc, func:storeLast, key:'data', index:'scope'
-      return bfunc.__get__ $, 'scope', yes
+      return INSTR.__get__ $, bfunc, 'scope', yes
     return
   interpretParams: ($, i9n) ->
     # interpret the parameters
@@ -323,7 +357,7 @@ joe.Invocation::extend
         #   This is bad:
         #   $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
         else
-          $.scope = scope.__create__ $, {this:i9n.source}
+          $.scope = INSTR.__create__ $, scope, {this:i9n.source}
       else
         if scope is JNull
           $.scope = $.new JObject creator:$.user
@@ -331,14 +365,14 @@ joe.Invocation::extend
         #   This is bad:
         #   $.scope = oldScope.__create__ $
         else if scope?
-          $.scope = scope.__create__ $ # this isnt bound to global
+          $.scope = INSTR.__create__ $, scope # this isnt bound to global
       if params?
         # Though params is an AssignList,
         assert.ok params instanceof joe.AssignList
         # ... we'll manually bind values to param names.
         for {target:argName}, i in params.items
           assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
-          $.scope.__set__ $, argName, (paramValues[i] ? JUndefined)
+          INSTR.__set__ $, $.scope, argName, (paramValues[i] ? JUndefined)
       if block?
         $.push this:block, func:block.interpret
       else
@@ -389,7 +423,7 @@ joe.JSForC::extend
       $.push this:@setup, func:@setup.interpret
     return
   interpretConditionalLoop: ($, i9n, cond) ->
-    if cond.__bool__()
+    if INSTR.__bool__ $, cond
       $.pushValue @cond
       $.push this:@counter, func:@counter.interpret
       $.push this:@block,   func:@block.interpret
@@ -448,3 +482,269 @@ clazz.extend Boolean,
   interpret: ($) ->
     $.pop()
     return @valueOf()
+
+_typeof = (obj) ->
+  type = typeof obj
+  return type if type isnt 'object'
+  if obj instanceof JSingleton
+    return obj.name
+  else if obj instanceof JStub
+    return 'stub'
+  else
+    return 'object'
+
+INSTR = @INSTR =
+  # asynchronous
+  __get__: ($, obj, key, required=no) ->
+    switch _typeof obj
+      when 'object'
+        key = INSTR.__key__ $, key
+        $.will('read', obj)
+        if key is '__proto__'
+          value = obj.proto
+        else
+          value = obj.data[key]
+        # debug "#{obj}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
+        if value?
+          if value instanceof JStub
+            return cached if cached=$.kernel.cache[value.id]
+            assert.ok value.persistence?, "JObject::__get__ wants <JStub>.persistence"
+            $.wait waitKey="load:#{value.id}"
+            # Make a call to aynchronously fetch value
+            value.persistence.loadJObject $.kernel, value.id, (err, obj) ->
+              return $.throw 'InternalError', "Failed to load stub ##{value.id}:\n#{err.stack ? err}" if err?
+              return $.throw 'ReferenceError', "#{key} is a broken stub." if required and not obj?
+              # Replace stub with value in @data[key] (or @proto)
+              if key is '__proto__'
+                obj.proto = obj
+              else
+                obj.data[key] = obj
+              $.last = obj
+              $.resume waitKey
+            return null # null means waiting
+          else
+            return value
+        else if obj.proto?
+          if obj.proto instanceof JStub
+            $.push func:($, i9n, proto) ->
+              $.pop()
+              INSTR.__get__ $, proto, key, required
+            return INSTR.__get__ $, obj, '__proto__'
+          else
+            return INSTR.__get__ $, obj.proto, key, required
+        else
+          if (bridgedKey=obj.bridgedKeys?[key])?
+            return obj[bridgedKey]
+          return $.throw 'ReferenceError', "#{key} is not defined" if required
+          return JUndefined
+      # when 'string'
+      #   return JUndefined
+      else
+        $.throw 'TypeError', "__get__ not define for #{_typeof obj}"
+
+  # synchronous:
+  __set__: ($, obj, key, value) ->
+    switch _typeof obj
+      when 'object'
+        key = INSTR.__key__ $, key
+        $.will('write', obj)
+        if key is '__proto__'
+          obj.proto = value
+          obj.emit {thread:$,type:'set',key,value}
+        else
+          obj.data[key] = value
+          obj.emit {thread:$,type:'set',key,value}
+        return
+      # when 'string'
+      #   return JUndefined
+      else $.throw 'TypeError', "__set__ not defined for #{_typeof obj}"
+
+  __del__: ($, obj, key) ->
+    switch _typeof obj
+      when 'object'
+        key = INSTR.__key__ $, key
+        $.will('write', obj)
+        if key is '__proto__'
+          delete obj.proto
+          obj.emit {thread:$,type:'delete',key}
+        else
+          delete obj.data[key]
+          obj.emit {thread:$,type:'delete',key}
+        return yes # TODO reconsider?
+      # when 'string'
+      #   return JUndefined
+      else $.throw 'TypeError', "__del__ not defined for #{_typeof obj}"
+
+  # an __update__ only happens for scope objects.
+  __update__: ($, obj, key, value) ->
+    switch _typeof obj
+      when 'object'
+        key = INSTR.__key__ $, key
+        $.will('write', obj)
+        if key is '__proto__'
+          obj.proto = value
+          obj.emit {thread:$,type:'set',key,value}
+          return
+        else if obj.data[key]?
+          obj.data[key] = value
+          obj.emit {thread:$,type:'set',key,value}
+          return
+        else if obj.proto?
+          if obj.proto instanceof JStub
+            $.push func:($, i9n, proto) ->
+              $.pop()
+              INSTR.__update__ $, proto, key, value
+            return INSTR.__get__ $, obj, '__proto__'
+          else
+            return INSTR.__update__ $, obj.proto, key, value
+        else
+          $.throw 'ReferenceError', "#{key} is not defined, cannot update."
+      else $.throw 'TypeError', "__update__ not defined for #{_typeof obj}"
+
+  __create__: ($, obj, newData) ->
+    switch _typeof obj
+      when 'object'
+        new JObject creator:$.user, data:newData, proto:obj
+      else $.throw 'TypeError', "__create__ not defined for #{_typeof obj}"
+
+  __hasOwn__: ($, obj, key) ->
+    switch _typeof obj
+      when 'object'
+        $.will('read', obj)
+        return obj.data[key]?
+      else $.throw 'TypeError', "__hasOwn__ not defined for #{_typeof obj}"
+
+  __keys__: ($, obj) ->
+    switch _typeof obj
+      when 'object'
+        $.will('read', obj)
+        return Object.keys obj.data
+      else $.throw 'TypeError', "__keys__ not defined for #{_typeof obj}"
+
+  __iter__: ($, obj) ->
+    switch _typeof obj
+      when 'object'
+        $.will('read', obj)
+        return new SimpleIterator Object.keys obj.data
+      when 'string'
+        return new SimpleIterator obj
+      else $.throw 'TypeError', "__iter__ not defined for #{_typeof obj}"
+
+  __num__: ($, obj) ->
+    switch _typeof obj
+      when 'number' then return obj
+      when 'boolean'
+        if obj then return 1 else return 0
+      else return JNaN
+
+  __bool__: ($, obj) ->
+    switch _typeof obj
+      when 'object' then yes
+      when 'number' then obj isnt 0
+      when 'string' then obj.length > 0
+      when 'boolean' then obj
+      when 'function' then yes
+      else no
+
+  __key__: ($, obj) ->
+    switch _typeof obj
+      when 'string', 'number' then obj
+      when 'object'
+        if obj instanceof joe.Word then return obj.key
+        if obj instanceof joe.Undetermined
+          assert.ok obj.word?, "Undetermined not yet determined!"
+          return obj.word.key
+        $.throw 'TypeError', "__key__ not defined for #{obj?.constructor?.name}"
+      else $.throw 'TypeError', "__key__ not defined for #{_typeof obj}"
+
+  __str__: ($, obj, $$={}) ->
+    switch _typeof obj
+      when 'stub' then return "<##{obj.id}>"
+      when 'object'
+        return "<##{obj.id}>" if $$[obj.id]
+        $$[obj.id] = yes
+        if obj instanceof JArray
+          dataPart = ("#{INSTR.__str__ $, if isInteger(key) then Number(key) else key}:#{INSTR.__str__ $, value, $$}" for key, value of obj.data).join(',')
+          typeCode = 'A'
+        else if obj instanceof JBoundFunc
+          return "<F|##{obj.id}>"
+        else
+          dataPart = ("#{INSTR.__str__ $, key}:#{INSTR.__str__ $, value, $$}" for key, value of obj.data).join(',')
+          typeCode = 'O'
+        return "{#{typeCode}|##{obj.id}@#{obj.creator.id} #{dataPart}}"
+      when 'function' then "<F|##{obj.id}>"
+      when 'string' then "\"#{escape obj}\""
+      when 'number','boolean' then ''+obj
+      when 'function' then "[NativeFunction ##{obj.id}]"
+      when 'undefined' then 'undefined'
+      when 'null' then 'null'
+      else $.throw 'TypeError', "__str__ not defined for #{_typeof obj}"
+
+  __add__: ($, left, right) ->
+    switch _typeof left
+      when 'string'
+        switch _typeof right
+          when 'string' then return left + right
+          else               return left + INSTR.__str__ $, right
+      when 'number'
+        switch _typeof right
+          when 'number' then return left + right
+          else               return left + INSTR.__num__ $, right
+      else return JNaN
+
+  __sub__: ($, left, right) ->
+    switch _typeof left
+      when 'number'
+        switch _typeof right
+          when 'number' then return left - right
+          else               return left - INSTR.__num__ $, right
+      else return JNaN
+
+  __mul__: ($, left, right) ->
+    switch _typeof left
+      when 'number'
+        switch _typeof right
+          when 'number' then return left * right
+          else               return left * INSTR.__num__ $, right
+      else return JNaN
+
+  __div__: ($, left, right) ->
+    switch _typeof left
+      when 'number'
+        switch _typeof right
+          when 'number' then return left / right
+          else               return left / INSTR.__num__ $, right
+      else return JNaN
+
+  __mod__: ($, left, right) ->
+    switch _typeof left
+      when 'number'
+        switch _typeof right
+          when 'number' then return left % right
+          else               return left % INSTR.__num__ $, right
+      else return JNaN
+    
+  __or__: ($, left, right) ->
+    if INSTR.__bool__($, left)
+      return left
+    else
+      return right
+
+  __and__: ($, left, right) ->
+    if INSTR.__bool__($, left)
+      return right
+    else
+      return left
+
+  __eq__: ($, left, right) ->
+    type = _typeof left
+    return no if type isnt _typeof right
+    return left is right
+
+  __cmp__: ($, left, right) ->
+    switch _typeof left
+      when 'number'
+        switch _typeof right
+          when 'number' then return left - right
+          else               return left - INSTR.__num__ $, right
+      else $.throw 'TypeError', "__cmp__ not defined for #{_typeof left}"

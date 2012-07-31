@@ -6,7 +6,7 @@ require './setup'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
 {
-  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  NODES:{JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:{GOD,ANON,WORLD,KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'sembly/src/interpreter'

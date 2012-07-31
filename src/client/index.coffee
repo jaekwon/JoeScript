@@ -33,7 +33,7 @@ $(document).ready ->
   {randid} = require 'sembly/lib/helpers'
   {toHTML} = require 'sembly/src/parsers/ansi'
   {
-    NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+    NODES:{JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc, JStub}
     HELPERS:{isInteger,isObject}
     GLOBALS:{KERNEL, CACHE}
   } = require 'sembly/src/interpreter'

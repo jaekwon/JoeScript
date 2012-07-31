@@ -2,7 +2,7 @@
 # Joeson is the parser, so this is called something else. JSL, why not?
 {Grammar} = require 'sembly/src/joeson'
 {
-  NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
+  NODES:{JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc, JStub}
   GLOBALS:GLOBALS
   HELPERS:{isInteger,isObject}
 } = require 'sembly/src/interpreter'
@@ -30,7 +30,6 @@ JSL = Grammar ({o, i, tokens}) -> [
                       switch type
                         when 'O' then obj = new JObject {id,creator}
                         when 'A' then obj = new JArray  {id,creator}
-                        when 'U' then obj = new JUser   {id}
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
                       obj.data[key] = value for {key, value} in items
                       $.env.cache?[id] = obj if id?

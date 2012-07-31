@@ -41,7 +41,7 @@ foo = ->
   a = 0
   loop
     a++
-    return a if a > 10000
+    return a if a > 100000
   return 1
     
 foo()
