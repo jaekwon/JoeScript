@@ -160,7 +160,7 @@ JObject::extend
           if existingEl=items[key]
             #debug "JObject::dom_on found existing item el for #{key}"
             existingEl.after itemEl
-            exsitingEl.detach()
+            existingEl.detach()
           else
             #debug "JObject::dom_on appending new item el for #{key}"
             el.append itemEl

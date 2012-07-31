@@ -511,15 +511,15 @@ INSTR = @INSTR =
             assert.ok value.persistence?, "JObject::__get__ wants <JStub>.persistence"
             $.wait waitKey="load:#{value.id}"
             # Make a call to aynchronously fetch value
-            value.persistence.loadJObject $.kernel, value.id, (err, obj) ->
+            value.persistence.loadJObject $.kernel, value.id, (err, valObj) ->
               return $.throw 'InternalError', "Failed to load stub ##{value.id}:\n#{err.stack ? err}" if err?
-              return $.throw 'ReferenceError', "#{key} is a broken stub." if required and not obj?
+              return $.throw 'ReferenceError', "#{key} is a broken stub." if required and not valObj?
               # Replace stub with value in @data[key] (or @proto)
               if key is '__proto__'
-                obj.proto = obj
+                obj.proto = valObj
               else
-                obj.data[key] = obj
-              $.last = obj
+                obj.data[key] = valObj
+              $.last = valObj
               $.resume waitKey
             return null # null means waiting
           else

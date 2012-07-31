@@ -70,52 +70,60 @@ app.listen argv.p ? 8080
 } = require 'sembly/src/interpreter'
 require 'sembly/src/interpreter/perspective' # Perspective plugin
 
-# KERNEL = new JKernel
+# Helper to create a session transparently when there isn't one.
+# Create session if necessary and ship screen over to client
+# TODO garbage collection of perspectives.
+withSession = (socket, fn) ->
+  socket.get 'session', (err, session) ->
+    if err?
+      fatal "Error in socket.get 'session': #{err.stack ? err}"
+      return
+    if not session?
+      # Setup default view and socket-specific session
+      session = {}
+
+      session.modules = modules = new JArray creator:ANON
+      session.scope = scope = WORLD.create ANON, {modules}
+      session.scope.data.clear = new JBoundFunc creator:ANON, scope:scope, func:"""
+        -> modules.length = 0
+      """
+      # Construct a development screen
+      session.screen = screen = new JArray creator:ANON, data:{__class__:'hideKeys'}
+      session.perspective = screen.newPerspective(socket)
+
+      # Save session
+      socket.set 'session', session, ->
+        fn(session)
+      return
+
+    fn(session)
+    return
 
 # Client <--> Server Connection
 io.sockets.on 'connection', (socket) ->
 
   # Main connection entrypoint.
   # Loads a resource and creates a screen for the client.
-  socket.on 'load', (path) ->
-
-    # Setup default view and socket-specific session
-    session = {}
-
-    # Save session and ship screen over to client
-    # TODO garbage collection of perspectives.
-    socket.set 'session', session, ->
-
-      switch path
-        when ''
-          # Construct a development screen
-          session.screen = screen = new JArray creator:ANON, data:{__class__:'hideKeys'}
-          session.modules = modules = new JArray creator:ANON
-          session.scope = scope = WORLD.create ANON, {modules}
-          session.scope.data.clear = new JBoundFunc creator:ANON, scope:scope, func:"""
-            -> modules.length = 0
-          """
+  socket.on 'load', (path) -> withSession socket, (session) ->
+    switch path
+      when ''
+        # It doesn't work if you manually add data after newPerspective.
+        KERNEL.run user:ANON, code:'yes', scope:WORLD, callback: ->
           # Add modules and editor to screen
-          screen.data[0] = modules
-          screen.data[1] = new JObject creator:ANON, data:{type:'editor'}
-          # Finally add perspective on everything.
-          # It doesn't work if you manually add data after newPerspective.
-          KERNEL.run user:ANON, code:'yes', scope:WORLD, callback: ->
-            session.perspective = screen.newPerspective(socket)
-            socket.emit 'screen', INSTR.__str__ @, screen
-        else
-          # Show the path on the screen.
-          # NOTE keep user as ANON, arbitrary code execution happens here.
-          KERNEL.run user:ANON, code:path, scope:WORLD, callback: ->
-            session.screen = screen = @last ? JUndefined
-            session.perspective = screen.newPerspective?(socket)
-            socket.emit 'screen', INSTR.__str__ @, screen
+          INSTR.__set__ @, session.screen, 0, session.modules
+          INSTR.__set__ @, session.screen, 1, new JObject creator:ANON, data:{type:'editor'}
+          INSTR.__set__ @, session.screen, 'length', 2
+          socket.emit 'screen', INSTR.__str__ @, session.screen
+      else
+        # Show the path on the screen.
+        # NOTE keep user as ANON, arbitrary code execution happens here.
+        KERNEL.run user:ANON, code:path, scope:WORLD, callback: ->
+          INSTR.__set__ @, session.screen, 0, @last ? JUndefined
+          INSTR.__set__ @, session.screen, 'length', 1
+          socket.emit 'screen', INSTR.__str__ @, session.screen
 
   # Run code
-  socket.on 'run', (codeStr) -> socket.get 'session', (err, session) ->
-    if err?
-      fatal "Error in socket.get 'session': #{err.stack ? err}"
-      return
+  socket.on 'run', (codeStr) -> withSession socket, (session) ->
     info "Received code #{codeStr}"
 
     # Create a module to hold the code and results.
@@ -140,7 +148,7 @@ io.sockets.on 'connection', (socket) ->
     # Start a new thread. Note the 'yes' code. TODO refactor
     KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
 
-      session.modules?.push? @, _module
+      session.modules.push @, _module
       
       @enqueue callback: ->
 
