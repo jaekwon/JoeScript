@@ -1,13 +1,15 @@
 body {
   /*background-color: #CECCD2;*/
-  background-color: #0a001f;
-  color: #f8f8f8;
+  /*background-color: #0a001f;*/
+  background-color: white;
+  /*color: #f8f8f8;*/
+  color: black;
   font-family: 'Anonymous Pro', monospace;
   font-size: 16px;
 }
 
 #header {
-  background-color: black;
+  background-color: white;
   margin-bottom: 5px;
   padding: 5px;
   text-align: right;
@@ -49,13 +51,13 @@ span.cm-atom,       span.atom       { color: #F59BF0; }
 span.cm-number,     span.number     { color: #F59BF0; }
 span.cm-attribute,  span.attribute  { color: #8da6ce; }
 span.cm-keyword,    span.keyword    { color: #ffd500; }
-span.cm-string,     span.string     { color: #00cc00; }
+span.cm-string,     span.string     { color: black; }
 span.cm-meta,       span.meta       { color: #7678e2; }
 span.cm-tag,        span.tag        { color: #99b2ff; }
-span.cm-variable,   span.variable   { color: white; }
-span.cm-variable-2, span.variable-2 { color: white; }
-span.cm-variable-3, span.variable-3 { color: white; }
-span.def                            { color: white; }
+span.cm-variable,   span.variable   { color: black; }
+span.cm-variable-2, span.variable-2 { color: black; }
+span.cm-variable-3, span.variable-3 { color: black; }
+span.def                            { color: black; }
 span.cm-error,      span.error      { color: #e6312a; }
 span.cm-bracket,    span.bracket    { color: #8da6ce; }
 span.cm-builtin,    span.builtin    { color: #ff9e59; }

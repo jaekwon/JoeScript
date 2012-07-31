@@ -1,14 +1,27 @@
 /* Loosely based on the Midnight Textmate theme */
 
 .cm-s-joeson {
-  background: #0a001f;
-  color: #f8f8f8;
+  /*background: #0a001f;*/
+  /*color: #f8f8f8;*/
   font-family: 'Anonymous Pro', monospace;
+  border-radius: 4px;
+  border: 1px solid gray;
+  margin: 4px;
 }
-.cm-s-joeson div.CodeMirror-selected { background: #4D465C !important; }
-.cm-s-joeson .CodeMirror-gutter { background: #0a001f; border-right: 1px solid #8da6ce; }
-.cm-s-joeson .CodeMirror-gutter-text { color: #8da6ce; }
-.cm-s-joeson .CodeMirror-cursor { border-left: 1px solid white !important; }
+.cm-s-joeson div.CodeMirror-selected {
+  /*background: #4D465C !important;*/
+}
+.cm-s-joeson .CodeMirror-gutter {
+  /*background: #0a001f;*/
+  background: transparent;
+  border-right: 1px solid #8da6ce;
+}
+.cm-s-joeson .CodeMirror-gutter-text {
+  color: #8da6ce;
+}
+.cm-s-joeson .CodeMirror-cursor {
+  border-left: 1px solid black !important;
+}
 
 /* colors defined in static/style, actually */
 
