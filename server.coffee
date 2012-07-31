@@ -36,7 +36,7 @@ vvvvvvvvvvvvvvvvv
 c = connect()
   .use(connect.logger())
   #.use(connect.staticCache())
-  .use('/s', connect.static(__dirname + '/static'))
+  .use('/s', connect.static(__dirname+'/static'))
   .use(connect.favicon())
   .use(connect.cookieParser('TODO determine just how secret this is'))
   .use(connect.session({ cookie: { maxAge: 1000*60*60*24*30 }}))

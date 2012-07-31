@@ -45,6 +45,10 @@ TODO Link to demo
 
 * AGPL3.0
 
+##### :: Development ::
+
+compiling sass: sass --watch scss:static
+
 ##### :: Developer Resources ::
 
 * TODO Signup page

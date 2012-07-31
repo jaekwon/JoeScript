@@ -16,7 +16,7 @@ Editor = @Editor = clazz 'Editor', ->
     mirror = CodeMirror target[0],
       value:        '' # see mirror.setValue below.
       mode:         'coffeescript'
-      theme:        'joeson'
+      theme:        'sembly'
       keyMap:       'sembly'
       autofocus:    yes
       gutter:       yes
