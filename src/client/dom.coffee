@@ -222,7 +222,6 @@ JObject::extend
           debug "Adding JView listener to ##{@id}"
           @addListener $V
           # HACK end
-          el.append $V.newEl tag:'span', cls:'debug right', text:''+@id # debug
           if @data.__class__ # HACK
             el.addClass @data.__class__
           for key, value of @data when key isnt '__class__'

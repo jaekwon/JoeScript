@@ -2,8 +2,7 @@
 $lightBlue: #8DA6CE;
 // by function
 $bgColor: white;
-$c_outline: #515B7E;
-$c_outline_lt: $lightBlue;
+$c_outline: $lightBlue;
 
 body {
   /*background-color: #CECCD2;*/
@@ -24,6 +23,9 @@ body {
 
 #main {
   overflow-y: auto;
+  #screen {
+    margin-left: 1em;
+  }
 }
 
 #input_editor {
@@ -92,20 +94,19 @@ div.object {
 div.array {
   min-height: 1em;
   &>div.item:first-child {
-    margin-top: 5px;
+    padding-top: 0px;
+    border-top: 0px;
   }
   &>div.item {
     position: relative;
     min-height: 1em; /* blank strings */
     padding-left: 2em;
 
-    border-bottom: 1px dotted $c_outline;
-    margin-bottom: 5px;
-    padding-bottom: 5px;
+    border-top: 1px dotted $c_outline;
+    margin-top: 5px;
+    padding-top: 5px;
   }
   &>div.item:last-child {
-    margin-bottom: 0;
-    border-bottom: 0;
   }
 }
 div.hideKeys {
@@ -132,7 +133,7 @@ div.editor {
   /*color: #f8f8f8;*/
   font-family: 'Anonymous Pro', monospace;
   border-radius: 4px;
-  border: 1px solid $c_outline_lt;
+  border: 1px solid $c_outline;
   margin: 4px;
   div.CodeMirror-selected {
     /*background: #4D465C !important;*/
@@ -140,10 +141,10 @@ div.editor {
   .CodeMirror-gutter {
     /*background: #0a001f;*/
     background: transparent;
-    border-right: 1px solid $c_outline_lt;
+    border-right: 1px solid $c_outline;
   }
   .CodeMirror-gutter-text {
-    color: $c_outline_lt;
+    color: $c_outline;
   }
   .CodeMirror-cursor {
     border-left: 1px solid black !important;
@@ -173,8 +174,8 @@ span.cm-coffee-unicode {color: #228811;}
 // deprecated
 span.comment      { color: #668ee2; }
 span.atom         { color: #F59BF0; }
-span.number       { color: #164; }
-span.attribute    { color: $c_outline_lt; }
+span.number       { color: #002EE0; }
+span.attribute    { color: #3090AA; }
 span.keyword      { color: #ffd500; }
 span.string       { color: black; }
 span.meta         { color: #7678e2; }
@@ -184,10 +185,10 @@ span.variable-2   { color: black; }
 span.variable-3   { color: black; }
 span.def          { color: black; }
 span.error        { color: #e6312a; }
-span.bracket      { color: $c_outline_lt; }
+span.bracket      { color: $c_outline; }
 span.builtin      { color: #ff9e59; }
 span.special      { color: #00cccc; }
-span.link, a      { color: #F59BF0; }
-span.punctuation  { color: $c_outline_lt; }
+span.link, a      { color: #551A8B; }
+span.punctuation  { color: $c_outline; }
 span.operator     { color: #00cccc; }
 

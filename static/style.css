@@ -15,6 +15,8 @@ body {
 
 #main {
   overflow-y: auto; }
+  #main #screen {
+    margin-left: 1em; }
 
 #input_editor {
   margin-bottom: 1em; }
@@ -73,18 +75,16 @@ div.object {
 div.array {
   min-height: 1em; }
   div.array > div.item:first-child {
-    margin-top: 5px; }
+    padding-top: 0px;
+    border-top: 0px; }
   div.array > div.item {
     position: relative;
     min-height: 1em;
     /* blank strings */
     padding-left: 2em;
-    border-bottom: 1px dotted #515b7e;
-    margin-bottom: 5px;
-    padding-bottom: 5px; }
-  div.array > div.item:last-child {
-    margin-bottom: 0;
-    border-bottom: 0; }
+    border-top: 1px dotted #8da6ce;
+    margin-top: 5px;
+    padding-top: 5px; }
 
 div.hideKeys > div.item {
   padding-left: 0; }
@@ -122,7 +122,7 @@ div.editor {
  * https://github.com/pickhardt/coffeescript-codemirror-mode
  */
 span.cm-coffee-delimiter {
-  color: #515b7e; }
+  color: #8da6ce; }
 
 span.cm-coffee-special {
   color: #e3bd27; }
@@ -164,10 +164,10 @@ span.atom {
   color: #F59BF0; }
 
 span.number {
-  color: #164; }
+  color: #002EE0; }
 
 span.attribute {
-  color: #8da6ce; }
+  color: #3090AA; }
 
 span.keyword {
   color: #ffd500; }
@@ -206,7 +206,7 @@ span.special {
   color: #00cccc; }
 
 span.link, a {
-  color: #F59BF0; }
+  color: #551A8B; }
 
 span.punctuation {
   color: #8da6ce; }
