@@ -1,9 +1,9 @@
 // by color
 $lightBlue: #8DA6CE;
-// by purpose
+// by function
 $bgColor: white;
-$outlineColor: #515B7E;
-$outlineColorLight: $lightBlue;
+$c_outline: #515B7E;
+$c_outline_lt: $lightBlue;
 
 body {
   /*background-color: #CECCD2;*/
@@ -53,26 +53,6 @@ body {
 #log {
 }
 
-span.cm-comment,    span.comment    { color: #668ee2; }
-span.cm-atom,       span.atom       { color: #F59BF0; }
-span.cm-number,     span.number     { color: #F59BF0; }
-span.cm-attribute,  span.attribute  { color: #8da6ce; }
-span.cm-keyword,    span.keyword    { color: #ffd500; }
-span.cm-string,     span.string     { color: black; }
-span.cm-meta,       span.meta       { color: #7678e2; }
-span.cm-tag,        span.tag        { color: #99b2ff; }
-span.cm-variable,   span.variable   { color: black; }
-span.cm-variable-2, span.variable-2 { color: black; }
-span.cm-variable-3, span.variable-3 { color: black; }
-span.def                            { color: black; }
-span.cm-error,      span.error      { color: #e6312a; }
-span.cm-bracket,    span.bracket    { color: #8da6ce; }
-span.cm-builtin,    span.builtin    { color: #ff9e59; }
-span.cm-special,    span.special    { color: #00cccc; }
-span.cm-link,       span.link, a    { color: #F59BF0; }
-span.cm-punctuation, span.punctuation { color: #8da6ce; }
-span.cm-operator,   span.operator   { color: #00cccc; }
-
 /* formatting */
 .highlight {
   background-color: #2A395B !important;
@@ -119,7 +99,7 @@ div.array {
     min-height: 1em; /* blank strings */
     padding-left: 2em;
 
-    border-bottom: 1px dotted $outlineColor;
+    border-bottom: 1px dotted $c_outline;
     margin-bottom: 5px;
     padding-bottom: 5px;
   }
@@ -152,7 +132,7 @@ div.editor {
   /*color: #f8f8f8;*/
   font-family: 'Anonymous Pro', monospace;
   border-radius: 4px;
-  border: 1px solid $outlineColorLight;
+  border: 1px solid $c_outline_lt;
   margin: 4px;
   div.CodeMirror-selected {
     /*background: #4D465C !important;*/
@@ -160,38 +140,54 @@ div.editor {
   .CodeMirror-gutter {
     /*background: #0a001f;*/
     background: transparent;
-    border-right: 1px solid #8da6ce;
+    border-right: 1px solid $c_outline_lt;
   }
   .CodeMirror-gutter-text {
-    color: #8da6ce;
+    color: $c_outline_lt;
   }
   .CodeMirror-cursor {
     border-left: 1px solid black !important;
   }
 }
 
-.outbox {
-  margin: 0;
-  line-height: 1.2em;
-  position: relative;
-  overflow: hidden;
-}
-.outbox-lines {
-  margin-left: 2em;
-  padding: .4em;
-  white-space: pre;
-}
-.outbox-gutter {
-  position: absolute; left: 0; top: 0;
-  border-right: 1px solid #8da6ce;
-  z-index: 10;
-  width: 2em;
-  height: 100%;
-}
-.outbox-gutter-text {
-  text-align: right;
-  padding: .4em .2em .4em .4em;
-  white-space: pre;
-  color: #8da6ce;
-}
+/**
+ * Link to the project's GitHub page:
+ * https://github.com/pickhardt/coffeescript-codemirror-mode
+ */
+span.cm-coffee-delimiter {color: $c_outline;}
+span.cm-coffee-special {color: #e3bd27;}
+span.cm-coffee-error {background-color: #660000; color: #FFFFFF;}
+span.cm-coffee-keyword,
+span.cm-coffee-operator {color: #770088;}
+span.cm-coffee-number,
+span.cm-coffee-literal {color: #002EE0;}
+span.cm-coffee-constant {color: #44AAFF;}
+span.cm-coffee-identifier {color: black;}
+span.cm-coffee-thisprop {color: #3090AA;}
+span.cm-coffee-comment {color: #668ee2;}
+span.cm-coffee-string,
+span.cm-coffee-bytes,
+span.cm-coffee-raw,
+span.cm-coffee-unicode {color: #228811;}
+
+// deprecated
+span.comment      { color: #668ee2; }
+span.atom         { color: #F59BF0; }
+span.number       { color: #164; }
+span.attribute    { color: $c_outline_lt; }
+span.keyword      { color: #ffd500; }
+span.string       { color: black; }
+span.meta         { color: #7678e2; }
+span.tag          { color: #99b2ff; }
+span.variable     { color: black; }
+span.variable-2   { color: black; }
+span.variable-3   { color: black; }
+span.def          { color: black; }
+span.error        { color: #e6312a; }
+span.bracket      { color: $c_outline_lt; }
+span.builtin      { color: #ff9e59; }
+span.special      { color: #00cccc; }
+span.link, a      { color: #F59BF0; }
+span.punctuation  { color: $c_outline_lt; }
+span.operator     { color: #00cccc; }
 

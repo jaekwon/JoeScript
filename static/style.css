@@ -38,63 +38,6 @@ body {
   background-color: #0a001f !important;
   /* hack around UILayout defaults */ }
 
-span.cm-comment, span.comment {
-  color: #668ee2; }
-
-span.cm-atom, span.atom {
-  color: #F59BF0; }
-
-span.cm-number, span.number {
-  color: #F59BF0; }
-
-span.cm-attribute, span.attribute {
-  color: #8da6ce; }
-
-span.cm-keyword, span.keyword {
-  color: #ffd500; }
-
-span.cm-string, span.string {
-  color: black; }
-
-span.cm-meta, span.meta {
-  color: #7678e2; }
-
-span.cm-tag, span.tag {
-  color: #99b2ff; }
-
-span.cm-variable, span.variable {
-  color: black; }
-
-span.cm-variable-2, span.variable-2 {
-  color: black; }
-
-span.cm-variable-3, span.variable-3 {
-  color: black; }
-
-span.def {
-  color: black; }
-
-span.cm-error, span.error {
-  color: #e6312a; }
-
-span.cm-bracket, span.bracket {
-  color: #8da6ce; }
-
-span.cm-builtin, span.builtin {
-  color: #ff9e59; }
-
-span.cm-special, span.special {
-  color: #00cccc; }
-
-span.cm-link, span.link, a {
-  color: #F59BF0; }
-
-span.cm-punctuation, span.punctuation {
-  color: #8da6ce; }
-
-span.cm-operator, span.operator {
-  color: #00cccc; }
-
 /* formatting */
 .highlight {
   background-color: #2A395B !important; }
@@ -174,28 +117,99 @@ div.editor {
   .cm-s-sembly .CodeMirror-cursor {
     border-left: 1px solid black !important; }
 
-.outbox {
-  margin: 0;
-  line-height: 1.2em;
-  position: relative;
-  overflow: hidden; }
+/**
+ * Link to the project's GitHub page:
+ * https://github.com/pickhardt/coffeescript-codemirror-mode
+ */
+span.cm-coffee-delimiter {
+  color: #515b7e; }
 
-.outbox-lines {
-  margin-left: 2em;
-  padding: .4em;
-  white-space: pre; }
+span.cm-coffee-special {
+  color: #e3bd27; }
 
-.outbox-gutter {
-  position: absolute;
-  left: 0;
-  top: 0;
-  border-right: 1px solid #8da6ce;
-  z-index: 10;
-  width: 2em;
-  height: 100%; }
+span.cm-coffee-error {
+  background-color: #660000;
+  color: #FFFFFF; }
 
-.outbox-gutter-text {
-  text-align: right;
-  padding: .4em .2em .4em .4em;
-  white-space: pre;
+span.cm-coffee-keyword,
+span.cm-coffee-operator {
+  color: #770088; }
+
+span.cm-coffee-number,
+span.cm-coffee-literal {
+  color: #002EE0; }
+
+span.cm-coffee-constant {
+  color: #44AAFF; }
+
+span.cm-coffee-identifier {
+  color: black; }
+
+span.cm-coffee-thisprop {
+  color: #3090AA; }
+
+span.cm-coffee-comment {
+  color: #668ee2; }
+
+span.cm-coffee-string,
+span.cm-coffee-bytes,
+span.cm-coffee-raw,
+span.cm-coffee-unicode {
+  color: #228811; }
+
+span.comment {
+  color: #668ee2; }
+
+span.atom {
+  color: #F59BF0; }
+
+span.number {
+  color: #164; }
+
+span.attribute {
   color: #8da6ce; }
+
+span.keyword {
+  color: #ffd500; }
+
+span.string {
+  color: black; }
+
+span.meta {
+  color: #7678e2; }
+
+span.tag {
+  color: #99b2ff; }
+
+span.variable {
+  color: black; }
+
+span.variable-2 {
+  color: black; }
+
+span.variable-3 {
+  color: black; }
+
+span.def {
+  color: black; }
+
+span.error {
+  color: #e6312a; }
+
+span.bracket {
+  color: #8da6ce; }
+
+span.builtin {
+  color: #ff9e59; }
+
+span.special {
+  color: #00cccc; }
+
+span.link, a {
+  color: #F59BF0; }
+
+span.punctuation {
+  color: #8da6ce; }
+
+span.operator {
+  color: #00cccc; }
