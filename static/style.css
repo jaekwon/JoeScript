@@ -70,40 +70,28 @@ textarea {
 
 div.object {
   min-height: 1em; }
+  div.object > div.item:first-child {
+    padding-top: 0px;
+    border-top: 0px;
+    margin-top: 0px; }
   div.object > div.item {
     position: relative;
     min-height: 1em;
     /* blank strings */
-    padding-left: 7em; }
+    padding-top: 4px;
+    border-top: 1px dotted #8da6ce;
+    margin-top: 4px; }
     div.object > div.item > span.key {
-      position: absolute;
-      left: 0px; }
-
-div.array {
-  min-height: 1em; }
-  div.array > div.item:first-child {
-    padding-top: 0px;
-    border-top: 0px; }
-  div.array > div.item {
-    position: relative;
-    min-height: 1em;
-    /* blank strings */
-    margin-top: 5px;
-    padding-top: 5px;
-    padding-left: 0em;
-    border-top: 1px dotted #8da6ce; }
-    div.array > div.item > span.key {
-      min-width: 2em;
-      position: static;
-      vertical-align: top;
-      text-align: center; }
-    div.array > div.item > * {
+      min-width: 6em;
+      vertical-align: top; }
+    div.object > div.item > * {
       display: inline-block; }
 
-div.hideKeys > div.item {
-  padding-left: 0; }
-  div.hideKeys > div.item > span.key {
-    display: none; }
+div.array > div.item > span.key {
+  min-width: 2em; }
+
+div.hideKeys > div.item > span.key {
+  display: none; }
 
 span.string {
   white-space: pre; }

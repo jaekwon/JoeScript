@@ -87,37 +87,21 @@ textarea {
 
 div.object {
   min-height: 1em;
-  &>div.item {
-    position: relative;
-    min-height: 1em; /* blank strings */
-    padding-left: 7em;
-    &>span.key {
-      position: absolute;
-      left: 0px;
-    }
-    &>span.value {
-    }
-  }
-}
-div.array {
-  min-height: 1em;
   &>div.item:first-child {
     padding-top: 0px;
     border-top: 0px;
+    margin-top: 0px;
   }
   &>div.item {
     position: relative;
     min-height: 1em; /* blank strings */
-    margin-top: 5px;
-    padding-top: 5px;
-    //padding-left: 2em;
-    padding-left: 0em;
+
+    padding-top: 4px;
     border-top: 1px dotted $c_outline;
+    margin-top: 4px;
     &>span.key {
-      min-width: 2em;
-      position: static;
+      min-width: 6em;
       vertical-align: top;
-      text-align: center;
     }
     &>* {
       display: inline-block;
@@ -126,9 +110,15 @@ div.array {
   &>div.item:last-child {
   }
 }
+div.array {
+  &>div.item {
+    &>span.key {
+      min-width: 2em;
+    }
+  }
+}
 div.hideKeys {
   &>div.item {
-    padding-left: 0;
     &>span.key {
       display: none;
     }
