@@ -247,6 +247,9 @@ CodeMirror.defineMode('coffeescript', function(conf) {
         }
         
         // Handle scope changes.
+        if (current === 'pass' || current === 'return') {
+            state.dedent += 1;
+        }
         if (((current === '->' || current === '=>') &&
                   !state.lambda &&
                   state.scopes[0].type == 'coffee' &&
@@ -261,6 +264,12 @@ CodeMirror.defineMode('coffeescript', function(conf) {
         if (style === 'coffee-dedent') {
             if (dedent(stream, state)) {
                 return ERRORCLASS;
+            }
+        }
+        delimiter_index = '])}'.indexOf(current);
+        if (delimiter_index !== -1) {
+            if (dedent(stream, state)) {
+                // return ERRORCLASS;
             }
         }
         if (state.dedent > 0 && stream.eol() && state.scopes[0].type == 'coffee') {

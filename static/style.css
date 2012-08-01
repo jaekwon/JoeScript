@@ -110,7 +110,11 @@ div.editor {
   border: 1px solid #8da6ce;
   margin: 4px; }
   .cm-s-sembly div.CodeMirror-selected {
-    /*background: #4D465C !important;*/ }
+    background: #B0B0B0 !important;
+    /* standard chrome colors */ }
+  .cm-s-sembly.CodeMirror-focused div.CodeMirror-selected {
+    background: #B4D5FF !important;
+    /* standard chrome colors */ }
   .cm-s-sembly .CodeMirror-gutter {
     /*background: #0a001f;*/
     background: transparent;
@@ -128,7 +132,7 @@ span.cm-coffee-delimiter {
   color: #8da6ce; }
 
 span.cm-coffee-special {
-  color: #e3bd27; }
+  color: #FB9500; }
 
 span.cm-coffee-error {
   background-color: #660000;
