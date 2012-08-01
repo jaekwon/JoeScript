@@ -14,6 +14,12 @@ body {
   font-size: 16px;
 }
 
+a { // why did this get overridden?
+  text-decoration: underline;
+  cursor: pointer;
+  color: #551A8B;
+}
+
 #header {
   background-color: white;
   margin-bottom: 5px;
@@ -49,10 +55,12 @@ body {
 */
 
 #footer {
-  background-color: #0a001f !important; /* hack around UILayout defaults */
 }
 
 #log {
+  background-color: #0a001f !important; /* hack around UILayout defaults */
+  color: white;
+  padding: 1em;
 }
 
 /* formatting */
@@ -100,11 +108,19 @@ div.array {
   &>div.item {
     position: relative;
     min-height: 1em; /* blank strings */
-    padding-left: 2em;
-
-    border-top: 1px dotted $c_outline;
     margin-top: 5px;
     padding-top: 5px;
+    //padding-left: 2em;
+    padding-left: 0em;
+    border-top: 1px dotted $c_outline;
+    &>span.key {
+      min-width: 2em;
+      position: static;
+      vertical-align: top;
+    }
+    &>* {
+      display: inline-block;
+    }
   }
   &>div.item:last-child {
   }
@@ -123,6 +139,7 @@ span.string {
 
 div.editor {
   min-height: 1em;
+  min-width: 20em;
 }
 
 /* EDITOR */
@@ -188,7 +205,7 @@ span.error        { color: #e6312a; }
 span.bracket      { color: $c_outline; }
 span.builtin      { color: #ff9e59; }
 span.special      { color: #00cccc; }
-span.link, a      { color: #551A8B; }
+span.link         { color: #551A8B; }
 span.punctuation  { color: $c_outline; }
 span.operator     { color: #00cccc; }
 

@@ -7,6 +7,11 @@ body {
   font-family: 'Anonymous Pro', monospace;
   font-size: 16px; }
 
+a {
+  text-decoration: underline;
+  cursor: pointer;
+  color: #551A8B; }
+
 #header {
   background-color: white;
   margin-bottom: 5px;
@@ -36,9 +41,11 @@ body {
   margin-left: -1px;
 }
 */
-#footer {
+#log {
   background-color: #0a001f !important;
-  /* hack around UILayout defaults */ }
+  /* hack around UILayout defaults */
+  color: white;
+  padding: 1em; }
 
 /* formatting */
 .highlight {
@@ -81,10 +88,16 @@ div.array {
     position: relative;
     min-height: 1em;
     /* blank strings */
-    padding-left: 2em;
-    border-top: 1px dotted #8da6ce;
     margin-top: 5px;
-    padding-top: 5px; }
+    padding-top: 5px;
+    padding-left: 0em;
+    border-top: 1px dotted #8da6ce; }
+    div.array > div.item > span.key {
+      min-width: 2em;
+      position: static;
+      vertical-align: top; }
+    div.array > div.item > * {
+      display: inline-block; }
 
 div.hideKeys > div.item {
   padding-left: 0; }
@@ -95,7 +108,8 @@ span.string {
   white-space: pre; }
 
 div.editor {
-  min-height: 1em; }
+  min-height: 1em;
+  min-width: 20em; }
 
 /* EDITOR */
 /* Loosely based on the Midnight Textmate theme */
@@ -205,7 +219,7 @@ span.builtin {
 span.special {
   color: #00cccc; }
 
-span.link, a {
+span.link {
   color: #551A8B; }
 
 span.punctuation {

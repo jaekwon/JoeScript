@@ -17,6 +17,11 @@ $(document).ready ->
           $('#footer').scrollDown()
       level: 'debug'
 
+  domLog.before('(<a id="log_toggle">log</a>)')
+  $('#log_toggle').click -> domLog.show()
+  domLog.hide()
+
+  ###
   # UILayout
   $('body').layout
     defaults:
@@ -26,6 +31,7 @@ $(document).ready ->
       applyDefaultStyles: yes
       initClosed:         yes
       onopen_end:         -> process.nextTick -> $('#main').scrollDown(); $('#footer').scrollDown()
+  ###
 
   # load libraries
   {clazz} = require 'cardamom'
