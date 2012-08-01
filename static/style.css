@@ -95,7 +95,8 @@ div.array {
     div.array > div.item > span.key {
       min-width: 2em;
       position: static;
-      vertical-align: top; }
+      vertical-align: top;
+      text-align: center; }
     div.array > div.item > * {
       display: inline-block; }
 
