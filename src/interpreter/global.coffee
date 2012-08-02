@@ -9,6 +9,8 @@ async = require 'async'
 
 {JObject, JArray, JUndefined, JNull, JNaN, JStub, JBoundFunc} = require 'sembly/src/interpreter/object'
 
+fnNamed = (name, fn) -> fn.id = name; fn
+
 # Caches.
 # TODO weak references
 CACHE             = @CACHE =            {}
@@ -30,9 +32,10 @@ else
 WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
   this:   USERS
   users:  USERS
-  login:  ($, something) ->
-          console.log something
-          return "it worked!"
+  login:  fnNamed('login', ($, something) ->
+            console.log something
+            return "it worked!"
+          )
 
 WORLD.hack_persistence = PERSISTENCE # FIX
 

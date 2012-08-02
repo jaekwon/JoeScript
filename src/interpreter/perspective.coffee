@@ -54,8 +54,8 @@ JObject::extend
   newPerspective: (socket) -> new JPerspective root:@, socket:socket
   perspective_on: ($$, event) ->
     switch event.type
-      when 'set'
-        {key, value} = event
+      when 'set', 'unshift'
+        {value} = event
         $$.listenOn value if value instanceof JObject
       when 'delete'
         # Would unlisten from the value but this is a GC situation.

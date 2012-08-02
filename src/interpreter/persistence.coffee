@@ -1,4 +1,4 @@
-log = no
+log = yes
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
@@ -24,7 +24,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
   on: (obj, event) ->
-    debug "#{cyan @}.#{red 'on'} EVENT #{red event.type} on #{obj}" if log
+    debug "#{cyan @}.#{red 'on'} EVENT type:#{red event.type} key:#{red event.key} on #{obj}" if log
     thread = event.thread
     assert.ok thread?, "JPersistence::on wants event.thread"
     switch event.type
@@ -44,16 +44,18 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
               local id_meta = id .. ':meta';
               local keys = redis.call('hkeys', id);
               local offset = redis.call('hget', id_meta, 'offset');
-              offset = offset or 0
+              local numDeleted = 0;
+              offset = offset or 0;
               local maxOffset = offset + length - 1;
               redis.call('hset', id_meta, 'length', length);
               for i = 1, #keys, 1 do
                 local key = tonumber(keys[i]);
                 if key ~= nil and key > maxOffset then
                   redis.call('hdel', id, key)
+                  numDeleted = numDeleted + 1;
                 end;
-                return 1;
               end;
+              return numDeleted;
             """, 2, obj.id, value, (err) =>
               return thread.throw 'PersistenceError', "Failed to set length for array ##{obj.id}\n#{err.stack ? err}" if err?
               return thread.resume waitKey
@@ -62,24 +64,27 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             thread.wait waitKey="persist:#{obj.id}[#{key}]"
             JPersistence::withSave.call @, obj, (err) =>
               return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
-              @client.watch obj.id+':meta' # TODO verify that this works
+              # XXX watch is missing up when pushing, which modifies :meta below.
+              # @client.watch obj.id+':meta' # TODO verify that this works
               @client.hmget obj.id+':meta', 'offset', 'length', (err, results) =>
                 return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
                 [offset, length] = results
-                offset ?= 0
-                length ?= 0
+                offset = Number(offset ? 0)
+                length = Number(length ? 0)
                 multi = @client.multi()
                 multi.hset obj.id+':meta', 'length', key+1 if key >= length
                 multi.hset obj.id, offset+key, JPersistence::valueRepr value
-                multi.exec (err) =>
+                multi.exec (err, results) =>
+                  err ?= "No multi exec results ?!" unless results?
                   return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
                   return thread.resume waitKey
             return
-        else
-          thread.wait waitKey="persist:#{obj.id}.#{key}"
-          JObject::persistence_saveItem.call obj, @, key, value, (err) =>
-            return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{obj.id}\n#{err.stack ? err}" if err?
-            return thread.resume waitKey
+          else
+            'pass'
+        thread.wait waitKey="persist:#{obj.id}.#{key}"
+        JObject::persistence_saveItem.call obj, @, key, value, (err) =>
+          return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{obj.id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
       when 'delete'
         {key} = event
         thread.wait waitKey="delete:#{obj.id}[#{key}]"
@@ -91,7 +96,8 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         multi = @client.multi()
         multi.hincrby obj.id+':meta', 'offset', 1
         multi.hincrby obj.id+':meta', 'length', -1
-        multi.exec (err) =>
+        multi.exec (err, results) =>
+          err ?= "No multi exec results ?!" unless results?
           return thread.throw 'PersistenceError', "Failed to shift for array ##{obj.id}\n#{err.stack ? err}" if err?
           return thread.resume waitKey
       when 'unshift'
@@ -99,14 +105,17 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
         thread.wait waitKey="persist:#{obj.id}#unshift"
         JPersistence::withSave.call @, value, (err) =>
           return thread.throw 'PersistenceError', "Failed to unshift for array ##{obj.id}\n#{err.stack ? err}" if err?
-          @client.watch obj.id+':meta' # TODO verify that this works
+          # TODO transaction is broken.
+          # @client.watch obj.id+':meta' # TODO verify that this works
           @client.hget obj.id+':meta', 'offset', (err, offset) =>
             return thread.throw 'PersistenceError', "Failed to unshift for array ##{obj.id}\n#{err.stack ? err}" if err?
+            offset = Number(offset ? 0)
             multi = @client.multi()
-            multi.hincrby obj.id+':meta', 'offset', offset-1
+            multi.hincrby obj.id+':meta', 'offset', -1
             multi.hincrby obj.id+':meta', 'length', 1
             multi.hset obj.id, offset-1, JPersistence::valueRepr value
-            multi.exec (err) =>
+            multi.exec (err, results) =>
+              err ?= "No multi exec results ?!" unless results?
               return thread.throw 'PersistenceError', "Failed to unshift for array ##{obj.id}\n#{err.stack ? err}" if err?
               return thread.resume waitKey
     return
@@ -177,8 +186,8 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           data = []
           data.__proto__ = null # detach native Array::
           {offset, length} = meta
-          offset ?= 0
-          length ?= 0
+          offset = Number(offset ? 0) # TODO figure out a better way, too easy to forget.
+          length = Number(length ? 0)
         else
           data = _data
           data.__proto__ = null # detach native Object::
@@ -198,7 +207,8 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           if key is '__proto__' # special case
             obj.proto = value
           else if meta.type is 'JArray'
-            if isInteger(key) and Number(key) >= 0
+            if isInteger(key)
+              # TODO assert nonnegative...
               data[Number(key)-offset] = value
             else
               data[key] = value

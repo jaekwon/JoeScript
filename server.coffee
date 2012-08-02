@@ -170,12 +170,12 @@ io.sockets.on 'connection', (socket) ->
 
         @enqueue code:node, callback: ->
           switch @state
-            when 'return'
+            when 'STATE_RETURN'
               INSTR.__del__ @, _module, 'status'
               INSTR.__set__ @, _module, 'result', @last
               info "return: #{INSTR.__str__ @, @last}"
               # view = @last.newView()
-            when 'error'
+            when 'STATE_ERROR'
               @printErrorStack()
               INSTR.__del__ @, _module, 'status'
               # _module.__set__ @, 'result', JUndefined

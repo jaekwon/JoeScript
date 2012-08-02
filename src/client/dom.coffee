@@ -127,7 +127,7 @@ JView = @JView = clazz 'JView', ->
   # creates a link element
   newLink: ({id,cls,text}={}, setupCb) ->
     el = $ document.createElement 'a'
-    el.attr {href:'#'}
+    el.attr {href:"##{id}"}
     el.text text ? "[link:##{id}]"
     el.addClass cls if cls?
     el.data 'ref', id
