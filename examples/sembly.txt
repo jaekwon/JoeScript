@@ -1,9 +1,10 @@
 ## Just run a for-loop and watch threads compete for ticks.
 
 a = 1
+print out={current:0}
 loop
   if a % 1000 is 0
-    output[0] = a
+    out.current = a
   a += 1
 
 ## Simple inbox for messages.
@@ -13,7 +14,15 @@ loop
   @messages.push msg
   'message sent'
 
+@jae.read = ->
+  msg = @messages.shift()
+  if msg
+    return msg
+  else
+    return '-- no more messages --'
+
 ## Simple chatroom
+
 messages = []
 input = type:'editor', mode:'markdown', callback: (text) -> messages.push text
 chat = [messages, submit:input]

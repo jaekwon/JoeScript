@@ -162,15 +162,15 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   pop: ($) ->
     value = Array.prototype.pop.call @data
     @emit {thread:$, type:'set', key:'length', value:@data.length}
-    return value
+    return value ? JUndefined
   shift: ($) -> # popping from the left
     value = Array.prototype.shift.call @data
     @emit {thread:$, type:'shift'}
-    return value
+    return value ? JUndefined
   unshift: ($, value) ->
     Array.prototype.unshift.call @data, value
     @emit {thread:$, type:'unshift', value}
-    return @data.length
+    return @data.length ? JUndefined
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   # who:  User or JArray of users
