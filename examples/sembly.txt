@@ -1,30 +1,35 @@
-## Just run a for-loop and watch threads compete for ticks.
-
+## Mandatory fibo                                                                                                                                                                                  
 a = 1
-print out={current:0}
+b = 1
+fibo = ->                                                                       
+  c = a
+  a += b
+  b = c
+loop
+  print fibo()
+  return a if a > 1000
+
+## Multithreaded
+a = 1
+print out = {current:0}
 loop
   if a % 1000 is 0
     out.current = a
   a += 1
 
-## Simple inbox for messages.
-
+## Email?
 @jae.send = (msg) ->
-  @messages ||= [] # TODO this assigns all the time, doesn't need to.
+  @messages ||= []
   @messages.push msg
   'message sent'
 
 @jae.read = ->
   msg = @messages.shift()
-  if msg
-    return msg
-  else
-    return '-- no more messages --'
+  if msg then msg else '-- no more --'
 
-## Simple chatroom
-
+## Chat!
 messages = []
-input = type:'editor', mode:'markdown', callback: (text) -> messages.push text
+input = {type:'editor', mode:'markdown', callback: (text) -> messages.push text}
 chat = [messages, submit:input]
 chat.__class__ = 'hideKeys'
-chat
+@chat = chat
