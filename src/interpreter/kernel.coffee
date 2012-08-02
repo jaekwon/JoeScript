@@ -199,7 +199,7 @@ JThread = @JThread = clazz 'JThread', ->
 
   # A process of the thread has ended. Call callback functions and clean up.
   exit: ->
-    debug "#{@}.exit, @callback?:#{@callback?}"
+    debug "#{@}.exit, @callback?:#{@callback?}" if log
     if @callback?
       try
         callback = @callback
