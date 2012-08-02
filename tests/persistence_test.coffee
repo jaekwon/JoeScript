@@ -143,6 +143,28 @@ require('async').series [
                 ps.client.quit()
                 next()
 
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = messages:[1,2,3]
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it.messages.shift()
+          it.messages.shift()
+          """, callback: _err_ ->
+
+            KERNEL.cache = {} # reset cache
+            KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+              it.messages
+              """, callback: _err_ ->
+                equal Object.keys(@last.jsValue()).length, 1
+                deepEqual @last.jsValue(), [3]
+                ps.client.quit()
+                next()
+
 ], (err, results) ->
   if err?
     fatal "ERROR: #{err.stack ? err}"

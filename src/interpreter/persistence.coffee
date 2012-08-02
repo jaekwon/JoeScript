@@ -93,13 +93,28 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           return thread.resume waitKey
       when 'shift'
         thread.wait waitKey="persist:#{obj.id}#shift"
-        multi = @client.multi()
-        multi.hincrby obj.id+':meta', 'offset', 1
-        multi.hincrby obj.id+':meta', 'length', -1
-        multi.exec (err, results) =>
-          err ?= "No multi exec results ?!" unless results?
+        @client.eval """
+          local id = KEYS[1];
+          local id_meta = id .. ':meta';
+          local keys = redis.call('hkeys', id);
+          local offset = tonumber(redis.call('hget', id_meta, 'offset') or 0) + 1;
+          local length = tonumber(redis.call('hget', id_meta, 'length') or 0) - 1;
+          redis.call('hset', id_meta, 'offset', offset);
+          redis.call('hset', id_meta, 'length', length);
+          local numDeleted = 0;
+          offset = offset or 0;
+          for i = 1, #keys, 1 do
+            local key = tonumber(keys[i]);
+            if key ~= nil and key < offset then
+              redis.call('hdel', id, key)
+              numDeleted = numDeleted + 1;
+            end;
+          end;
+          return numDeleted;
+        """, 1, obj.id, (err) =>
           return thread.throw 'PersistenceError', "Failed to shift for array ##{obj.id}\n#{err.stack ? err}" if err?
           return thread.resume waitKey
+        return
       when 'unshift'
         {value} = event
         thread.wait waitKey="persist:#{obj.id}#unshift"

@@ -237,17 +237,68 @@ JObject::extend
 JArray::extend
   domClass: 'object array'
   dom_on: ($V, el, event) ->
-    if event.type is 'set' and event.key is 'length'
-      # hack to remove DOM items when array is truncated
-      newLength = event.value
-      items = el.data('items')
-      for itemKey, itemEl of items
-        if itemKey >= newLength
-          itemEl.detach()
-          delete items[itemKey]
-      # no need to display the length
-      return
+    switch event.type
+      when 'set'
+        if event.key is 'length'
+          # hack to remove DOM items when array is truncated
+          newLength = event.value
+          items = el.data('items')
+          for itemKey, itemEl of items
+            if itemKey >= newLength
+              itemEl.detach()
+              delete items[itemKey]
+          # no need to display the length
+          return
+      when 'unshift'
+        @dom_shiftKeys $V, el, 1
+        {value} = event
+        items = []
+        for key, item of el.data('items')
+          if isInteger(key)
+            items[''+(Number(key)+1)] = item
+          else
+            items[key] = item
+        items['0'] = itemEl = @dom_drawItem $V, '0', value
+        el.data('items', items)
+        el.prepend itemEl
+        return
+      when 'shift'
+        shifted = (itemz=el.data('items'))['0']
+        shifted.detach()
+        delete itemz['0']
+        @dom_shiftKeys $V, el, -1
+        items = []
+        for key, item of itemz
+          if isInteger(key)
+            items[''+(Number(key)-1)] = item unless Number(key) is 0
+          else
+            items[key] = item
+        el.data('items', items)
+        return
     @super.dom_on.call @, $V, el, event
+    @dom_sortItems $V, el
+
+  dom_shiftKeys: ($V, el, shift=-1) ->
+    el.find('>.item').map ->
+      item = $(@)
+      if isInteger(key=item.data('key'))
+        item.data('key', keyStr=(''+(Number(key)+shift)))
+        item.find('>.key').text(keyStr+':')
+
+  dom_sortItems: ($V, el) -> # sort ascending
+    el.find('>.item').sortElements (a, b) ->
+      key_a = $(a).data('key')
+      key_b = $(b).data('key')
+      if isInteger(key_a)
+        if isInteger(key_b)
+          if Number(key_a) > Number(key_b) then 1 else -1
+        else
+          return -1
+      else
+        if isInteger(key_b)
+          return 1
+        else
+          if key_a > key_b then 1 else -1
 
 JStub::extend
   domClass: 'stub'

@@ -153,9 +153,10 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   # Bridged keys. These functions are available as runtime native functions.
   push: ($, value) ->
     Array.prototype.push.call @data, value
+    # actually, transaction below isn't necessary because set/length isn't necessary.
     # TODO BEGIN XACTION
     @emit {thread:$, type:'set', key:@data.length-1, value}
-    @emit {thread:$, type:'set', key:'length', value:@data.length}
+    # @emit {thread:$, type:'set', key:'length', value:@data.length}
     # TODO END XACTION
     return JUndefined
   pop: ($) ->
