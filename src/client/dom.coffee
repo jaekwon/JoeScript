@@ -159,9 +159,11 @@ JObject::extend
           {key, value} = event
           if existingEl=items[key]
             #debug "JObject::dom_on found existing item el for #{key}"
-            # If existingEl's parent & key is the same, don't do anything.
-            if existingEl.parent()[0] is el[0] and existingEl.data('key') is key
-              'pass'
+            # If existingEl's parent & key & value is the same, don't do anything.
+            # TODO reconsider. too expensive?
+            if existingEl.parent()[0] is el[0] and existingEl.data('key') is key and
+              existingEl.data('value') is value
+                'pass'
             else
               itemEl = @dom_drawItem $V, key, value
               existingEl.after itemEl
@@ -241,7 +243,7 @@ JObject::extend
 
   # Draw key/value pairs for a POJO
   dom_drawItem: ($V, key, value) ->
-    $V.newEl tag:'div', cls:'item', data:{key}, children:[
+    $V.newEl tag:'div', cls:'item', data:{key,value}, children:[
       $V.newEl tag:'span', cls:'key attribute', text:key+':'
       value.dom_draw($V)
     ]
