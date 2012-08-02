@@ -1,3 +1,5 @@
+log = no
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
@@ -5,10 +7,8 @@ async = require 'async'
 {randid, pad, escape, starts, ends} = require 'sembly/lib/helpers'
 {debug, info, warn, fatal} = require('nogg').logger __filename.split('/').last()
 
-{NODES:{JStub, JObject, JArray, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}} = require 'sembly/src/interpreter/object'
-{JKernel, JThread, JStackItem} = require 'sembly/src/interpreter/kernel'
-
-trace = yes
+{NODES:{JStub, JObject, JArray, JUndefined, JSingleton, JNull, JNaN, JBoundFunc}
+HELPERS:{isInteger, _typeof}} = require 'sembly/src/interpreter/object'
 
 # A JObject listener
 # JPersistence saves objects onto redis
@@ -16,7 +16,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   init: ({@client, @root}={}) ->
     @client ?= require('redis').createClient()
     @id = "persistence:#{randid()}"
-    @listenOn @root if @root?
+    @attachTo @root if @root?
 
   toString: -> "[JPersistence #{@id}]"
 
@@ -24,44 +24,149 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
   on: (obj, event) ->
-    debug "#{@}::on for obj:#{obj} event.type:#{event.type}" if trace
-    # Delegate handling to JObject subclass
-    obj.persistence_on @, event
+    debug "#{cyan @}.#{red 'on'} EVENT #{red event.type} on #{obj}" if log
+    thread = event.thread
+    assert.ok thread?, "JPersistence::on wants event.thread"
+    switch event.type
+      when 'new'
+        thread.wait waitKey="persist:#{obj.id}"
+        JObject::persistence_save.call obj, @, (err) ->
+          return thread.throw 'PersistenceError', "Failed to persist object ##{obj.id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
+      when 'set'
+        {key, value} = event
+        if obj instanceof JArray
+          if key is 'length'
+            assert.ok isInteger(value), "Array length must be an integer"
+            thread.wait waitKey="persist:#{obj.id}#length"
+            @client.eval """
+              local id, length = KEYS[1], tonumber(KEYS[2]);
+              local id_meta = id .. ':meta';
+              local keys = redis.call('hkeys', id);
+              local offset = redis.call('hget', id_meta, 'offset');
+              offset = offset or 0
+              local maxOffset = offset + length - 1;
+              redis.call('hset', id_meta, 'length', length);
+              for i = 1, #keys, 1 do
+                local key = tonumber(keys[i]);
+                if key ~= nil and key > maxOffset then
+                  redis.call('hdel', id, key)
+                end;
+                return 1;
+              end;
+            """, 2, obj.id, value, (err) =>
+              return thread.throw 'PersistenceError', "Failed to set length for array ##{obj.id}\n#{err.stack ? err}" if err?
+              return thread.resume waitKey
+            return
+          else if isInteger key and Number(key) >= 0
+            thread.wait waitKey="persist:#{obj.id}[#{key}]"
+            JPersistence::withSave.call @, obj, (err) =>
+              return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
+              @client.watch obj.id+':meta' # TODO verify that this works
+              @client.hmget obj.id+':meta', 'offset', 'length', (err, results) =>
+                return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
+                [offset, length] = results
+                offset ?= 0
+                length ?= 0
+                multi = @client.multi()
+                multi.hset obj.id+':meta', 'length', key+1 if key >= length
+                multi.hset obj.id, offset+key, JPersistence::valueRepr value
+                multi.exec (err) =>
+                  return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
+                  return thread.resume waitKey
+            return
+        else
+          thread.wait waitKey="persist:#{obj.id}.#{key}"
+          JObject::persistence_saveItem.call obj, @, key, value, (err) =>
+            return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{obj.id}\n#{err.stack ? err}" if err?
+            return thread.resume waitKey
+      when 'delete'
+        {key} = event
+        thread.wait waitKey="delete:#{obj.id}[#{key}]"
+        JObject::persistence_deleteItem.call obj, @, key, (err) =>
+          return thread.throw 'PersistenceError', "Failed to delete key #{key} for object ##{obj.id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
+      when 'shift'
+        thread.wait waitKey="persist:#{obj.id}#shift"
+        multi = @client.multi()
+        multi.hincrby obj.id+':meta', 'offset', 1
+        multi.hincrby obj.id+':meta', 'length', -1
+        multi.exec (err) =>
+          return thread.throw 'PersistenceError', "Failed to shift for array ##{obj.id}\n#{err.stack ? err}" if err?
+          return thread.resume waitKey
+      when 'unshift'
+        {value} = event
+        thread.wait waitKey="persist:#{obj.id}#unshift"
+        JPersistence::withSave.call @, value, (err) =>
+          return thread.throw 'PersistenceError', "Failed to unshift for array ##{obj.id}\n#{err.stack ? err}" if err?
+          @client.watch obj.id+':meta' # TODO verify that this works
+          @client.hget obj.id+':meta', 'offset', (err, offset) =>
+            return thread.throw 'PersistenceError', "Failed to unshift for array ##{obj.id}\n#{err.stack ? err}" if err?
+            multi = @client.multi()
+            multi.hincrby obj.id+':meta', 'offset', offset-1
+            multi.hincrby obj.id+':meta', 'length', 1
+            multi.hset obj.id, offset-1, JPersistence::valueRepr value
+            multi.exec (err) =>
+              return thread.throw 'PersistenceError', "Failed to unshift for array ##{obj.id}\n#{err.stack ? err}" if err?
+              return thread.resume waitKey
+    return
 
-  # Handles adding objects recursively.
-  # Returns yes if obj is newly being listened on.
-  listenOn: (obj, options) ->
-    debug "#{@}::listenOn with obj: ##{obj.id}: #{obj}. Listeners" if trace
+  # Attach <JPersistance> to an object and return yes if obj was newly attached.
+  # options:
+  #   recursive:  if yes, attach recursively. default no.
+  attachTo: (obj, options) ->
+    debug "#{cyan @}::#{yellow 'attachTo'} with obj: ##{obj.id}: #{obj}. Listeners" if log
     if obj.addListener @
       return yes unless options?.recursive
       # Recursively add children
-      for child in obj.persistence_getChildren @
-        assert.ok child instanceof JObject, "persistence_getChildren should have returned all JObject children"
-        @listenOn child, options
+      for child in JPersistence::getChildren @
+        assert.ok child instanceof JObject, "JPersistence::getChildren should have returned all JObject children"
+        @attachTo child, options
       return yes
     return no
 
-  # Load an object with the given id for the given kernel
-  # cb: (err, obj) -> ...
-  loadJObject: (kernel, id, cb) ->
-    debug "loadJObject ##{id} (#{cb?})" if trace
-    assert.ok kernel?.cache?,               "loadJObject wants kernel.cache"
-    assert.ok kernel?.nativeFunctions?,     "loadJObject wants kernel.nativeFunctions"
-    assert.ok id,                           "loadJObject wants an id to load"
+  # Convenience... calls cb after persisting a new object (if not yet attached), recursively.
+  withSave: (value, cb) ->
+    if value instanceof JObject and @attachTo value
+      JObject::persistence_save.call value, @, cb
+    else
+      cb()
+
+  # Convenience... manually persist a new object, recursively.
+  # Useful for testing, but normally (as of yet) this doesn't get called
+  # by userland code.
+  #
+  # Calling this is similar to...
+  #   obj.addListener <JPersistence>
+  #   obj.emit thread:@, type:'new'
+  # except `saveJObject` doesn't require a thread context.
+  saveJObject: (obj, cb) ->
+    debug "#{cyan @}::#{yellow 'saveJObject'} ##{obj.id}" if log
+    assert.ok obj instanceof JObject, "Cannot save #{obj}"
+    attached = @attachTo obj
+    assert.ok attached, "Cannot attach to #{obj}"
+    JObject::persistence_save.call obj, @, cb
+
+  # Load an object with the given id.
+  # id:     Id of object to load.
+  # cache:  Cache to load (and save) associations from (to).
+  # cb:     (err, obj) -> ...
+  loadJObject: (id, cache, cb) ->
+    debug "#{cyan @}::#{yellow 'loadJObject'} ##{id} (#{cb?})" if log
+    assert.ok id, "loadJObject wants an id to load"
+    assert.ok cache?, "loadJObject wants cache"
     $P = @
-    cache = kernel.cache
-    nativ = kernel.nativeFunctions
-    return cb(null, cached) if cached=cache[id]
 
     $P.client.hgetall id+':meta', (err, meta) ->
       return cb(err) if err?
+      return cb(":meta was null for ##{id}") if not meta?
 
       creator = cache[meta.creator] ? new JStub {persistence:$P, id:meta.creator} if meta.creator?
 
       switch meta.type
-        when 'JObject'    then obj = kernel.cache[id] = new JObject {id,creator}
-        when 'JArray'     then obj = kernel.cache[id] = new JArray  {id,creator}
-        when 'JBoundFunc' then obj = kernel.cache[id] = new JBoundFunc {id,creator,func:null,scope:JNull} # func/scope will get loaded below
+        when 'JObject'    then cache[id] = obj = new JObject {id,creator}
+        when 'JArray'     then cache[id] = obj = new JArray  {id,creator}
+        when 'JBoundFunc' then cache[id] = obj = new JBoundFunc {id,creator,func:null,scope:JNull} # func/scope will get loaded below
         else return cb("Unexpected type of object w/ id #{id}: #{meta.type}")
       obj.addListener $P
 
@@ -71,10 +176,13 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           # data = new Array(data.length)
           data = []
           data.__proto__ = null # detach native Array::
+          {offset, length} = meta
+          offset ?= 0
+          length ?= 0
         else
           data = _data
           data.__proto__ = null # detach native Object::
-        debug "loadJObject now setting up items: #{inspect _data}" if trace
+        debug "copying items: #{inspect _data}" if log
         for key, value of _data
           t = value[0]
           value = value[2...]
@@ -82,54 +190,45 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             when 's' then value = value
             when 'n' then value = Number(value)
             when 'b' then value = Boolean(value)
-            when 'f' then value = nativ[value] ? -> throw new Error "Invalid native function"
+            when 'f' then value = cache[value] ? -> throw new Error "Invalid native function"
             when 'o' then value = cache[value] ? new JStub {persistence:$P, id:value}
             when 'z' then value = JSingleton[value]
           # TODO currently invalid values just become strings.
           #   Reconsider, this might mask bugs.
           if key is '__proto__' # special case
             obj.proto = value
+          else if meta.type is 'JArray'
+            if isInteger(key) and Number(key) >= 0
+              data[Number(key)-offset] = value
+            else
+              data[key] = value
           else
             data[key] = value
         obj.data = data
-        debug "loaded\n#{obj.serialize()}" if trace
+        debug "loaded\n#{obj.serialize()}" if log
         cb(null, obj)
 
-JObject::extend
-
-  # This is the event handler delegated by JPersistence.
-  persistence_on: ($$, event) ->
-    thread = event.thread
-    assert.ok thread?, "JObject::persistence_on wants event.thread"
-    switch event.type
-      when 'new'
-        thread.wait waitKey="persist:#{@id}"
-        @persistence_save $$, (err) ->
-          return thread.throw 'PersistenceError', "Failed to persist object ##{@id}\n#{err.stack ? err}" if err?
-          return thread.resume waitKey
-      when 'set'
-        {key, value} = event
-        thread.wait waitKey="persist:#{@id}[#{key}]"
-        @persistence_saveItem $$, key, value, (err) =>
-          return thread.throw 'PersistenceError', "Failed to persist key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
-          return thread.resume waitKey
-      when 'delete'
-        {key} = event
-        thread.wait waitKey="delete:#{@id}[#{key}]"
-        @persistence_saveItem $$, key, null, (err) =>
-          return thread.throw 'PersistenceError', "Failed to delete key #{key} for object ##{@id}\n#{err.stack ? err}" if err?
-          return thread.resume waitKey
-      #   garbage collection routine
-
-  # hmm... should JObjects be src/node/Nodes?... probably not
-  # XXX refactor out? This is already duped
-  persistence_getChildren: ($$) ->
+  getChildren: (obj) ->
     children = []
-    if @data?
-      children.push value for key, value of @data when value instanceof JObject
-    children.push @proto if @proto instanceof JObject
+    if obj.data?
+      children.push value for key, value of obj.data when value instanceof JObject
+    children.push obj.proto if obj.proto instanceof JObject
     return children
 
+  valueRepr: (value) ->
+    switch _typeof value
+      when 'string'     then return 's:'+value
+      when 'number'     then return 'n:'+value
+      when 'boolean'    then return 'b:'+value
+      when 'function'
+        assert.ok value.id?, "Cannot persist a native function with no id"
+        return 'f:'+value.id
+      when 'object'     then return 'o:'+value.id
+      when 'null'       then return 'z:null'
+      when 'undefined'  then return 'z:undefined'
+      else throw new Error "dunno how to persist value #{value} (_typeof #{_typeof value})"
+
+JObject::extend
   ###
     Persist the object if object is dirty, recursively.
 
@@ -144,11 +243,12 @@ JObject::extend
     as there is no way to know how to reach them.
   ###
   persistence_save: ($$, cb) ->
+    debug "#{cyan @}::#{red 'persistence_save'}" if log
     assert.ok @id, "JObject needs an id for it to be saved."
     return cb() if @_saving # nothing to do if already saving
     @_saving = yes
 
-    debug "$$.client.hmset #{@id+':meta'}" if trace
+    debug "#{cyan '$$.client'}.#{yellow 'hmset'} #{@id+':meta'}" if log
     $$.client.hmset @id+':meta',
       type:@constructor.name,
       creator:@creator.id
@@ -158,7 +258,7 @@ JObject::extend
       # Asynchronously persist each key-value pair
       async.forEach dataKeys, (key, next) =>
         value = if key is '__proto__' then @proto else @data[key]
-        @persistence_saveItem $$, key, value, next
+        JObject::persistence_saveItem.call @, $$, key, value, next
         return
       # After saving all key-value pairs (or upon error)
       , (err) =>
@@ -166,46 +266,15 @@ JObject::extend
         return cb(err)
 
   persistence_saveItem: ($$, key, value, cb) ->
-    assert.ok @id, "JObject needs an id for it to be saved."
-    debug "persistence_saveItem saving key/value #{key}:#{value}" if trace
+    debug "#{cyan @}::#{yellow 'persistence_saveItem'} saving key/value #{key}:#{value}" if log
+    assert.ok @id, "JObject::persistence_saveItem wants @id"
+    JPersistence::withSave.call $$, value, (err) =>
+      return cb(err) if err?
+      valueRepr = JPersistence::valueRepr value
+      debug "#{cyan '$$.client'}.#{yellow 'hset'} #{@id}, #{key}, #{valueRepr}" if log
+      $$.client.hset @id, key, valueRepr, cb
 
-    switch typeof value
-      when 'string'   then value = 's:'+value
-      when 'number'   then value = 'n:'+value
-      when 'boolean'  then value = 'b:'+value
-      when 'function'
-        assert.ok value.id?, "Cannot persist a native function with no id"
-        value = 'f:'+value.id
-      when 'object'
-        if value instanceof JObject
-          assert.ok value.id, "Cannot persist a JObject without id"
-          if $$.listenOn value
-            value.persistence_save $$, (err) =>
-              return cb(err) if err?
-              debug "$$.client.hset #{@id}, #{key}, o:#{value.id}" if trace
-              $$.client.hset @id, key, 'o:'+value.id, cb
-          else
-            debug "$$.client.hset #{@id}, #{key}, o:#{value.id}" if trace
-            $$.client.hset @id, key, 'o:'+value.id, cb
-          return
-        else if value is null
-          $$.client.hdel @id, key, cb
-          return
-        else if value instanceof JSingleton
-          value = 'z:'+value.name
-        else return cb("Unexpected value #{value} (#{value?.constructor.name})")
-      else throw new Error "dunno how to persist value #{value} (#{typeof value})"
-    # Set key-value(ref) pair to redis
-    debug "$$.client.hset #{@id}, #{key}, #{value}" if trace
-    $$.client.hset @id, key, value, cb
-    return
-
-### XXX wrong
-JStub::extend
-  persistence_loadDeep: ($$, thread, cb) ->
-    thread.wait waitKey="load:#{@id}"
-    $$.loadJObject thread.kernel, @id, (err, obj) ->
-      return thread.error 'InternalError', err if err?
-      thread.last = obj
-      return thread.resume waitKey
-###
+  persistence_deleteItem: ($$, key, cb) ->
+    debug "#{cyan @}::#{yellow 'persistence_deleteItem'} deleting key #{key}" if log
+    assert.ok @id, "JObject::persistence_deleteItem wants @id"
+    $$.client.hdel @id, key, cb

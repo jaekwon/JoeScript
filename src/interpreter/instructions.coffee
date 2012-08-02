@@ -1,3 +1,5 @@
+log = no
+
 ###
 
 Conventions
@@ -22,27 +24,27 @@ mechanism is suitable. Just add a handler to the object via JObject::addHandler 
 TODO mechanism to remove a listener...
 
 TODO document instructions
-  __get__:
-  __set__:
-  __del__:
-  __update__:
-  __create__:
-  __hasOwn__:
-  __keys__:
-  __iter__:
-  __num__:
-  __bool__:
-  __key__:  Convert an object to a key string.
-  __str__:  Returns a compact serialized value suitable for wire transfer.
-  __add__:
-  __sub__:
-  __mul__:
-  __div__:
-  __mod__:
-  __or__:
-  __and__:
-  __eq__:
-  __cmp__:
+  __get__ :
+  __set__ :
+  __del__ :
+  __update__ :
+  __create__ :
+  __hasOwn__ :
+  __keys__ :
+  __iter__ :
+  __num__ :
+  __bool__ :
+  __key__ :     Convert an object to a key string.
+  __str__ :     Returns a compact serialized value suitable for wire transfer.
+  __add__ :
+  __sub__ :
+  __mul__ :
+  __div__ :
+  __mod__ :
+  __or__ :
+  __and__ :
+  __eq__ :
+  __cmp__ :
 
 ###
 
@@ -59,7 +61,7 @@ assert = require 'assert'
 } = require 'sembly/src/joescript'
 {
   NODES: {JStub, JObject, JArray, JSingleton, JNull, JUndefined, JNaN, JBoundFunc, SimpleIterator}
-  HELPERS: {isInteger, isObject}
+  HELPERS: {isInteger, isObject, _typeof}
 } = require 'sembly/src/interpreter/object'
 
 # A simple instruction to store the last return value into @[key][index?]
@@ -483,16 +485,6 @@ clazz.extend Boolean,
     $.pop()
     return @valueOf()
 
-_typeof = (obj) ->
-  type = typeof obj
-  return type if type isnt 'object'
-  if obj instanceof JSingleton
-    return obj.name
-  else if obj instanceof JStub
-    return 'stub'
-  else
-    return 'object'
-
 INSTR = @INSTR =
   # asynchronous
   __get__: ($, obj, key, required=no) ->
@@ -504,14 +496,14 @@ INSTR = @INSTR =
           value = obj.proto
         else
           value = obj.data[key]
-        # debug "#{obj}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
+        debug "#{obj}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
         if value?
           if value instanceof JStub
             return cached if cached=$.kernel.cache[value.id]
             assert.ok value.persistence?, "JObject::__get__ wants <JStub>.persistence"
             $.wait waitKey="load:#{value.id}"
             # Make a call to aynchronously fetch value
-            value.persistence.loadJObject $.kernel, value.id, (err, valObj) ->
+            value.persistence.loadJObject value.id, $.kernel.cache, (err, valObj) ->
               return $.throw 'InternalError', "Failed to load stub ##{value.id}:\n#{err.stack ? err}" if err?
               return $.throw 'ReferenceError', "#{key} is a broken stub." if required and not valObj?
               # Replace stub with value in @data[key] (or @proto)
@@ -533,6 +525,7 @@ INSTR = @INSTR =
           else
             return INSTR.__get__ $, obj.proto, key, required
         else
+          # TODO refactor to make it run faster?
           if (bridgedKey=obj.bridgedKeys?[key])?
             return obj[bridgedKey]
           return $.throw 'ReferenceError', "#{key} is not defined" if required

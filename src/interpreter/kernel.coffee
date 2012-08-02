@@ -39,6 +39,13 @@ JStackItem = @JStackItem = clazz 'JStackItem', ->
 
 _i9nPerf = {}
 
+INTERRUPT_ERROR = 'INTERRUPT_ERROR'
+INTERRUPT_NONE = 'INTERRUPT_NONE'
+STATE_RUNNING = 'STATE_RUNNING'
+STATE_RETURN = 'STATE_RETURN'
+STATE_ERROR = 'STATE_ERROR'
+STATE_WAIT = 'STATE_WAIT'
+
 # A runtime context. (Represents a thread/process of execution)
 # user:     Owner of the process
 # scope:    All the local variables, a dual of the lexical scope.
@@ -64,7 +71,7 @@ JThread = @JThread = clazz 'JThread', ->
   # Main run loop iteration.
   runStep: ->
     if @i9ns.length is 0
-      @state = if @error then 'error' else 'return'
+      @state = if @error then STATE_ERROR else STATE_RETURN
       return
     {func, this:that} = i9n = @i9ns[@i9ns.length-1]
     i9nKey = "#{that.constructor.name}.#{func._name}" if perf
@@ -85,11 +92,11 @@ JThread = @JThread = clazz 'JThread', ->
     @last = result
     
     switch @state
-      when null
+      when STATE_RUNNING
         info "             #{blue 'last ->'} #{@last}" if trace
-      when 'return'
+      when STATE_RETURN
         info "             #{yellow 'return ->'} #{@last}" if trace
-      when 'wait'
+      when STATE_WAIT
         info "             #{yellow 'wait ->'} #{inspect @waitKey}" if trace
       else
         throw new Error "Unexpected state #{@state}"
@@ -120,37 +127,53 @@ JThread = @JThread = clazz 'JThread', ->
 
   ###
 
-  # NOTE: Throw may actually throw a native exception.
+  # Throw an error in this thread,
+  # An error can be thrown during a wait, such as during IO.
+  #
+  #   If the state is STATE_WAIT,
+  #     set @state and @error,
+  #     and @exit() (e.g. call callbacks)
+  #     Thread is already out of the runloop,
+  #     but waitlists should be cleared.
+  #   Else If the state is STATE_RUNNING,
+  #     set @state and @error,
+  #     and throw a native string (INTERRUPT_XYZ) to interrupt runloop.
+  #   Else
+  #     this shouldn't happen.
   throw: (name, message) ->
     @error = name:name, message:message, stack:@callStack()
-    # An error can be thrown during a wait, such as
-    # due to an IO error
-    if @state is 'wait'
-      while waitKey=@waitKeys.pop()
-        (waitList=@kernel.waitLists[waitKey]).remove @
-        delete @kernel.waitLists[waitKey] if waitList.length is 0
-      @state = 'error'
-    else
-      assert.ok @waitKeys.length is 0, "During a throw, #{@} @state!='wait' had waitKeys #{@waitKeys}"
-      @state = 'error'
-    # unwind the stack as necessary
-    loop
-      dontcare = @pop()
-      i9n = @peek()
-      if not i9n?
-        @last = JUndefined
-        throw 'error' # TODO
-      else if i9n.this instanceof joe.Try and not i9n.isHandlingError
-        i9n.isHandlingError = true
-        i9n.func = joe.Try::interpretCatch
-        @last = @error
-        @state=null
-        throw 'caught' # TODO
+    switch @state
+      when STATE_WAIT
+        @state = STATE_ERROR
+        while waitKey=@waitKeys.pop()
+          (waitList=@kernel.waitLists[waitKey]).remove @
+          delete @kernel.waitLists[waitKey] if waitList.length is 0
+        @exit()
+        return
+      when STATE_RUNNING
+        assert.ok @waitKeys.length is 0, "During a throw, #{@} @state!='STATE_WAIT' had waitKeys #{@waitKeys}"
+        @state = STATE_ERROR
+        # unwind the stack as necessary
+        loop
+          dontcare = @pop()
+          i9n = @peek()
+          if not i9n?
+            @last = JUndefined
+            throw INTERRUPT_ERROR
+          else if i9n.this instanceof joe.Try and not i9n.isHandlingError
+            i9n.isHandlingError = true
+            i9n.func = joe.Try::interpretCatch
+            @last = @error
+            @state = STATE_RUNNING
+            throw INTERRUPT_NONE
+      else
+        fatal msg="Thread was unexpectedly in #{@state} during a JThread.throw."
+        throw new Error msg
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"
     debug "#{@}.return result = #{result}" if log
-    @state = 'return'
+    @state = STATE_RETURN
     # unwind the stack as necessary
     loop
       dontcare = @pop()
@@ -159,15 +182,15 @@ JThread = @JThread = clazz 'JThread', ->
         return result
       else if i9n.this instanceof joe.Invocation
         assert.ok i9n.func is joe.Invocation::interpretFinal, "Unexpected i9n.func #{i9n.func?._name or i9n.func?._name}"
-        @state = null
+        @state = STATE_RUNNING
         return result
 
   wait: (waitKey) ->
     debug "#{@}.wait waitKey = #{waitKey}" if log
-    # assert.ok @state is null, "JThread::wait wants null state for waiting but got #{@state}"
+    # assert.ok @state is STATE_RUNNING, "JThread::wait wants state STATE_RUNNING for waiting but got #{@state}"
     (@kernel.waitLists[waitKey]?=[]).push @
     @waitKeys.push waitKey
-    @state = 'wait'
+    @state = STATE_WAIT
     return undefined
 
   resume: (waitKey) ->
@@ -188,7 +211,7 @@ JThread = @JThread = clazz 'JThread', ->
   # Run more code after current code exits.
   # If the callback is not specified, it gets set to null.
   enqueue: ({code, callback}) ->
-    if @state in ['return', 'error']
+    if @state in [STATE_RETURN, STATE_ERROR]
       # reset state
       @start {code, callback}
       # TODO refactor the below two lines
@@ -202,7 +225,7 @@ JThread = @JThread = clazz 'JThread', ->
     @i9ns = []
     @last = JUndefined
     @error = null
-    @state = null
+    @state = STATE_RUNNING
     if code
       node = _parseCode code
       @i9ns.push this:node, func:node.interpret
@@ -268,12 +291,10 @@ JThread = @JThread = clazz 'JThread', ->
 @JKernel = JKernel = clazz 'JKernel', ->
 
   # cache:            cache of JObjects
-  # nativeFunctions:  all registered native functions
   # errorCallback:    when thread callbacks error out
-  init: ({@cache, @nativeFunctions, @errorCallback}={}) ->
-    @runloop = []  # TODO threads pushed here must have state=null. better API.
+  init: ({@cache, @errorCallback}={}) ->
+    @runloop = []  # TODO threads pushed here must have state=STATE_RUNNING. better API.
     @cache ?= {}      # TODO should be weak etc.
-    @nativeFunctions ?= {}
     @index = 0
     @ticker = 0
     @waitLists = {}   # waitKey -> [thread1,thread2,...]
@@ -306,6 +327,11 @@ JThread = @JThread = clazz 'JThread', ->
       else
         @errorCallback "Error parsing code:\n#{error.stack}\nfor code text:\n#{code}"
 
+  # Main entrance function for kernel runloop.
+  # Processes a number of ticks and stops for process.nextTick.
+  # Unless there are no more threads to run, (e.g. they are all waiting)
+  # schedule to run again via process.nextTick, allowing
+  # server to accept requests.
   runRunloop$: ->
     info "JKernel::runRunloop. @#{@index} (of #{@runloop.length})" if log
     # A thread polled from the runloop can have any @state.
@@ -319,23 +345,23 @@ JThread = @JThread = clazz 'JThread', ->
         @ticker++
         info "tick #{@ticker}. #{thread} (of #{@runloop.length})" if log
         thread.runStep()
-        if thread.state?
+        if thread.state isnt STATE_RUNNING
           # Run callbacks. Callbacks may enqueue more callbacks.
-          thread.exit() unless thread.state is 'wait'
+          thread.exit() unless thread.state is STATE_WAIT
           # Pull the thread out,
-          if thread.queue.length is 0 or thread.state is 'wait'
+          if thread.queue.length is 0 or thread.state is STATE_WAIT
             @runloop[@index..@index] = [] # splice out
             @index = @index % @runloop.length or 0
             process.nextTick @runRunloop if @runloop.length > 0
             return
           # or, run what's next in the queue.
           else
-            # thread.queue.length > 0 and thread.state != 'wait'
-            assert.ok thread.state in ['return', 'error'], "Unexpected thread state #{thread.state}"
+            # thread.queue.length > 0 and thread.state != STATE_WAIT
+            assert.ok thread.state in [STATE_RETURN, STATE_ERROR], "Unexpected thread state #{thread.state}"
             thread.start thread.queue.shift()
     catch error
       # Hook to handle native errors, which are unexpected.
-      if error not in ['error', 'caught']
+      if typeof error isnt 'string' or error[..9] != 'INTERRUPT_'
         nativeError = error
         fatal "Native error thrown in runStep. thread.throw'ing:\n" + (error.stack ? error)
         try
@@ -345,18 +371,18 @@ JThread = @JThread = clazz 'JThread', ->
       # Switch on what thread.throw returned.
       switch error
         # Userland error
-        when 'error'
+        when INTERRUPT_ERROR
           @runloop[@index..@index] = [] # splice out
           @index = @index % @runloop.length or 0
           process.nextTick @runRunloop if @runloop.length > 0
           thread.exit()
           return
         # Error thrown but caught in userland.
-        when 'caught'
+        when INTERRUPT_NONE
           'pass'
         # Unexpected native errors
         else
-          fatal "Unexpected error #{error}, should be 'error' or 'caught'"
+          fatal "Unexpected interrupt #{error}"
           @errorCallback(error)
           return
 
@@ -375,7 +401,7 @@ JThread = @JThread = clazz 'JThread', ->
       thread.waitKeys.remove waitKey
       if thread.waitKeys.length is 0
         debug "JKernel inserting #{thread} into @runloop" if log
-        thread.state = null
+        thread.state = STATE_RUNNING
         @runloop.push thread
         process.nextTick @runRunloop if @runloop.length is 1
       else

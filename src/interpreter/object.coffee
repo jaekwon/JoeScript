@@ -1,3 +1,5 @@
+log = no
+
 ###
 
 JObject is the base runtime object class.
@@ -12,8 +14,6 @@ jsValue:  Kind of like valueOf, but also converts JObjects and JSingletons into 
           types. Used for testing, and will be used in the future for other things.
 
 ###
-
-log = no
 
 {
   clazz,
@@ -39,14 +39,25 @@ require('sembly/src/translators/etc').install()
 # HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0
 isObject =  (o) -> o instanceof JObject or o instanceof JStub
-@HELPERS = {isInteger, isObject}
+_typeof = (obj) ->
+  type = typeof obj
+  return type if type isnt 'object'
+  if obj instanceof JSingleton
+    return obj.name
+  else if obj instanceof JStub
+    return 'stub'
+  else
+    return 'object'
+@HELPERS = {isInteger, isObject, _typeof}
 
 RUNTIME = Set([]) # elements defined at the bottom
 RUNTIME_FUNC = Set([joe.Func, Function])
 
 JStub = @JStub = clazz 'JStub', Node, ->
   init: ({@persistence, @id, @type}) ->
-    assert.ok @id?, "Stub wants id"
+    assert.ok @id?, "JStub wants id"
+    # persistence is undefined on a thin client.
+    # assert.ok @persistence?, "JStub wants persistence"
   jsValue: ($, $$) ->
     cached1 = $$[@id]
     return cached1 if cached1?
@@ -106,13 +117,14 @@ JObject = @JObject = clazz 'JObject', Node, ->
     for id, listener of @listeners
       listener.on @, event
 
-  ## Runtime functions ##
-  
   create: (creator, newData={}) ->
     new JObject creator:creator, data:newData, proto:@
+
+  stub: ($P) ->
+    new JStub id:@id, persistence:$P
+
   jsValue: ($, $$={}) ->
     return $$[@id] if $$[@id]
-    # console.log @serialize( (c={}; (n)->seen=c[n.id];c[n.id]=yes; not seen) )
     jsObj = $$[@id] = {}
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
@@ -120,9 +132,12 @@ JObject = @JObject = clazz 'JObject', Node, ->
   toString: -> "[JObject ##{@id}]"
 
 JArray = @JArray = clazz 'JArray', JObject, ->
-  bridgedKeys: {
-    'push': 'push'
-  }
+
+  bridgedKeys:
+    push:     'push'
+    pop:      'pop'
+    shift:    'shift'
+    unshift:  'unshift'
 
   init: ({id, creator, data, acl}) ->
     data ?= []
@@ -134,10 +149,27 @@ JArray = @JArray = clazz 'JArray', JObject, ->
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
   toString: -> "[JArray ##{@id}]"
+
+  # Bridged keys. These functions are available as runtime native functions.
   push: ($, value) ->
     Array.prototype.push.call @data, value
-    @emit {thread:$,type:'set',key:@data.length-1, value}
+    # TODO BEGIN XACTION
+    @emit {thread:$, type:'set', key:@data.length-1, value}
+    @emit {thread:$, type:'set', key:'length', value:@data.length}
+    # TODO END XACTION
     return JUndefined
+  pop: ($) ->
+    value = Array.prototype.pop.call @data
+    @emit {thread:$, type:'set', key:'length', value:@data.length}
+    return value
+  shift: ($) -> # popping from the left
+    value = Array.prototype.shift.call @data
+    @emit {thread:$, type:'shift'}
+    return value
+  unshift: ($, value) ->
+    Array.prototype.unshift.call @data, value
+    @emit {thread:$, type:'unshift', value}
+    return @data.length
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   # who:  User or JArray of users
