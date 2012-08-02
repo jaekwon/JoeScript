@@ -141,6 +141,7 @@ JObject::extend
   # Handle an event for this object.
   # See documentation above.
   dom_on: ($V, el, event) ->
+    # console.log el, "#{@}.dom_on #{event.type}"
     # HACK. TODO. 'input' is deprecated.
     if @data.type is 'input'
       switch event.type
@@ -156,15 +157,21 @@ JObject::extend
       switch event.type
         when 'set'
           {key, value} = event
-          itemEl = @dom_drawItem $V, key, value
           if existingEl=items[key]
             #debug "JObject::dom_on found existing item el for #{key}"
-            existingEl.after itemEl
-            existingEl.detach()
+            # If existingEl's parent & key is the same, don't do anything.
+            if existingEl.parent()[0] is el[0] and existingEl.data('key') is key
+              'pass'
+            else
+              itemEl = @dom_drawItem $V, key, value
+              existingEl.after itemEl
+              existingEl.detach()
+              items[key] = itemEl
           else
             #debug "JObject::dom_on appending new item el for #{key}"
+            itemEl = @dom_drawItem $V, key, value
             el.append itemEl
-          items[key] = itemEl
+            items[key] = itemEl
         when 'delete'
           {key} = event
           # TODO cannot just removeListener here.
@@ -199,10 +206,15 @@ JObject::extend
       when 'editor'
         $V.newEl id:@id, tag:'div', cls:'editor', data:{items}, (el) =>
           {Editor} = require 'sembly/src/client/editor'
-          editor = new Editor el:el, callback: (codeStr) =>
-            console.log "sending code", codeStr
-            $V.socket.emit 'run', codeStr
-            # $('#main').scrollDown()
+          mode = @data.mode ? 'coffeescript'
+          callback = @data.callback
+          editor = new Editor mode:mode, el:el, callback: (text) =>
+            if mode is 'coffeescript'
+              console.log "sending code", text
+              $V.socket.emit 'run', text
+              # $('#main').scrollDown()
+            else
+              $V.socket.emit 'submit', text:text, callback:callback.id
           el.append submit=$('<button>submit</submit>')
           submit.click -> editor.submit(); no
           process.nextTick ->

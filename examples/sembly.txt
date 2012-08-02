@@ -9,6 +9,13 @@ loop
 ## Simple inbox for messages.
 
 @jae.send = (msg) ->
-  @messages ||= []
+  @messages ||= [] # TODO this assigns all the time, doesn't need to.
   @messages.push msg
   'message sent'
+
+## Simple chatroom
+messages = []
+input = type:'editor', mode:'markdown', callback: (text) -> messages.push text
+chat = [messages, submit:input]
+chat.__class__ = 'hideKeys'
+chat
