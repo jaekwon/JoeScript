@@ -4,7 +4,7 @@ body {
   background-color: white;
   /*color: #f8f8f8;*/
   color: black;
-  font-family: 'Anonymous Pro', monospace;
+  font-family: "Inconsolata", monospace;
   font-size: 16px; }
 
 a {
@@ -65,7 +65,7 @@ a {
 textarea {
   background: transparent;
   color: #f8f8f8;
-  font-family: 'Anonymous Pro', monospace;
+  font-family: "Inconsolata", monospace;
   font-size: 16px; }
 
 div.object {
@@ -105,7 +105,7 @@ div.editor {
 .cm-s-sembly {
   /*background: #0a001f;*/
   /*color: #f8f8f8;*/
-  font-family: 'Anonymous Pro', monospace;
+  font-family: "Inconsolata", monospace;
   border-radius: 4px;
   border: 1px solid #8da6ce;
   margin: 4px; }

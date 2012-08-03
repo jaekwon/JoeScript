@@ -3,6 +3,7 @@ $lightBlue: #8DA6CE;
 // by function
 $bgColor: white;
 $c_outline: $lightBlue;
+$font: 'Inconsolata';
 
 body {
   /*background-color: #CECCD2;*/
@@ -10,7 +11,7 @@ body {
   background-color: $bgColor;
   /*color: #f8f8f8;*/
   color: black;
-  font-family: 'Anonymous Pro', monospace;
+  font-family: $font, monospace;
   font-size: 16px;
 }
 
@@ -81,7 +82,7 @@ a { // why did this get overridden?
 textarea {
   background: transparent;
   color: #f8f8f8;
-  font-family: 'Anonymous Pro', monospace;
+  font-family: $font, monospace;
   font-size: 16px;
 }
 
@@ -139,7 +140,7 @@ div.editor {
 .cm-s-sembly {
   /*background: #0a001f;*/
   /*color: #f8f8f8;*/
-  font-family: 'Anonymous Pro', monospace;
+  font-family: $font, monospace;
   border-radius: 4px;
   border: 1px solid $c_outline;
   margin: 4px;
