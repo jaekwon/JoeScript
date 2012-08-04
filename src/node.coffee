@@ -68,10 +68,15 @@ indent = (c) -> Array(c+1).join('  ')
 
     serialize: (filter, _indent=0) ->
       if filter is undefined # sensible default filter to avoid infinite recursion
-        cache = {}
+        cache1 = {}
+        cache2 = []
         filter = (node) ->
-          seen = cache[node.id]
-          cache[node.id] = yes
+          if node.id?
+            seen = cache1[node.id]
+            cache1[node.id] = yes
+          else
+            seen = node in cache2
+            cache2.push seen
           return not seen
       return '-- filtered --' if filter? and not filter @
       throw new Error "_indent (#{_indent}) too high, stack overflow?" if _indent > 1024

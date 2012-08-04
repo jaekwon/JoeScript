@@ -75,7 +75,7 @@ assert = require 'assert'
 } = require 'sembly/src/joescript'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 
-js = (obj) -> obj?.toJavascript?() ? obj
+js = (obj) -> obj.toJavascript()
 
 trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else obj
 
@@ -312,7 +312,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           valueVar = @value
         else
           valueVar = joe.Undetermined('temp')
-          lines.push joe.Assign target:valueVar, value:@value
+          lines.push joe.Assign target:valueVar, value:@value.toJSNode(toValue:yes)
           @value = valueVar # XXX I think this line is unnecessary
         @target.destructLines valueVar, lines
         lines.push valueVar.toJSNode({toValue,inject}) if toValue or inject
@@ -367,9 +367,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           node = joe.Operation left:node, op:'+', right:part
       return node?.toJSNode() or ''
         
-    toJavascript: ->
-      assert.ok typeof @parts is 'string', "Str.toJavascript can only handle a string part."
-      return '"' + escape(@parts) + '"'
+    # toJavascript: -> should have been converted to strings, nodes, and + operations.
 
   joe.Func::extend
     toJSNode: ->
@@ -401,7 +399,12 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJavascript: -> 'undefined'
 
   joe.Invocation::extend
-    toJavascript: -> "#{js @func}(#{@params.map (p)->js(p.value)})"
+    toJSNode: ({toValue,inject}={}) ->
+      @func = @func.toJSNode(toValue:yes)
+      @params.map (p) -> p.value = p.value.toJSNode(toValue:yes)
+      return inject?(@) ? @
+    toJavascript: ->
+      "#{js @func}(#{@params.map (p)->js(p.value)})"
 
   joe.Index::extend
     toJavascript: ->
@@ -420,14 +423,16 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       "[#{(js value for {key, value} in @items).join ', '}]"
 
   clazz.extend Boolean,
-    toJSNode: -> @
+    toJSNode: ({inject}={}) -> inject?(@).toJSNode() ? @
+    toJavascript: -> ''+@
 
   clazz.extend String,
-    toJSNode: -> @
+    toJSNode: ({inject}={}) -> inject?(@).toJSNode() ? @
     toJavascript: -> '"' + escape(@) + '"'
 
   clazz.extend Number,
-    toJSNode: -> @
+    toJSNode: ({inject}={}) -> inject?(@).toJSNode() ? @
+    toJavascript: -> ''+@
 
 @translate = translate = (node) ->
   # console.log node.serialize() # print before transformations...

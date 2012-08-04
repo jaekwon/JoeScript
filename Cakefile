@@ -14,109 +14,48 @@ task 'test', ->
     run 'coffee tests/joeson_test.coffee', ->
       run 'coffee tests/joescript_test.coffee', ->
         run 'coffee tests/translator_test.coffee', ->
-          run 'coffee tests/interpreter_test.coffee', ->
-            run 'coffee tests/jsl_test.coffee', ->
-              run 'coffee tests/persistence_test.coffee', ->
-                console.log "All tests OK"
+          run 'coffee tests/jscompile_test.coffee', ->
+            run 'coffee tests/interpreter_test.coffee', ->
+              run 'coffee tests/jsl_test.coffee', ->
+                run 'coffee tests/persistence_test.coffee', ->
+                  console.log "All tests OK"
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = """
     nonce = {nonce:'nonce'};
   """
-  for {l:libname, f:filepath} in [
-      # ./src/*
-      {           l:'sembly/src/joeson',                  f:'src/joeson'}
-      {           l:'sembly/src/codestream',              f:'src/codestream'}
-      {           l:'sembly/src/joescript',               f:'src/joescript'}
-      {           l:'sembly/src/node',                    f:'src/node'}
-      {           l:'sembly/src/interpreter',             f:'src/interpreter/index'}
-      {           l:'sembly/src/interpreter/instructions',f:'src/interpreter/instructions'}
-      {           l:'sembly/src/interpreter/object',      f:'src/interpreter/object'}
-      {           l:'sembly/src/interpreter/global',      f:'src/interpreter/global'}
-      {           l:'sembly/src/interpreter/kernel',      f:'src/interpreter/kernel'}
-      {           l:'sembly/src/interpreter/persistence', f:'src/interpreter/persistence'}
-      {           l:'sembly/src/translators/javascript',  f:'src/translators/javascript'}
-      {           l:'sembly/src/translators/scope',       f:'src/translators/scope'}
-      {           l:'sembly/src/translators/etc',         f:'src/translators/etc'}
-      {           l:'sembly/src/client',                  f:'src/client/index'}
-      {           l:'sembly/src/client/dom',              f:'src/client/dom'}
-      {           l:'sembly/src/client/editor',           f:'src/client/editor'}
-      {           l:'sembly/src/client/misc',             f:'src/client/misc'}
-      {           l:'sembly/src/parsers/ansi',            f:'src/parsers/ansi'}
-      {           l:'sembly/src/parsers/jsl',             f:'src/parsers/jsl'}
-      {           l:'sembly/lib/helpers',                 f:'lib/helpers'}
-      # browserify builtins
-      {           l:'_process',                 f:'node_modules/browserify/builtins/__browserify_process'}
-      {           l:'assert',                   f:'node_modules/browserify/builtins/assert'}
-      {           l:'util',                     f:'node_modules/browserify/builtins/util'}
-      {           l:'events',                   f:'node_modules/browserify/builtins/events'}
-      {           l:'buffer',                   f:'node_modules/browserify/builtins/buffer'}
-      {           l:'buffer_ieee754',           f:'node_modules/browserify/builtins/buffer_ieee754'}
-      #{           l:'path',                     f:'node_modules/browserify/builtins/path'}
-      {           l:'fs',                       f:'node_modules/browserify/builtins/fs'}
-      # cardamom
-      {           l:'cardamom',                 f:'node_modules/cardamom/lib/cardamom'}
-      {           l:'cardamom/src/bisect',      f:'node_modules/cardamom/lib/bisect'}
-      {           l:'cardamom/src/clazz',       f:'node_modules/cardamom/lib/clazz'}
-      {           l:'cardamom/src/collections', f:'node_modules/cardamom/lib/collections'}
-      {           l:'cardamom/src/colors',      f:'node_modules/cardamom/lib/colors'}
-      {           l:'cardamom/src/errors',      f:'node_modules/cardamom/lib/errors'}
-      {           l:'cardamom/src/fnstuff',     f:'node_modules/cardamom/lib/fnstuff'}
-      # sugar
-      {           l:'sugar',                    f:'node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development'}
-      # async
-      {           l:'async',                    f:'node_modules/async/lib/async'}
-      # nogg
-      {           l:'nogg',                     f:'node_modules/nogg/lib/nogg'}
-    ]
-      code += """
-        require['#{libname}'] = function() {
-          return new function() {
-            var exports = require['#{libname}'] = this;
-            var module = {exports:exports};
-            var process = require('_process');
-            var __filename = "#{filepath}.js";
-            #{ fs.readFileSync "#{filepath}.js" }
-            return (require['#{libname}'] = module.exports);
-          };
-        };
-        require['#{libname}'].nonce = nonce;\n\n
-      """
-  code = """
-    (function(root) {
-      var Sembly = function() {
-        function require(path){
-          var module = require[path];
-          //console.log("+"+path);
-          if (!module) {
-            throw new Error("Can't find module "+path);
-          }
-          if (module.nonce === nonce) {
-            module = module();
-            //console.log("!"+path, typeof module);
-            return module;
-          } else {
-            //console.log("."+path, typeof module);
-            return module;
-          }
-        }
-        #{code}
-        require('sugar');
-        return require('sembly/src/client');
-      }();
-
+  code = require('./lib/demodule')([
+    {name:'sembly/src',      path:'src/**.js'},
+    {name:'sembly/lib',      path:'lib/**.js'},
+    {name:'_process',        path:'node_modules/browserify/builtins/__browserify_process.js'},
+    {name:'assert',          path:'node_modules/browserify/builtins/assert.js'},
+    {name:'util',            path:'node_modules/browserify/builtins/util.js'},
+    {name:'events',          path:'node_modules/browserify/builtins/events.js'},
+    {name:'buffer',          path:'node_modules/browserify/builtins/buffer.js'},
+    {name:'buffer_ieee754',  path:'node_modules/browserify/builtins/buffer_ieee754.js'},
+    #{name:'path',            path:'node_modules/browserify/builtins/path'},
+    {name:'fs',              path:'node_modules/browserify/builtins/fs.js'},
+    {name:'cardamom',        path:'node_modules/cardamom/lib/cardamom.js'},
+    {name:'cardamom/src',    path:'node_modules/cardamom/lib/**.js'},
+    {name:'sugar',           path:'node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development.js'},
+    {name:'async',           path:'node_modules/async/lib/async.js'},
+    {name:'nogg',            path:'node_modules/nogg/lib/nogg.js'}
+  ], {
+    compilers:  {},
+    main:       {name:'Sembly', module:'sembly/src/client'},
+    moduleSetupCode: 'var process = require("_process");',
+    globalSetupCode: """
       if (typeof define === 'function' && define.amd) {
-        define(function() { return Sembly; });
+        define(function() { return Main; });
       } else { 
-        root.Sembly = Sembly; 
+        root.Sembly = Sembly;
       }
-    }(this));
-  """
+    """
+  })
   fs.writeFileSync 'static/sembly.js', code
   {parser, uglify} = require 'uglify-js'
   minCode = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
   fs.writeFileSync 'static/sembly.min.js', minCode
-  console.log "built ... running browser tests:"
 
 run = (args...) ->
   for a in args

@@ -108,6 +108,6 @@ assert    = require 'assert'
       return if @word? # already determined.
       assert.ok @scope?, "Scope must be available to determine an Undetermined"
       loop
-        word = @prefix+'_'+randid(4)
+        word = @prefix+'_$'+randid(4)+'$_'
         if not @scope.isDeclared(word) and not @scope.willDeclare(word)
           return @word=joe.Word(word)

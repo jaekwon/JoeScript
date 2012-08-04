@@ -1,4 +1,4 @@
-@require = require
+require 'sugar'
 
 # init. keep the DOM minimal so that this loads fast.
 $(document).ready ->

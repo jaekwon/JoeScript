@@ -2,14 +2,15 @@ require './setup'
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
-assert = require 'assert'
+{equal, deepEqual, ok} = assert = require 'assert'
 joe = require 'sembly/src/joescript'
 jsx = require 'sembly/src/translators/javascript'
 
 console.log blue "\n-= translator test =-"
 
-canon = (str) ->
-  str.replace(/[\n ]+/g, '').replace(/(accum|temp)_[a-zA-Z0-9]{4}/g, '$1').trim()
+canon = (str, stripWS=yes) ->
+  nstr = str.replace(/[\n ]+/g, if stripWS then '' else ' ').replace(/_\$[a-zA-Z0-9]{4}\$_/g, '').trim()
+  return nstr
 
 counter = 0
 test = (code, expected) ->
@@ -17,8 +18,16 @@ test = (code, expected) ->
   node = joe.parse code
   proc = []
   translated = jsx.translate(node)
+  if typeof expected is 'function'
+    try
+      result = eval(translated)
+      expected.call {it:result}, result
+    catch error
+      console.log "Error in evaluating translated javascript: #{yellow translated}.\nError:\n#{red error?.stack ? error}"
+      process.exist(1)
+    return
   if canon(translated) isnt canon(expected)
-    console.log "ERROR:\n  expected:\n#{green canon expected}\n  result:\n#{red canon translated}.\n  nodes:\n#{yellow node.serialize()}"
+    console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon translated, no}." #\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
 test """
@@ -44,7 +53,7 @@ test """
   a = 1;
   b = accum = [];
   while(true) {(if((a > 2)){return }; accum.push(a = (a + 1)))};
-  accum_0HhB
+  accum_$temp$_
 """
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
 test """
@@ -82,6 +91,9 @@ loop
   a = b
 """, 'var a; while(true) { a = b }'
 test """
+({foo,bar}) -> foo+bar
+""", """function(arg) {(var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar))}"""
+test """
 temp = {foo:1, bar:2}
 {foo,bar} = temp
 foo + bar
@@ -91,8 +103,12 @@ temp = {"foo": 1, "bar": 2};
 foo = temp.foo;
 bar = temp.bar;
 (foo + bar)"""
-### TODO need to find a good way to test translations with generated variables.
 test """
-({foo,bar}) -> foo+bar
-""", ""
-###
+{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
+{inspect} = require 'util'
+assert = require 'assert'
+{CodeStream} = require 'sembly/src/codestream'
+Node = require('sembly/src/node').createNodeClazz('GrammarNode')
+{pad, escape} = require 'sembly/lib/helpers'
+[pad]
+""", -> deepEqual @it, [require('sembly/lib/helpers').pad]
