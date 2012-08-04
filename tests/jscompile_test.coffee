@@ -11,8 +11,8 @@ console.log blue "\n-= javascript compiler test =-"
 
 compilers =
   coffee: (source) ->
-    node = joe.parse source
-    translated = jsx.transate(node)
+    node = joe.parse ''+source
+    translated = jsx.translate(node)
     return translated
 
 # This test looks for directories in test/jscompile/ and bundles all the
@@ -31,7 +31,7 @@ test = (dir, cb) ->
     cb.call {it:result}, result
   catch error
     console.log "Error in evaluating translated javascript: #{yellow source}.\nError:\n#{red error?.stack ? error}"
-    process.exist(1)
+    process.exit(1)
   return
 
 test 'sample', -> equal @it.sample, 'S4MPLE'

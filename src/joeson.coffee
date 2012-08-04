@@ -16,6 +16,12 @@ just admit that the current implementation is imperfect, and limit grammar usage
 
 ###
 
+@trace = trace =
+  #filterLine: 299
+  stack:      no
+  loop:       no
+  skipSetup:  yes
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
@@ -23,11 +29,37 @@ assert = require 'assert'
 Node = require('sembly/src/node').createNodeClazz('GrammarNode')
 {pad, escape} = require 'sembly/lib/helpers'
 
-@trace = trace =
-  #filterLine: 299
-  stack:      no
-  loop:       no
-  skipSetup:  yes
+if no
+  counter = 0
+  total = {}
+  timeStack = []
+  timeStart = (name) ->
+    now = new Date()
+    lastStackItem = timeStack[timeStack.length-1]
+    if lastStackItem
+      lastStackItem.accum += now - lastStackItem.start
+    timeStack.push name:name, start:now, accum:0
+  timeEnd = (name) ->
+    now = new Date()
+    {name, start, accum} = timeStack.pop()
+    #assert.equal name, name
+    t = total[name]
+    elapsed = now - start + accum
+    if t?
+      t.time += elapsed
+      t.count += 1
+      t.avg = t.time / t.count
+    else
+      total[name] = name:name, time:elapsed, count:1, avg:NaN
+    lastStackItem = timeStack[timeStack.length-1]
+    if lastStackItem
+      lastStackItem.start = now
+
+    if (++counter)%100000 is 0
+      values = Object.values total
+      timeTotals = 0
+      console.log values.sortBy((x) -> x.time).map((x) -> timeTotals += x.time; {name:x.name, time:x.time, c:x.count})
+      console.log "\n#{timeTotals}\n\n"
 
 _loopStack = [] # trace stack
 
@@ -49,13 +81,6 @@ _loopStack = [] # trace stack
     # { pos:{ (node.id):{id,result,pos,endPos,stage,...(same object as in stack)}... } }
     @frames = (new Array(@grammar.numRules) for i in [0...@code.text.length+1]) # include EOF
     @counter = 0
-
-  # code.pos will be reverted if result is null
-  try: (fn) ->
-    pos = @code.pos
-    result = fn(this)
-    @code.pos = pos if result is null
-    result
 
   log: (message) ->
     unless @skipLog
@@ -83,6 +108,7 @@ _loopStack = [] # trace stack
     else return frame
 
   wipeWith: (frame, makeStash=yes) ->
+    timeStart? 'wipewith'
     assert.ok frame.wipemask?, "Need frame.wipemask to know what to wipe"
     stash = new Array(@grammar.numRules) if makeStash
     stashCount = 0
@@ -94,14 +120,18 @@ _loopStack = [] # trace stack
       posFrames[i] = undefined
       stashCount++
     stash?.count = stashCount
+    timeEnd? 'wipewith'
     return stash
 
   restoreWith: (stash) ->
+    timeStart? 'restorewith'
     stashCount = stash.count
     for frame, i in stash when frame
       @frames[frame.pos][i] = frame
       stashCount--
       break if stashCount is 0
+    timeEnd? 'restorewith'
+    return
 
 ###
   In addition to the attributes defined by subclasses,
@@ -115,15 +145,14 @@ _loopStack = [] # trace stack
   @optionKeys = ['skipLog', 'skipCache', 'cb']
 
   @$stack = (fn) -> ($) ->
-    return fn.call this, $ if this isnt @rule
     $.stackPush this
+    timeStart? @name
     result = fn.call this, $
+    timeEnd? @name
     $.stackPop this
     return result
 
   @$loopify = (fn) -> ($) ->
-    return fn.call this, $ if this isnt @rule
-
     # STACK TRACE
     $.log "#{blue '*'} #{this} #{black $.counter}" if trace.stack
 
@@ -145,8 +174,6 @@ _loopStack = [] # trace stack
           $.code.pos = frame.endPos
           return frame.result
 
-        #start = new Date()
-        #timez = []
         frame.loopStage = 1
         frame.cacheSet null
         result = fn.call this, $
@@ -181,10 +208,8 @@ _loopStack = [] # trace stack
                           } - #{ _loopStack
                           } - #{ yellow escape ''+result
                            }: #{ blue escape $.code.peek beforeChars:10, afterChars:10 }"
+              timeStart? 'loopiteration'
               while result isnt null
-                #timez.push (end = new Date()).valueOf() - start.valueOf()
-                #start = end
-
                 assert.ok frame.wipemask?, "where's my wipemask"
                 bestStash = $.wipeWith frame, yes
                 bestResult = result
@@ -194,6 +219,7 @@ _loopStack = [] # trace stack
                 $.code.pos = startPos
                 result = fn.call this, $
                 break unless $.code.pos > bestEndPos
+              timeEnd? 'loopiteration'
 
               if trace.loop
                 _loopStack.pop()
@@ -212,6 +238,7 @@ _loopStack = [] # trace stack
         if frame.loopStage is 1
           frame.loopStage = 2 # recursion detected
 
+        timeStart? 'wipemask'
         # Step 1: Collect wipemask so we can wipe the frames later.
         $.log "#{yellow "`-base:"} #{escape frame.result} #{black typeof frame.result}" if trace.stack
         frame.wipemask ?= new Array($.grammar.numRules)
@@ -221,6 +248,7 @@ _loopStack = [] # trace stack
           break if i_frame.pos < startPos
           break if i_frame.id is @id
           frame.wipemask[i_frame.id] = yes
+        timeEnd? 'wipemask'
 
         # Step 2: Return whatever was cacheSet.
         $.code.pos = frame.endPos if frame.endPos?
@@ -305,7 +333,9 @@ _loopStack = [] # trace stack
     @capture = @choices.every (choice) -> choice.capture
   parse$: @$wrap ($) ->
     for choice in @choices
-      result = $.try choice.parse
+      pos = $.code.pos
+      result = choice.parse $
+      $.code.pos = pos if result is null
       if result isnt null
         return result
     return null
@@ -337,6 +367,7 @@ _loopStack = [] # trace stack
       @choices.push choice
     for name, rule of includes
       @include name, rule
+    # return XXX why is it faster w/o a return statement??
   contentString: -> blue("Rank(")+(@choices.map((c)->red(c.name)).join blue(','))+blue(")")
 
 @Sequence = Sequence = clazz 'Sequence', GNode, ->
@@ -360,14 +391,16 @@ _loopStack = [] # trace stack
         results = []
         for child in @sequence
           res = child.parse $
-          return null if res is null
+          if res is null
+            return null
           results.push res if child.capture
         return results
       when 'single'
         result = undefined
         for child in @sequence
           res = child.parse $
-          return null if res is null
+          if res is null
+            return null
           result = res if child.capture
         return result
       when 'object'
@@ -375,7 +408,8 @@ _loopStack = [] # trace stack
         # results[label] = undefined for label in @labels
         for child in @sequence
           res = child.parse $
-          return null if res is null
+          if res is null
+            return null
           if child.label is '&'
             results = if results? then Object.merge res, results else res
           else if child.label is '@'
@@ -421,8 +455,10 @@ _loopStack = [] # trace stack
     @labels   = labels
     @captures = captures
   parse$: @$wrap ($) ->
-    res = $.try @it.parse
-    return res ? undefined
+    pos = $.code.pos
+    result = @it.parse $
+    $.code.pos = pos if result is null
+    return result ? undefined
   contentString: -> '' + @it + blue("?")
 
 @Pattern = Pattern = clazz 'Pattern', GNode, ->
@@ -434,27 +470,34 @@ _loopStack = [] # trace stack
     @capture = @value.capture
   parse$: @$wrap ($) ->
     matches = []
-    result = $.try =>
+    pos = $.code.pos
+    resV = @value.parse $
+    if resV is null
+      $.code.pos = pos
+      if @min? and @min > 0
+        return null
+      return []
+    matches.push resV
+    loop
+      pos2 = $.code.pos
+      if @join?
+        resJ = @join.parse $
+        # return null to revert pos
+        if resJ is null
+          $.code.pos = pos2
+          break
       resV = @value.parse $
+      # return null to revert pos
       if resV is null
-        return null if @min? and @min > 0
-        return []
+        $.code.pos = pos2
+        break
       matches.push resV
-      loop
-        action = $.try =>
-          if @join?
-            resJ = @join.parse $
-            # return null to revert pos
-            return null if resJ is null
-          resV = @value.parse $
-          # return null to revert pos
-          return null if resV is null
-          matches.push resV
-          return 'break' if @max? and matches.length >= @max
-        break if action in ['break', null]
-      return null if @min? and @min > matches.length
-      return matches
-    return result
+      if @max? and matches.length >= @max
+        break
+    if @min? and @min > matches.length
+      $.code.pos = pos
+      return null
+    return matches
   contentString: ->
     "#{@value}#{cyan "*"}#{@join||''}#{cyan if @min? or @max? then "{#{@min||''},#{@max||''}}" else ''}"
 

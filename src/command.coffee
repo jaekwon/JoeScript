@@ -131,7 +131,9 @@ compileScript = (file, input, base) ->
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
     else
-      t.output = JoeScript.compile t.input, t.options
+      nodes = JoeScript.parse(t.input, env:o)
+      throw new Error "NotImplemented" # TODO
+      # t.output = ...
       JoeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base

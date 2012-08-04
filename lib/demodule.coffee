@@ -59,19 +59,21 @@ module.exports = (modules, options) ->
   #console.log toCompile
   derequired = ''
   for {file,name,fn} in toCompile
-      derequired += """
-        require['#{name}'] = function() {
-          return new function() {
-            var exports = require['#{name}'] = this;
-            var module = {exports:exports};
-            #{moduleSetupCode}
-            var __filename = "#{file}";
-            #{ require('fs').readFileSync "#{file}" }
-            return (require['#{name}'] = module.exports);
-          };
+    source = require('fs').readFileSync file
+    compiled = fn(source)
+    derequired += """
+      require['#{name}'] = function() {
+        return new function() {
+          var exports = require['#{name}'] = this;
+          var module = {exports:exports};
+          #{ moduleSetupCode }
+          var __filename = "#{file}";
+          #{ compiled }
+          return (require['#{name}'] = module.exports);
         };
-        require['#{name}'].nonce = nonce;\n\n
-      """
+      };
+      require['#{name}'].nonce = nonce;\n\n
+    """
 
   return """
     (function(root) {
@@ -89,11 +91,11 @@ module.exports = (modules, options) ->
             return module;
           }
         }
-        #{derequired}
+        #{ derequired }
         return require('#{main.module}');
       }();
 
-      #{globalSetupCode}
+      #{ globalSetupCode }
 
     }(this));
   """

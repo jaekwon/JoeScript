@@ -1,3 +1,4 @@
+require 'sugar'
 {
   clazz,
   colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}

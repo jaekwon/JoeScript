@@ -438,12 +438,12 @@ joe.JSForC::extend
 joe.Range::extend
   interpret: ($, i9n) ->
     i9n.func = joe.Range::interpret2
-    if @start?
-      $.push this:i9n, func:storeLast, key:'start'
-      $.pushValue @start
-    if @end?
-      $.push this:i9n, func:storeLast, key:'end'
-      $.pushValue @end
+    if @from?
+      $.push this:i9n, func:storeLast, key:'from'
+      $.pushValue @from
+    if @to?
+      $.push this:i9n, func:storeLast, key:'to'
+      $.pushValue @to
     if @by?
       $.push this:i9n, func:storeLast, key:'by'
       $.pushValue @by
@@ -452,15 +452,15 @@ joe.Range::extend
     # TODO Make range an iterator
     $.pop()
     if i9n.by?
-      if @type is '..'
-        array = (x for x in [i9n.start..i9n.end] by i9n.by)
+      if @exclusive
+        array = (x for x in [i9n.from...i9n.to] by i9n.by)
       else
-        array = (x for x in [i9n.start...i9n.end] by i9n.by)
+        array = (x for x in [i9n.from..i9n.to] by i9n.by)
     else
-      if @type is '..'
-        array = [i9n.start..i9n.end]
+      if @exclusive
+        array = [i9n.from...i9n.to]
       else
-        array = [i9n.start...i9n.end]
+        array = [i9n.from..i9n.to]
     return $.new JArray creator:$.user, data:array
 
 clazz.extend JObject,

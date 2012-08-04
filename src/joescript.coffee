@@ -61,7 +61,7 @@ Loop = clazz 'Loop', Node, ->
   @defineChildren
     label:      {type:Word}
     cond:       {type:EXPR, isValue:yes}
-    block:      {type:Node, required:yes}
+    block:      {type:EXPR, required:yes}
   init: ({@label, @cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
 
@@ -305,14 +305,15 @@ AssignItem = clazz 'AssignItem', Node, ->
 
 Range = clazz 'Range', Node, ->
   @defineChildren
-    start:    {type:EXPR, isValue:yes}
-    end:      {type:EXPR, isValue:yes}
+    from:     {type:EXPR, isValue:yes}
+    to:       {type:EXPR, isValue:yes}
     by:       {type:EXPR, isValue:yes}
-  init: ({@start, @type, @end, @by}) ->
+  init: ({@from, type, @to, @by}) ->
+    @exclusive = type is '...'
     @by ?= 1
-  toString: -> "Range(#{@start? and "start:#{@start}," or ''}"+
-                     "#{@end?   and "end:#{@end},"     or ''}"+
-                     "type:'#{@type}', by:#{@by})"
+  toString: -> "Range(#{@from? and "from:#{@from}," or ''}"+
+                     "#{@to?   and "to:#{@to},"     or ''}"+
+                     "exclusive:#{@exclusive}, by:#{@by})"
 
 NativeExpression = clazz 'NativeExpression', Node, ->
   init: (@exprStr) ->
@@ -571,7 +572,7 @@ resetIndent = (ws, $) ->
     o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", (make Arr)
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)
     i ARR_IMPL_ITEM: " value:EXPR splat:'...'? ", (make Item)
-    o RANGE:        " '[' start:LINEEXPR? _ type:('...'|'..') end:LINEEXPR? _ ']' by:(_BY EXPR)? ", (make Range)
+    o RANGE:        " '[' from:LINEEXPR? _ type:('...'|'..') to:LINEEXPR? _ ']' by:(_BY EXPR)? ", (make Range)
     o OBJ_EXPL:     " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", (make Obj)
     i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", (make Item)
     o PROPERTY:     " '@' (WORD|STRING) ", ((key) -> Index obj:Word('this'), key:key)
