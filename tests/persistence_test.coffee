@@ -25,50 +25,149 @@ _err_ = (fn) ->
       process.exit(1)
     fn.call this, args...
 
-persistence = new JPersistence()
-KERNEL.run
-  user:ANON
-  code: """
-  it = {foo:1, bar:2}
-  it.linkToIt = it
-  it.anArray = [1,2,3,4,"five"]
-  it.closure = -> it.foo + it.bar + it.anArray.length # 1 + 2 + 5 is 8
-  it
-  """
-  callback: _err_ ->
-    obj = @last
-    equal @state, 'return'
-    ok not obj.listeners?, "No listeners expected for object unassociated with scope"
-    # Emit event to persist obj
-    obj.addListener persistence
-    obj.emit thread:@, type:'new'
-    equal @state, 'wait'
+require('async').series [
 
-    # At this point the thread will become reanimated,
-    # even though this is happening in the exit callback.
-    # Since we don't want this callback to run again,
-    # just replace the thread's callback function...
-    @callback = _err_ ->
-      equal @state, 'return'
-      # Clear the kernel cache 
-      KERNEL.cache = {}
-      # Get a new persistence. (this isn't strictly necessary)
-      persistence.client.quit()
-      persistence = new JPersistence()
-      # Now try loading from persistence
-      persistence.loadJObject KERNEL, obj.id, _err_ (_obj) ->
-        console.log "Loaded object #{_obj.serialize()}"
-        equal obj.id, _obj.id
-
-        # Now try running some code
-        KERNEL.run
-          user:ANON
-          code: """
+  (next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = {foo:1, bar:2}
+      it.linkToIt = it
+      it.anArray = [1,2,3,4,"five"]
+      it.closure = -> it.foo + it.bar + it.anArray.length # 1 + 2 + 5 is 8
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.closure()
-          """
-          scope: new JObject(creator:ANON, data:{it:(new JStub id:obj.id)})
-          callback: _err_ ->
+          """, callback: _err_ ->
             equal @last, 8
-            console.log "done!"
-            KERNEL.shutdown()
-            persistence.client.quit()
+            ps.client.quit()
+            next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = [1,2,3]
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it.length
+          """, callback: _err_ ->
+            equal @last, 3
+            ps.client.quit()
+            next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = [1,2,3]
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it
+          """, callback: _err_ ->
+            deepEqual @last.jsValue(), [1,2,3]
+            ps.client.quit()
+            next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = [1,2,3]
+      it.pop()
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it
+          """, callback: _err_ ->
+            deepEqual @last.jsValue(), [1,2]
+            ps.client.quit()
+            next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = [1,2,3]
+      it.pop()
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          foo = []
+          foo.push it.pop()
+          foo.push it
+          foo
+          """, callback: _err_ ->
+            deepEqual @last.jsValue(), [2, [1]]
+            ps.client.quit()
+            next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = [1,2,3]
+      it.shift()
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          foo = []
+          it.unshift "QWE"
+          foo.push it.shift()
+          foo.push it
+          foo
+          """, callback: _err_ ->
+            deepEqual @last.jsValue(), ["QWE", [2,3]]
+            ps.client.quit()
+            next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = messages:[]
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it.messages.push "testing1"
+          it.messages.push "testing2"
+          """, callback: _err_ ->
+
+            KERNEL.cache = {} # reset cache
+            KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+              it.messages
+              """, callback: _err_ ->
+                deepEqual @last.jsValue(), ["testing1", "testing2"]
+                ps.client.quit()
+                next()
+
+  ,(next) -> # test
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = messages:[1,2,3]
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it.messages.shift()
+          it.messages.shift()
+          """, callback: _err_ ->
+
+            KERNEL.cache = {} # reset cache
+            KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+              it.messages
+              """, callback: _err_ ->
+                equal Object.keys(@last.jsValue()).length, 1
+                deepEqual @last.jsValue(), [3]
+                ps.client.quit()
+                next()
+
+], (err, results) ->
+  if err?
+    fatal "ERROR: #{err.stack ? err}"
+  else
+    console.log "done!"
+  KERNEL.shutdown()

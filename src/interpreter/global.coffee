@@ -9,10 +9,11 @@ async = require 'async'
 
 {JObject, JArray, JUndefined, JNull, JNaN, JStub, JBoundFunc} = require 'sembly/src/interpreter/object'
 
+fnNamed = (name, fn) -> fn.id = name; fn
+
 # Caches.
 # TODO weak references
 CACHE             = @CACHE =            {}
-NATIVE_FUNCTIONS  = @NATIVE_FUNCTIONS = {}
 
 if window?
   PERSISTENCE = undefined
@@ -31,19 +32,20 @@ else
 WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
   this:   USERS
   users:  USERS
-  login:  ($, something) ->
-          console.log something
-          return "it worked!"
+  login:  fnNamed('login', ($, something) ->
+            console.log something
+            return "it worked!"
+          )
 
 WORLD.hack_persistence = PERSISTENCE # FIX
 
 {JKernel} = require 'sembly/src/interpreter/kernel'
-KERNEL = @KERNEL = new JKernel cache:CACHE, nativeFunctions:NATIVE_FUNCTIONS
+KERNEL = @KERNEL = new JKernel cache:CACHE
 KERNEL.emitter.on 'shutdown', -> PERSISTENCE?.client.quit()
 
 # run this file to set up redis
 if require.main is module
-  PERSISTENCE?.listenOn WORLD
+  PERSISTENCE?.attachTo WORLD
   KERNEL.run user:GOD, code:'yes', callback: (err) ->
     return console.log "FAIL!\n#{err.stack ? err}" if err?
     WORLD.emit thread:@, type:'new'
@@ -52,4 +54,4 @@ if require.main is module
       PERSISTENCE.client.quit() # TODO
       console.log "done!"
 else
-  PERSISTENCE?.listenOn WORLD, recursive:yes # HACK, we could just load the globals from REDIS instead?
+  PERSISTENCE?.attachTo WORLD, recursive:yes # HACK, we could just load the globals from REDIS instead?

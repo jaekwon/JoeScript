@@ -170,12 +170,12 @@ io.sockets.on 'connection', (socket) ->
 
         @enqueue code:node, callback: ->
           switch @state
-            when 'return'
+            when 'STATE_RETURN'
               INSTR.__del__ @, _module, 'status'
               INSTR.__set__ @, _module, 'result', @last
               info "return: #{INSTR.__str__ @, @last}"
               # view = @last.newView()
-            when 'error'
+            when 'STATE_ERROR'
               @printErrorStack()
               INSTR.__del__ @, _module, 'status'
               # _module.__set__ @, 'result', JUndefined
@@ -186,6 +186,20 @@ io.sockets.on 'connection', (socket) ->
 
   # Server Diagnostics
   socket.on 'server_info?', -> socket.emit 'server_info.', memory:process.memoryUsage()
+
+  # Form submits
+  socket.on 'submit', ({text, callback}) ->
+    info "Received submit text:#{text}, callback:#{callback}"
+
+    KERNEL.run user:ANON, code:'callback(text)', scope:new JObject(creator:ANON, data:{callback:(new JStub(id:callback, persistence:WORLD.hack_persistence)), text:text}), callback: ->
+        switch @state
+          when 'STATE_RETURN'
+            info "return: #{INSTR.__str__ @, @last}"
+          when 'STATE_ERROR'
+            info "error in submit! #{inspect @error}"
+            @printErrorStack()
+          else
+            throw new Error "Unexpected state #{@state} during kernel callback"
 
   ###
   # Input, as in I/O.

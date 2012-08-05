@@ -1,3 +1,5 @@
+log = no
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
@@ -21,7 +23,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
   on: (obj, event) ->
-    debug "JPerspective::on for event: #{event.type}"
+    debug "JPerspective::on for event: #{event.type}" if log
     # Cache-set eventJSON for wire transfer
     unless event.eventJSON?
       # __str__ the values of the event object.
@@ -42,7 +44,7 @@ JPerspective = @JPerspective = clazz 'JPerspective', ->
   # Call to add a new object into the perspective.
   # Handles adding objects recursively.
   listenOn: (obj) ->
-    debug "JPerspective::listenOn with obj: ##{obj.id}: #{INSTR.__str__ null, obj}"
+    debug "JPerspective::listenOn with obj: ##{obj.id}: #{INSTR.__str__ null, obj}" if log
     if obj.addListener @
       # recursivey add children
       for child in obj.perspective_getChildren()
@@ -54,8 +56,8 @@ JObject::extend
   newPerspective: (socket) -> new JPerspective root:@, socket:socket
   perspective_on: ($$, event) ->
     switch event.type
-      when 'set'
-        {key, value} = event
+      when 'set', 'unshift'
+        {value} = event
         $$.listenOn value if value instanceof JObject
       when 'delete'
         # Would unlisten from the value but this is a GC situation.

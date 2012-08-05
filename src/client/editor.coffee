@@ -5,8 +5,9 @@ tabSize = 2
 tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
 
 Editor = @Editor = clazz 'Editor', ->
-  init: ({@el, @mirror, @callback}) ->
+  init: ({@el, @mirror, @callback, @mode}) ->
     assert.ok @el? or @mirror?, "Editor wants an @el or a premade @mirror"
+    @mode ?= 'coffeescript'
     @el.append(@elInner=$('<div class="editor_inner"/>'))
     @mirror ?= @makeMirror(@elInner)
 
@@ -15,7 +16,7 @@ Editor = @Editor = clazz 'Editor', ->
     # Setup CodeMirror instance.
     mirror = CodeMirror target[0],
       value:        '' # see mirror.setValue below.
-      mode:         'coffeescript'
+      mode:         @mode
       theme:        'sembly'
       keyMap:       'sembly'
       autofocus:    yes

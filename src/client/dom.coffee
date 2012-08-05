@@ -127,7 +127,7 @@ JView = @JView = clazz 'JView', ->
   # creates a link element
   newLink: ({id,cls,text}={}, setupCb) ->
     el = $ document.createElement 'a'
-    el.attr {href:'#'}
+    el.attr {href:"##{id}"}
     el.text text ? "[link:##{id}]"
     el.addClass cls if cls?
     el.data 'ref', id
@@ -141,6 +141,7 @@ JObject::extend
   # Handle an event for this object.
   # See documentation above.
   dom_on: ($V, el, event) ->
+    # console.log el, "#{@}.dom_on #{event.type}"
     # HACK. TODO. 'input' is deprecated.
     if @data.type is 'input'
       switch event.type
@@ -156,15 +157,23 @@ JObject::extend
       switch event.type
         when 'set'
           {key, value} = event
-          itemEl = @dom_drawItem $V, key, value
           if existingEl=items[key]
             #debug "JObject::dom_on found existing item el for #{key}"
-            existingEl.after itemEl
-            existingEl.detach()
+            # If existingEl's parent & key & value is the same, don't do anything.
+            # TODO reconsider. too expensive?
+            if existingEl.parent()[0] is el[0] and existingEl.data('key') is key and
+              existingEl.data('value') is value
+                'pass'
+            else
+              itemEl = @dom_drawItem $V, key, value
+              existingEl.after itemEl
+              existingEl.detach()
+              items[key] = itemEl
           else
             #debug "JObject::dom_on appending new item el for #{key}"
+            itemEl = @dom_drawItem $V, key, value
             el.append itemEl
-          items[key] = itemEl
+            items[key] = itemEl
         when 'delete'
           {key} = event
           # TODO cannot just removeListener here.
@@ -199,10 +208,15 @@ JObject::extend
       when 'editor'
         $V.newEl id:@id, tag:'div', cls:'editor', data:{items}, (el) =>
           {Editor} = require 'sembly/src/client/editor'
-          editor = new Editor el:el, callback: (codeStr) =>
-            console.log "sending code", codeStr
-            $V.socket.emit 'run', codeStr
-            # $('#main').scrollDown()
+          mode = @data.mode ? 'coffeescript'
+          callback = @data.callback
+          editor = new Editor mode:mode, el:el, callback: (text) =>
+            if mode is 'coffeescript'
+              console.log "sending code", text
+              $V.socket.emit 'run', text
+              # $('#main').scrollDown()
+            else
+              $V.socket.emit 'submit', text:text, callback:callback.id
           el.append submit=$('<button>submit</submit>')
           submit.click -> editor.submit(); no
           process.nextTick ->
@@ -229,7 +243,7 @@ JObject::extend
 
   # Draw key/value pairs for a POJO
   dom_drawItem: ($V, key, value) ->
-    $V.newEl tag:'div', cls:'item', data:{key}, children:[
+    $V.newEl tag:'div', cls:'item', data:{key,value}, children:[
       $V.newEl tag:'span', cls:'key attribute', text:key+':'
       value.dom_draw($V)
     ]
@@ -237,17 +251,68 @@ JObject::extend
 JArray::extend
   domClass: 'object array'
   dom_on: ($V, el, event) ->
-    if event.type is 'set' and event.key is 'length'
-      # hack to remove DOM items when array is truncated
-      newLength = event.value
-      items = el.data('items')
-      for itemKey, itemEl of items
-        if itemKey >= newLength
-          itemEl.detach()
-          delete items[itemKey]
-      # no need to display the length
-      return
+    switch event.type
+      when 'set'
+        if event.key is 'length'
+          # hack to remove DOM items when array is truncated
+          newLength = event.value
+          items = el.data('items')
+          for itemKey, itemEl of items
+            if itemKey >= newLength
+              itemEl.detach()
+              delete items[itemKey]
+          # no need to display the length
+          return
+      when 'unshift'
+        @dom_shiftKeys $V, el, 1
+        {value} = event
+        items = []
+        for key, item of el.data('items')
+          if isInteger(key)
+            items[''+(Number(key)+1)] = item
+          else
+            items[key] = item
+        items['0'] = itemEl = @dom_drawItem $V, '0', value
+        el.data('items', items)
+        el.prepend itemEl
+        return
+      when 'shift'
+        shifted = (itemz=el.data('items'))['0']
+        shifted.detach()
+        delete itemz['0']
+        @dom_shiftKeys $V, el, -1
+        items = []
+        for key, item of itemz
+          if isInteger(key)
+            items[''+(Number(key)-1)] = item unless Number(key) is 0
+          else
+            items[key] = item
+        el.data('items', items)
+        return
     @super.dom_on.call @, $V, el, event
+    @dom_sortItems $V, el
+
+  dom_shiftKeys: ($V, el, shift=-1) ->
+    el.find('>.item').map ->
+      item = $(@)
+      if isInteger(key=item.data('key'))
+        item.data('key', keyStr=(''+(Number(key)+shift)))
+        item.find('>.key').text(keyStr+':')
+
+  dom_sortItems: ($V, el) -> # sort ascending
+    el.find('>.item').sortElements (a, b) ->
+      key_a = $(a).data('key')
+      key_b = $(b).data('key')
+      if isInteger(key_a)
+        if isInteger(key_b)
+          if Number(key_a) > Number(key_b) then 1 else -1
+        else
+          return -1
+      else
+        if isInteger(key_b)
+          return 1
+        else
+          if key_a > key_b then 1 else -1
 
 JStub::extend
   domClass: 'stub'
