@@ -16,15 +16,6 @@ isIndex = (thing) -> thing instanceof Index
 
 Word = clazz 'Word', Node, ->
   init: (@key) ->
-    switch @key
-      when 'yes', 'true', 'si'
-        @_newOverride = true
-      when 'no', 'false'
-        @_newOverride = false
-      when 'undefined'
-        @_newOverride = Undefined.undefined
-      when 'null'
-        @_newOverride = Null.null
   toString: -> @key
   toKeyString: -> @key
 
@@ -626,7 +617,18 @@ resetIndent = (ws, $) ->
   i _COMMA_NEWLINE: " _BLANKLINE+ &:_ ", checkCommaNewline, skipCache:yes
 
   # TOKENS:
-  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", (make Word)
+  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", ((key) ->
+                      switch key
+                        when 'yes', 'true', 'si'
+                          return yes
+                        when 'no', 'false'
+                          return no
+                        when 'undefined'
+                          return Undefined.undefined
+                        when 'null'
+                          return Null.null
+                      return Word(key)
+                    )
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'by',

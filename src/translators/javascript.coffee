@@ -425,10 +425,17 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.Slice::extend
     toJSNode: ({inject}={}) ->
       obj =   @obj.toJSNode(toValue:yes)
-      from =  @range.from ? joe.Undefined()
-      to =    @range.to ? joe.Undefined()
-      _by =    @range.by ? joe.Undefined()
+      from =  @range.from ? 0
+      to =    @range.to   ? joe.Undefined()
+      _by =   @range.by   ? joe.JInfinity
+      length = joe.Operation(left:joe.Index(obj:obj, key:'length'), op:'?', right:joe.JInf)
+      i =     joe.Undetermined('i')
       #XXX
+      joe.JSForC
+        block: joe.Index({obj,key:i})
+        setup: joe.Assign({target:i, value:
+
+
       slice = joe.Invocation
         func:   joe.Index(obj:@obj, key:joe.Word('slice'))
         params: [joe.Item(value:from)]
