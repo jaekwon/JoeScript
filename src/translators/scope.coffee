@@ -47,7 +47,7 @@ assert    = require 'assert'
 # CONTRACT:
 #   Calling installScope on a node with scope already installed
 #   should be a safe operation that re-installs the scope.
-#   After node transformations like node.toJSNode(), you need to re-install.
+#   After node translations like node.toJSNode(), you need to re-install.
 @install = ->
   return if joe.Node::installScope? # already defined.
 
@@ -80,8 +80,9 @@ assert    = require 'assert'
   joe.Try::extend
     installScope: (options={}) ->
       init @, options
-      @catchBlock.installScope(create:yes, parent:this) if @catchVar? and @catchBlock?
-      @catchBlock.scope.declareVariable(@catchVar) if @catchVar?
+      if @catchVar? and @catchBlock?
+        @catchBlock.installScope(create:yes, parent:this)
+        @catchBlock.scope.declareVariable(@catchVar)
       @withChildren (child, parent, key) ->
         child.installScope?(create:no, parent:parent) unless key is 'catchBlock'
       return this

@@ -2,7 +2,7 @@
 
 # AST Transformation
 
-  This is responsible for transforming a JoeScript AST into valid Javascript AST.
+  This is responsible for translating a JoeScript AST into valid Javascript AST.
   Actually, the result needs to be a subset of Javascript so as to be interpretable
   from the sembly/src/interpreter. (this may change in the future).
 
@@ -18,20 +18,20 @@
           temp.baz = (temp.baz + beh)
   2. ??? I don't think there are any more at the moment.
    
-## The mechanism of transformation
+## The mechanism of translation
 
   1. Transform the AST into an RJavascript AST via the .toJSNode() method.
   2. Stringify to RJavascript code via toJavascript().
 
 ## .toJSNode
 
-  This method recursively iterates through the AST tree and transforms to RJavascript.
+  This method recursively iterates through the AST tree and translates to RJavascript.
   It's not strictly depth first or breadth first, but whatever is convenient.
   The .toJSNode may mutate the node, or return a new node entirely. This means
   callers of .toJSNode must take care to use the result, and ignore the original node.
 
   The 'toValue' argument tells .toJSNode that the result must be a valid Javascript value.
-  For instance, a Loop is not a valid value in Javascript, so a transformation must take
+  For instance, a Loop is not a valid value in Javascript, so a translation must take
   place to convert it into a Block with [].push of intermediate results.
 
 ## .inject
@@ -55,7 +55,7 @@
         return (b = 3)
 
   Notice that a return statement was injected into multiple values.
-  Sometimes you want to inject an invocation, as when transforming Loops.
+  Sometimes you want to inject an invocation, as when translating Loops.
 
   NOTE: By convention, when 'inject' is present, always set toValue to true.
   NOTE: Consider the impact of always "injecting", which may lead to bloat.
@@ -125,9 +125,9 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @isValue = toValue
       for line, i in @lines
         if i < @lines.length-1
-          @lines[i] = @lines[i].toJSNode()
+          @lines[i] = line.toJSNode()
         else
-          @lines[i] = @lines[i].toJSNode({toValue,inject})
+          @lines[i] = line.toJSNode({toValue,inject})
       @
     toJavascript: ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
@@ -144,7 +144,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @isValue = toValue
       @cond = @cond.toJSNode(toValue:yes)
       @block = @block.toJSNode {toValue,inject}
-      @else = @else.toJSNode {toValue,inject} if @else?
+      @else = @else?.toJSNode {toValue,inject} if @else?
       @
     toJavascript: ->
       if @isValue and not @hasStatement
@@ -264,7 +264,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         # @obj @cases @default
         lines = []
         # <Variable> = undefined
-        lines.push joe.Assign target:(target=joe.Undetermined('temp')), value:joe.Undefined()
+        lines.push joe.Assign target:(target=joe.Undetermined('temp')), value:joe.Singleton.undefined
         # switch(@obj) { case(case.matches) { <Variable> = case.block } for case in @cases }
         for _case in @cases
           _case.block = joe.Assign(target:target, value:_case.block).toJSNode(toValue:yes)
@@ -304,7 +304,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
           # But, anything more complex like `foo.bar.baz += 1` or
-          # `(foo = {bar:1}; foo).bar += 1` requires a transformation.
+          # `(foo = {bar:1}; foo).bar += 1` requires a translation
           @value = joe.Operation(left:@target, op:@op, right:@value.toJSNode(toValue:yes))
           @op = undefined
           return inject(this) if inject?
@@ -398,9 +398,17 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         destructs = []
         for {target:param}, i in @params.items
           if not isVariable param
-            arg = joe.Undetermined('arg')
-            @params.items[i] = joe.AssignItem target:arg
-            param.destructLines arg, destructs
+            if param instanceof joe.AssignObj
+              arg = joe.Undetermined('arg')
+              @params.items[i] = joe.AssignItem target:arg
+              param.destructLines arg, destructs
+            else if param instanceof joe.Index
+              assert.ok param.isThisProp, "Unexpected parameter #{param}"
+              key = joe.Word(''+param.key)
+              @params.items[i] = joe.AssignItem target:key
+              destructs.push joe.Assign target:param, value:key
+            else
+              throw new Error "Unexpected parameter #{param}"
         @block.lines[...0] = destructs
       ## make last line return
       @block = @block?.toJSNode({toValue:yes, inject:(value)->
@@ -419,7 +427,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.Invocation::extend
     toJSNode: ({toValue,inject}={}) ->
       @func = @func.toJSNode(toValue:yes)
-      @params.map (p) -> p.value = p.value.toJSNode(toValue:yes)
+      @params.map (p) ->
+        p.value = p.value.toJSNode(toValue:yes)
       return inject?(@) ? @
     toJavascript: ->
       "#{js @func}(#{@params.map (p)->js(p.value)})"
@@ -451,6 +460,22 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         ]
       ).toJSNode({toValue,inject})
 
+  joe.Soak::extend
+    toJSNode: ({toValue,inject}={}) ->
+      throw new Error "ImplementMe"
+    toJavascript: ->
+      throw new Error "Should not happen, soak is not Javascript."
+
+  joe.Heredoc::extend
+    toJavascript: ->
+      text = @text
+      length = text.length
+      loop
+        text = text.replace(/\*\//g, '* /')
+        break if text.length is length
+        length = text.length
+      return "/*#{text}*/"
+
   clazz.extend Boolean,
     toJSNode: ({inject}={}) -> inject?(@).toJSNode() ? @
     toJavascript: -> ''+@
@@ -464,8 +489,9 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJavascript: -> ''+@
 
 @translate = translate = (node) ->
-  # console.log node.serialize() # print before transformations...
+  # console.log node.serialize() # print before translations...
   # install plugin
+  node.validate()
   install()
   node = node.toJSNode().installScope().determine()
   node.validate()

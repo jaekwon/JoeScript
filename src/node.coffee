@@ -9,6 +9,12 @@ assert    = require 'assert'
 
 indent = (c) -> Array(c+1).join('  ')
 
+validateDescriptor = (nodeClazz, desc) ->
+  if Object::hasOwnProperty(desc, 'type')
+    assert.ok desc.type?, "descriptor.type was undefined for #{nodeClazz}"
+    if desc.type instanceof Array
+      validateDescriptor(nodeClazz, desc.type[0])
+
 # There are many types of nodes, so just create a new clazz for each type (grammar, code, runtime etc)
 @createNodeClazz = (clazzName) ->
 
@@ -16,6 +22,7 @@ indent = (c) -> Array(c+1).join('  ')
   Node = clazz clazzName, ->
 
     @defineChildren = (descriptors) ->
+      validateDescriptor(value) for key, value of descriptors
       orig = @prototype.children
       if orig
         @prototype.children = Object.merge Object.clone(orig), descriptors
@@ -63,7 +70,7 @@ indent = (c) -> Array(c+1).join('  ')
     validate: ->
       @withChildren (child, parent, key, desc) ->
         error = validateType child, desc
-        throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}): #{error}" if error?
+        throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}, start:#{inspect parent._origin?.start}): #{error}" if error?
         child.validate() if child instanceof Node
       , skipUndefined:no
 
@@ -124,8 +131,12 @@ indent = (c) -> Array(c+1).join('  ')
       return if obj instanceof descriptor.type # ok
       return "Expected type of #{descriptor.type.name} but got #{obj.constructor.name}"
     else if typeof descriptor.type is 'string'
-      return if typeof obj is descriptor.type # ok
-      return "Expected native type of #{descriptor.type} but got #{typeof obj}"
+      if descriptor.type in ['number', 'boolean', 'function', 'string']
+        return if typeof obj is descriptor.type # ok
+        return "Expected native type of #{descriptor.type} but got #{typeof obj}"
+      else
+        return if obj?.constructor?.name is descriptor.type
+        return "Expected constructor name of #{descriptor.type} but got #{obj?.constructor?.name}"
     else if descriptor.type?
       assert.ok no, "Should not happen. Dunno how to handle descriptor type #{inspect descriptor.type}"
     # else nothing to do

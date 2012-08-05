@@ -272,9 +272,11 @@ _loopStack = [] # trace stack
         start:  line:$.code.posToLine(start), col:$.code.posToLine(start), pos: start
         end:    line:$.code.posToLine(end),   col:$.code.posToLine(end),   pos: end
       if @cb?
-        result._origin = _origin if result instanceof Object
+        if result instanceof Object
+          Object.defineProperty result, '_origin', value:_origin, enumerable:no, writable:yes
         result = @cb.call this, result, $
-      result._origin ?= _origin if result instanceof Object # set it again
+      if result instanceof Object # set it again
+        Object.defineProperty result, '_origin', value:_origin, enumerable:no, writable:yes
     return result
 
   @$wrap = (fn) ->
@@ -561,7 +563,7 @@ _loopStack = [] # trace stack
     @numRules = 0
     @id2Rule = {} # slow lookup for debugging...
 
-    # TODO refactor into transformation passes.
+    # TODO refactor into translation passes.
     # Merge Choices with just a single choice.
     @walk
       pre: (node, parent, key, desc, key2) =>

@@ -40,8 +40,8 @@ Block = clazz 'Block', Node, ->
 If = clazz 'If', Node, ->
   @defineChildren
     cond:       {type:EXPR, isValue:yes}
-    block:      {type:Node, required:yes}
-    else:       {type:Node}
+    block:      {type:EXPR, required:yes}
+    else:       {type:EXPR}
   init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
   toString: ->
@@ -90,7 +90,7 @@ JSForK = clazz 'JSForK', Loop, ->
 Switch = clazz 'Switch', Node, ->
   @defineChildren
     obj:        {type:EXPR, isValue:yes, required:yes}
-    cases:      {type:[type:Case]}
+    cases:      {type:[type:'Case']}
     default:    {type:EXPR, isValue:yes}
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
@@ -133,7 +133,7 @@ Statement = clazz 'Statement', Node, ->
 Invocation = clazz 'Invocation', Node, ->
   @defineChildren
     func:       {type:EXPR, isValue:yes}
-    params:     {type:[type:Item,isValue:yes]}
+    params:     {type:[type:'Item',isValue:yes]}
   init: ({@func, @params}) ->
     @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
   toString: -> "#{@func}(#{@params ? ''})"
@@ -151,7 +151,7 @@ Assign = clazz 'Assign', Node, ->
 Slice = clazz 'Slice', Node, ->
   @defineChildren
     obj:        {type:EXPR, isValue:yes}
-    range:      {type:Range, required:yes}
+    range:      {type:'Range', required:yes}
   init: ({@obj, @range}) ->
   toString: -> "#{@obj}[#{@range}]"
 
@@ -170,6 +170,7 @@ Index = clazz 'Index', Node, ->
     @obj = obj
     @key = key
     @type = type
+  isThisProp$: get: -> @obj instanceof Word and @obj.key is 'this'
   toString: ->
     close = if @type is '[' then ']' else ''
     "#{@obj}#{@type}#{@key}#{close}"
@@ -182,7 +183,7 @@ Soak = clazz 'Soak', Node, ->
 
 Obj = clazz 'Obj', Node, ->
   @defineChildren
-    items:      {type:[type:Item]}
+    items:      {type:[type:Set(['Item','Heredoc'])]}
   # NOTE Items may contain Heredocs.
   # TODO consider filtering them out or organizing the heredocs
   init: (@items) ->
@@ -239,9 +240,10 @@ Str = clazz 'Str', Node, ->
 
 Func = clazz 'Func', Node, ->
   @defineChildren
-    params:     {type:AssignList}
-    block:      {type:Block} # must be block
+    params:     {type:'AssignList'}
+    block:      {type:Block, required:yes} # must be block
   init: ({@params, @type, @block}) ->
+    @block ?= new Block([]) # trans
   toString: ->
     "#{ if @params? then '('+@params.toString(no)+')' else '()'
     }#{ @type
@@ -249,7 +251,7 @@ Func = clazz 'Func', Node, ->
 
 AssignObj = clazz 'AssignObj', Node, ->
   @defineChildren
-    items:      {type:[type:AssignItem]}
+    items:      {type:[type:'AssignItem']}
   init: (@items) ->
   targetNames$: get: ->
     names = []
@@ -480,7 +482,7 @@ resetIndent = (ws, $) ->
                 o OP30: [
                   i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
                   o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", (({left, _not, op, right}) ->
-                                                                                        invo = new Invocation(func:op, params:[left, right])
+                                                                                        invo = new Invocation(func:op, params:[Item(value:left), Item(value:right)])
                                                                                         if _not
                                                                                           return new Not invo
                                                                                         else

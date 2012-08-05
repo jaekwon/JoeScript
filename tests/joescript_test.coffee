@@ -97,7 +97,7 @@ test  """
       """, "x=(1);\nswitch(x){when 1{\"correct\"}//else{\"incorrect\"}}"
 test  "foo.replace(bar).replace(baz)", "foo.replace(bar).replace(baz)"
 test  "foo.replace(/\\/g, 'bar')", "foo.replace(\"\\\\\",\"bar\")"
-test  "a = () ->", "a=(()->{undefined})"
+test  "a = () ->", "a=(()->{})"
 test  "a = (foo) -> foo", "a=((foo)->{foo})"
 test  "a = (foo = 2) -> foo", "a=((foo=2)->{foo})"
 test  "a = ({foo,bar}) -> foo", "a=(({foo,bar})->{foo})"
@@ -237,13 +237,13 @@ test """
   get: -> (foo)
   set: ->
 }
-""", '{get:()->{foo},set:()->{undefined}}'
+""", '{get:()->{foo},set:()->{}}'
 test """
 {
   get: ->
   set: ->
 }
-""", '{get:()->{undefined},set:()->{undefined}}'
+""", '{get:()->{},set:()->{}}'
 test """
 {
   foo: ->
@@ -251,7 +251,7 @@ test """
    baz: ->
   bak: ->
 }
-""", '{foo:()->{undefined},bar:()->{{baz:()->{undefined}}},bak:()->{undefined}}'
+""", '{foo:()->{},bar:()->{{baz:()->{}}},bak:()->{}}'
 test """
 console.log
   pre: "qwe"

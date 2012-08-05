@@ -17,11 +17,14 @@ compilers =
 
 # This test looks for directories in test/jscompile/ and bundles all the
 # compiled javascript files into a single source string, then evals it.
-# The 'module' module is returned during evaluation, for 'cb' to validate.
+# The main module is returned during evaluation, for 'cb' to validate.
 counter = 0
-test = (dir, cb) ->
+test = (requires, cb) ->
   console.log "#{red "test #{counter++}"}: tests/jscompile/#{dir}"
-  source = demodule [{name:dir, path:'tests/jscompile/'+dir+'/**.coffee'}], {
+  if typeof requires is 'string'
+    dir = requires
+    requires = [{name:dir, path:'tests/jscompile/'+dir+'/**.coffee'}]
+  source = demodule requires, {
     compilers:  compilers,
     main:       {name:'MAIN', module:dir+'/main'},
     globalSetupCode: 'return MAIN;'
@@ -35,3 +38,4 @@ test = (dir, cb) ->
   return
 
 test 'sample', -> equal @it.sample, 'S4MPLE'
+test [{name:'joeson', path:'src/joeson.coffee'}], -> console.log @it
