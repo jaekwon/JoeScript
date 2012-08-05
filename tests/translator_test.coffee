@@ -52,7 +52,7 @@ test """
   var a, b, accum;
   a = 1;
   b = accum = [];
-  while(true) {(if((a > 2)){return }; accum.push(a = (a + 1)))};
+  while(true) {(if((a > 2)){return }; accum.push((a = (a + 1))))};
   accum_$temp$_
 """
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'

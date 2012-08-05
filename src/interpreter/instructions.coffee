@@ -60,7 +60,7 @@ assert = require 'assert'
   HELPERS:{isWord,isVariable}
 } = require 'sembly/src/joescript'
 {
-  NODES: {JStub, JObject, JArray, JSingleton, JNull, JUndefined, JNaN, JBoundFunc, SimpleIterator}
+  NODES: {JStub, JObject, JArray, JSingleton, JNull, JUndefined, JNaN, JInfinity, JBoundFunc, SimpleIterator}
   HELPERS: {isInteger, isObject, _typeof}
 } = require 'sembly/src/interpreter/object'
 
@@ -266,16 +266,15 @@ joe.Operation::extend
     else
       throw new Error "implement me!"
 
-joe.Null::extend
+joe.Singleton::extend
   interpret: ($) ->
     $.pop()
-    return JNull
-
-joe.Undefined::extend
-  interpret: ($) ->
-    $.pop()
-    return JUndefined
-
+    switch @name
+      when 'null'       then JNull
+      when 'undefined'  then JUndefined
+      when 'Infinity'   then JInfinity
+      else throw new Error "Unknown Singleton type #{@name}"
+        
 joe.Index::extend
   interpret: ($, i9n) ->
     i9n.func = joe.Index::interpretTarget

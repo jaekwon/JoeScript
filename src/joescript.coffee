@@ -202,19 +202,11 @@ Item = clazz 'Item', Node, ->
     }#{ if @value?            then @value       else ''
     }#{ if @splat             then '...'        else '' }"
 
-Null = clazz 'Null', Node, ->
-  init: (construct) ->
-    if construct isnt yes
-      @_newOverride = Null.null
-  toString: -> "null"
-Null.null = new Null(yes)
+Singleton = clazz 'Singleton', Node, ->
+  init: (@name) ->
+  toString: -> @name
 
-Undefined = clazz 'Undefined', Node, ->
-  init: (construct) ->
-    if construct isnt yes
-      @_newOverride = Undefined.undefined
-  toString: -> "undefined"
-Undefined.undefined = new Undefined(yes)
+Singleton[x] = new Singleton(x) for x in ['null', 'undefined', 'Infinity']
 
 Str = clazz 'Str', Node, ->
   @defineChildren
@@ -324,8 +316,8 @@ Dummy = clazz 'Dummy', Node, ->
 
 @NODES = {
   Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
-  Statement, Invocation, Assign, Slice, Index, Soak, Obj, 
-  Null, Undefined,
+  Statement, Invocation, Assign, Slice, Index, Soak, Obj,
+  Singleton,
   Arr, Item, Str, Func, Range, NativeExpression, Heredoc, Dummy,
   AssignList, AssignObj, AssignItem,
   Undetermined, JSForC, JSForK
@@ -624,9 +616,9 @@ resetIndent = (ws, $) ->
                         when 'no', 'false'
                           return no
                         when 'undefined'
-                          return Undefined.undefined
+                          return Singleton.undefined
                         when 'null'
-                          return Null.null
+                          return Singleton.null
                       return Word(key)
                     )
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',

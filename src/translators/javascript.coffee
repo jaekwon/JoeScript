@@ -76,6 +76,7 @@ assert = require 'assert'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 
 js = (obj) -> obj.toJavascript()
+identity = (x) -> x
 
 trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else obj
 
@@ -193,6 +194,9 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         return @childrenToJSNode()
     toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
+  joe.JSForC::extend
+    toJavascript: -> "for(#{js @setup};#{js @cond};#{js @counter}){#{js @block}}"
+
   joe.For::extend
     toJSNode: ({toValue,inject}={}) ->
       if toValue or inject
@@ -255,7 +259,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       assert.ok no, 'should not happen'
 
   joe.Switch::extend
-    toJSNode: ({toValue,inject}) ->
+    toJSNode: ({toValue,inject}={}) ->
       if toValue or inject
         # @obj @cases @default
         lines = []
@@ -273,6 +277,19 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   TO_JS_OPS = {'is':'===', '==':'==='}
   joe.Operation::extend
+    toJSNode: ({toValue,inject}={}) ->
+      switch @op
+        when '?'
+          return (inject ? identity) joe.If(
+            cond:joe.Operation(
+              left: joe.Assign(target:ref=joe.Undetermined('ref'),value:@left),
+              op:   '!='
+              right:joe.Singleton.null
+            )
+            block: ref,
+            else:  @right
+          ).toJSNode({toValue,inject})
+        else return (inject ? identity) @childrenToJSNode()
     toJavascript: -> "(#{ if @left?  then js(@left)+' '  else ''
                       }#{ TO_JS_OPS[@op] ? @op
                       }#{ if @right? then ' '+js(@right) else '' })"
@@ -282,6 +299,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Assign::extend
     toJSNode: ({toValue,inject}={}) ->
+      @isValue or= toValue
       if @op?
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
@@ -320,7 +338,10 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       else
         return @childrenToJSNode()
     toJavascript: ->
-      "#{js @target} #{@op or ''}= #{js @value}"
+      if @isValue
+        "(#{js @target} #{@op or ''}= #{js @value})"
+      else
+        "#{js @target} #{@op or ''}= #{js @value}"
 
   joe.AssignObj::extend
     # source:   The source for destructuring assignment
@@ -392,11 +413,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.NativeExpression::extend
     toJavascript: -> @exprStr
 
-  joe.Null::extend
-    toJavascript: -> 'null'
-
-  joe.Undefined::extend
-    toJavascript: -> 'undefined'
+  joe.Singleton::extend
+    toJavascript: -> @name
 
   joe.Invocation::extend
     toJSNode: ({toValue,inject}={}) ->
@@ -423,24 +441,15 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       "[#{(js value for {key, value} in @items).join ', '}]"
 
   joe.Slice::extend
-    toJSNode: ({inject}={}) ->
-      obj =   @obj.toJSNode(toValue:yes)
-      from =  @range.from ? 0
-      to =    @range.to   ? joe.Undefined()
-      _by =   @range.by   ? joe.JInfinity
-      length = joe.Operation(left:joe.Index(obj:obj, key:'length'), op:'?', right:joe.JInf)
-      i =     joe.Undetermined('i')
-      #XXX
-      joe.JSForC
-        block: joe.Index({obj,key:i})
-        setup: joe.Assign({target:i, value:
-
-
-      slice = joe.Invocation
-        func:   joe.Index(obj:@obj, key:joe.Word('slice'))
-        params: [joe.Item(value:from)]
-      @range = @range.toJSNode()
-      inject?(@).toJSNode() ? @
+    toJSNode: ({toValue,inject}={}) ->
+      return joe.Invocation(
+        func: joe.Index(obj:@obj, key:'slice')
+        params: [
+          joe.Item(value:@range.from ? joe.Singleton.undefined),
+          joe.Item(value:@range.to   ? joe.Singleton.undefined),
+          joe.Item(value:@range.by   ? joe.Singleton.undefined) # TODO not supported in js.
+        ]
+      ).toJSNode({toValue,inject})
 
   clazz.extend Boolean,
     toJSNode: ({inject}={}) -> inject?(@).toJSNode() ? @
