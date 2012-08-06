@@ -642,10 +642,10 @@ INSTR = @INSTR =
     switch _typeof obj
       when 'string', 'number' then obj
       when 'object'
-        if obj instanceof joe.Word then return obj.key
         if obj instanceof joe.Undetermined
           assert.ok obj.word?, "Undetermined not yet determined!"
           return obj.word.key
+        if obj instanceof joe.Word then return obj.key
         $.throw 'TypeError', "__key__ not defined for #{obj?.constructor?.name}"
       else $.throw 'TypeError', "__key__ not defined for #{_typeof obj}"
 

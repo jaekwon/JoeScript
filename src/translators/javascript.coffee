@@ -127,6 +127,32 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         else:  else_
       )
 
+    # Translates a potentially soakful value (or assignment) into an If block.
+    unsoak: (force=no) ->
+      return if @unsoaked and not force
+      # first, find leftmost soak.
+      soakContainer = undefined
+      soak = undefined
+      cursor = this
+      loop
+        if cursor.soakable instanceof joe.Soak
+          soakContainer = cursor
+          soak = cursor.soakable
+        cursor.unsoaked = yes
+        cursor = cursor.soakable
+        break if not cursor?
+      # now soakable is the leftmost soak.
+      if soak?
+        return soak.obj.withSoak (ref) =>
+          assert.ok soakContainer.soakable is soak, "Unexpected soak container #{soakContainer}"
+          # replace soak with ref for soakContainer
+          soakContainer.soakable = ref
+          # soak node again from the top.
+          # this is an O(n^2) operation, which could be optimized.
+          return block:@unsoak(yes), else:joe.Singleton.undefined
+      else
+        return @
+
   joe.Word::extend
     toJavascript: ->
       ''+this
@@ -262,7 +288,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
               # _i++)
               joe.Operation(left:_i, op:'++')
           block = joe.Block [
-            joe.Assign(target:@keys[0], value:joe.Index(obj:_obj, key:_i)),
+            joe.Assign(target:@keys[0], value:joe.Index(obj:_obj, key:_i, type:'[')),
             if @cond?
               # if (@cond) { @block }
               joe.If(cond:@cond, block:@block)
@@ -327,6 +353,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Assign::extend
     toJSNode: ({toValue,inject}={}) ->
+      return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       @isValue or= toValue
       if @op?
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
@@ -455,6 +482,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Invocation::extend
     toJSNode: ({toValue,inject}={}) ->
+      return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       @func = @func.toJSNode(toValue:yes)
       @params.map (p) ->
         p.value = p.value.toJSNode(toValue:yes)
@@ -463,6 +491,9 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       "#{js @func}(#{@params.map (p)->js(p.value)})"
 
   joe.Index::extend
+    toJSNode: ({toValue,inject}={}) ->
+      return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
+      return @super.toJSNode.call(@, {toValue,inject})
     toJavascript: ->
       close = if @type is '[' then ']' else ''
       "#{js @obj}#{@type}#{js @key}#{close}"
@@ -480,6 +511,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Slice::extend
     toJSNode: ({toValue,inject}={}) ->
+      return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       return joe.Invocation(
         func: joe.Index(obj:@obj, key:'slice')
         params: [
@@ -491,7 +523,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Soak::extend
     toJSNode: ({toValue,inject}={}) ->
-      @obj.withSoak( (ref) =>
+      return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
+      return @obj.withSoak( (ref) =>
         block:ref,
         else:joe.Singleton.undefined
       ).toJSNode({toValue,inject})

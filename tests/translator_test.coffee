@@ -112,3 +112,23 @@ Node = require('sembly/src/node').createNodeClazz('GrammarNode')
 {pad, escape} = require 'sembly/lib/helpers'
 [pad]
 """, -> deepEqual @it, [require('sembly/lib/helpers').pad]
+# soak tests
+test " bar? ", 'if(((bar?"type" !== null) && (bar !== undefined))){bar}else{undefined}'
+test " foo = bar? ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar : undefined)'
+test " foo = bar?.baz ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar.baz : undefined)'
+test " foo = bar?.baz 1 ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar.baz(1) : undefined)'
+test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = (((ref = bbb.bar) != null) ? (((ref = ref.baz) != null) ? ref(1) : undefined) : undefined)'
+test " foo = base?.bar.baz 1 ", 'var foo; foo = (((base?"type" !== null) && (base !== undefined)) ? base.bar.baz(1) : undefined)'
+test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = (((base?"type" !== null) && (base !== undefined)) ? (((ref = base.bar.baz) != null) ? ref.blah(1) : undefined) : undefined)'
+test " base?.bar.baz?.blah = foo?.foo = 1 ", """
+  var ref;
+  if (((base?"type" !== null) && (base !== undefined))) {
+    if (((ref = base.bar.baz) != null)) {
+      ref.blah = (((foo?"type" !== null) && (foo !== undefined)) ? (foo.foo = 1) : undefined)
+    } else {
+      undefined
+    }
+  } else {
+    undefined
+  }
+"""

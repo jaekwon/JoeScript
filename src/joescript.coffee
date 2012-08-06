@@ -13,7 +13,12 @@ extend = (dest, source) -> dest.push x for x in source
 isKey = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
 isVariable = (thing) -> thing instanceof Word or thing instanceof Undetermined
 isIndex = (thing) -> thing instanceof Index
-@HELPERS = {extend, isKey, isVariable, isIndex}
+isSoakable = (thing) -> thing instanceof Slice or thing instanceof Index or thing instanceof Invocation or thing instanceof Soak
+@HELPERS = {extend, isKey, isVariable, isSoakable, isIndex}
+
+_soakable = (name) ->
+  get: -> @[name] if isSoakable @[name]
+  set: (it) -> @[name] = it
 
 Word = clazz 'Word', Node, ->
   init: (@key) ->
@@ -137,6 +142,7 @@ Invocation = clazz 'Invocation', Node, ->
     params:     {type:[type:'Item',isValue:yes]}
   init: ({@func, @params}) ->
     @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
+  soakable$: _soakable 'func'
   toString: -> "#{@func}(#{@params ? ''})"
 
 Assign = clazz 'Assign', Node, ->
@@ -147,6 +153,7 @@ Assign = clazz 'Assign', Node, ->
   init: ({@target, type, @op, @value}) ->
     assert.ok @value?, "need value"
     @op = type[...type.length-1] or undefined if type?
+  soakable$: _soakable 'target'
   toString: -> "#{@target} #{@op or ''}= (#{@value})"
 
 Slice = clazz 'Slice', Node, ->
@@ -154,6 +161,7 @@ Slice = clazz 'Slice', Node, ->
     obj:        {type:EXPR, isValue:yes}
     range:      {type:'Range', required:yes}
   init: ({@obj, @range}) ->
+  soakable$: _soakable 'obj'
   toString: -> "#{@obj}[#{@range}]"
 
 Index = clazz 'Index', Node, ->
@@ -172,6 +180,7 @@ Index = clazz 'Index', Node, ->
     @key = key
     @type = type
   isThisProp$: get: -> @obj instanceof Word and @obj.key is 'this'
+  soakable$: _soakable 'obj'
   toString: ->
     close = if @type is '[' then ']' else ''
     "#{@obj}#{@type}#{@key}#{close}"
@@ -180,6 +189,7 @@ Soak = clazz 'Soak', Node, ->
   @defineChildren
     obj:        {type:EXPR, isValue:yes}
   init: (@obj) ->
+  soakable$: _soakable 'obj'
   toString: -> "(#{@obj})?"
 
 Obj = clazz 'Obj', Node, ->
