@@ -119,9 +119,17 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       {block,else:else_}= fn(ref)
       return joe.If(
         cond:joe.Operation(
-          left: joe.Assign(target:ref,value:this),
-          op:   '!=.'
-          right:joe.Singleton.null
+          left: joe.Operation(
+            left: joe.Assign(target:ref,value:this),
+            op:   '!='
+            right:joe.Singleton.null
+          ),
+          op: 'and'
+          right: joe.Operation(
+            left: joe.Assign(target:ref,value:this),
+            op:   '!='
+            right:joe.Singleton.undefined
+          )
         )
         block: block,
         else:  else_
@@ -334,7 +342,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       else
         return @childrenToJSNode()
 
-  TO_JS_OPS = {'is':'===', '==':'===', 'isnt':'!==', '!=':'!==', '!=.':'!='}
+  TO_JS_OPS = {'is':'===', '==':'===', 'isnt':'!==', '!=':'!=='}
   joe.Operation::extend
     toJSNode: ({toValue,inject}={}) ->
       switch @op
@@ -525,8 +533,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ({toValue,inject}={}) ->
       return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       return @obj.withSoak( (ref) =>
-        block:ref,
-        else:joe.Singleton.undefined
+        block:true,
+        else:false
       ).toJSNode({toValue,inject})
     toJavascript: ->
       throw new Error "Should not happen, soak is not Javascript."
