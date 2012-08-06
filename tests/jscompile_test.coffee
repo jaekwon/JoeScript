@@ -20,7 +20,7 @@ compilers =
 # The main module is returned during evaluation, for 'cb' to validate.
 counter = 0
 test = (requires, cb) ->
-  console.log "#{red "test #{counter++}"}: tests/jscompile/#{dir}"
+  console.log "#{red "test #{counter++}"}: #{inspect requires}"
   if typeof requires is 'string'
     dir = requires
     requires = [{name:dir, path:'tests/jscompile/'+dir+'/**.coffee'}]

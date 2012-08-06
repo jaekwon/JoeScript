@@ -71,7 +71,7 @@ assert = require 'assert'
 
 {
   NODES:joe
-  HELPERS:{isWord,isVariable,isIndex}
+  HELPERS:{isVariable,isIndex}
 } = require 'sembly/src/joescript'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 
@@ -112,10 +112,43 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         if child.hasStatement
           hasStatement = yes
       return @hasStatement=hasStatement
+    # Calls fn with a variable that holds a ref to this node value,
+    # fn should return {block,else} which gets set on the resulting If node.
+    withSoak: (fn) ->
+      ref = joe.Undetermined('ref')
+      {block,else:else_}= fn(ref)
+      return joe.If(
+        cond:joe.Operation(
+          left: joe.Assign(target:ref,value:this),
+          op:   '!=.'
+          right:joe.Singleton.null
+        )
+        block: block,
+        else:  else_
+      )
 
   joe.Word::extend
     toJavascript: ->
       ''+this
+    withSoak: (fn) ->
+      {block,else:else_}= fn(@)
+      return joe.If(
+        cond:joe.Operation(
+          left:joe.Operation(
+            left: joe.Index(obj:@, type:'?', key:'type')
+            op:   '!='
+            right:joe.Singleton.null
+          ),
+          op: '&&'
+          right:joe.Operation(
+            left: @
+            op:   '!='
+            right:joe.Singleton.undefined
+          )
+        )
+        block: block,
+        else:  else_
+      )
 
   joe.Undetermined::extend
     toJavascript: -> throw new Error "Shouldn't happen..."
@@ -275,19 +308,14 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       else
         return @childrenToJSNode()
 
-  TO_JS_OPS = {'is':'===', '==':'==='}
+  TO_JS_OPS = {'is':'===', '==':'===', 'isnt':'!==', '!=':'!==', '!=.':'!='}
   joe.Operation::extend
     toJSNode: ({toValue,inject}={}) ->
       switch @op
         when '?'
-          return (inject ? identity) joe.If(
-            cond:joe.Operation(
-              left: joe.Assign(target:ref=joe.Undetermined('ref'),value:@left),
-              op:   '!='
-              right:joe.Singleton.null
-            )
+          return (inject ? identity) @left.withSoak((ref) =>
             block: ref,
-            else:  @right
+            else: @right
           ).toJSNode({toValue,inject})
         else return (inject ? identity) @childrenToJSNode()
     toJavascript: -> "(#{ if @left?  then js(@left)+' '  else ''
@@ -418,6 +446,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJavascript: ->
       "function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}}"
 
+  # NOTE: not to be produced in toJSNode, which is interpreted by src/interpreter.
   joe.NativeExpression::extend
     toJavascript: -> @exprStr
 
@@ -462,7 +491,10 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
   joe.Soak::extend
     toJSNode: ({toValue,inject}={}) ->
-      throw new Error "ImplementMe"
+      @obj.withSoak( (ref) =>
+        block:ref,
+        else:joe.Singleton.undefined
+      ).toJSNode({toValue,inject})
     toJavascript: ->
       throw new Error "Should not happen, soak is not Javascript."
 

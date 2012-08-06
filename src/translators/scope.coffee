@@ -4,7 +4,7 @@ assert    = require 'assert'
 
 {
   NODES:joe
-  HELPERS:{isWord,isVariable}
+  HELPERS:{isKey,isVariable}
 } = require 'sembly/src/joescript'
 
 {randid}  = require 'sembly/lib/helpers'

@@ -27,7 +27,7 @@ assert = require 'assert'
 {
   parse,
   NODES:joe
-  HELPERS:{isWord,isVariable}
+  HELPERS:{isVariable}
 } = require 'sembly/src/joescript'
 Node = require('sembly/src/node').createNodeClazz('ObjectNode')
 

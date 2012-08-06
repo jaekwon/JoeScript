@@ -10,9 +10,10 @@ Node = require('sembly/src/node').createNodeClazz('CodeNode')
 
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
-isVariable = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
+isKey = (thing) -> typeof thing is 'string' or thing instanceof Word or thing instanceof Undetermined
+isVariable = (thing) -> thing instanceof Word or thing instanceof Undetermined
 isIndex = (thing) -> thing instanceof Index
-@HELPERS = {extend, isVariable, isIndex}
+@HELPERS = {extend, isKey, isVariable, isIndex}
 
 Word = clazz 'Word', Node, ->
   init: (@key) ->
@@ -21,7 +22,7 @@ Word = clazz 'Word', Node, ->
 
 # An undetermined variable.
 # src/translator/scope is responsible for setting @word.
-Undetermined = clazz 'Undetermined', Node, ->
+Undetermined = clazz 'Undetermined', Word, ->
   init: (@prefix) -> @word = undefined
   toString: -> "[Undetermined prefix:#{@prefix}]"
   toKeyString: ->
@@ -262,7 +263,7 @@ AssignObj = clazz 'AssignObj', Node, ->
       else if target instanceof AssignObj
         extend names, target.targetNames
       else if target instanceof Index
-        "pass" # noitem to do for properties
+        "pass" # nothing to do for properties
       else
         throw new Error "Unexpected AssignObj target #{target} (#{target?.constructor.name})"
     return names
@@ -450,7 +451,8 @@ resetIndent = (ws, $) ->
         o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) ", (make Invocation)
 
         # COMPLEX
-        o COMPLEX:                  " (? _KEYWORD) &:_COMPLEX " # OPTIMIZATION
+        # NOTE: These can't be the 'left' of an Operation.
+        o COMPLEX:                  " (? _COMPLEX_KEYWORD) &:_COMPLEX " # OPTIMIZATION
         i _COMPLEX: [
           o IF:                     " _IF cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", (make If)
           o UNLESS:                 " _UNLESS cond:EXPR block:BLOCK ((_NEWLINE|_INDENT)? _ELSE else:BLOCK)? ", (make Unless)
@@ -555,10 +557,7 @@ resetIndent = (ws, $) ->
     # rest
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", ((it) -> Number it)
     o SYMBOL:       " !_KEYWORD WORD "
-    #o TYPEOF: [
-    #  o             " func:_TYPEOF '(' ___ params:LINEEXPR{1,1} ___ ')' ", (make Invocation)
-    #  o             " func:_TYPEOF __ params:LINEEXPR{1,1} ", (make Invocation)
-    #]
+    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'?', key:'type')
     # starts with symbol
     o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", (make Arr)
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)
@@ -624,9 +623,10 @@ resetIndent = (ws, $) ->
                       return Word(key)
                     )
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
-                      'loop', 'while', 'break', 'continue',
+                      'loop', 'while', 'break', 'continue', 'typeof', 'instanceof',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'by',
-                      'not', 'and', 'or', 'instanceof', 'try', 'catch', 'finally')
+                      'not', 'and', 'or', 'try', 'catch', 'finally')
+  i _COMPLEX_KEYWORD: tokens('if', 'unless', 'for', 'loop', 'while', 'switch', 'try')
   i _BTICK:         " '`'         "
   i _QUOTE:         " '\\''       "
   i _DQUOTE:        " '\"'        "

@@ -57,7 +57,7 @@ assert = require 'assert'
 {
   parse,
   NODES:joe
-  HELPERS:{isWord,isVariable}
+  HELPERS:{isVariable}
 } = require 'sembly/src/joescript'
 {
   NODES: {JStub, JObject, JArray, JSingleton, JNull, JUndefined, JNaN, JInfinity, JBoundFunc, SimpleIterator}
