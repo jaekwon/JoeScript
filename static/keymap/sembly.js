@@ -19,15 +19,25 @@
     "Ctrl-S": "findNext", "Ctrl-R": "findPrev", "Ctrl-G": "clearSearch", "Shift-Alt-5": "replace",
     "Ctrl-Z": "undo", "Cmd-Z": "undo", "Alt-/": "autocomplete",
 
-    "Ctrl-Enter": function(cm) {cm.submit();},
     "Cmd-Enter":  function(cm) {cm.submit();},
-    "Cmd-S":      function(cm) {cm.submit();},
+    "Alt-Enter":  function(cm) {cm.submit();},
+    "Ctrl-Enter": function(cm) {cm.submit();},
 
     "Cmd-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},
+    "Alt-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},
+    "Ctrl-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},
     "Cmd-Left": function(cm) {var c = cm.getCursor(); cm.setCursor({line:c.line, ch:0}); },
+    "Alt-Left": function(cm) {var c = cm.getCursor(); cm.setCursor({line:c.line, ch:0}); },
+    "Ctrl-Left": function(cm) {var c = cm.getCursor(); cm.setCursor({line:c.line, ch:0}); },
     "Cmd-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setCursor({line:c.line, ch:l}); },
+    "Alt-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setCursor({line:c.line, ch:l}); },
+    "Ctrl-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setCursor({line:c.line, ch:l}); },
     "Shift-Cmd-Left": function(cm) {var c = cm.getCursor(); cm.setSelection({line:c.line, ch:0}, c); },
+    "Shift-Alt-Left": function(cm) {var c = cm.getCursor(); cm.setSelection({line:c.line, ch:0}, c); },
+    "Shift-Ctrl-Left": function(cm) {var c = cm.getCursor(); cm.setSelection({line:c.line, ch:0}, c); },
     "Shift-Cmd-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setSelection({line:c.line, ch:l}, c); },
+    "Shift-Alt-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setSelection({line:c.line, ch:l}, c); },
+    "Shift-Ctrl-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setSelection({line:c.line, ch:l}, c); },
 
     fallthrough: ["basic", "emacsy"]
   };

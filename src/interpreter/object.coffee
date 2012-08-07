@@ -10,8 +10,8 @@ valueOf:  Returns a native value if this is a String, Number, Function, or Boole
           JSingleton instance. Objects are represented by JObject instances, and so on.
           'valueOf' for these representations return themselves.
 
-jsValue:  Kind of like valueOf, but also converts JObjects and JSingletons into native
-          types. Used for testing, and will be used in the future for other things.
+jsValue:  Like valueOf, but also converts JObjects and JSingletons into native types.
+          Used for bridged functions and testing.
 
 ###
 
@@ -131,13 +131,9 @@ JObject = @JObject = clazz 'JObject', Node, ->
   valueOf: -> @
   toString: -> "[JObject ##{@id}]"
 
-JArray = @JArray = clazz 'JArray', JObject, ->
+  bridged: {}
 
-  bridgedKeys:
-    push:     'push'
-    pop:      'pop'
-    shift:    'shift'
-    unshift:  'unshift'
+JArray = @JArray = clazz 'JArray', JObject, ->
 
   init: ({id, creator, data, acl}) ->
     data ?= []
@@ -151,26 +147,27 @@ JArray = @JArray = clazz 'JArray', JObject, ->
   toString: -> "[JArray ##{@id}]"
 
   # Bridged keys. These functions are available as runtime native functions.
-  push: ($, value) ->
-    Array.prototype.push.call @data, value
-    # actually, transaction below isn't necessary because set/length isn't necessary.
-    # TODO BEGIN XACTION
-    @emit {thread:$, type:'set', key:@data.length-1, value}
-    # @emit {thread:$, type:'set', key:'length', value:@data.length}
-    # TODO END XACTION
-    return JUndefined
-  pop: ($) ->
-    value = Array.prototype.pop.call @data
-    @emit {thread:$, type:'set', key:'length', value:@data.length}
-    return value ? JUndefined
-  shift: ($) -> # popping from the left
-    value = Array.prototype.shift.call @data
-    @emit {thread:$, type:'shift'}
-    return value ? JUndefined
-  unshift: ($, value) ->
-    Array.prototype.unshift.call @data, value
-    @emit {thread:$, type:'unshift', value}
-    return @data.length ? JUndefined
+  bridged:
+    push: ($, arr, value) ->
+      Array.prototype.push.call arr.data, value
+      # actually, transaction below isn't necessary because set/length isn't necessary.
+      # TODO BEGIN XACTION
+      arr.emit {thread:$, type:'set', key:arr.data.length-1, value}
+      # @emit {thread:$, type:'set', key:'length', value:@data.length}
+      # TODO END XACTION
+      return JUndefined
+    pop: ($, arr) ->
+      value = Array.prototype.pop.call arr.data
+      arr.emit {thread:$, type:'set', key:'length', value:arr.data.length}
+      return value ? JUndefined
+    shift: ($, arr) -> # popping from the left
+      value = Array.prototype.shift.call arr.data
+      arr.emit {thread:$, type:'shift'}
+      return value ? JUndefined
+    unshift: ($, arr, value) ->
+      Array.prototype.unshift.call arr.data, value
+      arr.emit {thread:$, type:'unshift', value}
+      return arr.data.length ? JUndefined
 
 JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
   # who:  User or JArray of users
@@ -252,6 +249,17 @@ SimpleIterator = @SimpleIterator = clazz 'SimpleIterator', ->
 # Extensions on native objects
 clazz.extend String,
   jsValue: -> @valueOf()
+  bridged:
+    slice: ($, str=JUndefined, from=JUndefined, to=JUndefined, _by=JUndefined) ->
+      if _by? and _by isnt 1
+        return $.throw "Stride not yet supported for String.slice"
+      from = from.jsValue $, no
+      to   = to.jsValue   $, no
+      str.slice(from, to)
+    split: ($, str=JUndefined, delim=JUndefined, count=JUndefined) ->
+      delim = delim.jsValue $, no
+      count = count.jsValue $, no
+      new JArray creator:$.user, data:str.split(delim, count)
 
 clazz.extend Number,
   jsValue: -> @valueOf()

@@ -125,6 +125,7 @@ a[3] = 4
 a
 ''',                                      -> deepEqual @it, [1,2,3,4]
 test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
+test ' "QWEQWEQWE"[2...5].split("Q") ',   -> deepEqual @it, ['E', 'W']
 
 counter = 0
 runNextTest = ->

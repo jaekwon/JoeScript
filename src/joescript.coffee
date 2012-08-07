@@ -170,6 +170,7 @@ Index = clazz 'Index', Node, ->
     obj:        {type:EXPR, isValue:yes}
     key:        {type:EXPR, isValue:yes}
   init: ({obj, key, type}) ->
+    key = Word(key) if typeof key is 'string' and type is '.'
     type ?= if key instanceof Word then '.' else '['
     if type is '::'
       if key?

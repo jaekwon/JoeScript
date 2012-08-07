@@ -544,10 +544,16 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ({toValue,inject}={}) ->
       return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       return joe.Invocation(
-        func: joe.Index(obj:@obj, key:'slice')
+        func: joe.Index(obj:@obj, key:'slice', type:'.')
         params: [
           joe.Item(value:@range.from ? joe.Singleton.undefined),
-          joe.Item(value:@range.to   ? joe.Singleton.undefined),
+          (if @range.to?
+            if @range.exclusive
+              joe.Item(value:@range.to)
+            else
+              joe.Item(value:joe.Operation(left:1, op:'+', right:@range.to))
+          else
+            joe.Item(value:joe.Singleton.undefined)),
           joe.Item(value:@range.by   ? joe.Singleton.undefined) # TODO not supported in js.
         ]
       ).toJSNode({toValue,inject})

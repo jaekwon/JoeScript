@@ -148,7 +148,7 @@ io.sockets.on 'connection', (socket) ->
     # Start a new thread. Note the 'yes' code. TODO refactor
     KERNEL.run user:ANON, code:'yes', scope:_moduleScope, callback: ->
 
-      session.modules.push @, _module
+      JArray::bridged.push @, session.modules, _module
       
       @enqueue callback: ->
 

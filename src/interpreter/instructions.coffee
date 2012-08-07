@@ -383,7 +383,7 @@ joe.Invocation::extend
       try
         # NOTE: i9n is unavailable to native functions
         # me don't see why it should be needed.
-        return i9n.invokedFunction.call i9n.source, $, i9n.paramValues...
+        return i9n.invokedFunction $, i9n.source, i9n.paramValues...
       catch error
         fatal "Internal error: \n#{error.stack ? error}"
         return $.throw 'InternalError:'+(error?.name ? 'UnknownError'), error?.message ? ''+error
@@ -523,14 +523,18 @@ INSTR = @INSTR =
             return INSTR.__get__ $, obj, '__proto__'
           else
             return INSTR.__get__ $, obj.proto, key, required
+        else if (bridged=obj.bridged[key])?
+          return bridged
         else
-          # TODO refactor to make it run faster?
-          if (bridgedKey=obj.bridgedKeys?[key])?
-            return obj[bridgedKey]
           return $.throw 'ReferenceError', "#{key} is not defined" if required
           return JUndefined
-      # when 'string'
-      #   return JUndefined
+      when 'string'
+        key = INSTR.__key__ $, key
+        if isInteger key
+          return obj[key]
+        else if (bridged=String::bridged[key])?
+          return bridged
+        return JUndefined
       else
         $.throw 'TypeError', "__get__ not define for #{_typeof obj}"
 
