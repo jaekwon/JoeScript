@@ -27,7 +27,7 @@ test = (code, expected) ->
       process.exist(1)
     return
   if canon(translated) isnt canon(expected)
-    console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon translated, no}." #\n  nodes:\n#{yellow node.serialize()}"
+    console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon translated, no}" #\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
 test """
@@ -112,23 +112,26 @@ Node = require('sembly/src/node').createNodeClazz('GrammarNode')
 {pad, escape} = require 'sembly/lib/helpers'
 [pad]
 """, -> deepEqual @it, [require('sembly/lib/helpers').pad]
+test """
+x+1 for x, i in [0..10]
+""", 'var i, x, _to, _by; for(i = 0; x = 0; _to = 10; _by = 1;(x <= _to);i = (i + 1); x = (x + _by)){(x + 1)}'
 # soak tests
-test " bar? ", 'if(((bar?"type" !== null) && (bar !== undefined))){bar}else{undefined}'
-test " foo = bar? ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar : undefined)'
+test " bar? ", 'if(((bar?"type" !== null) && (bar !== undefined))){true}else{false}'
+test " foo = bar? ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? true : false)'
 test " foo = bar?.baz ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar.baz : undefined)'
 test " foo = bar?.baz 1 ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar.baz(1) : undefined)'
-test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = (((ref = bbb.bar) != null) ? (((ref = ref.baz) != null) ? ref(1) : undefined) : undefined)'
+test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = ((((ref = bbb.bar) !== null) and (ref !== undefined)) ? ((((ref = ref.baz) !== null) and (ref !== undefined)) ? ref(1) : undefined) : undefined)'
 test " foo = base?.bar.baz 1 ", 'var foo; foo = (((base?"type" !== null) && (base !== undefined)) ? base.bar.baz(1) : undefined)'
-test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = (((base?"type" !== null) && (base !== undefined)) ? (((ref = base.bar.baz) != null) ? ref.blah(1) : undefined) : undefined)'
+test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = (((base?"type" !== null) && (base !== undefined)) ? ((((ref = base.bar.baz) !== null) and (ref !== undefined)) ? ref.blah(1) : undefined) : undefined)'
 test " base?.bar.baz?.blah = foo?.foo = 1 ", """
   var ref;
-  if (((base?"type" !== null) && (base !== undefined))) {
-    if (((ref = base.bar.baz) != null)) {
+  if(((base?"type" !== null) && (base !== undefined))){
+    if((((ref = base.bar.baz) !== null) and (ref !== undefined))){
       ref.blah = (((foo?"type" !== null) && (foo !== undefined)) ? (foo.foo = 1) : undefined)
-    } else {
+    }else{
       undefined
     }
-  } else {
+  }else{
     undefined
   }
 """

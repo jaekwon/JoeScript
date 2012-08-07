@@ -126,7 +126,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           ),
           op: 'and'
           right: joe.Operation(
-            left: joe.Assign(target:ref,value:this),
+            left: ref
             op:   '!='
             right:joe.Singleton.undefined
           )
@@ -274,35 +274,59 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
 
       switch @type
         when 'in' # Array iteration
-          setup = joe.Block compact [
-            joe.Assign(target:_obj=joe.Undetermined('_obj'), value:@obj),
-            if @keys.length > 1
-              # for (@keys[1] = _i = 0; ...
-              joe.Assign(target:@keys[1], value:
-                joe.Assign(target:_i=joe.Undetermined('_i'), value:0))
-            else
-              # for (_i = 0; ...
-              joe.Assign(target:_i=joe.Undetermined('_i'), value:0)
-            ,
-            joe.Assign(target:_len=joe.Undetermined('_len'), value:joe.Index(obj:_obj, key:joe.Word('length'), type:'.')),
-          ]
-          # _i < _len; ...
-          cond = joe.Operation left:_i, op:'<', right:_len
-          counter =
-            if @keys.length > 1
-              # @keys[1] = _i++)
-              joe.Assign(target:@keys[1], value:joe.Operation(left:_i, op:'++'))
-            else
-              # _i++)
-              joe.Operation(left:_i, op:'++')
-          block = joe.Block [
-            joe.Assign(target:@keys[0], value:joe.Index(obj:_obj, key:_i, type:'[')),
-            if @cond?
-              # if (@cond) { @block }
-              joe.If(cond:@cond, block:@block)
-            else
-              @block
-          ]
+          if @obj instanceof joe.Range
+            setup = joe.Block compact [
+              # for (@keys[1] = 0,
+              joe.Assign(target:_i=@keys[1], value:0) if @keys[1]?
+              #   @keys[0] = @obj.from,
+              joe.Assign(target:_val=@keys[0], value:@obj.from ? 0)
+              #   _to = @obj.to ? undefined
+              joe.Assign(target:_to=joe.Undetermined('_to'), value:(@obj.to ? joe.Singleton.undefined))
+              #   _by = @obj.by ? 1;
+              joe.Assign(target:_by=joe.Undetermined('_by'), value:(@obj.by ? 1))
+            ]
+            cond = joe.Operation left:@keys[0], op:(if @obj.exclusive then '<' else '<='), right:_to
+            counter = joe.Block compact [
+              joe.Assign(target:_i, type:'+=', value:1) if @keys[1]?
+              joe.Assign(target:_val, type:'+=', value:_by)
+            ]
+            block =
+              if @cond?
+                joe.If(cond:@cond, block:@block)
+              else
+                @block
+          else
+            setup = joe.Block compact [
+              # _obj = <?>
+              joe.Assign(target:_obj=joe.Undetermined('_obj'), value:@obj),
+              if @keys.length > 1
+                # for (@keys[1] = _i = 0; ...
+                joe.Assign(target:@keys[1], value:joe.Assign(target:_i=joe.Undetermined('_i'), value:0))
+              else
+                # for (_i = 0; ...
+                joe.Assign(target:_i=joe.Undetermined('_i'), value:0)
+              ,
+              # _len = <?>
+              joe.Assign(target:_len=joe.Undetermined('_len'), value:joe.Index(obj:_obj, key:joe.Word('length'), type:'.')),
+            ]
+            # _i < _len; ...
+            cond = joe.Operation left:_i, op:'<', right:_len
+            counter =
+              if @keys.length > 1
+                # @keys[1] = _i++)
+                joe.Assign(target:@keys[1], value:joe.Operation(left:_i, op:'++'))
+              else
+                # _i++)
+                joe.Operation(left:_i, op:'++')
+            block = joe.Block [
+              # @keys[0] = _obj[_i]
+              joe.Assign(target:@keys[0], value:joe.Index(obj:_obj, key:_i, type:'[')),
+              if @cond?
+                # if (@cond) { @block }
+                joe.If(cond:@cond, block:@block)
+              else
+                @block
+            ]
           node = joe.JSForC label:@label, block:block, setup:setup, cond:cond, counter:counter
           return node.childrenToJSNode()
 
@@ -363,31 +387,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
     toJSNode: ({toValue,inject}={}) ->
       return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       @isValue or= toValue
-      if @op?
-        if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
-          # Simple like `x += 1` or `foo.bar += 1`.
-          # But, anything more complex like `foo.bar.baz += 1` or
-          # `(foo = {bar:1}; foo).bar += 1` requires a translation
-          @value = joe.Operation(left:@target, op:@op, right:@value.toJSNode(toValue:yes))
-          @op = undefined
-          return inject(this) if inject?
-          return @ # no more toJSNode() necessary.
-        else
-          ###
-          something.complex.baz += @value ~~>
-            baseVar = something.complex
-            baseVar.baz = baseVar + @value
-          ###
-          lines = []
-          baseObj = @target.obj
-          baseVar = joe.Undetermined('baseObj')
-          lines.push joe.Assign(target:baseVar, value:baseObj)
-          baseIndex = joe.Index(obj:baseVar, key:@target.key, type:@target.type)
-          opValue = joe.Operation(left:baseIndex, op:@op, right:@value)
-          lines.push joe.Assign(target:baseIndex, value:opValue)
-          return joe.Block(lines).toJSNode({toValue,inject})
-
-      else if @target instanceof joe.AssignObj
+      assert.ok not (@target instanceof joe.AssignObj and @op?), "Destructuring assignment with op?"
+      if @target instanceof joe.AssignObj
         lines = []
         if isVariable @value
           valueVar = @value
@@ -398,6 +399,28 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         @target.destructLines valueVar, lines
         lines.push valueVar.toJSNode({toValue,inject}) if toValue or inject
         return joe.Block(lines)
+      else if @op?
+        if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
+          # Simple like `x += 1` or `foo.bar += 1`.
+          # But, anything more complex like `foo.bar.baz += 1` or
+          # `(foo = {bar:1}; foo).bar += 1` requires a translation to avoid side effects.
+          @value = joe.Operation(left:@target, op:@op, right:@value.toJSNode(toValue:yes))
+          @op = undefined
+          return inject(this) if inject?
+          return @ # no more toJSNode() necessary.
+        else
+          # something.complex.baz += @value
+          #   .. becomes ..
+          # baseVar = something.complex
+          # baseVar.baz = baseVar + @value
+          lines = []
+          baseObj = @target.obj
+          baseVar = joe.Undetermined('baseObj')
+          lines.push joe.Assign(target:baseVar, value:baseObj)
+          baseIndex = joe.Index(obj:baseVar, key:@target.key, type:@target.type)
+          opValue = joe.Operation(left:baseIndex, op:@op, right:@value)
+          lines.push joe.Assign(target:baseIndex, value:opValue)
+          return joe.Block(lines).toJSNode({toValue,inject})
       else
         return @childrenToJSNode()
     toJavascript: ->

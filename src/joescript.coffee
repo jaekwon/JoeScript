@@ -151,6 +151,7 @@ Assign = clazz 'Assign', Node, ->
     target:     {type:Node, required:yes}
     value:      {type:EXPR, isValue:yes, required:yes}
   init: ({@target, type, @op, @value}) ->
+    assert.ok not (@target instanceof AssignObj and @op?), "You can't specify both a destructing assignment and an operation"
     assert.ok @value?, "need value"
     @op = type[...type.length-1] or undefined if type?
   soakable$: _soakable 'target'
