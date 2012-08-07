@@ -16,7 +16,7 @@
     "Ctrl-Y": function(cm) {cm.replaceSelection(getFromRing());},
     "Alt-Y": function(cm) {cm.replaceSelection(popFromRing());},
     "Ctrl-/": "undo", "Shift-Ctrl--": "undo", "Shift-Alt-,": "goDocStart", "Shift-Alt-.": "goDocEnd",
-    "Ctrl-S": "findNext", "Ctrl-R": "findPrev", "Ctrl-G": "clearSearch", "Shift-Alt-5": "replace",
+    //"Ctrl-S": "findNext", "Ctrl-R": "findPrev", "Ctrl-G": "clearSearch", "Shift-Alt-5": "replace",
     "Ctrl-Z": "undo", "Cmd-Z": "undo", "Alt-/": "autocomplete",
 
     "Cmd-Enter":  function(cm) {cm.submit();},
@@ -39,7 +39,7 @@
     "Shift-Alt-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setSelection({line:c.line, ch:l}, c); },
     "Shift-Ctrl-Right": function(cm) {var c = cm.getCursor(); var l = cm.getLine(c.line).length; cm.setSelection({line:c.line, ch:l}, c); },
 
-    fallthrough: ["basic", "emacsy"]
+    fallthrough: ["basic"]
   };
 
 })();

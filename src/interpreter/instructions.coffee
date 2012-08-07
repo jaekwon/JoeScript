@@ -86,9 +86,9 @@ joe.Node::extend
     throw new Error "Dunno how to evaluate a #{this.constructor.name}."
 
 joe.Word::extend
-  interpret: ($) ->
+  interpret: ($, i9n) ->
     $.pop()
-    return INSTR.__get__ $, $.scope, @, yes
+    return INSTR.__get__ $, $.scope, @, i9n.expected ? yes
 
 joe.Block::extend
   interpret: ($) ->
@@ -278,7 +278,9 @@ joe.Singleton::extend
 joe.Index::extend
   interpret: ($, i9n) ->
     i9n.func = joe.Index::interpretTarget
-    $.pushValue @obj
+    i9n_obj = $.pushValue(@obj)
+    # You can check the type of an undefined variable with VAR?type (typeof VAR).
+    i9n_obj.expected = no if @type is '?' and @key.toKeyString?() is 'type'
     return
   interpretTarget: ($, i9n, obj) ->
     i9n.setSource?.source = obj # for invocations.
@@ -292,7 +294,12 @@ joe.Index::extend
         $.pop()
         return INSTR.__del__ $, obj, @key
       when '?'
-        return $.throw 'InternalError', "Meta not yet supported"
+        switch @key?.toKeyString()
+          when 'type'
+            $.pop()
+            return _typeof obj
+          else
+            return $.throw 'InternalError', "Meta '#{@key}' not supported"
       when '[', '!['
         i9n.obj = obj
         i9n.func = joe.Index::interpretKey
@@ -486,7 +493,7 @@ clazz.extend Boolean,
 
 INSTR = @INSTR =
   # asynchronous
-  __get__: ($, obj, key, required=no) ->
+  __get__: ($, obj, key, expected=no) ->
     switch _typeof obj
       when 'object'
         key = INSTR.__key__ $, key
@@ -495,7 +502,7 @@ INSTR = @INSTR =
           value = obj.proto
         else
           value = obj.data[key]
-        debug "#{obj}.__get__ #{key}, required=#{required} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
+        debug "#{obj}.__get__ #{key}, expected=#{expected} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
         if value?
           if value instanceof JStub
             return cached if cached=$.kernel.cache[value.id]
@@ -504,7 +511,7 @@ INSTR = @INSTR =
             # Make a call to aynchronously fetch value
             value.persistence.loadJObject value.id, $.kernel.cache, (err, valObj) ->
               return $.throw 'InternalError', "Failed to load stub ##{value.id}:\n#{err.stack ? err}" if err?
-              return $.throw 'ReferenceError', "#{key} is a broken stub." if required and not valObj?
+              return $.throw 'ReferenceError', "#{key} is a broken stub." if not valObj?
               # Replace stub with value in @data[key] (or @proto)
               if key is '__proto__'
                 obj.proto = valObj
@@ -519,14 +526,14 @@ INSTR = @INSTR =
           if obj.proto instanceof JStub
             $.push func:($, i9n, proto) ->
               $.pop()
-              INSTR.__get__ $, proto, key, required
+              INSTR.__get__ $, proto, key, expected
             return INSTR.__get__ $, obj, '__proto__'
           else
-            return INSTR.__get__ $, obj.proto, key, required
+            return INSTR.__get__ $, obj.proto, key, expected
         else if (bridged=obj.bridged[key])?
           return bridged
         else
-          return $.throw 'ReferenceError', "#{key} is not defined" if required
+          return $.throw 'ReferenceError', "#{key} is not defined" if expected
           return JUndefined
       when 'string'
         key = INSTR.__key__ $, key
