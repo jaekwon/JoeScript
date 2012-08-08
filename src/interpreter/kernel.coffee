@@ -160,10 +160,11 @@ JThread = @JThread = clazz 'JThread', ->
           if not i9n?
             @last = JUndefined
             throw INTERRUPT_ERROR
-          else if i9n.this instanceof joe.Try and not i9n.isHandlingError
-            i9n.isHandlingError = true
+          else if i9n.this instanceof joe.Try
             i9n.func = joe.Try::interpretCatch
-            @last = @error
+            @error.stack = @error.stack.join('\n') # TODO
+            @last = new JObject creator:@user, data:@error
+            @error = undefined
             @state = STATE_RUNNING
             throw INTERRUPT_NONE
       else

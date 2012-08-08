@@ -263,8 +263,13 @@ joe.Operation::extend
         else
           throw new Error "Dunno how to operate with #{left} (#{left.constructor.name})"
         return value
+    else if @right?
+      right = i9n.right
+      switch @op
+        when '!','not' then return not INSTR.__bool__($, right)
+        else throw new Error "Unexpected operation #{@op}"
     else
-      throw new Error "implement me!"
+      throw new Error "Operation should have either a left or a right"
 
 joe.Singleton::extend
   interpret: ($) ->
@@ -401,6 +406,21 @@ joe.Invocation::extend
     $.pop()
     $.scope = i9n.oldScope # recall old scope
     return result
+
+joe.Try::extend
+  interpret: ($, i9n) ->
+    $.pushValue @block
+    i9n.func = joe.Try::interpretFinally
+    return
+  interpretCatch: ($, i9n, error) ->
+    INSTR.__set__ $, $.scope, @catchVar, error if @catchVar?
+    $.pushValue @catch
+    i9n.func = joe.Try::interpretFinally
+    return
+  interpretFinally: ($, i9n) ->
+    $.pushValue @finally if @finally
+    $.pop()
+    return
 
 joe.AssignObj::extend
   interpret: ($, i9n, rhs) ->

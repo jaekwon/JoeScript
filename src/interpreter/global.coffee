@@ -78,13 +78,14 @@ if require.main is module
           modules.push module={code:codeStr, status:'running'}
           print = (data) ->
             if not module.output?
-              output = module.output = []
+              output = []
               output.__class__ = 'hideKeys'
+              module.output = output # __class__ hack doesn't work with updates.
             output.push data
-          #try XXX implement try/catch blocks.
-          module.result = eval(codeStr)
-          #catch error
-          #  module.error = error
+          try
+            module.result = eval(codeStr)
+          catch error
+            module.error = error
           module!status
       } 
     """, callback: (err) ->

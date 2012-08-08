@@ -11,6 +11,7 @@ console.log blue "\n-= interpreter test =-"
 tests = []
 test = (code, callback) -> tests.push code:code, callback:callback
 
+test ' not no ',                          -> equal @it, yes
 test '''
 a = 1
 b = 1
@@ -130,6 +131,13 @@ test '''
 foo = ({a,b:bb}) -> a + bb
 foo(a:1,b:2)
 ''',                                      -> equal @it, 3
+test '''
+try
+  foo = somethingUndefined
+catch err
+  return err
+return 'wtf'
+''',                                      -> deepEqual @it, {name:'ReferenceError', message:'somethingUndefined is not defined', stack:''}
 
 counter = 0
 runNextTest = ->
@@ -141,8 +149,8 @@ runNextTest = ->
   KERNEL.run
     user:ANON
     code:code
-    callback: ->
-      if @error?
+    callback: (err) ->
+      if err?
         console.log red "TEST ERROR:"
         @printErrorStack()
         process.exit(1)
