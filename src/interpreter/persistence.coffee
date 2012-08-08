@@ -195,6 +195,8 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
       obj.addListener $P
 
       $P.client.hgetall id, (err, _data) ->
+        return cb(err) if err?
+        #return cb("data was null for ##{id}") if not _data?
         if meta.type is 'JArray'
           # return cb("Loadded JArray had no length?") unless _data.length?
           # data = new Array(data.length)
@@ -248,10 +250,10 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
       when 'function'
         assert.ok value.id?, "Cannot persist a native function with no id"
         return 'f:'+value.id
-      when 'object'     then return 'o:'+value.id
+      when 'object','stub' then return 'o:'+value.id
       when 'null'       then return 'z:null'
       when 'undefined'  then return 'z:undefined'
-      else throw new Error "dunno how to persist value #{value} (_typeof #{_typeof value})"
+      else throw new Error "Dunno how to persist value #{value} (_typeof #{_typeof value})"
 
 JObject::extend
   ###

@@ -126,6 +126,10 @@ a
 ''',                                      -> deepEqual @it, [1,2,3,4]
 test ' (x for x in [1,2,3]) ',            -> deepEqual @it, [1,2,3]
 test ' "QWEQWEQWE"[2...5].split("Q") ',   -> deepEqual @it, ['E', 'W']
+test '''
+foo = ({a,b:bb}) -> a + bb
+foo(a:1,b:2)
+''',                                      -> equal @it, 3
 
 counter = 0
 runNextTest = ->

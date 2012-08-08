@@ -167,7 +167,7 @@ JThread = @JThread = clazz 'JThread', ->
             @state = STATE_RUNNING
             throw INTERRUPT_NONE
       else
-        fatal msg="Thread was unexpectedly in #{@state} during a JThread.throw."
+        fatal msg="Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
         throw new Error msg
 
   return: (result) ->

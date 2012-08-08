@@ -392,8 +392,11 @@ joe.Invocation::extend
         # me don't see why it should be needed.
         return i9n.invokedFunction $, i9n.source, i9n.paramValues...
       catch error
-        fatal "Internal error: \n#{error.stack ? error}"
-        return $.throw 'InternalError:'+(error?.name ? 'UnknownError'), error?.message ? ''+error
+        if typeof error is 'string' and error.startsWith('INTERRUPT')
+          throw error
+        else
+          fatal "Internal error: \n#{error.stack ? error}"
+          return $.throw 'InternalError:'+(error?.name ? 'UnknownError'), error?.message ? ''+error
   interpretFinal: ($, i9n, result) ->
     $.pop()
     $.scope = i9n.oldScope # recall old scope

@@ -202,18 +202,16 @@ JObject::extend
         $V.newEl id:@id, tag:'div', cls:'editor', data:{items}, (el) =>
           {Editor} = require 'sembly/src/client/editor'
           mode = @data.mode ? 'coffeescript'
-          callback = @data.callback
-          editor = new Editor mode:mode, el:el, callback: (text) =>
-            if mode is 'coffeescript'
-              console.log "sending code", text
-              $V.socket.emit 'run', text
-              # $('#main').scrollDown()
-            else
-              $V.socket.emit 'submit', text:text, callback:callback.id
+          editor = new Editor mode:mode, el:el, onSubmit: (text) =>
+            if @data.onSubmit?
+              $V.socket.emit 'submit', data:text, onSubmit:@data.onSubmit.id
+          # add submit button
           el.append submit=$('<button>submit</submit>')
           submit.click -> editor.submit(); no
+          #
           process.nextTick ->
-            # ipad hack, getting the touch keyboard to show up when tapping the page for the first time
+            # ipad hack
+            # getting the touch keyboard to show up when tapping for the first time
             if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
               $('#screen').append($('<input id="ipadhack" type="text"></input>'))
               $('#ipadhack').focus().hide()
@@ -256,6 +254,10 @@ JArray::extend
               delete items[itemKey]
           # no need to display the length
           return
+        else
+          @super.dom_on.call @, $V, el, event
+          @dom_sortItems $V, el
+          return
       when 'unshift'
         @dom_shiftKeys $V, el, 1
         {value} = event
@@ -282,8 +284,9 @@ JArray::extend
             items[key] = item
         el.data('items', items)
         return
-    @super.dom_on.call @, $V, el, event
-    @dom_sortItems $V, el
+      else
+        @super.dom_on.call @, $V, el, event
+        #@dom_sortItems $V, el
 
   dom_shiftKeys: ($V, el, shift=-1) ->
     el.find('>.item').map ->

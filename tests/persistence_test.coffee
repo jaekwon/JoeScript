@@ -133,7 +133,7 @@ require('async').series [
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.messages.push "testing1"
           it.messages.push "testing2"
-          """, callback: _err_ ->
+          """, callback: (err) ->
 
             KERNEL.cache = {} # reset cache
             KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """

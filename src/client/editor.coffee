@@ -5,7 +5,7 @@ tabSize = 2
 tabCache = (Array(x+1).join(' ') for x in [0..tabSize])
 
 Editor = @Editor = clazz 'Editor', ->
-  init: ({@el, @mirror, @callback, @mode}) ->
+  init: ({@el, @mirror, @onSubmit, @mode}) ->
     assert.ok @el? or @mirror?, "Editor wants an @el or a premade @mirror"
     @mode ?= 'coffeescript'
     @el.append(@elInner=$('<div class="editor_inner"/>'))
@@ -61,7 +61,7 @@ Editor = @Editor = clazz 'Editor', ->
   submit$: ->
     value = @mirror.sanitize()
     return if value.trim().length is 0
-    @callback? value
+    @onSubmit? value
 
   focus: ->
     @mirror.focus()
