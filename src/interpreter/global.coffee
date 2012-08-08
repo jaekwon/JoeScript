@@ -12,7 +12,6 @@ async = require 'async'
 fnNamed = (name, fn) -> fn.id = name; fn
 
 # Caches.
-# TODO weak references
 CACHE             = @CACHE =            {}
 
 if window?
@@ -32,9 +31,8 @@ else
 WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data:
   this:   USERS
   users:  USERS
-  login:  fnNamed('login', ($, something) ->
-            console.log something
-            return "it worked!"
+  login:  fnNamed('login', ($) ->
+            return "TODO: This should be a form object with a callback."
           )
 
 WORLD.hack_persistence = PERSISTENCE # FIX

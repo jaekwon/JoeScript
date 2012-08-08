@@ -189,21 +189,14 @@ JObject::extend
   dom_draw: ($V) -> # $V is JView
     switch @data.type
       when 'input'
-        # DEPRECATED draw an input field
-        $V.newEl id:@id, tag:'textarea', attr:{rows:'6', style:'line-height:1; width: 100%; min-height:20px;'}, (el) =>
+        # draw an input field
+        $V.newEl id:@id, tag:'input', attr:{type:'text'}, (el) =>
           # HACK consider putting elsewhere.
           # When refactoring out, make sure addListener happens recursively.
           debug "Adding JView listener to ##{@id}"
           @addListener $V
           # HACK end
           el.val @data.text if @data.text?
-          el.make_autoresizable()
-          el.click (e) -> no # consume event
-          el.valueChange {debounce:300}, (e) =>
-            # @data.text = el.val() # ??
-            # HACK
-            $V.socket.emit 'input', {id:@id, text:el.val()}
-            #console.log el.val()
 
       when 'editor'
         $V.newEl id:@id, tag:'div', cls:'editor', data:{items}, (el) =>

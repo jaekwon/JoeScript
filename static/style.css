@@ -62,11 +62,14 @@ a {
 .clear {
   clear: both; }
 
-textarea {
+input[type=text] {
   background: transparent;
-  color: #f8f8f8;
   font-family: "Inconsolata", monospace;
-  font-size: 16px; }
+  font-size: inherit;
+  border-radius: .3em;
+  border: 1px solid #8da6ce;
+  padding: .3em;
+  width: 15em; }
 
 div.object {
   min-height: 1em; }
@@ -106,9 +109,9 @@ div.editor {
   /*background: #0a001f;*/
   /*color: #f8f8f8;*/
   font-family: "Inconsolata", monospace;
-  border-radius: 4px;
+  border-radius: .3em;
   border: 1px solid #8da6ce;
-  margin: 4px; }
+  margin: .3em; }
   .cm-s-sembly div.CodeMirror-selected {
     background: #B0B0B0 !important;
     /* standard chrome colors */ }

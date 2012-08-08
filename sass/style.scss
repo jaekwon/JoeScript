@@ -79,11 +79,14 @@ a { // why did this get overridden?
 .clear {
   clear: both;
 }
-textarea {
+input[type=text]{
   background: transparent;
-  color: #f8f8f8;
   font-family: $font, monospace;
-  font-size: 16px;
+  font-size: inherit;
+  border-radius: .3em;
+  border: 1px solid $c_outline;
+  padding: .3em;
+  width: 15em;
 }
 
 div.object {
@@ -141,9 +144,9 @@ div.editor {
   /*background: #0a001f;*/
   /*color: #f8f8f8;*/
   font-family: $font, monospace;
-  border-radius: 4px;
+  border-radius: .3em;
   border: 1px solid $c_outline;
-  margin: 4px;
+  margin: .3em;
   div.CodeMirror-selected {
     background: #B0B0B0 !important; /* standard chrome colors */
   }

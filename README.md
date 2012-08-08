@@ -47,7 +47,7 @@ TODO Link to demo
 
 ##### :: Development ::
 
-compiling sass: sass --watch scss:static
+compiling sass: sass --watch sass:static
 
 ##### :: Developer Resources ::
 
