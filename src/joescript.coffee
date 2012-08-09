@@ -34,6 +34,8 @@ Undetermined = clazz 'Undetermined', Word, ->
     assert.ok @word instanceof Word, "Variable name not yet determined!"
     return @word.key
 
+String::toKeyString = -> @valueOf()
+
 Block = clazz 'Block', Node, ->
   @defineChildren
     lines:      {type:[type:EXPR]}
@@ -168,7 +170,7 @@ Slice = clazz 'Slice', Node, ->
 Index = clazz 'Index', Node, ->
   @defineChildren
     obj:        {type:EXPR, isValue:yes}
-    key:        {type:EXPR, isValue:yes}
+    key:        {type:EXPR, isValue:yes, required:yes}
   init: ({obj, key, type}) ->
     key = Word(key) if typeof key is 'string' and type is '.'
     type ?= if key instanceof Word then '.' else '['

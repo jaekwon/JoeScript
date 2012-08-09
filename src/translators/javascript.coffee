@@ -101,7 +101,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           that[key] = child.toJSNode toValue:desc.isValue
       @
     toJavascript: ->
-      throw new Error "#{@constructor.name}.toJavascript not defined"
+      throw new Error "#{@constructor.name}.toJavascript not defined. Why don't you define it?"
     hasStatement$: get: ->
       if @ instanceof joe.Statement
         @hasStatement = yes
@@ -198,7 +198,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       @
     toJavascript: ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
-        lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.toKeyString?() ? x).join(', ')}"), @lines...]
+        lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.toKeyString()).join(', ')}"), @lines...]
       else
         lines = @lines
       if @isValue and @lines.length > 1

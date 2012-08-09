@@ -145,6 +145,47 @@ for key of foo
   accum += key
 accum
 ''',                                      -> equal @it, 'barbaz'
+test '''
+foo = 1
+foo++
+''',                                      -> equal @it, 1
+test '''
+foo = 1
+foo++
+foo
+''',                                      -> equal @it, 2
+test '''
+foo = {bar:{baz:1}}
+foo.bar.baz++
+foo.bar.baz
+''',                                      -> equal @it, 2
+# short circuit
+test '''
+called = ''
+foo = ->
+  called += 'foo'
+  123
+bar = ->
+  called += 'bar'
+  234
+result = (foo() or bar())
+"#{called}/#{result}"
+''',                                      -> equal @it, 'foo/123'
+test '''
+called = ''
+foo = ->
+  called += 'foo'
+  0
+bar = ->
+  called += 'bar'
+  234
+result = (foo() or bar())
+"#{called}/#{result}"
+''',                                      -> equal @it, 'foobar/234'
+test '''
+foo = {bar:[]}
+foo.bar?
+''',                                      -> equal @it, yes
 
 counter = 0
 runNextTest = ->
