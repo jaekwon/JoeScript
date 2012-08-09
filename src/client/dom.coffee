@@ -190,7 +190,7 @@ JObject::extend
     switch @data.type
       when 'input'
         # draw an input field
-        $V.newEl id:@id, tag:'input', attr:{type:'text'}, (el) =>
+        $V.newEl id:@id, tag:'input', data:@data, attr:{type:'text'}, (el) =>
           # HACK consider putting elsewhere.
           # When refactoring out, make sure addListener happens recursively.
           debug "Adding JView listener to ##{@id}"
@@ -199,16 +199,12 @@ JObject::extend
           el.val @data.text if @data.text?
 
       when 'editor'
-        $V.newEl id:@id, tag:'div', cls:'editor', data:{items}, (el) =>
+        $V.newEl id:@id, tag:'div', cls:'editor', data:{}, (el) =>
           {Editor} = require 'sembly/src/client/editor'
           mode = @data.mode ? 'coffeescript'
           editor = new Editor mode:mode, el:el, onSubmit: (text) =>
             if @data.onSubmit?
               $V.socket.emit 'submit', data:text, onSubmit:@data.onSubmit.id
-          # add submit button
-          el.append submit=$('<button>submit</submit>')
-          submit.click -> editor.submit(); no
-          #
           process.nextTick ->
             # ipad hack
             # getting the touch keyboard to show up when tapping for the first time
@@ -217,6 +213,10 @@ JObject::extend
               $('#ipadhack').focus().hide()
             else
               editor.focus()
+          # add submit button
+          if @data.onSubmit?
+            el.append submit=$('<button>submit</submit>')
+            submit.click -> editor.submit(); no
 
       else # POJO
         #debug "JObject::dom_draw for #{@}"
@@ -229,8 +229,15 @@ JObject::extend
           # HACK end
           if @data.__class__ # HACK
             el.addClass @data.__class__
-          for key, value of @data when key isnt '__class__'
+          for key, value of @data when key not in ['__class__', 'onSubmit']
             el.append items[key]=@dom_drawItem $V, key, value
+          # add submit button
+          if @data.onSubmit?
+            el.append submit=$('<button>submit</submit>')
+            submit.click =>
+              data = collectInput(el)
+              $V.socket.emit 'submit', data:data, onSubmit:@data.onSubmit.id
+              no
 
   # Draw key/value pairs for a POJO
   dom_drawItem: ($V, key, value) ->
@@ -354,3 +361,19 @@ clazz.extend Boolean,
   newView: (socket) -> new JView root:@, socket:socket
   dom_draw: ($V) ->
     $V.newEl tag:'span', cls:'boolean', text:@
+
+# Find all input in el and get their values.
+# Synchronously returns a data object.
+collectInput = window.collectInput = (el) ->
+  data = {}
+  el.find('input[type=text],textarea.holdsTheValue').each(->
+    # Find {type:'input'}.key, or construct one from the relative path.
+    key = $(@).data('key')
+    if not key?
+      key = ''
+      for item in $(@).parentsUntil(el, '.item')
+        key = '.' + key if key
+        key = $(item).data('key') + key
+    data[key] = $(@).val()
+  )
+  return data

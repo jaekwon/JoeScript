@@ -136,7 +136,7 @@ io.sockets.on 'connection', (socket) ->
       onSubmit: (new JStub(id:onSubmit, persistence:WORLD.hack_persistence))
       event:    (new JObject(creator:ANON, data:{
         modules:  session.modules
-        data:     data
+        data:     data.toJoe(creator:ANON)
       }))
     }), callback: ->
       switch @state

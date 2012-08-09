@@ -33,3 +33,12 @@ input = {type:'editor', mode:'markdown', callback: (text) -> messages.push text}
 chat = [messages, submit:input]
 chat.__class__ = 'hideKeys'
 @chat = chat
+
+## Forms?
+form = [
+  {type:'input', key:'FOO'},
+  {type:'input', key:'BAR'}
+]
+form.onSubmit = ({data}) ->
+  print data
+form
