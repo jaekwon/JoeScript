@@ -43,3 +43,13 @@ form = {
 form.onSubmit = ({data}) ->
   print data
 form
+
+## Index
+it = ['Enter password:', {type:'input'}]
+it.__class__ = 'hideKeys'
+it.onSubmit = ({screen, modules, data}) ->
+  return unless data[0] is 'hello'
+  screen.length = 0 # clear
+  screen.push modules
+  screen.push command
+@index = it

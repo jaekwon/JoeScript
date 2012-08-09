@@ -108,8 +108,9 @@ io.sockets.on 'connection', (socket) ->
   # Main connection entrypoint.
   # Loads a resource and creates a screen for the client.
   socket.on 'load', (path) -> withSession socket, (session) ->
+    path or= '@index'
     switch path
-      when ''
+      when '__boot__'
         # It doesn't work if you manually add data after newPerspective.
         KERNEL.run user:ANON, code:'yes', scope:WORLD, callback: ->
           # Add modules and editor to screen
@@ -136,6 +137,7 @@ io.sockets.on 'connection', (socket) ->
       onSubmit: (new JStub(id:onSubmit, persistence:WORLD.hack_persistence))
       event:    (new JObject(creator:ANON, data:{
         modules:  session.modules
+        screen:   session.screen
         data:     data.toJoe(creator:ANON)
       }))
     }), callback: ->
