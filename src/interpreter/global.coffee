@@ -77,7 +77,7 @@ if require.main is module
         onSubmit: ({modules, data:codeStr}) ->
           modules.push module={code:codeStr, status:'running'}
           print = (data) ->
-            if not module.output?
+            if not (output=module.output)?
               output = []
               output.__class__ = 'hideKeys'
               module.output = output # __class__ hack doesn't work with updates.
