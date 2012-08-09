@@ -53,3 +53,27 @@ it.onSubmit = ({screen, modules, data}) ->
   screen.push modules
   screen.push command
 @index = it
+
+## Homepage
+login = [
+  'Enter password:',
+  {type:'input', key:'password'},  
+]
+login.__class__ = 'hideKeys'
+login.onSubmit = ({screen, modules, data}) ->
+  return unless data.password is 'hello'
+  screen.length = 0 # clear
+  screen.push modules
+  screen.push command
+
+@signups or= []
+signup = [
+  'Sign up for news:'
+  {type:'input', key:'email'},
+  {type:'input', key:'name'},
+]
+signup.__class__ = 'hideKeys'
+signup.onSubmit = ({data}) ->
+  @signups.push data
+  
+@index = [login, signup]

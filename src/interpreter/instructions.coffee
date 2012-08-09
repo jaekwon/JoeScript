@@ -1,4 +1,4 @@
-log = yes
+log = no
 
 ###
 
