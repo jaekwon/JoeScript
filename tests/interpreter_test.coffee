@@ -138,6 +138,13 @@ catch err
   return err
 return 'wtf'
 ''',                                      -> deepEqual @it, {name:'ReferenceError', message:'somethingUndefined is not defined', stack:''}
+test '''
+foo = {bar:1, baz:2}
+accum = ''
+for key of foo
+  accum += key
+accum
+''',                                      -> equal @it, 'barbaz'
 
 counter = 0
 runNextTest = ->

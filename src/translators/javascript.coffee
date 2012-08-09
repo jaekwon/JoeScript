@@ -264,6 +264,9 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
   joe.JSForC::extend
     toJavascript: -> "for(#{js @setup};#{js @cond};#{js @counter}){#{js @block}}"
 
+  joe.JSForK::extend
+    toJavascript: -> "for(#{js @key} in #{js @obj}){#{js @block}}"
+
   joe.For::extend
     toJSNode: ({toValue,inject}={}) ->
       if toValue or inject
@@ -331,19 +334,21 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           return node.childrenToJSNode()
 
         when 'of' # Object iteration
-          # for (@keys[0] in @obj)
-          key = @keys[0]
-          block = joe.Block compact [
+          return joe.Block([
             joe.Assign(target:_obj=joe.Undetermined('_obj'), value:@obj),
-            joe.Assign(target:@keys[1], value:joe.Index(obj:_obj, key:key)) if @keys[1],
-            if @cond?
-              # if (@cond) { @block }
-              joe.If(cond:@cond, block:@block)
-            else
-              @block
-          ]
-          node = joe.JSForK label:@label, block:@block, key:key, obj:_obj
-          return node.childrenToJSNode()
+            joe.JSForK(label:@label, key:@keys[0], obj:_obj, block:joe.Block(compact [
+                if @keys[1]
+                  joe.Assign(target:@keys[1], value:joe.Index(obj:_obj, key:@keys[0]))
+                else
+                  undefined
+                if @cond?
+                  # if (@cond) { @block }
+                  joe.If(cond:@cond, block:@block)
+                else
+                  @block
+              ])
+            )
+          ]).childrenToJSNode()
           
         else throw new Error "Unexpected For type #{@type}"
       # end switch

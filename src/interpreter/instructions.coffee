@@ -387,7 +387,7 @@ joe.Invocation::extend
           assert.ok isVariable argName, "Expected variable but got #{argName} (#{argName?.constructor.name})"
           INSTR.__set__ $, $.scope, argName, (paramValues[i] ? JUndefined)
       if block?
-        $.push this:block, func:block.interpret
+        $.pushValue block
       else
         return JUndefined
       return
@@ -440,7 +440,7 @@ joe.Statement::extend
 
 joe.Loop::extend
   interpret: ($, i9n) ->
-    $.push this:@block, func:@block.interpret
+    $.pushValue @block
     return
 
 joe.JSForC::extend
@@ -451,20 +451,43 @@ joe.JSForC::extend
     else
       i9n.func = joe.JSForC::interpretUnconditionalLoop
     if @setup?
-      $.push this:@setup, func:@setup.interpret
+      $.pushValue @setup
     return
   interpretConditionalLoop: ($, i9n, cond) ->
     if INSTR.__bool__ $, cond
       $.pushValue @cond
-      $.push this:@counter, func:@counter.interpret
-      $.push this:@block,   func:@block.interpret
+      $.pushValue @counter
+      $.pushValue @block
     else
       $.pop()
       return
   interpretUnconditionalLoop: ($, i9n) ->
-    $.push this:@counter, func:@counter.interpret
-    $.push this:@block,   func:@block.interpret
+    $.pushValue @counter
+    $.pushValue @block
     return
+
+joe.JSForK::extend
+  interpret: ($, i9n) ->
+    i9n.func = joe.JSForK::interpretAllKeys
+    $.pushValue @obj
+    return
+  interpretAllKeys: ($, i9n, obj) ->
+    i9n.func = joe.JSForK::interpretLoop
+    if obj instanceof JObject
+      i9n.allKeys = Object.keys obj.data
+      return
+    else
+      $.pop()
+      return
+  interpretLoop: ($, i9n) ->
+    nextKey = i9n.allKeys.shift()
+    if nextKey?
+      $.pushValue @block
+      INSTR.__set__ $, $.scope, @key, ''+nextKey
+      return
+    else
+      $.pop()
+      return
 
 joe.Range::extend
   interpret: ($, i9n) ->

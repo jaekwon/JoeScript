@@ -88,8 +88,8 @@ JSForC = clazz 'JSForC', Loop, ->
 JSForK = clazz 'JSForK', Loop, ->
   @defineChildren
     cond:       null
-    key:        {type:Word}
-    obj:        {type:EXPR, isValue:yes}
+    key:        {type:Word, required:yes}
+    obj:        {type:EXPR, isValue:yes, required:yes}
   init: ({@label, @block, @key, @obj}) ->
   toString: -> "for (#{@key} in #{@obj}) {#{@block}}"
 
