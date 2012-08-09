@@ -338,7 +338,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             joe.Assign(target:_obj=joe.Undetermined('_obj'), value:@obj),
             joe.JSForK(label:@label, key:@keys[0], obj:_obj, block:joe.Block(compact [
                 if @keys[1]
-                  joe.Assign(target:@keys[1], value:joe.Index(obj:_obj, key:@keys[0]))
+                  joe.Assign(target:@keys[1], value:joe.Index(obj:_obj, type:'[', key:@keys[0]))
                 else
                   undefined
                 if @cond?
