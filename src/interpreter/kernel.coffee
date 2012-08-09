@@ -1,4 +1,4 @@
-log = trace = no
+log = trace = yes
 perf = no
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')

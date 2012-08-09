@@ -1,4 +1,4 @@
-log = no
+log = yes
 
 ###
 
@@ -554,6 +554,7 @@ INSTR = @INSTR =
         else
           value = obj.data[key]
         debug "#{obj}.__get__ #{key}, expected=#{expected} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
+        debug "#{obj.proto?}, #{obj.proto?.constructor?.name}"
         if value?
           if value instanceof JStub
             return cached if cached=$.kernel.cache[value.id]

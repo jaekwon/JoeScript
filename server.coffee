@@ -133,7 +133,7 @@ io.sockets.on 'connection', (socket) ->
   socket.on 'submit', ({data, onSubmit}) -> withSession socket, (session) ->
     info "Received submit data:#{data}, onSubmit:#{onSubmit}"
 
-    KERNEL.run user:ANON, code:'onSubmit(event)', scope:new JObject(creator:ANON, data:{
+    KERNEL.run user:ANON, code:'onSubmit(event)', scope:WORLD.create(ANON, {
       onSubmit: (new JStub(id:onSubmit, persistence:WORLD.hack_persistence))
       event:    (new JObject(creator:ANON, data:{
         modules:  session.modules
