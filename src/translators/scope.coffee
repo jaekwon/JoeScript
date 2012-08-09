@@ -99,7 +99,7 @@ assert    = require 'assert'
   joe.Assign::extend
     installScope: (options={}) ->
       init @, options
-      @scope.ensureVariable(@target) if isVariable @target
+      @scope.ensureVariable(@target) if isVariable(@target) and not @op?
       @withChildren (child, parent) ->
         child.installScope?(create:no, parent:parent)
       return this

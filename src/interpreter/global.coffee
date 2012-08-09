@@ -38,11 +38,11 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
   eval:   CACHE['eval'] = fnNamed('eval', ($, this_, codeStr) ->
     # Parse the codeStr and associate functions with the output Item
     try
-      #info "evaluating code:\n#{codeStr}"
+      info "evaluating code:\n#{codeStr}"
       node = require('sembly/src/joescript').parse codeStr
-      #info "unparsed node:\n" + node.serialize()
+      info "unparsed node:\n" + node.serialize()
       node = node.toJSNode(toValue:yes).installScope().determine()
-      #info "parsed node:\n" + node.serialize()
+      info "parsed node:\n" + node.serialize()
     catch err
       return $.throw 'EvalError', "Error in eval(): #{err}"
     # Run node by pushing node into the stack.

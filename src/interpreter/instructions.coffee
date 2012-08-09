@@ -41,8 +41,6 @@ TODO document instructions
   __mul__ :
   __div__ :
   __mod__ :
-  __or__ :
-  __and__ :
   __eq__ :
   __cmp__ :
 
@@ -210,32 +208,41 @@ joe.Arr::extend
       $.pop()
       return i9n.arr
 
+# NOTE: order is important, so is short circuiting (McCarthy evaluation)
 joe.Operation::extend
   interpret: ($, i9n) ->
-    i9n.func = joe.Operation::interpret2
     if @left?
-      $.push this:i9n, func:storeLast, key:'left'
-      $.pushValue @left
+      i9n.func = joe.Operation::interpretStoreLeft
+      i9n_left = $.pushValue @left
       if @left instanceof joe.Index and @op in ['--', '++']
-        {obj:targetObj, key} = @left
-        $.push this:i9n, func:storeLast, key:'targetObj'
-        $.pushValue targetObj
-        if key instanceof joe.Word
-          i9n.key = key
-        else if key instanceof joe.Str
-          $.push this:i9n, func:storeLast, key:'key'
-          $.pushValue key
-        else throw new Error "Unexpected object key of type #{key?.constructor.name}"
-    if @right?
-      $.push this:i9n, func:storeLast, key:'right'
+        i9n_left.storeIndexObj = i9n
+        i9n_left.storeIndexKey = i9n
+    else
+      i9n.func = joe.Operation::interpretFinal
       $.pushValue @right
     return
-  interpret2: ($, i9n) ->
+  interpretStoreLeft: ($, i9n, left) ->
+    i9n.left = left
+    # short circuit special cases
+    if @op in ['and', '&&', 'or', '||']
+      left_bool = INSTR.__bool__ $, left
+      if !left_bool and (@op is 'or' or @op is '||') or
+          left_bool and (@op is 'and' or @op is '&&')
+            $.pop()
+            $.pushValue @right
+            return
+      else
+        $.pop()
+        return left
+    # default behavior
+    i9n.func = joe.Operation::interpretFinal
+    $.pushValue @right if @right?
+    return
+  interpretFinal: ($, i9n, right) ->
     $.pop()
     if @left?
       left = i9n.left
       if @right?
-        right = i9n.right
         switch @op
           when '+'  then return INSTR.__add__ $, left, right
           when '-'  then return INSTR.__sub__ $, left, right
@@ -248,8 +255,6 @@ joe.Operation::extend
           when '>=' then return INSTR.__cmp__($, left, right) >= 0
           when '==','is' then return INSTR.__eq__($, left, right)
           when '!=','isnt' then return not INSTR.__eq__($, left, right)
-          when '||','or' then return INSTR.__or__($, left, right)
-          when '&&','and' then return INSTR.__and__($, left, right)
           else throw new Error "Unexpected operation #{@op}"
       else # left++, left--...
         switch @op
@@ -259,12 +264,11 @@ joe.Operation::extend
         if isVariable @left
           INSTR.__update__ $, $.scope, @left, value
         else if @left instanceof joe.Index
-          INSTR.__set__ $, i9n.targetObj, i9n.key, value
+          INSTR.__set__ $, i9n.indexObj, i9n.indexKey, value
         else
           throw new Error "Dunno how to operate with #{left} (#{left.constructor.name})"
-        return value
+        return left
     else if @right?
-      right = i9n.right
       switch @op
         when '!','not' then return not INSTR.__bool__($, right)
         else throw new Error "Unexpected operation #{@op}"
@@ -285,10 +289,11 @@ joe.Index::extend
     i9n.func = joe.Index::interpretTarget
     i9n_obj = $.pushValue(@obj)
     # You can check the type of an undefined variable with VAR?type (typeof VAR).
-    i9n_obj.expected = no if @type is '?' and @key.toKeyString?() is 'type'
+    i9n_obj.expected = no if @type is '?' and @key.toKeyString() is 'type'
     return
   interpretTarget: ($, i9n, obj) ->
-    i9n.setSource?.source = obj # for invocations.
+    i9n.storeIndexObj?.indexObj = obj   # for ++/-- ops and invocations.
+    i9n.storeIndexKey?.indexKey = @key  # for ++/-- ops
     switch @type
       when '.'
         assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
@@ -299,7 +304,7 @@ joe.Index::extend
         $.pop()
         return INSTR.__del__ $, obj, @key
       when '?'
-        switch @key?.toKeyString()
+        switch @key.toKeyString()
           when 'type'
             $.pop()
             return _typeof obj
@@ -311,8 +316,8 @@ joe.Index::extend
         $.pushValue @key
         return
       else throw new Error "Unexpected index type #{@type}"
-        
   interpretKey: ($, i9n, key) ->
+    i9n.storeIndexKey?.indexKey = key
     switch @type
       when '['
         $.pop()
@@ -333,10 +338,10 @@ joe.Invocation::extend
     # interpret the func synchronously.
     i9n.func = joe.Invocation::interpretScope
     return @func if @func instanceof JBoundFunc or @func instanceof Function # HACK (?) data and code getting mixed up.
-    # setSource is a HACK/trick to set i9n.source to the
+    # storeIndexObj is a HACK/trick to set i9n.indexObj to the
     # 'obj' part of an index, if @func is indeed an object.
     # That way we can bind 'this' correctly.
-    $.pushValue(@func).setSource = i9n
+    $.pushValue(@func).storeIndexObj = i9n
     return
   interpretScope: ($, i9n, bfunc) ->
     unless bfunc instanceof JBoundFunc or bfunc instanceof Function
@@ -363,14 +368,14 @@ joe.Invocation::extend
       i9n.oldScope = oldScope = $.scope
       {func:{block,params}, scope} = i9n.invokedFunction
       paramValues = i9n.paramValues
-      if i9n.source?
+      if i9n.indexObj?
         if scope is JNull
-          $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
+          $.scope = $.new JObject creator:$.user, data:{this:i9n.indexObj}
         # else if scope is JUndefined
         #   This is bad:
-        #   $.scope = $.new JObject creator:$.user, data:{this:i9n.source}
+        #   $.scope = $.new JObject creator:$.user, data:{this:i9n.indexObj}
         else
-          $.scope = INSTR.__create__ $, scope, {this:i9n.source}
+          $.scope = INSTR.__create__ $, scope, {this:i9n.indexObj}
       else
         if scope is JNull
           $.scope = $.new JObject creator:$.user
@@ -395,7 +400,7 @@ joe.Invocation::extend
       try
         # NOTE: i9n is unavailable to native functions
         # me don't see why it should be needed.
-        return i9n.invokedFunction $, i9n.source, i9n.paramValues...
+        return i9n.invokedFunction $, i9n.indexObj, i9n.paramValues...
       catch error
         if typeof error is 'string' and error.startsWith('INTERRUPT')
           throw error
@@ -750,21 +755,10 @@ INSTR = @INSTR =
           else               return left % INSTR.__num__ $, right
       else return JNaN
     
-  __or__: ($, left, right) ->
-    if INSTR.__bool__($, left)
-      return left
-    else
-      return right
-
-  __and__: ($, left, right) ->
-    if INSTR.__bool__($, left)
-      return right
-    else
-      return left
-
   __eq__: ($, left, right) ->
-    type = _typeof left
-    return no if type isnt _typeof right
+    leftType = _typeof left
+    rightType = _typeof right
+    return no if leftType isnt rightType
     return left is right
 
   __cmp__: ($, left, right) ->
