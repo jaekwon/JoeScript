@@ -62,8 +62,10 @@ Editor = @Editor = clazz 'Editor', ->
         accum.push '\n'
     return accum.join ''
 
+  getValue: -> @mirror.sanitize()
+
   submit$: ->
-    value = @mirror.sanitize()
+    value = @getValue()
     return if value.trim().length is 0
     @onSubmit? value
 

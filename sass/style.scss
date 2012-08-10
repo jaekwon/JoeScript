@@ -1,8 +1,10 @@
 // by color
 $lightBlue: #8DA6CF;
+$lightTurq: #3090AA;
 // by function
 $bgColor: white;
-$c_outline: $lightBlue;
+$c_outline:   $lightBlue;
+$c_attribute: $lightTurq;
 $font: 'Inconsolata';
 
 body {
@@ -118,7 +120,9 @@ div.array {
   &>div.item {
     &>span.key {
       font-size: 0.8em;
+      line-height: 1.3em; // just trying to get the number to match up vertically
       min-width: 1.5em;
+      color: lighten(desaturate($c_attribute, 25%), 25%);
     }
   }
 }
@@ -136,6 +140,10 @@ span.string {
 div.editor {
   min-height: 1em;
   min-width: 15em;
+}
+
+button {
+  margin-top: .4em;
 }
 
 /* EDITOR */
@@ -184,7 +192,7 @@ span.cm-coffee-number,
 span.cm-coffee-literal {color: #002EE0;}
 span.cm-coffee-constant {color: #44AAFF;}
 span.cm-coffee-identifier {color: black;}
-span.cm-coffee-thisprop {color: #3090AA;}
+span.cm-coffee-thisprop {color: $c_attribute;}
 span.cm-coffee-comment {color: #668ee2;}
 span.cm-coffee-string,
 span.cm-coffee-bytes,
@@ -195,7 +203,7 @@ span.cm-coffee-unicode {color: #228811;}
 span.comment      { color: #668ee2; }
 span.atom         { color: #F59BF0; }
 span.number       { color: #002EE0; }
-span.attribute    { color: #3090AA; }
+span.attribute    { color: $c_attribute; }
 span.keyword      { color: #ffd500; }
 span.string       { color: black; }
 span.meta         { color: #7678e2; }

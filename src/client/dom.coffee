@@ -205,6 +205,7 @@ JObject::extend
           editor = new Editor mode:mode, el:el, onSubmit: (text) =>
             if @data.onSubmit?
               $V.socket.emit 'submit', data:text, onSubmit:@data.onSubmit.id
+          el.data('editor', editor)
           process.nextTick ->
             # ipad hack
             # getting the touch keyboard to show up when tapping for the first time
@@ -242,7 +243,7 @@ JObject::extend
   # Draw key/value pairs for a POJO
   dom_drawItem: ($V, key, value) ->
     $V.newEl tag:'div', cls:'item', data:{key,value}, children:[
-      $V.newEl tag:'span', cls:'key attribute', text:key+':'
+      $V.newEl tag:'span', cls:'key attribute', text:key+(if isInteger(key) then ')' else ' ')
       value.dom_draw($V)
     ]
   
@@ -300,7 +301,7 @@ JArray::extend
       item = $(@)
       if isInteger(key=item.data('key'))
         item.data('key', keyStr=(''+(Number(key)+shift)))
-        item.find('>.key').text(keyStr+':')
+        item.find('>.key').text(keyStr+')')
 
   dom_sortItems: ($V, el) -> # sort ascending
     el.find('>.item').sortElements (a, b) ->
@@ -378,7 +379,7 @@ collectInput = window.collectInput = (el) ->
         key = $(item).data('key') + key
     value = switch type
       when 'input'  then inEl.val()
-      when 'editor' then inEl.find('textarea').val()
+      when 'editor' then inEl.data('editor').getValue()
       else throw new Error "Unexpected input type: #{}"
     data[key] = value
   )

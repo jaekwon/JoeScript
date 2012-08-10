@@ -297,6 +297,12 @@ test """
 if typeof @parts is 'string'
   1
 """, 'if((this.parts?type is "string")){1}'
+test """
+{
+  foo: bar:1
+  bar: baz:2
+}
+""", ''
 
 
 console.log blue "\n-= parse project files =-"

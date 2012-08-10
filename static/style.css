@@ -92,7 +92,9 @@ div.object {
 
 div.array > div.item > span.key {
   font-size: 0.8em;
-  min-width: 1.5em; }
+  line-height: 1.3em;
+  min-width: 1.5em;
+  color: #93bbc6; }
 
 div.hideKeys > div.item > span.key {
   display: none; }
@@ -103,6 +105,9 @@ span.string {
 div.editor {
   min-height: 1em;
   min-width: 15em; }
+
+button {
+  margin-top: .4em; }
 
 /* EDITOR */
 /* Loosely based on the Midnight Textmate theme */
@@ -161,7 +166,7 @@ span.cm-coffee-identifier {
   color: black; }
 
 span.cm-coffee-thisprop {
-  color: #3090AA; }
+  color: #3090aa; }
 
 span.cm-coffee-comment {
   color: #668ee2; }
@@ -182,7 +187,7 @@ span.number {
   color: #002EE0; }
 
 span.attribute {
-  color: #3090AA; }
+  color: #3090aa; }
 
 span.keyword {
   color: #ffd500; }
