@@ -13,6 +13,8 @@ valueOf:  Returns a native value if this is a String, Number, Function, or Boole
 jsValue:  Like valueOf, but also converts JObjects and JSingletons into native types.
           Used for bridged functions and testing.
 
+toJoe:    The opposite of jsValue, returns a JoeScript runtime object from native types.
+
 ###
 
 {
@@ -260,15 +262,25 @@ clazz.extend String,
       delim = delim.jsValue $, no
       count = count.jsValue $, no
       new JArray creator:$.user, data:str.split(delim, count)
+  toJoe: -> @valueOf()
 
 clazz.extend Number,
   jsValue: -> @valueOf()
+  toJoe:  -> @valueOf()
 
 clazz.extend Boolean,
   jsValue: -> @valueOf()
+  toJoe:  -> @valueOf()
 
 clazz.extend Function, # native functions
   jsValue: -> @valueOf()
+  toJoe:  -> @valueOf()
+
+clazz.extend Object, # fuckit, let's try this
+  toJoe:  ({creator}) -> # TODO handle circular...
+    data = {}
+    data[key] = value.toJoe({creator}) for key, value of @
+    new JObject creator:creator, data:data
 
 # EXPORTS
 @NODES = {

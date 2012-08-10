@@ -221,7 +221,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             when 'z' then value = JSingleton[value]
           # TODO currently invalid values just become strings.
           #   Reconsider, this might mask bugs.
-          if key is '__proto__' # special case
+          if key is 'HACK__proto__' # special case
             obj.proto = value
           else if meta.type is 'JArray'
             if isInteger(key)
@@ -281,10 +281,10 @@ JObject::extend
       creator:@creator.id
     , (err, res) =>
       dataKeys = Object.keys @data
-      dataKeys.push '__proto__' if @proto? # special case
+      dataKeys.push 'HACK__proto__' if @proto? # special case
       # Asynchronously persist each key-value pair
       async.forEach dataKeys, (key, next) =>
-        value = if key is '__proto__' then @proto else @data[key]
+        value = if key is 'HACK__proto__' then @proto else @data[key]
         JObject::persistence_saveItem.call @, $$, key, value, next
         return
       # After saving all key-value pairs (or upon error)
