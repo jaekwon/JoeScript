@@ -39,7 +39,7 @@ form = {
   email:    {type:'input'}
   name:     {type:'input'}
   website:  {type:'input'}
-]
+}
 form.onSubmit = ({data}) ->
   print data
 form
@@ -77,3 +77,17 @@ signup.onSubmit = ({data}) ->
   @signups.push data
   
 @index = [login, signup]
+
+## Signup
+@signups or= []
+form = {
+  email:    {type:'input'}
+  name:     {type:'input'}
+  website:  {type:'input'}
+}
+form.onSubmit = ({screen, data}) ->
+  @signups.push data
+  screen.length = 0
+  screen.push "thanks! you'll hear from Sembly shortly."
+  print data
+@signup = form

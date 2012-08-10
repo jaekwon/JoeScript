@@ -67,7 +67,7 @@ input[type=text] {
   font-family: "Inconsolata", monospace;
   font-size: inherit;
   border-radius: .3em;
-  border: 1px solid #8da6ce;
+  border: 1px solid #8da6cf;
   padding: .3em;
   width: 15em; }
 
@@ -82,16 +82,17 @@ div.object {
     min-height: 1em;
     /* blank strings */
     padding-top: 4px;
-    border-top: 1px dotted #8da6ce;
+    border-top: 1px dotted #8da6cf;
     margin-top: 4px; }
     div.object > div.item > span.key {
-      min-width: 6em;
+      min-width: 4em;
       vertical-align: top; }
     div.object > div.item > * {
       display: inline-block; }
 
 div.array > div.item > span.key {
-  min-width: 2em; }
+  font-size: 0.8em;
+  min-width: 1.5em; }
 
 div.hideKeys > div.item > span.key {
   display: none; }
@@ -101,7 +102,7 @@ span.string {
 
 div.editor {
   min-height: 1em;
-  min-width: 20em; }
+  min-width: 15em; }
 
 /* EDITOR */
 /* Loosely based on the Midnight Textmate theme */
@@ -110,7 +111,7 @@ div.editor {
   /*color: #f8f8f8;*/
   font-family: "Inconsolata", monospace;
   border-radius: .3em;
-  border: 1px solid #8da6ce;
+  border: 1px solid #8da6cf;
   margin: .3em; }
   .cm-s-sembly div.CodeMirror-selected {
     background: #B0B0B0 !important;
@@ -118,12 +119,14 @@ div.editor {
   .cm-s-sembly.CodeMirror-focused div.CodeMirror-selected {
     background: #B4D5FF !important;
     /* standard chrome colors */ }
+  .cm-s-sembly.CodeMirror-scroll {
+    margin: 0 !important; }
   .cm-s-sembly .CodeMirror-gutter {
     /*background: #0a001f;*/
     background: transparent;
-    border-right: 1px solid #8da6ce; }
+    border-right: 1px solid #8da6cf; }
   .cm-s-sembly .CodeMirror-gutter-text {
-    color: #8da6ce; }
+    color: #8da6cf; }
   .cm-s-sembly .CodeMirror-cursor {
     border-left: 1px solid black !important; }
 
@@ -132,7 +135,7 @@ div.editor {
  * https://github.com/pickhardt/coffeescript-codemirror-mode
  */
 span.cm-coffee-delimiter {
-  color: #8da6ce; }
+  color: #8da6cf; }
 
 span.cm-coffee-special {
   color: #FB9500; }
@@ -207,7 +210,7 @@ span.error {
   color: #e6312a; }
 
 span.bracket {
-  color: #8da6ce; }
+  color: #8da6cf; }
 
 span.builtin {
   color: #ff9e59; }
@@ -219,7 +222,7 @@ span.link {
   color: #551A8B; }
 
 span.punctuation {
-  color: #8da6ce; }
+  color: #8da6cf; }
 
 span.operator {
   color: #00cccc; }

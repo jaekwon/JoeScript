@@ -1,5 +1,5 @@
 // by color
-$lightBlue: #8DA6CE;
+$lightBlue: #8DA6CF;
 // by function
 $bgColor: white;
 $c_outline: $lightBlue;
@@ -104,7 +104,7 @@ div.object {
     border-top: 1px dotted $c_outline;
     margin-top: 4px;
     &>span.key {
-      min-width: 6em;
+      min-width: 4em;
       vertical-align: top;
     }
     &>* {
@@ -117,7 +117,8 @@ div.object {
 div.array {
   &>div.item {
     &>span.key {
-      min-width: 2em;
+      font-size: 0.8em;
+      min-width: 1.5em;
     }
   }
 }
@@ -134,7 +135,7 @@ span.string {
 
 div.editor {
   min-height: 1em;
-  min-width: 20em;
+  min-width: 15em;
 }
 
 /* EDITOR */
@@ -152,6 +153,9 @@ div.editor {
   }
   &.CodeMirror-focused div.CodeMirror-selected {
     background: #B4D5FF !important; /* standard chrome colors */
+  }
+  &.CodeMirror-scroll {
+    margin: 0 !important;
   }
   .CodeMirror-gutter {
     /*background: #0a001f;*/
