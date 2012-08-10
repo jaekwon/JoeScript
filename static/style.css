@@ -120,7 +120,9 @@ div.editor {
     background: #B4D5FF !important;
     /* standard chrome colors */ }
   .cm-s-sembly.CodeMirror-scroll {
-    margin: 0 !important; }
+    margin: 0 !important;
+    margin-top: 1px !important;
+    /* i dunno, i saw the top border disappear on chrome */ }
   .cm-s-sembly .CodeMirror-gutter {
     /*background: #0a001f;*/
     background: transparent;

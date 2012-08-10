@@ -13,9 +13,10 @@ Editor = @Editor = clazz 'Editor', ->
 
   makeMirror: (target) ->
     assert.ok target.length is 1, "Editor target el not unique"
-    target.append(ta=$('<textarea class="holdsTheValue"/>'))
+    # target.append(ta=$('<textarea class="holdsTheValue"/>'))
     # Setup CodeMirror instance.
-    mirror = window._lastMirror = CodeMirror.fromTextArea ta[0],
+    # mirror = window._lastMirror = CodeMirror.fromTextArea ta[0],
+    mirror = window._lastMirror = CodeMirror target[0],
       value:        '' # see mirror.setValue below.
       mode:         @mode
       theme:        'sembly'

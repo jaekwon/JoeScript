@@ -156,6 +156,7 @@ div.editor {
   }
   &.CodeMirror-scroll {
     margin: 0 !important;
+    margin-top: 1px !important; /* i dunno, i saw the top border disappear on chrome */
   }
   .CodeMirror-gutter {
     /*background: #0a001f;*/

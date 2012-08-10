@@ -190,7 +190,7 @@ JObject::extend
     switch @data.type
       when 'input'
         # draw an input field
-        $V.newEl id:@id, tag:'input', data:@data, attr:{type:'text'}, (el) =>
+        $V.newEl id:@id, cls:'input', tag:'input', data:@data, attr:{type:'text'}, (el) =>
           # HACK consider putting elsewhere.
           # When refactoring out, make sure addListener happens recursively.
           debug "Adding JView listener to ##{@id}"
@@ -199,7 +199,7 @@ JObject::extend
           el.val @data.text if @data.text?
 
       when 'editor'
-        $V.newEl id:@id, tag:'div', cls:'editor', data:{}, (el) =>
+        $V.newEl id:@id, cls:'editor', tag:'div', cls:'editor', data:@data, (el) =>
           {Editor} = require 'sembly/src/client/editor'
           mode = @data.mode ? 'coffeescript'
           editor = new Editor mode:mode, el:el, onSubmit: (text) =>
@@ -366,14 +366,20 @@ clazz.extend Boolean,
 # Synchronously returns a data object.
 collectInput = window.collectInput = (el) ->
   data = {}
-  el.find('input[type=text],textarea.holdsTheValue').each(->
+  el.find('.input, .editor').each(->
     # Find {type:'input'}.key, or construct one from the relative path.
-    key = $(@).data('key')
+    inEl = $(@)
+    type = inEl.data('type')
+    key = inEl.data('key')
     if not key?
       key = ''
       for item in $(@).parentsUntil(el, '.item')
         key = '.' + key if key
         key = $(item).data('key') + key
-    data[key] = $(@).val()
+    value = switch type
+      when 'input'  then inEl.val()
+      when 'editor' then inEl.find('textarea').val()
+      else throw new Error "Unexpected input type: #{}"
+    data[key] = value
   )
   return data
