@@ -116,22 +116,33 @@ test """
 x+1 for x, i in [0..10]
 """, 'var i, x, _to, _by; for(i = 0; x = 0; _to = 10; _by = 1;(x <= _to);i = (i + 1); x = (x + _by)){(x + 1)}'
 # soak tests
-test " bar? ", 'if(((bar?"type" !== null) && (bar !== undefined))){true}else{false}'
-test " foo = bar? ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? true : false)'
-test " foo = bar?.baz ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar.baz : undefined)'
-test " foo = bar?.baz 1 ", 'var foo; foo = (((bar?"type" !== null) && (bar !== undefined)) ? bar.baz(1) : undefined)'
+test " bar? ", 'if(((typeof bar !== "undefined") && (bar !== null))){true}else{false}'
+test " foo = bar? ", 'var foo; foo = (((typeof bar !== "undefined") && (bar !== null)) ? true : false)'
+test " foo = bar?.baz ", 'var foo; foo = (((typeof bar !== "undefined") && (bar !== null)) ? bar.baz : undefined)'
+test " foo = bar?.baz 1 ", 'var foo; foo = (((typeof bar !== "undefined") && (bar !== null)) ? bar.baz(1) : undefined)'
 test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = ((((ref = bbb.bar) !== null) and (ref !== undefined)) ? ((((ref = ref.baz) !== null) and (ref !== undefined)) ? ref(1) : undefined) : undefined)'
-test " foo = base?.bar.baz 1 ", 'var foo; foo = (((base?"type" !== null) && (base !== undefined)) ? base.bar.baz(1) : undefined)'
-test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = (((base?"type" !== null) && (base !== undefined)) ? ((((ref = base.bar.baz) !== null) and (ref !== undefined)) ? ref.blah(1) : undefined) : undefined)'
+test " foo = base?.bar.baz 1 ", 'var foo; foo = (((typeof base !== "undefined") && (base !== null)) ? base.bar.baz(1) : undefined)'
+test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = (((typeof base !== "undefined") && (base !== null)) ? ((((ref = base.bar.baz) !== null) and (ref !== undefined)) ? ref.blah(1) : undefined) : undefined)'
 test " base?.bar.baz?.blah = foo?.foo = 1 ", """
   var ref;
-  if(((base?"type" !== null) && (base !== undefined))){
+  if(((typeof base !== "undefined") && (base !== null))){
     if((((ref = base.bar.baz) !== null) and (ref !== undefined))){
-      ref.blah = (((foo?"type" !== null) && (foo !== undefined)) ? (foo.foo = 1) : undefined)
+      ref.blah = (((typeof foo !== "undefined") && (foo !== null)) ? (foo.foo = 1) : undefined)
     }else{
       undefined
     }
   }else{
     undefined
   }
+"""
+test "foo ? bar", 'if(((typeof foo !== "undefined") && (foo !== null))){foo}else{bar}'
+test "foo ?= bar", 'var foo; foo = (((typeof foo !== "undefined") && (foo !== null)) ? foo : bar)'
+test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) {(opts = (((typeof opts !== "undefined") && (opts !== null)) ? opts : {}); return opts)}'
+test "foo = ({foo}={foo:1}) -> opts", """
+var foo;
+foo = function(arg) {
+  (arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {"foo": 1});
+  foo = arg.foo;
+  return opts)
+}
 """

@@ -558,7 +558,7 @@ checkColumn = (__, $) ->
     # rest
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", ((it) -> Number it)
     o SYMBOL:       " !_KEYWORD WORD "
-    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'?', key:'type')
+    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'?', key:Word('type'))
     # starts with symbol
     o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", (make Arr)
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)

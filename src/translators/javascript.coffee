@@ -169,15 +169,15 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       return joe.If(
         cond:joe.Operation(
           left:joe.Operation(
-            left: joe.Index(obj:@, type:'?', key:'type')
+            left: joe.Index(obj:@, type:'?', key:joe.Word('type'))
             op:   '!='
-            right:joe.Singleton.null
+            right:"undefined"
           ),
           op: '&&'
           right:joe.Operation(
             left: @
             op:   '!='
-            right:joe.Singleton.undefined
+            right:joe.Singleton.null
           )
         )
         block: block,
@@ -409,7 +409,7 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
           # Simple like `x += 1` or `foo.bar += 1`.
           # But, anything more complex like `foo.bar.baz += 1` or
           # `(foo = {bar:1}; foo).bar += 1` requires a translation to avoid side effects.
-          @value = joe.Operation(left:@target, op:@op, right:@value.toJSNode(toValue:yes))
+          @value = joe.Operation(left:@target, op:@op, right:@value).toJSNode(toValue:yes)
           @op = undefined
           return inject(this) if inject?
           return @ # no more toJSNode() necessary.
@@ -487,19 +487,25 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       ## destructuring parameters
       if @params?
         destructs = []
-        for {target:param}, i in @params.items
-          if not isVariable param
-            if param instanceof joe.AssignObj
+        for param, i in @params.items
+          {target, default:_default} = param
+          param.default = undefined # javascript doesn't support default param values.
+          if not isVariable target
+            if target instanceof joe.AssignObj
               arg = joe.Undetermined('arg')
               @params.items[i] = joe.AssignItem target:arg
-              param.destructLines arg, destructs
-            else if param instanceof joe.Index
-              assert.ok param.isThisProp, "Unexpected parameter #{param}"
-              key = joe.Word(''+param.key)
-              @params.items[i] = joe.AssignItem target:key
-              destructs.push joe.Assign target:param, value:key
+              destructs.push joe.Assign target:arg, op:'?', value:_default if _default?
+              target.destructLines arg, destructs
+            else if target instanceof joe.Index
+              assert.ok target.isThisProp, "Unexpected parameter target #{target}"
+              arg = joe.Word(''+target.key)
+              @params.items[i] = joe.AssignItem target:arg
+              destructs.push joe.Assign target:arg, op:'?', value:_default if _default?
+              destructs.push joe.Assign target:target, value:arg
             else
-              throw new Error "Unexpected parameter #{param}"
+              throw new Error "Unexpected parameter target #{target}"
+          else
+            destructs.push joe.Assign target:target, op:'?', value:_default if _default?
         @block.lines[...0] = destructs
       ## make last line return
       @block = @block?.toJSNode({toValue:yes, inject:(value)->
@@ -531,6 +537,11 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
       return @unsoak().toJSNode({toValue,inject}) unless @unsoaked
       return @super.toJSNode.call(@, {toValue,inject})
     toJavascript: ->
+      if @type is '?'
+        if @key.toKeyString() is 'type'
+          return "typeof #{js @obj}"
+        else
+          throw new Error "Cannot translate meta '#{@key}' to javascript"
       close = if @type is '[' then ']' else ''
       "#{js @obj}#{@type}#{js @key}#{close}"
 

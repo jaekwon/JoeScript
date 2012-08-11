@@ -1,7 +1,7 @@
 ## Mandatory fibo                                                                                                                                                                                  
 a = 1
 b = 1
-fibo = ->                                                                       
+fibo = ->
   c = a
   a += b
   b = c
@@ -69,7 +69,6 @@ signup.__class__ = 'hideKeys'
 signup.onSubmit = ({data}) ->
   @signups.push data
 
-## LOGIN
 login = [
   'password:',
   {type:'input', key:'password'},
@@ -85,3 +84,14 @@ login.onSubmit = ({screen, modules, data}) ->
   
 ##
 @index = {signup,login}
+
+
+## WALK
+walk = (obj, seen={}) ->
+  return if seen[obj?id]
+  seen[obj?id] = yes
+  for key, value of obj
+    if value?type is 'object'
+      print "walking #{value?id}"
+      walk(value, seen)
+walk @index

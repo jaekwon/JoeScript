@@ -313,6 +313,9 @@ test """
        bar: baz:2
 }
 """, '{foo:{bar:{flop:1}},bar:{baz:2}}'
+test """
+foo = (opts={}) -> opts
+""", 'foo = ((opts={})->{opts})'
 
 console.log blue "\n-= parse project files =-"
 

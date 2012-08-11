@@ -84,14 +84,8 @@ withSession = (socket, fn) ->
     if not session?
       # Setup default view and socket-specific session
       session = {}
-
       session.modules = modules = new JArray creator:ANON
-      session.scope = scope = WORLD.create ANON, {modules}
-      session.scope.data.clear = new JBoundFunc creator:ANON, scope:scope, func:"""
-        -> modules.length = 0
-      """
-      # Construct a development screen
-      session.screen = screen = new JArray creator:ANON, data:{__class__:'hideKeys'}
+      session.screen =  screen =  new JArray creator:ANON, data:{__class__:'hideKeys'}
       session.perspective = screen.newPerspective(socket)
 
       # Save session

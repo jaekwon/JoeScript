@@ -305,9 +305,8 @@ joe.Index::extend
         return INSTR.__del__ $, obj, @key
       when '?'
         switch @key.toKeyString()
-          when 'type'
-            $.pop()
-            return _typeof obj
+          when 'type' then $.pop(); return _typeof obj
+          when 'id'   then $.pop(); return obj.id ? JUndefined
           else
             return $.throw 'InternalError', "Meta '#{@key}' not supported"
       when '[', '!['
