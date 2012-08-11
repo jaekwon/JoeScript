@@ -555,6 +555,7 @@ INSTR = @INSTR =
         debug "#{obj}.__get__ #{key}, expected=#{expected} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
         if value?
           if value instanceof JStub
+            # XXX still need to replace the stub!
             return cached if cached=$.kernel.cache[value.id]
             assert.ok value.persistence?, "JObject::__get__ wants <JStub>.persistence"
             $.wait waitKey="load:#{value.id}"

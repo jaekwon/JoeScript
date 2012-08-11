@@ -93,5 +93,5 @@ walk = (obj, seen={}) ->
   for key, value of obj
     if value?type is 'object'
       print "walking #{value?id}"
-      walk(value, seen)
+      walk(value, seen) if seen[value?id]
 walk @index
