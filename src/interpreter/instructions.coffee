@@ -173,7 +173,7 @@ joe.Obj::extend
       else throw new Error "Unexpected object key of type #{key?.constructor.name}"
       # setup value
       $.push this:i9n, func:storeLast, key:'value'
-      $.pushValue value
+      $.pushValue value ? key # {foo} == {foo:foo}
       i9n.idx++
       return
     else

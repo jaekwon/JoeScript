@@ -364,11 +364,11 @@ JThread = @JThread = clazz 'JThread', ->
       # Hook to handle native errors, which are unexpected.
       if typeof error isnt 'string' or error[..9] != 'INTERRUPT_'
         nativeError = error
-        fatal "Native error thrown in runStep. thread.throw'ing:\n" + (error.stack ? error)
+        fatal "Native error thrown in runStep. thread throwing:\n" + (error.stack ? error)
         try
           thread.throw 'InternalError', "#{error.name}:#{error.message}"
-        catch error
-          'pass'
+        catch error2
+          error = error2
       # Switch on what thread.throw returned.
       switch error
         # Userland error
