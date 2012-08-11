@@ -42,6 +42,7 @@ RAW_GRAMMAR = [
               i "RANGE": "'{' _ min:INT? _ ',' _ max:INT? _ '}'"
             ]
             o "PRIMARY": [
+              o "WORD '(' EXPR ')'", (it) -> new Ref it...
               o "WORD", (it) -> new Ref it
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
                 assert.ok not code?, "code in joeson deprecated"

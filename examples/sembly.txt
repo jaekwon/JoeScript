@@ -56,8 +56,22 @@ it.onSubmit = ({screen, modules, data}) ->
 
 ## @index
 
+@signups or= []
+signup = [
+  'enter your email for an invite'
+  {type:'input', key:'email'}
+  'website?'
+  {type:'input', key:'website'}
+  'tell me something about you'
+  {type:'editor', mode:'markdown', key:'about'}
+]
+signup.__class__ = 'hideKeys'
+signup.onSubmit = ({data}) ->
+  @signups.push data
+
+## LOGIN
 login = [
-  'Enter password:',
+  'password:',
   {type:'input', key:'password'},
 ]
 login.__class__ = 'hideKeys'
@@ -68,18 +82,6 @@ login.onSubmit = ({screen, modules, data}) ->
     screen.push command
   else
     screen.push "* wrong password :( *"
-
-@signups or= []
-signup = [
-  'Enter your email for an invite:'
-  {type:'input', key:'email'}
-  'Website?'
-  {type:'input', key:'website'}
-  'Tell me something about you:'
-  {type:'editor', mode:'markdown', key:'about'}
-]
-signup.__class__ = 'hideKeys'
-signup.onSubmit = ({data}) ->
-  @signups.push data
   
+##
 @index = {signup,login}

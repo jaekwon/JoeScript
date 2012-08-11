@@ -343,106 +343,93 @@ Dummy = clazz 'Dummy', Node, ->
 trace =
   indent:no
 
-checkIndent = (ws, $) ->
-  $.stack[0].indent ?= '' # set default lazily
+setup = (__, $) ->
+  $.stack[0].indent = ''
 
-  container = $.stack[$.stackLength-2]
-  $.log "[In] container (@#{$.stackLength-2}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}'" if trace.indent
-  if container.softline?
-    # {
-    #   get: -> # begins with a softline
-    #   set: ->
-    # }
-    pIndent = container.softline
-  else
-    # Get the parent container's indent string
-    for i in [$.stackLength-3..0] by -1
-      if $.stack[i].softline? or $.stack[i].indent?
-        pContainer = $.stack[i]
-        pIndent = pContainer.softline ? pContainer.indent
-        $.log "[In] parent pContainer (@#{i}:#{pContainer.name}) indent:'#{pContainer.indent}', softline:'#{pContainer.softline}'" if trace.indent
-        break
-  # If ws starts with pIndent... valid
-  if ws.length > pIndent.length and ws.indexOf(pIndent) is 0
-    $.log "Setting container.indent to '#{ws}'" if trace.indent
-    container.indent = ws
-    return container.indent
+_iC = ($, skip=0) ->
+  for i in [$.stackLength-1-skip..0] by -1
+    if $.stack[i].softline? or $.stack[i].indent?
+      container = $.stack[i]
+      if container.softline?
+        indent = container.softline
+        isSoft = yes
+      else
+        indent = container.indent
+        isSoft = no
+      return {container, indent, i, isSoft}
+  return null
+
+checkIndent = (ws, $) ->
+  {indent, container} = _iC $, 1
+  debug "checkIndent: [#{ws}], [#{indent}]" if trace.indent
+  if ws.startsWith(indent) and ws > indent
+    #$.stackPeek(1).markedColumn = $.code.col
+    return $.stackPeek(1).indent = ws
   null
 
 checkNewline = (ws, $) ->
-  # find the container indent (or softline) on the stack
-  for i in [$.stackLength-2..0] by -1
-    if $.stack[i].softline? or $.stack[i].indent?
-      container = $.stack[i]
-      break
+  {indent, container} = _iC $, 1
+  return if (ws is indent) then ws else null
 
-  containerIndent = container.softline ? container.indent
-  isNewline = ws is containerIndent
-  $.log "[NL] container (@#{i}:#{container.name}) indent:'#{container.indent}', softline:'#{container.softline}', isNewline:'#{isNewline}'" if trace.indent
-  return ws if isNewline
+# Could be a newline or an indent (except the indent can be shortened within a common container)
+# e.g.
+# someFunction("param1",
+#     "param2",
+#   "param3") # <-- dedented here, but it's still to the right of someFunction.
+checkSoftline = (ws, $) ->
+  {indent, container, i, isSoft} = _iC $, 1
+  if directContainer=(i is $.stackLength-2) and isSoft
+    {indent, container} = _iC $, 2
+  if ws.startsWith(indent)
+    return $.stackPeek(1).softline = ws
   null
 
-# like a newline, but allows additional padding
-checkSoftline = (ws, $) ->
-  # find the applicable indent
-  container = null
-  for i in [$.stackLength-2..0] by -1
-    if i < $.stackLength-2 and $.stack[i].softline?
-      # a strict ancestor's container's softline acts like an indent.
-      # this allows softlines to be shortened only within the same direct container.
-      container = $.stack[i]
-      $.log "[SL] (@#{i}:#{container.name}) indent(ignored):'#{container.indent}', **softline**:'#{container.softline}'" if trace.indent
-      break
-    else if $.stack[i].indent?
-      container = $.stack[i]
-      $.log "[SL] (@#{i}:#{container.name}) **indent**:'#{container.indent}', softline(ignored):'#{container.softline}'" if trace.indent
-      break
-  assert.ok container isnt null
-  # commit softline ws to container
-  if ws.indexOf(container.softline ? container.indent) is 0
-    topContainer = $.stack[$.stackLength-2]
-    $.log "[SL] Setting topmost container (@#{$.stackLength-2}:#{topContainer.name})'s softline to '#{ws}'" if trace.indent
-    topContainer.softline = ws
-    return ws
+# An indent that can be dedented within a common container.
+# Like checkSoftline, except it can't be a newline.
+checkSoftdent = (ws, $) ->
+  {indent, container, i, isSoft} = _iC $, 1
+  if directContainer=(i is $.stackLength-2) and isSoft
+    {indent, container} = _iC $, 2
+  if ws.startsWith(indent) and ws > indent
+    return $.stackPeek(1).softline = ws
   null
 
 checkComma = ({beforeBlanks, beforeWS, afterBlanks, afterWS}, $) ->
   container = $.stack[$.stackLength-2]
-  container.trailingComma = yes if afterBlanks?.length > 0 # hack for INVOC_IMPL, see _COMMA_NEWLINE
+  container.trailingComma = yes if afterBlanks?.length > 0
   if afterBlanks.length > 0
     return null if checkSoftline(afterWS, $) is null
   else if beforeBlanks.length > 0
     return null if checkSoftline(beforeWS, $) is null
   ','
 
-# a kinda newline that can only happen after an initial comma from a common container.
-# see _COMMA_NEWLINE
-checkCommaNewline = (ws, $) ->
-  container = $.stack[$.stackLength-2]
-  return null if not container.trailingComma
-  # Get the parent container's indent string
-  for i in [$.stackLength-3..0] by -1
-    if $.stack[i].softline? or $.stack[i].indent?
-      pContainer = $.stack[i]
-      pIndent = pContainer.softline ? pContainer.indent
-      break
-  # If ws starts with pIndent... valid
-  if ws.length > pIndent.length and ws.indexOf(pIndent) is 0
-    return yes
-  null
+checkHadComma = (__, $) ->
+  return null if not $.stackPeek(1).trailingComma
+  return 'checkHadComma:ok'
 
 resetIndent = (ws, $) ->
-  # find any container
-  container = $.stack[$.stackLength-2]
-  assert.ok container?
-  $.log "setting container(=#{container.name}).indent to '#{ws}'" if trace.indent
-  container.indent = ws
-  return container.indent
+  return $.stackPeek(1).indent = ws
+
+# TODO assumes that all whitespaces are 1 char long.
+# TODO document
+markColumn = (__, $) ->
+  $.stackPeek(1).markedColumn = $.code.col
+checkColumn = (__, $) ->
+  column = $.code.col
+  if column is $.stackPeek(1).markedColumn
+    return 'checkColumn:ok'
+  for i in [$.stackLength-1-2..0] by -1
+    item = $.stack[i]
+    indent = item.softline ? item.indent
+    if indent? and column < indent.length then return null
+    markedColumn = item.markedColumn
+    if markedColumn? and column <= markedColumn then return null
+  return 'checkColumn:ok'
 
 @GRAMMAR = GRAMMAR = Grammar ({o, i, tokens, make}) -> [
   o                                 " _SETUP _BLANKLINE* LINES ___ "
-  i _SETUP:                         " '' ", ((dontcare, $) -> $.stack[0].indent = '')
-  i LINES:                          " LINE*_NEWLINE _ _SEMICOLON? ", (make Block)
+  i _SETUP:                         " '' ", (setup)
+  i LINES:                          " _MARK_COL LINE*_NEWLINE _ _SEMICOLON? ", (make Block)
   i LINE: [
     o HEREDOC:                      " _ '###' !'#' (!'###' .)* '###' ", ((it) -> Heredoc it.join '')
     o LINEEXPR: [
@@ -456,13 +443,13 @@ resetIndent = (ws, $) ->
       o EXPR: [
         o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", (make Func)
         # RIGHT_RECURSIVE
-        o OBJ_IMPL:                 " _INDENT? &:OBJ_IMPL_ITEM+(_COMMA|_NEWLINE) ", (make Obj)
+        o OBJ_IMPL:                 " _INDENT? _MARK_COL &:OBJ_IMPL_ITEM+(_COMMA|_NEWLINE _CHECK_COL) ", (make Obj)
         i OBJ_IMPL_ITEM: [
           o                         " _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", (make Item)
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
-        o INVOC_IMPL:               " _ func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_COMMA_NEWLINE) ", (make Invocation)
+        o INVOC_IMPL:               " _ !NUMBER func:VALUE (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
 
         # COMPLEX
         # NOTE: These can't be the 'left' of an Operation.
@@ -565,7 +552,7 @@ resetIndent = (ws, $) ->
       o DELETE1:      " obj:VALUE _SOFTLINE? type:'!' !__ key:WORD ", (make Index) # NEW foo.bar!baz  <=> delete foo.bar.baz
       o META:         " obj:VALUE _SOFTLINE? type:'?' !__ key:WORD ", (make Index) # NEW foo.bar?type <=> tyepof foo.bar
       o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", (make Index)
-      o INVOC_EXPL:   " func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
+      o INVOC_EXPL:   " !NUMBER func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
       o SOAK:         " VALUE '?' ", (make Soak)
     ]
     # rest
@@ -577,7 +564,7 @@ resetIndent = (ws, $) ->
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)
     i ARR_IMPL_ITEM: " value:EXPR splat:'...'? ", (make Item)
     o RANGE:        " '[' from:LINEEXPR? _ type:('...'|'..') to:LINEEXPR? _ ']' by:(_BY EXPR)? ", (make Range)
-    o OBJ_EXPL:     " '{' _SOFTLINE? &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", (make Obj)
+    o OBJ_EXPL:     " '{' _SOFTLINE? _MARK_COL &:OBJ_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ '}' ", (make Obj)
     i OBJ_EXPL_ITEM: " _ key:(PROPERTY|WORD|STRING|NUMBER) value:(_ ':' LINEEXPR)? ", (make Item)
     o PROPERTY:     " '@' (WORD|STRING) ", ((key) -> Index obj:Word('this'), key:key)
     o THIS:         " '@' ", (-> Word('this'))
@@ -619,9 +606,12 @@ resetIndent = (ws, $) ->
     o               " _ _SEMICOLON _NEWLINE_STRICT? ", skipCache:yes
   ], skipCache:yes
   i _SOFTLINE:      " _BLANKLINE+ &:_ ", checkSoftline, skipCache:yes
+  i _SOFTDENT:      " _BLANKLINE+ &:_ ", checkSoftdent, skipCache:yes
   i _COMMA:         " beforeBlanks:_BLANKLINE* beforeWS:_ ','
                       afterBlanks:_BLANKLINE*  afterWS:_ ", checkComma, skipCache:yes
-  i _COMMA_NEWLINE: " _BLANKLINE+ &:_ ", checkCommaNewline, skipCache:yes
+  i _HAD_COMMA:     " '' ", checkHadComma, skipCache:yes
+  i _MARK_COL:      " _ ", markColumn, skipCache:yes
+  i _CHECK_COL:     " _ ", checkColumn, skipCache:yes
 
   # TOKENS:
   i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", ((key) ->

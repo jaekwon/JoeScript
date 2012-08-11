@@ -18,7 +18,13 @@ $(document).ready ->
       level: 'debug'
 
   domLog.before('(<a id="log_toggle">log</a>)')
-  $('#log_toggle').click -> domLog.show()
+  hidden = yes
+  $('#log_toggle').click ->
+    if hidden
+      domLog.show()
+    else
+      domLog.hide()
+    hidden = not hidden
   domLog.hide()
 
   ###

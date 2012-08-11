@@ -24,6 +24,10 @@ test  = (code, expected) ->
     console.log error.stack
     process.exit(1)
 
+test """
+foo bar: 'BAR'
+baz: 'BAZ'
+""", 'foo({bar:"BAR"});{baz:"BAZ"}'
 test  "!!a", "(! (! a))"
 test  "a * b * c", "((a*b)*c)"
 test  "a * b++ / c + d", "(((a*(b++))/c)+d)"
@@ -302,8 +306,13 @@ test """
   foo: bar:1
   bar: baz:2
 }
-""", ''
-
+""", '{foo:{bar:1},bar:{baz:2}}'
+test """
+{
+  foo: bar: flop: 1
+       bar: baz:2
+}
+""", '{foo:{bar:{flop:1}},bar:{baz:2}}'
 
 console.log blue "\n-= parse project files =-"
 

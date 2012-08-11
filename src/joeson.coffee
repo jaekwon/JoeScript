@@ -65,7 +65,7 @@ _loopStack = [] # trace stack
 
 # Frames stack up during parsing
 @Frame = Frame = clazz 'Frame', ->
-  init: ({@result, @pos, @endPos, @id, @loopStage, @wipemask}) ->
+  init: ({@result, @pos, @endPos, @id, @loopStage, @wipemask, @param}) ->
   cacheSet: (@result, @endPos) ->
   toString: -> "[F|result:#{@result} #{yellow @id}@#{blue @pos}...#{blue @endPos ? ''} lS:#{@loopStage or '_'} m:#{@wipemask?}]"
 
@@ -95,7 +95,7 @@ _loopStack = [] # trace stack
                         black ']'}"
       console.log "#{codeSgmnt} #{cyan Array(@stackLength).join '| '}#{message}"
 
-  stackPeek: -> @stack[@stackLength-1]
+  stackPeek: (skip=0) -> @stack[@stackLength-1-skip]
   stackPush: (node) -> @stack[@stackLength++] = @getFrame(node)
   stackPop: (node) -> --@stackLength
 
@@ -378,7 +378,7 @@ _loopStack = [] # trace stack
     sequence:   {type:[type:GNode]}
   handlesChildLabel: yes
   init:       (@sequence) ->
-  labels$:    get: -> @_labels ?= (if @label? then [@label] else (child.labels for child in @sequence).flatten())
+  labels$:    get: -> @_labels ?= ((child.labels for child in @sequence).flatten())
   captures$:  get: -> @_captures ?= (child.captures for child in @sequence).flatten()
   type$:      get: ->
     @_type?=(
@@ -521,7 +521,7 @@ _loopStack = [] # trace stack
 
 @Ref = Ref = clazz 'Ref', GNode, ->
   # note: @ref because @name is reserved.
-  init: (@ref) ->
+  init: (@ref, @param) ->
     @capture = no if @ref[0] is '_'
   labels$: get: ->
     @_labels ?=
@@ -531,6 +531,7 @@ _loopStack = [] # trace stack
   parse$: @$wrap ($) ->
     node = @grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
+    $.stackPeek().param = @param
     return node.parse $
   contentString: -> red(@ref)
 
@@ -602,10 +603,7 @@ _loopStack = [] # trace stack
             console.log "#{red node.id}:\t#{node}"
 
     # Prepare all the nodes, child first.
-    @walk
-      post: (node, parent) =>
-        # call prepare on all nodes
-        node.prepare()
+    @walk post: (node, parent) -> node.prepare()
 
   # MAIN GRAMMAR PARSE FUNCTION
   parse$: (code, {returnContext,env}={}) ->
@@ -792,6 +790,7 @@ St = -> Str arguments...
               i "RANGE": o S(St('{'), R("_"), L("min",E(R("INT"))), R("_"), St(','), R("_"), L("max",E(R("INT"))), R("_"), St('}'))
             ]
             o "PRIMARY": [
+              o S(R("WORD"), St('('), R("EXPR"), St(')')), (it) -> new Ref it...
               o R("WORD"), (it) -> new Ref it
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
                 assert.ok not code?, "code in joeson deprecated"
