@@ -139,7 +139,6 @@ io.sockets.on 'connection', (socket) ->
         when 'STATE_RETURN'
           info "return: #{INSTR.__str__ @, @last}"
         when 'STATE_ERROR'
-          info "error in submit! #{inspect @error}"
           @printErrorStack()
         else
           throw new Error "Unexpected state #{@state} during kernel callback"

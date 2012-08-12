@@ -28,7 +28,7 @@ Editor = @Editor = clazz 'Editor', ->
       tabSize:      tabSize
       onChange: (->
         target.height($(mirror.getWrapperElement()).height())
-      ).throttle(100)
+      )#.throttle(100) maybe causing issues.
     # Sanitization.
     mirror.sanitize = =>
       cursor = mirror.getCursor()
