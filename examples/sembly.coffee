@@ -88,10 +88,21 @@ login.onSubmit = ({screen, modules, data}) ->
 
 ## WALK
 walk = (obj, seen={}) ->
-  return if seen[obj?id]
-  seen[obj?id] = yes
-  for key, value of obj
-    if value?type is 'object'
-      print "walking #{value?id}"
-      walk(value, seen) if seen[value?id]
+  blah = undefined
+  print "walk on #{obj}"
+  try
+    return if seen[obj?id]
+    seen[obj?id] = yes
+  catch error
+    print "Error in step 1: #{error}"
+    return
+  for key of obj
+    try
+      value = obj[key]
+      if value?type is 'object'
+        print "walking #{value?id}"
+        walk(value, seen) unless seen[value?id]
+    catch error
+      print "Error in step 2: #{error}"
+  undefined
 walk @index

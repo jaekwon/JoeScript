@@ -186,6 +186,7 @@ test '''
 foo = {bar:[]}
 foo.bar?
 ''',                                      -> equal @it, yes
+test 'foo = if false then 1',             -> equal @it, undefined
 
 counter = 0
 runNextTest = ->

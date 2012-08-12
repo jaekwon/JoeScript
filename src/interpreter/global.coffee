@@ -49,6 +49,7 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
     # NOTE: node should be a block, and it has its own scope,
     # so it's different from javascript's eval in this way.
     $.i9ns.push this:node, func:node.interpret
+    return JUndefined
   )
 }
 WORLD.hack_persistence = PERSISTENCE # FIX

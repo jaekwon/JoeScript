@@ -102,7 +102,7 @@ joe.Block::extend
     if i9n.idx is i9n.length-2
       $.pop() # pop this
     $.pushValue @lines[++i9n.idx]
-    return
+    return JUndefined
 
 joe.If::extend
   interpret: ($) ->
@@ -116,7 +116,7 @@ joe.If::extend
       $.pushValue @block
     else if @else
       $.pushValue @else
-    return
+    return JUndefined
 
 joe.Assign::extend
   interpret: ($, i9n) ->
@@ -603,6 +603,7 @@ INSTR = @INSTR =
 
   # synchronous:
   __set__: ($, obj, key, value) ->
+    assert.ok value?, "Can't set native undefined/null on any variable or object key"
     switch _typeof obj
       when 'object'
         key = INSTR.__key__ $, key
@@ -636,6 +637,7 @@ INSTR = @INSTR =
 
   # an __update__ only happens for scope objects.
   __update__: ($, obj, key, value) ->
+    assert.ok value?, "Can't update native undefined/null on any variable"
     switch _typeof obj
       when 'object'
         key = INSTR.__key__ $, key
