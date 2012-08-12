@@ -400,7 +400,6 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         else
           valueVar = joe.Undetermined('temp')
           lines.push joe.Assign target:valueVar, value:@value.toJSNode(toValue:yes)
-          @value = valueVar # XXX I think this line is unnecessary
         @target.destructLines valueVar, lines
         lines.push valueVar.toJSNode({toValue,inject}) if toValue or inject
         return joe.Block(lines)
