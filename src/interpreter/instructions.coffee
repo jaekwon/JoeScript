@@ -579,16 +579,19 @@ INSTR = @INSTR =
           else
             return value
         else if obj.proto?
+          debug "#{obj}.__get__ #{key} --> obj.proto? yes." if log
           if obj.proto instanceof JStub
             $.push func:($, i9n, proto) ->
               $.pop()
               INSTR.__get__ $, proto, key, expected
-            return INSTR.__get__ $, obj, '__proto__'
+            return INSTR.__get__ $, obj, '__proto__', expected
           else
             return INSTR.__get__ $, obj.proto, key, expected
         else if (bridged=obj.bridged[key])?
+          debug "#{obj}.__get__ #{key} --> bridged? yes." if log
           return bridged
         else
+          debug "#{obj}.__get__ #{key} --> failed. expected: #{expected}" if log
           return $.throw 'ReferenceError', "#{key} is not defined" if expected
           return JUndefined
       when 'string'

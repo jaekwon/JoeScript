@@ -142,34 +142,30 @@ JThread = @JThread = clazz 'JThread', ->
   #     this shouldn't happen.
   throw: (name, message) ->
     @error = name:name, message:message, stack:@callStack()
-    switch @state
-      when STATE_WAIT
-        @state = STATE_ERROR
-        while waitKey=@waitKeys.pop()
-          (waitList=@kernel.waitLists[waitKey]).remove @
-          delete @kernel.waitLists[waitKey] if waitList.length is 0
-        @exit()
-        return
-      when STATE_RUNNING
-        assert.ok @waitKeys.length is 0, "During a throw, #{@} @state!='STATE_WAIT' had waitKeys #{@waitKeys}"
-        @state = STATE_ERROR
-        # unwind the stack as necessary
-        loop
-          dontcare = @pop()
-          i9n = @peek()
-          if not i9n?
-            @last = JUndefined
-            throw INTERRUPT_ERROR
-          else if i9n.this instanceof joe.Try
-            i9n.func = joe.Try::interpretCatch
-            @error.stack = @error.stack.join('\n') # TODO
-            @last = new JObject creator:@user, data:@error
-            @error = undefined
-            @state = STATE_RUNNING
-            throw INTERRUPT_NONE
-      else
-        fatal msg="Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
-        throw new Error msg
+    assert.ok @state in [STATE_WAIT, STATE_RUNNING], "Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
+    if origState=@state is STATE_WAIT
+      @state = STATE_ERROR
+      while waitKey=@waitKeys.pop()
+        (waitList=@kernel.waitLists[waitKey]).remove @
+        delete @kernel.waitLists[waitKey] if waitList.length is 0
+    # unwind the stack as necessary
+    loop
+      dontcare = @pop()
+      i9n = @peek()
+      if not i9n?
+        @last = JUndefined
+        if origState is STATE_WAIT
+          @exit()
+          return
+        else
+          throw INTERRUPT_ERROR
+      else if i9n.this instanceof joe.Try
+        i9n.func = joe.Try::interpretCatch
+        @error.stack = @error.stack.join('\n') # TODO
+        @last = new JObject creator:@user, data:@error
+        @error = undefined
+        @state = STATE_RUNNING
+        throw INTERRUPT_NONE
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"

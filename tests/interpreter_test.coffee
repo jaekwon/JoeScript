@@ -38,16 +38,6 @@ for i in [0..10]
 a
 ''',                                      -> equal @it, 12
 test '''
-foo = ->
-  a = 0
-  loop
-    a++
-    return a if a > 100000
-  return 1
-    
-foo()
-''', -> ok true
-test '''
 a = 'A'
 foo = ->
   b = 'B'
@@ -187,6 +177,16 @@ foo = {bar:[]}
 foo.bar?
 ''',                                      -> equal @it, yes
 test 'foo = if false then 1',             -> equal @it, undefined
+test '''
+foo = ->
+  a = 0
+  loop
+    a++
+    return a if a > 100000
+  return 1
+    
+foo()
+''', -> ok true
 
 counter = 0
 runNextTest = ->
