@@ -101,23 +101,10 @@ io.sockets.on 'connection', (socket) ->
   # Main connection entrypoint.
   # Loads a resource and creates a screen for the client.
   socket.on 'load', (path) -> withSession socket, (session) ->
-    path or= '@index'
-    switch path
-      when '__boot__'
-        # It doesn't work if you manually add data after newPerspective.
-        KERNEL.run user:ANON, code:'yes', scope:WORLD, callback: ->
-          # Add modules and editor to screen
-          INSTR.__set__ @, session.screen, 0, session.modules
-          INSTR.__set__ @, session.screen, 1, WORLD.data.command
-          INSTR.__set__ @, session.screen, 'length', 2
-          socket.emit 'screen', INSTR.__str__ @, session.screen
-      else
-        # Show the path on the screen.
-        # NOTE keep user as ANON, arbitrary code execution happens here.
-        KERNEL.run user:ANON, code:path, scope:WORLD, callback: ->
-          INSTR.__set__ @, session.screen, 0, @last ? JUndefined
-          INSTR.__set__ @, session.screen, 'length', 1
-          socket.emit 'screen', INSTR.__str__ @, session.screen
+    KERNEL.run user:ANON, code:("hydrate(#{path or '@index'})"), scope:WORLD, callback: ->
+      INSTR.__set__ @, session.screen, 0, @last ? JUndefined
+      INSTR.__set__ @, session.screen, 'length', 1
+      socket.emit 'screen', INSTR.__str__ @, session.screen
 
   # Server Diagnostics
   socket.on 'server_info?', -> socket.emit 'server_info.', memory:process.memoryUsage()

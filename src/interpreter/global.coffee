@@ -89,6 +89,25 @@ if require.main is module
             module.error = error
           module!status
       } 
+
+      world.hydrate = (obj, seen={}) ->
+        # print "hydrate \#{obj}"
+        try
+          return if seen[obj?id]
+          seen[obj?id] = obj
+        catch error
+          #print "Error in step 1: \#{error}"
+          return
+        for key of obj
+          try
+            value = obj[key]
+            if value?type is 'object'
+              # print "hydrating \#{value?id}"
+              hydrate(value, seen) unless seen[value?id]
+          catch error
+            #print "Error in step 2: \#{error}"
+            return
+        obj
     """, callback: (err) ->
       return console.log "FAIL!\n#{err.stack ? err}" if err?
       WORLD.emit thread:@, type:'new'

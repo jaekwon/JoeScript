@@ -83,25 +83,3 @@ login.onSubmit = ({screen, modules, data}) ->
     screen.push "* wrong password :( *"
   
 @index = {signup,login}
-
-
-## Hydrate
-
-hydrate = (obj, seen={}) ->
-  # print "hydrate #{obj}"
-  try
-    return if seen[obj?id]
-    seen[obj?id] = obj
-  catch error
-    print "Error in step 1: #{error}"
-    return
-  for key of obj
-    try
-      value = obj[key]
-      if value?type is 'object'
-        # print "hydrating #{value?id}"
-        hydrate(value, seen) unless seen[value?id]
-    catch error
-      print "Error in step 2: #{error}"
-  seen
-hydrate @index

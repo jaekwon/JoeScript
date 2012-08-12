@@ -56,7 +56,7 @@ task 'browser', 'rebuild the merged script for inclusion in the browser', ->
   })
   fs.writeFileSync 'static/sembly.js', code, 'utf8'
   {parser, uglify} = require 'uglify-js'
-  minCode = uglify.gen_code (uglify.ast_squeeze uglify.ast_mangle parser.parse code)#, ascii_only:yes <-- needed this until i realized i need to set the charset of the document to utf-8
+  minCode = uglify.gen_code (uglify.ast_squeeze uglify.ast_mangle parser.parse code), ascii_only:yes # issue on chrome on ubuntu
   fs.writeFileSync 'static/sembly.min.js', minCode, 'utf8'
 
 task 'server', 'run the server', ->
