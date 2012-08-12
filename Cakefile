@@ -10,6 +10,7 @@ task 'build', ->
   #run 'coffee -c lib/**/*.coffee'
 
 task 'test', ->
+  invoke 'build'
   run 'coffee tests/codestream_test.coffee', ->
     run 'coffee tests/joeson_test.coffee', ->
       run 'coffee tests/joescript_test.coffee', ->
@@ -20,7 +21,8 @@ task 'test', ->
                 run 'coffee tests/jscompile_test.coffee', ->
                   console.log "All tests OK"
 
-task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
+task 'browser', 'rebuild the merged script for inclusion in the browser', ->
+  invoke 'build'
   code = """
     nonce = {nonce:'nonce'};
   """
@@ -56,6 +58,14 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
   {parser, uglify} = require 'uglify-js'
   minCode = uglify.gen_code (uglify.ast_squeeze uglify.ast_mangle parser.parse code)#, ascii_only:yes <-- needed this until i realized i need to set the charset of the document to utf-8
   fs.writeFileSync 'static/sembly.min.js', minCode, 'utf8'
+
+task 'server', 'run the server', ->
+  invoke 'browser'
+  run 'coffee server.coffee'
+
+task 'server:prod', 'run the server in production mode', ->
+  invoke 'browser'
+  run 'sudo coffee server.coffee -p 80'
 
 run = (args...) ->
   for a in args
