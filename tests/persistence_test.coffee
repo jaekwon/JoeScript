@@ -28,6 +28,7 @@ _err_ = (fn) ->
 require('async').series [
 
   (next) -> # test
+    console.log 1
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = {foo:1, bar:2}
@@ -45,6 +46,7 @@ require('async').series [
             next()
 
   ,(next) -> # test
+    console.log 2
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
@@ -58,6 +60,7 @@ require('async').series [
             next()
 
   ,(next) -> # test
+    console.log 3
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
@@ -66,11 +69,12 @@ require('async').series [
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it
           """, callback: _err_ ->
-            deepEqual @last.jsValue(), [1,2,3]
+            deepEqual @last.jsValue(@), [1,2,3]
             ps.client.quit()
             next()
 
   ,(next) -> # test
+    console.log 4
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
@@ -81,11 +85,12 @@ require('async').series [
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it
           """, callback: _err_ ->
-            deepEqual @last.jsValue(), [1,2]
+            deepEqual @last.jsValue(@), [1,2]
             ps.client.quit()
             next()
 
   ,(next) -> # test
+    console.log 5
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
@@ -99,11 +104,12 @@ require('async').series [
           foo.push it
           foo
           """, callback: _err_ ->
-            deepEqual @last.jsValue(), [2, [1]]
+            deepEqual @last.jsValue(@), [2, [1]]
             ps.client.quit()
             next()
 
   ,(next) -> # test
+    console.log 6
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
@@ -118,11 +124,12 @@ require('async').series [
           foo.push it
           foo
           """, callback: _err_ ->
-            deepEqual @last.jsValue(), ["QWE", [2,3]]
+            deepEqual @last.jsValue(@), ["QWE", [2,3]]
             ps.client.quit()
             next()
 
   ,(next) -> # test
+    console.log 7
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = messages:[]
@@ -139,11 +146,36 @@ require('async').series [
             KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
               it.messages
               """, callback: _err_ ->
-                deepEqual @last.jsValue(), ["testing1", "testing2"]
+                deepEqual @last.jsValue(@), ["testing1", "testing2"]
                 ps.client.quit()
                 next()
 
   ,(next) -> # test
+    console.log 8
+    ps = new JPersistence()
+    KERNEL.run user:ANON, code: """
+      it = messages:[]
+      it
+      """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
+
+        KERNEL.cache = {} # reset cache
+        KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+          it.messages.push foo:'FOO'
+          it.messages.push bar:'BAR'
+          """, callback: (err) ->
+
+            KERNEL.cache = {} # reset cache
+            KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
+              it.messages[0] # TODO this is getting annoying.
+              it.messages[1]
+              it.messages
+              """, callback: _err_ ->
+                deepEqual @last.jsValue(@), [{foo:'FOO'}, {bar:'BAR'}]
+                ps.client.quit()
+                next()
+
+  ,(next) -> # test
+    console.log 9
     ps = new JPersistence()
     KERNEL.run user:ANON, code: """
       it = messages:[1,2,3]
@@ -160,8 +192,8 @@ require('async').series [
             KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
               it.messages
               """, callback: _err_ ->
-                equal Object.keys(@last.jsValue()).length, 1
-                deepEqual @last.jsValue(), [3]
+                equal Object.keys(@last.jsValue(@)).length, 1
+                deepEqual @last.jsValue(@), [3]
                 ps.client.quit()
                 next()
 

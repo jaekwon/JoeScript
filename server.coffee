@@ -47,10 +47,10 @@ c.use (req, res) ->
   # TODO cache file
   require('fs').readFile('static/index.html', (err, data) ->
     if err?
-      res.writeHead 500, {'Content-Type': 'text/plain'}
+      res.writeHead 500, {'Content-Type': 'text/plain; charset=utf-8'}
       res.end "InternalError: #{err.stack ? err}"
       return
-    res.writeHead 200, {'Content-Type': 'text/html'}
+    res.writeHead 200, {'Content-Type': 'text/html; charset=utf-8'}
     res.end data
   )
 

@@ -24,7 +24,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # obj: JObject that emitted event message
   # event: Event object, {thread,type,...}
   on: (obj, event) ->
-    debug "#{cyan @}.#{red 'on'} EVENT type:#{red event.type} key:#{red event.key} on #{obj}" if log
+    debug "#{cyan @}.#{red 'on'} EVENT type:#{red event.type} key:#{red event.key} value:#{red event.value} on #{obj}" if log
     thread = event.thread
     assert.ok thread?, "JPersistence::on wants event.thread"
     switch event.type
@@ -62,7 +62,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
             return
           else if isInteger key and Number(key) >= 0
             thread.wait waitKey="persist:#{obj.id}[#{key}]"
-            JPersistence::withSave.call @, obj, (err) =>
+            JPersistence::withSave.call @, value, (err) =>
               return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?
               # XXX watch is missing up when pushing, which modifies :meta below.
               # @client.watch obj.id+':meta' # TODO verify that this works
@@ -139,7 +139,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
   # options:
   #   recursive:  if yes, attach recursively. default no.
   attachTo: (obj, options) ->
-    debug "#{cyan @}::#{yellow 'attachTo'} with obj: ##{obj.id}: #{obj}. Listeners" if log
+    debug "#{cyan @}::#{yellow 'attachTo'} obj:#{red obj}. Listeners" if log
     if obj.addListener @
       return yes unless options?.recursive
       # Recursively add children
@@ -206,7 +206,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
           offset = Number(offset ? 0) # TODO figure out a better way, too easy to forget.
           length = Number(length ? 0)
         else
-          data = _data
+          data = {}
           data.__proto__ = null # detach native Object::
         debug "copying items: #{inspect _data}" if log
         for key, value of _data

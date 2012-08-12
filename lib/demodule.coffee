@@ -59,7 +59,7 @@ module.exports = (modules, options) ->
   #console.log toCompile
   derequired = ''
   for {file,name,fn} in toCompile
-    source = require('fs').readFileSync file
+    source = require('fs').readFileSync file, 'utf8'
     compiled = fn(source)
     derequired += """
       require['#{name}'] = function() {

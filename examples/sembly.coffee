@@ -54,7 +54,7 @@ it.onSubmit = ({screen, modules, data}) ->
   screen.push command
 @index = it
 
-## @index
+## Front Page
 
 @signups or= []
 signup = [
@@ -82,17 +82,16 @@ login.onSubmit = ({screen, modules, data}) ->
   else
     screen.push "* wrong password :( *"
   
-##
 @index = {signup,login}
 
 
-## WALK
-walk = (obj, seen={}) ->
-  blah = undefined
-  print "walk on #{obj}"
+## Hydrate
+
+hydrate = (obj, seen={}) ->
+  # print "hydrate #{obj}"
   try
     return if seen[obj?id]
-    seen[obj?id] = yes
+    seen[obj?id] = obj
   catch error
     print "Error in step 1: #{error}"
     return
@@ -100,9 +99,9 @@ walk = (obj, seen={}) ->
     try
       value = obj[key]
       if value?type is 'object'
-        print "walking #{value?id}"
-        walk(value, seen) unless seen[value?id]
+        # print "hydrating #{value?id}"
+        hydrate(value, seen) unless seen[value?id]
     catch error
       print "Error in step 2: #{error}"
-  undefined
-walk @index
+  seen
+hydrate @index

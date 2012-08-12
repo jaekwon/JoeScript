@@ -52,10 +52,10 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       }
     """
   })
-  fs.writeFileSync 'static/sembly.js', code
+  fs.writeFileSync 'static/sembly.js', code, 'utf8'
   {parser, uglify} = require 'uglify-js'
-  minCode = uglify.gen_code (uglify.ast_squeeze uglify.ast_mangle parser.parse code), ascii_only:yes
-  fs.writeFileSync 'static/sembly.min.js', minCode
+  minCode = uglify.gen_code (uglify.ast_squeeze uglify.ast_mangle parser.parse code)#, ascii_only:yes <-- needed this until i realized i need to set the charset of the document to utf-8
+  fs.writeFileSync 'static/sembly.min.js', minCode, 'utf8'
 
 run = (args...) ->
   for a in args
