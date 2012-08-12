@@ -143,7 +143,7 @@ JThread = @JThread = clazz 'JThread', ->
   throw: (name, message) ->
     @error = name:name, message:message, stack:@callStack()
     assert.ok @state in [STATE_WAIT, STATE_RUNNING], "Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
-    if origState=@state is STATE_WAIT
+    if (origState=@state) is STATE_WAIT
       @state = STATE_ERROR
       while waitKey=@waitKeys.pop()
         (waitList=@kernel.waitLists[waitKey]).remove @
@@ -165,7 +165,12 @@ JThread = @JThread = clazz 'JThread', ->
         @last = new JObject creator:@user, data:@error
         @error = undefined
         @state = STATE_RUNNING
-        throw INTERRUPT_NONE
+        if origState is STATE_WAIT
+          @kernel.runloop.push @
+          process.nextTick @kernel.runRunloop if @kernel.runloop.length is 1
+          return
+        else
+          throw INTERRUPT_NONE
 
   return: (result) ->
     assert.ok result?, "result value can't be undefined. Maybe JUndefined?"

@@ -27,8 +27,7 @@ process.on 'uncaughtException', (err) ->
   warn """\n
 ^^^^^^^^^^^^^^^^^
 http://debuggable.com/posts/node-js-dealing-with-uncaught-exceptions:4c933d54-1428-443c-928d-4e1ecbdd56cb
-#{err.message}
-#{err.stack}
+#{err.stack ? err}
 vvvvvvvvvvvvvvvvv
 """
 
