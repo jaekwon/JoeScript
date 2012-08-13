@@ -73,6 +73,12 @@ storeLast = ($, i9n, last) ->
     @[i9n.key] = last
   return last
 storeLast._name = "storeLast"
+# call __str__ on the last value, passing the resulting string along
+strLast = ($, i9n, last) ->
+  $.pop()
+  $.pushValue joe.Invocation(func:joe.Index(obj:
+  MAGIC WORDS
+  INSTR.__str__ $, last
 
 # dependencies
 require('sembly/src/translators/scope').install()
@@ -721,7 +727,7 @@ INSTR = @INSTR =
         $.throw 'TypeError', "__key__ not defined for #{obj?.constructor?.name}"
       else $.throw 'TypeError', "__key__ not defined for #{_typeof obj}"
 
-  __str__: ($, obj, $$={}) ->
+  __str__: ($, obj, $$={}, maxDepth=4) ->
     switch _typeof obj
       when 'stub' then return "<##{obj.id}>"
       when 'object'

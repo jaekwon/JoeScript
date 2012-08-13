@@ -78,11 +78,9 @@ JObject = @JObject = clazz 'JObject', Node, ->
     proto:    {type:RUNTIME}
 
   # data:   An Object
-  # acl:    A JArray of JAccessControlItems
-  #         NOTE: the acl has its own acl!
   # proto:  Both a workaround the native .__proto__ behavior,
   #         and a convenient way to create new JObjects w/ their prototypes.
-  init: ({@id, @creator, @data, @acl, @proto}) ->
+  init: ({@id, @creator, @data, @proto}) ->
     assert.ok not @proto? or isObject @proto, "JObject wants JObject proto or null"
     @creator = this if @creator is null
     assert.ok isObject @creator, "JObject wants JObject creator"
@@ -131,22 +129,23 @@ JObject = @JObject = clazz 'JObject', Node, ->
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
   valueOf: -> @
-  toString: -> "[JObject ##{@id}]"
-
-  bridged: {}
+  toString: -> "[object ##{@id}]"
+  bridged:
+    toString: ($, obj) ->
+      return obj.toString()
 
 JArray = @JArray = clazz 'JArray', JObject, ->
 
-  init: ({id, creator, data, acl}) ->
+  init: ({id, creator, data}) ->
     data ?= []
     data.__proto__ = null # detatch prototype
-    @super.init.call @, {id, creator, data, acl}
+    @super.init.call @, {id, creator, data}
   jsValue: ($, $$={}) ->
     return $$[@id] if $$[@id]
     jsObj = $$[@id] = []
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
-  toString: -> "[JArray ##{@id}]"
+  toString: -> "[array ##{@id}]"
 
   # Bridged keys. These functions are available as runtime native functions.
   bridged:
@@ -171,17 +170,11 @@ JArray = @JArray = clazz 'JArray', JObject, ->
       arr.emit {thread:$, type:'unshift', value}
       return arr.data.length ? JUndefined
 
-JAccessControlItem = @JAccessControlItem = clazz 'JAccessControlItem', ->
-  # who:  User or JArray of users
-  # what: Action or JArray of actions
-  init: (@who, @what) ->
-  toString: -> "[JAccessControlItem #{@who}: #{@what}]"
-
 JSingleton = @JSingleton = clazz 'JSingleton', Node, ->
   init: (@name, @_jsValue) ->
   jsValue: -> @_jsValue
   valueOf: -> @
-  toString: -> "Singleton(#{@name})"
+  toString: -> "(#{@name})"
 
 JNull       = @JNull      = JSingleton.null       = new JSingleton 'null', null
 JUndefined  = @JUndefined = JSingleton.undefined  = new JSingleton 'undefined', undefined
@@ -202,8 +195,8 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   #          If scope is null, this function creates a new scope upon invocation.
   #          If scope is undefined, this function inherits the caller's scope.
   #           - for lazy lexical scoping.
-  init: ({id, creator, acl, func, scope}) ->
-    @super.init.call @, {id, creator, acl}
+  init: ({id, creator, func, scope}) ->
+    @super.init.call @, {id, creator}
     assert.ok scope is JNull or isObject scope, "JBoundFunc::__init__ wants JNull scope or a JObject, but got #{scope?.constructor.name}"
     @data.scope = scope
     if func instanceof joe.Func
@@ -237,7 +230,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     func = node._functions[@data.__start__]
     assert.ok func?, "Didn't get a func at the expected pos #{@data.__start__}. Code:\n#{@data.__code__}"
     return @func = func
-  toString: -> "[JBoundFunc]"
+  toString: -> "[function ##{@id}]"
 
 SimpleIterator = @SimpleIterator = clazz 'SimpleIterator', ->
   init: (@items) ->
