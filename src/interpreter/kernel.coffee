@@ -28,13 +28,9 @@ _parseCode = (code) ->
 
 JStackItem = @JStackItem = clazz 'JStackItem', ->
   init: ({@node}) ->
-    # figure out which function this node is declared in
+    # TODO figure out which function this node is declared in
     # used for printing a stack trace.
-    # TODO make it lazy
-    declaringFunc = @node.parent
-    declaringFunc = declaringFunc.parent while declaringFunc? and declaringFunc not instanceof joe.Func
-    @declaringFunc = declaringFunc
-  toString: -> "'#{@node?.toJavascript?()}' (source:#{@declaringFunc}, line:#{@node._origin?.start.line}, col:#{@node._origin?.start.col})"
+  toString: -> "'#{@node}' (line:#{@node._origin?.start.line}, col:#{@node._origin?.start.col})"
 
 
 _i9nPerf = {}
@@ -74,7 +70,7 @@ JThread = @JThread = clazz 'JThread', ->
       @state = if @error then STATE_ERROR else STATE_RETURN
       return
     {func, this:that} = i9n = @i9ns[@i9ns.length-1]
-    i9nKey = "#{that.constructor.name}.#{func._name}" if perf
+    i9nKey = "#{that?.constructor.name}.#{func._name}" if perf
     info blue "             -- runStep --" if trace
     @printScope @scope if trace
     @printStack() if trace
@@ -107,7 +103,9 @@ JThread = @JThread = clazz 'JThread', ->
 
   peek: -> @i9ns[@i9ns.length-1]
 
-  push: (i9n) -> @i9ns.push i9n
+  push: (i9n) ->
+    throw 'missing i9n.func' if not i9n.func?
+    @i9ns.push i9n
 
   callStack: ->
     stack = []
@@ -254,7 +252,7 @@ JThread = @JThread = clazz 'JThread', ->
       info        "#{ blue pad right:12, "#{i9n.this?.constructor?.name}"
                  }.#{ yellow i9n.func?._name
              }($, {#{ white Object.keys(i9nCopy).join ','
-            }}, _) #{ black if i9n.this.toString? then escape(i9n.this) else "(#{typeof i9n.this}) with no toString" }"
+            }}, _) #{ black if i9n.this?.toString? then escape(i9n.this) else "(#{typeof i9n.this}) with no toString" }"
 
   errorStack: ->
     stackTrace = @error.stack.map((x)->'  at '+x).join('\n') or '  -- no stack trace available --'

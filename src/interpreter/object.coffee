@@ -178,8 +178,8 @@ JSingleton = @JSingleton = clazz 'JSingleton', Node, ->
 
 JNull       = @JNull      = JSingleton.null       = new JSingleton 'null', null
 JUndefined  = @JUndefined = JSingleton.undefined  = new JSingleton 'undefined', undefined
-JNaN        = @JNaN       = JSingleton.NaN        = new Number NaN # is this better, since op instructions carry over?
-JInfinity   = @JInfinity  = JSingleton.Infinity   = new Number Infinity
+JNaN        = @JNaN       = JSingleton.NaN        = NaN # is this better, since op instructions carry over?
+JInfinity   = @JInfinity  = JSingleton.Infinity   = Infinity
 # JFalse/JTrue don't exist, just use native booleans.
 
 # Actually, not always bound to a scope.

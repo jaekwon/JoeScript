@@ -16,7 +16,7 @@ task 'test', ->
       run 'coffee tests/joescript_test.coffee', ->
         run 'coffee tests/translator_test.coffee', ->
           run 'coffee tests/interpreter_test.coffee', ->
-            run 'coffee tests/jsl_test.coffee', ->
+            #run 'coffee tests/jsl_test.coffee', ->
               run 'coffee tests/persistence_test.coffee', ->
                 run 'coffee tests/jscompile_test.coffee', ->
                   console.log "All tests OK"

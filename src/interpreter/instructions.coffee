@@ -73,12 +73,16 @@ storeLast = ($, i9n, last) ->
     @[i9n.key] = last
   return last
 storeLast._name = "storeLast"
-# call __str__ on the last value, passing the resulting string along
-strLast = ($, i9n, last) ->
+# call toString on the last value, passing the resulting string along
+toStringLast = ($, i9n, last) ->
   $.pop()
-  $.pushValue joe.Invocation(func:joe.Index(obj:
-  MAGIC WORDS
-  INSTR.__str__ $, last
+  unless typeof last is 'object'
+    return last
+  else if last instanceof JSingleton
+    return ''+last.name
+  else
+    $.pushValue joe.Invocation(func:joe.Index(obj:last, key:'toString'))
+    return
 
 # dependencies
 require('sembly/src/translators/scope').install()
@@ -219,12 +223,14 @@ joe.Operation::extend
   interpret: ($, i9n) ->
     if @left?
       i9n.func = joe.Operation::interpretStoreLeft
+      $.push func:toStringLast if typeof @left is 'object'
       i9n_left = $.pushValue @left
       if @left instanceof joe.Index and @op in ['--', '++']
         i9n_left.storeIndexObj = i9n
         i9n_left.storeIndexKey = i9n
     else
       i9n.func = joe.Operation::interpretFinal
+      $.push func:toStringLast if typeof @right is 'object'
       $.pushValue @right
     return
   interpretStoreLeft: ($, i9n, left) ->
@@ -235,6 +241,7 @@ joe.Operation::extend
       if !left_bool and (@op is 'or' or @op is '||') or
           left_bool and (@op is 'and' or @op is '&&')
             $.pop()
+            $.push func:toStringLast if typeof @right is 'object'
             $.pushValue @right
             return
       else
@@ -242,6 +249,7 @@ joe.Operation::extend
         return left
     # default behavior
     i9n.func = joe.Operation::interpretFinal
+    $.push func:toStringLast if typeof @right is 'object'
     $.pushValue @right if @right?
     return
   interpretFinal: ($, i9n, right) ->
@@ -342,7 +350,6 @@ joe.Invocation::extend
     i9n.oldScope = $.scope # remember
     # interpret the func synchronously.
     i9n.func = joe.Invocation::interpretScope
-    return @func if @func instanceof JBoundFunc or @func instanceof Function # HACK (?) data and code getting mixed up.
     # storeIndexObj is a HACK/trick to set i9n.indexObj to the
     # 'obj' part of an index, if @func is indeed an object.
     # That way we can bind 'this' correctly.
@@ -528,6 +535,16 @@ joe.Range::extend
     return $.new JArray creator:$.user, data:array
 
 clazz.extend JObject,
+  interpret: ($) ->
+    $.pop()
+    return @
+
+clazz.extend JSingleton,
+  interpret: ($) ->
+    $.pop()
+    return @
+
+clazz.extend Function,
   interpret: ($) ->
     $.pop()
     return @

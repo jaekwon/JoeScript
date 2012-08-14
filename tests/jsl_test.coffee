@@ -18,15 +18,15 @@ tests = []
 test = (code, str, callback) -> tests.push {code,str,callback}
 canon = (str) -> str.replace(/#[a-zA-Z0-9]{1,64}/g, '#').replace(/@[a-zA-Z0-9]{1,64}/g, '@')
 
-test " ''+undefined ",                    'undefined',                    -> equal @it.jsValue(@thread), undefined
-test " ''+[1,2,3] ",                      '{A|#@ 0:1,1:2,2:3}',           -> deepEqual @it.jsValue(@thread), [1,2,3]
-test " ''+[] ",                           '{A|#@ }',                      -> deepEqual @it.jsValue(@thread), []
-test " ''+{foo:'bar'} ",                  '{O|#@ "foo":"bar"}',           -> deepEqual @it.jsValue(@thread), {foo:'bar'}
+test " undefined ",                       'undefined',                    -> equal @it.jsValue(@thread), undefined
+test " [1,2,3] ",                         '{A|#@ 0:1,1:2,2:3}',           -> deepEqual @it.jsValue(@thread), [1,2,3]
+test " [] ",                              '{A|#@ }',                      -> deepEqual @it.jsValue(@thread), []
+test " {foo:'bar'} ",                     '{O|#@ "foo":"bar"}',           -> deepEqual @it.jsValue(@thread), {foo:'bar'}
 test """
 foo = {}
 foo.bar = 1
 foo.baz = ->
-''+foo
+foo
 """,                                      '{O|#@ \"bar\":1,\"baz\":<F|#>}', ->
   js = @it.jsValue(@thread)
   equal js.bar, 1
@@ -34,7 +34,7 @@ test """
 foo = {}
 foo.bar = 1
 foo.foo = foo
-''+foo
+foo
 """,                                      '{O|#@ \"bar\":1,\"foo\":<#>}', ->
   js = @it.jsValue(@thread)
   equal js.bar, 1

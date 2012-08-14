@@ -178,6 +178,10 @@ foo.bar?
 ''',                                      -> equal @it, yes
 test 'foo = if false then 1',             -> equal @it, undefined
 test '''
+foo = {}
+''+foo
+''',                                      -> ok @it.startsWith '[object'
+test '''
 foo = ->
   a = 0
   loop
