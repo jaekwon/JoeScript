@@ -51,6 +51,9 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
     $.i9ns.push this:node, func:node.interpret
     return JUndefined
   )
+  serialize: CACHE['serialize'] = fnNamed('serialize', ($, this_, codeStr, {maxDepth}) ->
+    maxDepth ?= 4
+  )
 }
 WORLD.hack_persistence = PERSISTENCE # FIX
 

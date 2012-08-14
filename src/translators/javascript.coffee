@@ -388,8 +388,8 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             return joe.Operation(left:joe.Assign(target:@left, op:'+', value:1).toJSNode($, {toValue:yes}), op:'-', right:1) if @op is '++'
             return joe.Operation(left:joe.Assign(target:@left, op:'-', value:1).toJSNode($, {toValue:yes}), op:'+', right:1)
           else
-            return joe.Assign(target:@left, op:'+', value:1).toJSNode($, {toValue:yes}) if @op is '++'
-            return joe.Assign(target:@left, op:'-', value:1).toJSNode($, {toValue:yes})
+            return joe.Assign(target:@right, op:'+', value:1).toJSNode($, {toValue:yes}) if @op is '++'
+            return joe.Assign(target:@right, op:'-', value:1).toJSNode($, {toValue:yes})
         else return (inject ? identity) @childrenToJSNode($)
     toJavascript: -> "(#{ if @left?  then js(@left)+' '  else ''
                       }#{ TO_JS_OPS[@op] ? @op

@@ -49,7 +49,7 @@ foo()()()
 ''',                                      -> equal @it, 'ABC'
 test ' null ',                            -> equal @it, null
 test ' undefined ',                       -> equal @it, undefined
-test ' null * undefined ',                -> ok isNaN @it
+#test ' null * undefined ',                -> ok isNaN @it
 test ' {} ',                              -> ok @it instanceof Object;\
                                              equal Object.keys(@it).length, 0
 test ' {foo:1} ',                         -> ok @it instanceof Object;\
@@ -96,9 +96,12 @@ outer = (foo) ->
   bar = foo
   return inner
 func = outer(1)
-func()
-func()
-''',                                      -> ok isNaN @it
+try
+  func()
+  func()
+catch err
+  return 'error'
+''',                                      -> equal @it, 'error' #ok isNaN @it
 test ' [1..5].length ',                   -> equal @it, 5
 test ' [1...5].length ',                  -> equal @it, 4
 test '''

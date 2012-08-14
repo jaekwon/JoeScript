@@ -32,7 +32,6 @@ TODO document instructions
   __hasOwn__ :
   __keys__ :
   __iter__ :
-  __num__ :
   __bool__ :
   __key__ :     Convert an object to a key string.
   __str__ :     Returns a compact serialized value suitable for wire transfer.
@@ -83,6 +82,16 @@ toStringLast = ($, i9n, last) ->
   else
     $.pushValue joe.Invocation(func:joe.Index(obj:last, key:'toString'))
     return
+
+checkType = ($, val, wantedType, message) ->
+  type = _typeof val
+  assert.ok _typeof wantedType in ['string', 'array']
+  if (_typeof wantedType is 'string') and (type is wantedType) or
+     (_typeof wantedType is 'array') and (type in wantedType)
+      return type
+  else
+    message ?= "Expected #{wantedType} but found $TYPE."
+    return $.throw 'TypeError', message.replace(/\$TYPE/g, type)
 
 # dependencies
 require('sembly/src/translators/scope').install()
@@ -218,39 +227,44 @@ joe.Arr::extend
       $.pop()
       return i9n.arr
 
-# NOTE: order is important, so is short circuiting (McCarthy evaluation)
 joe.Operation::extend
   interpret: ($, i9n) ->
     if @left?
       i9n.func = joe.Operation::interpretStoreLeft
-      $.push func:toStringLast if typeof @left is 'object'
+      #$.push func:toStringLast if typeof @left is 'object'
       i9n_left = $.pushValue @left
-      if @left instanceof joe.Index and @op in ['--', '++']
-        i9n_left.storeIndexObj = i9n
-        i9n_left.storeIndexKey = i9n
     else
       i9n.func = joe.Operation::interpretFinal
       $.pushValue @right
     return
   interpretStoreLeft: ($, i9n, left) ->
     i9n.left = left
-    # short circuit special cases
+    # short circuit special cases (mccarthy evaluation)
     if @op in ['and', '&&', 'or', '||']
       left_bool = INSTR.__bool__ $, left
       if !left_bool and (@op is 'or' or @op is '||') or
           left_bool and (@op is 'and' or @op is '&&')
             $.pop()
-            $.push func:toStringLast if typeof @right is 'object'
+            #$.push func:toStringLast if typeof @right is 'object'
             $.pushValue @right
             return
       else
         $.pop()
         return left
     # default behavior
-    i9n.func = joe.Operation::interpretFinal
-    $.push func:toStringLast if typeof @right is 'object'
+    i9n.func = joe.Operation::interpretCoerce
+    #$.push func:toStringLast if typeof @right is 'object'
     $.pushValue @right
     return
+  interpretCoerce: ($, i9n, right) ->
+    # Look at i9n.left and right to see what coercions are necessary.
+    # The rules are simple for now:
+    # If _typeof left is 'string', ensure right is 'string'.
+    i9n.func = joe.Operation::interpretFinal
+    if _typeof i9n.left is 'string' and _typeof right isnt 'string'
+      $.push func:toStringLast
+      return right
+    return right
   interpretFinal: ($, i9n, right) ->
     $.pop()
     if @left?
@@ -701,13 +715,6 @@ INSTR = @INSTR =
         return new SimpleIterator obj
       else $.throw 'TypeError', "__iter__ not defined for #{_typeof obj}"
 
-  __num__: ($, obj) ->
-    switch _typeof obj
-      when 'number' then return obj
-      when 'boolean'
-        if obj then return 1 else return 0
-      else return JNaN
-
   __bool__: ($, obj) ->
     switch _typeof obj
       when 'object' then yes
@@ -752,48 +759,29 @@ INSTR = @INSTR =
       else $.throw 'TypeError', "__str__ not defined for #{_typeof obj}"
 
   __add__: ($, left, right) ->
-    switch _typeof left
-      when 'string'
-        switch _typeof right
-          when 'string' then return left + right
-          else               return left + INSTR.__str__ $, right
-      when 'number'
-        switch _typeof right
-          when 'number' then return left + right
-          else               return left + INSTR.__num__ $, right
-      else return JNaN
+    checkType $, left, ['number', 'string']
+    checkType $, right, ['number', 'string']
+    return left + right
 
   __sub__: ($, left, right) ->
-    switch _typeof left
-      when 'number'
-        switch _typeof right
-          when 'number' then return left - right
-          else               return left - INSTR.__num__ $, right
-      else return JNaN
+    checkType $, left, 'number'
+    checkType $, right, 'number'
+    return left - right
 
   __mul__: ($, left, right) ->
-    switch _typeof left
-      when 'number'
-        switch _typeof right
-          when 'number' then return left * right
-          else               return left * INSTR.__num__ $, right
-      else return JNaN
+    checkType $, left, 'number'
+    checkType $, right, 'number'
+    return left * right
 
   __div__: ($, left, right) ->
-    switch _typeof left
-      when 'number'
-        switch _typeof right
-          when 'number' then return left / right
-          else               return left / INSTR.__num__ $, right
-      else return JNaN
+    checkType $, left, 'number'
+    checkType $, right, 'number'
+    return left / right
 
   __mod__: ($, left, right) ->
-    switch _typeof left
-      when 'number'
-        switch _typeof right
-          when 'number' then return left % right
-          else               return left % INSTR.__num__ $, right
-      else return JNaN
+    checkType $, left, 'number'
+    checkType $, right, 'number'
+    return left % right
     
   __eq__: ($, left, right) ->
     leftType = _typeof left
@@ -802,9 +790,6 @@ INSTR = @INSTR =
     return left is right
 
   __cmp__: ($, left, right) ->
-    switch _typeof left
-      when 'number'
-        switch _typeof right
-          when 'number' then return left - right
-          else               return left - INSTR.__num__ $, right
-      else $.throw 'TypeError', "__cmp__ not defined for #{_typeof left}"
+    checkType $, left, 'number'
+    checkType $, right, 'number'
+    return left - right

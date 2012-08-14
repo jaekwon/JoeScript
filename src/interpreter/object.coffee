@@ -48,6 +48,8 @@ _typeof = (obj) ->
     return obj.name
   else if obj instanceof JStub
     return 'stub'
+  else if obj instanceof Array
+    return 'array'
   else
     return 'object'
 @HELPERS = {isInteger, isObject, _typeof}
