@@ -8,7 +8,7 @@
 
   Here are the properties of RJavascript. (Restricted Javascript).
 
-  1. No operational-assignments like +=, *=, etc
+  1. No operational-assignments like +=, *=, ++, -- etc
      -> foo += bar ==>
           foo = (foo + bar)
      -> foo.bar += baz ==>
@@ -383,6 +383,13 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
             block: ref,
             else: @right
           ).toJSNode($, {toValue,inject})
+        when '++','--'
+          if @left?
+            return joe.Operation(left:joe.Assign(target:@left, op:'+', value:1).toJSNode($, {toValue:yes}), op:'-', right:1) if @op is '++'
+            return joe.Operation(left:joe.Assign(target:@left, op:'-', value:1).toJSNode($, {toValue:yes}), op:'+', right:1)
+          else
+            return joe.Assign(target:@left, op:'+', value:1).toJSNode($, {toValue:yes}) if @op is '++'
+            return joe.Assign(target:@left, op:'-', value:1).toJSNode($, {toValue:yes})
         else return (inject ? identity) @childrenToJSNode($)
     toJavascript: -> "(#{ if @left?  then js(@left)+' '  else ''
                       }#{ TO_JS_OPS[@op] ? @op

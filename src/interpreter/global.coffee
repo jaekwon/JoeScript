@@ -41,7 +41,7 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
       info "evaluating code:\n#{codeStr}"
       node = require('sembly/src/joescript').parse codeStr
       info "unparsed node:\n" + node.serialize()
-      node = node.toJSNode(undefined, toValue:yes).installScope().determine()
+      node = node.toJSNode({}, toValue:yes).installScope().determine()
       info "parsed node:\n" + node.serialize()
     catch err
       return $.throw 'EvalError', "Error in eval(): #{err}"

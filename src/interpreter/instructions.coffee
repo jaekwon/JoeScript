@@ -230,7 +230,6 @@ joe.Operation::extend
         i9n_left.storeIndexKey = i9n
     else
       i9n.func = joe.Operation::interpretFinal
-      $.push func:toStringLast if typeof @right is 'object'
       $.pushValue @right
     return
   interpretStoreLeft: ($, i9n, left) ->
@@ -250,44 +249,29 @@ joe.Operation::extend
     # default behavior
     i9n.func = joe.Operation::interpretFinal
     $.push func:toStringLast if typeof @right is 'object'
-    $.pushValue @right if @right?
+    $.pushValue @right
     return
   interpretFinal: ($, i9n, right) ->
     $.pop()
     if @left?
       left = i9n.left
-      if @right?
-        switch @op
-          when '+'  then return INSTR.__add__ $, left, right
-          when '-'  then return INSTR.__sub__ $, left, right
-          when '*'  then return INSTR.__mul__ $, left, right
-          when '/'  then return INSTR.__div__ $, left, right
-          when '%'  then return INSTR.__mod__ $, left, right
-          when '<'  then return INSTR.__cmp__($, left, right) < 0
-          when '>'  then return INSTR.__cmp__($, left, right) > 0
-          when '<=' then return INSTR.__cmp__($, left, right) <= 0
-          when '>=' then return INSTR.__cmp__($, left, right) >= 0
-          when '==','is' then return INSTR.__eq__($, left, right)
-          when '!=','isnt' then return not INSTR.__eq__($, left, right)
-          else throw new Error "Unexpected operation #{@op}"
-      else # left++, left--...
-        switch @op
-          when '++' then value = INSTR.__add__ $, left, 1
-          when '--' then value = INSTR.__sub__ $, left, 1
-          else throw new Error "Unexpected operation #{@op}"
-        if isVariable @left
-          INSTR.__update__ $, $.scope, @left, value
-        else if @left instanceof joe.Index
-          INSTR.__set__ $, i9n.indexObj, i9n.indexKey, value
-        else
-          throw new Error "Dunno how to operate with #{left} (#{left.constructor.name})"
-        return left
-    else if @right?
+      switch @op
+        when '+'  then return INSTR.__add__ $, left, right
+        when '-'  then return INSTR.__sub__ $, left, right
+        when '*'  then return INSTR.__mul__ $, left, right
+        when '/'  then return INSTR.__div__ $, left, right
+        when '%'  then return INSTR.__mod__ $, left, right
+        when '<'  then return INSTR.__cmp__($, left, right) < 0
+        when '>'  then return INSTR.__cmp__($, left, right) > 0
+        when '<=' then return INSTR.__cmp__($, left, right) <= 0
+        when '>=' then return INSTR.__cmp__($, left, right) >= 0
+        when '==','is' then return INSTR.__eq__($, left, right)
+        when '!=','isnt' then return not INSTR.__eq__($, left, right)
+        else throw new Error "Unexpected operation #{@op}"
+    else
       switch @op
         when '!','not' then return not INSTR.__bool__($, right)
         else throw new Error "Unexpected operation #{@op}"
-    else
-      throw new Error "Operation should have either a left or a right"
 
 joe.Singleton::extend
   interpret: ($) ->
@@ -307,7 +291,7 @@ joe.Index::extend
     return
   interpretTarget: ($, i9n, obj) ->
     i9n.storeIndexObj?.indexObj = obj   # for ++/-- ops and invocations.
-    i9n.storeIndexKey?.indexKey = @key  # for ++/-- ops
+    i9n.storeIndexKey?.indexKey = @key  # for ++/-- ops (actually, not anymore since ++/-- get translated to +=/-=)
     switch @type
       when '.'
         assert.ok @key instanceof joe.Word, "Unexpected key of type #{@key?.constructor.name}"
