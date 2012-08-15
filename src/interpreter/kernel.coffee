@@ -139,7 +139,13 @@ JThread = @JThread = clazz 'JThread', ->
   #   Else
   #     this shouldn't happen.
   throw: (name, message) ->
-    @error = name:name, message:message, stack:@callStack()
+    callStack = @callStack()
+    callStackStrs = (''+x for x in callStack)
+    @error = new JObject(creator:@user, data:{
+      name:     name
+      message:  message
+      stack:    new JArray(creator:@user, data:callStackStrs)
+    })
     assert.ok @state in [STATE_WAIT, STATE_RUNNING], "Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
     if (origState=@state) is STATE_WAIT
       @state = STATE_ERROR
@@ -159,9 +165,8 @@ JThread = @JThread = clazz 'JThread', ->
           throw INTERRUPT_ERROR
       else if i9n.this instanceof joe.Try
         i9n.func = joe.Try::interpretCatch
-        @error.stack = @error.stack.join('\n') # TODO
-        @last = new JObject creator:@user, data:@error
-        @error = undefined
+        @last = @error
+        @error = null
         @state = STATE_RUNNING
         if origState is STATE_WAIT
           @kernel.runloop.push @

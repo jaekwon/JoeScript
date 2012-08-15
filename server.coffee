@@ -102,7 +102,7 @@ io.sockets.on 'connection', (socket) ->
   # Loads a resource and creates a screen for the client.
   socket.on 'load', (path) -> withSession socket, (session) ->
     KERNEL.run user:ANON, code:("hydrate(#{path or '@index'})"), scope:WORLD, callback: ->
-      INSTR.__set__ @, session.screen, 0, @last ? JUndefined
+      INSTR.__set__ @, session.screen, 0, @error ? @last ? JUndefined
       INSTR.__set__ @, session.screen, 'length', 1
       socket.emit 'screen', INSTR.__str__ @, session.screen
 

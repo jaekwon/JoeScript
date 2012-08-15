@@ -9,10 +9,12 @@ async = require 'async'
 
 {JObject, JArray, JUndefined, JNull, JNaN, JStub, JBoundFunc} = require 'sembly/src/interpreter/object'
 
-fnNamed = (name, fn) -> fn.id = name; fn
-
 # Caches.
 CACHE = @CACHE = {}
+fnNamed = (name, fn) ->
+  CACHE[name] = fn
+  fn.id = name
+  fn
 
 if window?
   PERSISTENCE = undefined
@@ -32,10 +34,12 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
   world:  new JStub(id:'world', persistence:PERSISTENCE)
   this:   USERS
   users:  USERS
-  login:  CACHE['login'] = fnNamed('login', ($) ->
+
+  login:  fnNamed('login', ($) ->
     return "TODO: This should be a form object with a callback."
   )
-  eval:   CACHE['eval'] = fnNamed('eval', ($, this_, codeStr) ->
+
+  eval:   fnNamed('eval', ($, this_, codeStr) ->
     # Parse the codeStr and associate functions with the output Item
     try
       info "evaluating code:\n#{codeStr}"
@@ -51,8 +55,11 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
     $.i9ns.push this:node, func:node.interpret
     return JUndefined
   )
-  serialize: CACHE['serialize'] = fnNamed('serialize', ($, this_, codeStr, {maxDepth}) ->
+
+  serialize: fnNamed('serialize', ($, this_, codeStr, {maxDepth}={}) ->
     maxDepth ?= 4
+    # ensure that maxDepth isn't greater than some limit,
+    # otherwise the system will hang.
   )
 }
 WORLD.hack_persistence = PERSISTENCE # FIX

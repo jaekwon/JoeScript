@@ -130,7 +130,7 @@ try
 catch err
   return err
 return 'wtf'
-''',                                      -> deepEqual @it, {name:'ReferenceError', message:'somethingUndefined is not defined', stack:''}
+''',                                      -> deepEqual @it, {name:'ReferenceError', message:'somethingUndefined is not defined', stack:[]}
 test '''
 foo = {bar:1, baz:2}
 accum = ''
