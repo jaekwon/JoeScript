@@ -146,6 +146,9 @@ JThread = @JThread = clazz 'JThread', ->
       message:  message
       stack:    new JArray(creator:@user, data:callStackStrs)
     })
+    @error.name = name
+    @error.message = message
+    @error.stack = callStackStrs # for convenience
     assert.ok @state in [STATE_WAIT, STATE_RUNNING], "Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
     if (origState=@state) is STATE_WAIT
       @state = STATE_ERROR
@@ -260,7 +263,7 @@ JThread = @JThread = clazz 'JThread', ->
             }}, _) #{ black if i9n.this?.toString? then escape(i9n.this) else "(#{typeof i9n.this}) with no toString" }"
 
   errorStack: ->
-    stackTrace = @error.stack.map((x)->'  at '+x).join('\n') or '  -- no stack trace available --'
+    stackTrace = Array::map.call(@error.stack, ((x)->'  at '+x)).join('\n') or '  -- no stack trace available --'
     "#{@error.name ? 'UnknownError'}: #{@error.message ? ''}\n  Most recent call last:\n#{stackTrace}"
 
   printErrorStack: -> warn @errorStack()

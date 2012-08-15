@@ -570,7 +570,7 @@ INSTR = @INSTR =
         key = INSTR.__key__ $, key
         $.will('read', obj)
         if key is '__proto__'
-          value = obj.proto
+          value = obj.proto ? JUndefined
         else
           value = obj.data[key]
         debug "#{obj}.__get__ #{key}, expected=#{expected} --> #{value} (#{typeof value};#{value?.constructor?.name})" if log
@@ -608,9 +608,6 @@ INSTR = @INSTR =
             return INSTR.__get__ $, obj, '__proto__', expected
           else
             return INSTR.__get__ $, obj.proto, key, expected
-        else if (bridged=obj.bridged[key])?
-          debug "#{obj}.__get__ #{key} --> bridged? yes." if log
-          return bridged
         else
           debug "#{obj}.__get__ #{key} --> failed. expected: #{expected}" if log
           return $.throw 'ReferenceError', "#{key} is not defined" if expected

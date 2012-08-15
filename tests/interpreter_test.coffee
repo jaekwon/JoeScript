@@ -190,6 +190,8 @@ test ' undefined? ',                      -> equal @it, false
 test ' null? ',                           -> equal @it, false
 test ' 0? ',                              -> equal @it, true
 test ' false? ',                          -> equal @it, true
+test ' {}.__proto__?id ',                 -> equal @it, 'object'
+test ' [].__proto__?id ',                 -> equal @it, 'array'
 test '''
 foo = ->
   a = 0

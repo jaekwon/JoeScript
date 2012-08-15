@@ -60,7 +60,7 @@ JPersistence = @JPersistence = clazz 'JPersistence', ->
               return thread.throw 'PersistenceError', "Failed to set length for array ##{obj.id}\n#{err.stack ? err}" if err?
               return thread.resume waitKey
             return
-          else if isInteger key and Number(key) >= 0
+          else if isInteger(key) and Number(key) >= 0
             thread.wait waitKey="persist:#{obj.id}[#{key}]"
             JPersistence::withSave.call @, value, (err) =>
               return thread.throw 'PersistenceError', "Failed to set for array ##{obj.id}\n#{err.stack ? err}" if err?

@@ -7,7 +7,7 @@ require './setup'
 
 {
   NODES:{JObject, JArray, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:{GOD,ANON,WORLD,KERNEL}
+  GLOBALS:{GOD,ANON,WORLD,KERNEL,CACHE}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'sembly/src/interpreter'
 {JPersistence} = p = require 'sembly/src/interpreter/persistence'
@@ -25,6 +25,8 @@ _err_ = (fn) ->
       process.exit(1)
     fn.call this, args...
 
+KERNEL.cache = Object.create(CACHE)
+
 require('async').series [
 
   (next) -> # test
@@ -37,7 +39,7 @@ require('async').series [
       it.closure = -> it.foo + it.bar + it.anArray.length # 1 + 2 + 5 is 8
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.closure()
           """, callback: _err_ ->
@@ -51,7 +53,7 @@ require('async').series [
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.length
           """, callback: _err_ ->
@@ -65,7 +67,7 @@ require('async').series [
     KERNEL.run user:ANON, code: """
       it = [1,2,3]
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it
           """, callback: _err_ ->
@@ -81,7 +83,7 @@ require('async').series [
       it.pop()
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it
           """, callback: _err_ ->
@@ -97,7 +99,7 @@ require('async').series [
       it.pop()
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           foo = []
           foo.push it.pop()
@@ -116,7 +118,7 @@ require('async').series [
       it.shift()
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           foo = []
           it.unshift "QWE"
@@ -136,13 +138,13 @@ require('async').series [
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
 
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.messages.push "testing1"
           it.messages.push "testing2"
           """, callback: (err) ->
 
-            KERNEL.cache = {} # reset cache
+            KERNEL.cache = Object.create(CACHE)
             KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
               it.messages
               """, callback: _err_ ->
@@ -158,13 +160,13 @@ require('async').series [
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
 
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.messages.push foo:'FOO'
           it.messages.push bar:'BAR'
           """, callback: (err) ->
 
-            KERNEL.cache = {} # reset cache
+            KERNEL.cache = Object.create(CACHE)
             KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
               it.messages[0] # TODO this is getting annoying.
               it.messages[1]
@@ -182,13 +184,13 @@ require('async').series [
       it
       """, callback: _err_ -> ps.saveJObject it=@last, _err_ ->
 
-        KERNEL.cache = {} # reset cache
+        KERNEL.cache = Object.create(CACHE)
         KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
           it.messages.shift()
           it.messages.shift()
           """, callback: _err_ ->
 
-            KERNEL.cache = {} # reset cache
+            KERNEL.cache = Object.create(CACHE)
             KERNEL.run user:ANON, scope: new JObject(creator:ANON, data:{it:it.stub(ps)}), code: """
               it.messages
               """, callback: _err_ ->

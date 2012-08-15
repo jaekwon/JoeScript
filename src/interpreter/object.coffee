@@ -11,7 +11,6 @@ valueOf:  Returns a native value if this is a String, Number, Function, or Boole
           'valueOf' for these representations return themselves.
 
 jsValue:  Like valueOf, but also converts JObjects and JSingletons into native types.
-          Used for bridged functions and testing.
 
 toJoe:    The opposite of jsValue, returns a JoeScript runtime object from native types.
 
@@ -83,9 +82,10 @@ JObject = @JObject = clazz 'JObject', Node, ->
   # proto:  Both a workaround the native .__proto__ behavior,
   #         and a convenient way to create new JObjects w/ their prototypes.
   init: ({@id, @creator, @data, @proto}) ->
-    assert.ok not @proto? or isObject @proto, "JObject wants JObject proto or null"
+    @proto = new JStub(id:'object') if @proto is undefined
+    assert.ok @proto is null or isObject(@proto), "JObject wants JObject proto or null"
     @creator = this if @creator is null
-    assert.ok isObject @creator, "JObject wants JObject creator"
+    assert.ok isObject(@creator), "JObject wants JObject creator"
     if not @id?
       @id = randid()
       debug "Created new object #{@id}" if log
@@ -132,45 +132,18 @@ JObject = @JObject = clazz 'JObject', Node, ->
     return jsObj
   valueOf: -> @
   toString: -> "[object ##{@id}]"
-  bridged:
-    toString: ($, obj) ->
-      return obj.toString()
 
 JArray = @JArray = clazz 'JArray', JObject, ->
-
   init: ({id, creator, data}) ->
     data ?= []
     data.__proto__ = null # detatch prototype
-    @super.init.call @, {id, creator, data}
+    @super.init.call @, {id, creator, data, proto:new JStub(id:'array')}
   jsValue: ($, $$={}) ->
     return $$[@id] if $$[@id]
     jsObj = $$[@id] = []
     jsObj[key] = value.jsValue($, $$) for key, value of @data
     return jsObj
   toString: -> "[array ##{@id}]"
-
-  # Bridged keys. These functions are available as runtime native functions.
-  bridged:
-    push: ($, arr, value) ->
-      Array.prototype.push.call arr.data, value
-      # actually, transaction below isn't necessary because set/length isn't necessary.
-      # TODO BEGIN XACTION
-      arr.emit {thread:$, type:'set', key:arr.data.length-1, value}
-      # @emit {thread:$, type:'set', key:'length', value:@data.length}
-      # TODO END XACTION
-      return JUndefined
-    pop: ($, arr) ->
-      value = Array.prototype.pop.call arr.data
-      arr.emit {thread:$, type:'set', key:'length', value:arr.data.length}
-      return value ? JUndefined
-    shift: ($, arr) -> # popping from the left
-      value = Array.prototype.shift.call arr.data
-      arr.emit {thread:$, type:'shift'}
-      return value ? JUndefined
-    unshift: ($, arr, value) ->
-      Array.prototype.unshift.call arr.data, value
-      arr.emit {thread:$, type:'unshift', value}
-      return arr.data.length ? JUndefined
 
 JSingleton = @JSingleton = clazz 'JSingleton', Node, ->
   init: (@name, @_jsValue) ->
@@ -199,7 +172,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
   #           - for lazy lexical scoping.
   init: ({id, creator, func, scope}) ->
     @super.init.call @, {id, creator}
-    assert.ok scope is JNull or isObject scope, "JBoundFunc::__init__ wants JNull scope or a JObject, but got #{scope?.constructor.name}"
+    assert.ok scope is JNull or isObject(scope), "JBoundFunc::__init__ wants JNull scope or a JObject, but got #{scope?.constructor.name}"
     @data.scope = scope
     if func instanceof joe.Func
       @func = func
@@ -217,9 +190,11 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
       'dontcare'
     else
       throw new Error "funky func"
+
   scope$:
     get: -> @data.scope,
     set: (scope) -> @data.scope = scope
+
   func$: get: ->
     assert.ok @data.__code__, "JBoundFunc::$func expects @data.__code__"
     assert.ok @data.__start__?, "JBoundFunc::$func expects @data.__start__"
@@ -232,6 +207,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     func = node._functions[@data.__start__]
     assert.ok func?, "Didn't get a func at the expected pos #{@data.__start__}. Code:\n#{@data.__code__}"
     return @func = func
+
   toString: -> "[function ##{@id}]"
 
 SimpleIterator = @SimpleIterator = clazz 'SimpleIterator', ->
