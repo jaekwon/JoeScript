@@ -54,7 +54,7 @@
   z-index: 10;
   background-color: #f7f7f7;
   border-right: 1px solid #eee;
-  min-width: 2em;
+  /*min-width: 2em;*/
   height: 100%;
 }
 .CodeMirror-gutter-text {

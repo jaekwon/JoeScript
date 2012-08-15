@@ -25,6 +25,11 @@
     "Alt-Enter":  function(cm) {cm.submit();},
     "Ctrl-Enter": function(cm) {cm.submit();},
 
+    "Ctrl-[": "indentLess",
+    "Cmd-[": "indentLess",
+    "Ctrl-]": "indentMore",
+    "Cmd-]": "indentMore",
+
     "Cmd-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},
     "Alt-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},
     "Ctrl-A": function(cm) {cm.setSelection({line:0,ch:0}, {line:(cm.lineCount()+1),ch:0});},

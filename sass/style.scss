@@ -165,6 +165,7 @@ button {
   &.CodeMirror-scroll {
     margin: 0 !important;
     margin-top: 1px !important; /* i dunno, i saw the top border disappear on chrome */
+    margin-bottom: 1px !important; /* and then i saw the bottom disappear on chrome ubuntu */
   }
   .CodeMirror-gutter {
     /*background: #0a001f;*/
