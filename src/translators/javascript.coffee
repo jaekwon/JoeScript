@@ -612,17 +612,35 @@ trigger = (obj, msg) -> if obj instanceof joe.Node then obj.trigger(msg) else ob
         length = text.length
       return "/*#{text}*/"
 
-  clazz.extend Boolean,
-    toJSNode: ($, {inject}={}) -> inject?(@).toJSNode($) ? @
-    toJavascript: -> ''+@
-
   clazz.extend String,
-    toJSNode: ($, {inject}={}) -> inject?(@).toJSNode($) ? @
     toJavascript: -> '"' + escape(@) + '"'
 
-  clazz.extend Number,
-    toJSNode: ($, {inject}={}) -> inject?(@).toJSNode($) ? @
+  clazz.extend Object, # Number, String, and Boolean
+    toJSNode: ($, {inject}={}) -> inject?(@valueOf()).toJSNode($) ? @valueOf()
     toJavascript: -> ''+@
+    withSoak: (fn) ->
+      cond = joe.Operation(
+        left:joe.Operation(
+          left: joe.Index(obj:@valueOf(), type:'?', key:joe.Word('type'))
+          op:   '!='
+          right:"undefined"
+        ),
+        op: '&&'
+        right:joe.Operation(
+          left: @valueOf()
+          op:   '!='
+          right:joe.Singleton.null
+        )
+      )
+      if fn?
+        {block,else:else_}= fn(@valueOf())
+        return joe.If(
+          cond:  cond,
+          block: block,
+          else:  else_
+        )
+      else
+        return cond
 
 @translate = translate = (node,$=undefined) ->
   # console.log node.serialize() # print before translations...

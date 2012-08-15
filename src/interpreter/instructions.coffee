@@ -84,10 +84,10 @@ toStringLast = ($, i9n, last) ->
     return
 
 checkType = ($, val, wantedType, message) ->
-  type = _typeof val
-  assert.ok _typeof wantedType in ['string', 'array']
-  if (_typeof wantedType is 'string') and (type is wantedType) or
-     (_typeof wantedType is 'array') and (type in wantedType)
+  type = _typeof(val)
+  assert.ok _typeof(wantedType) in ['string', 'array']
+  if (_typeof(wantedType) is 'string') and (type is wantedType) or
+     (_typeof(wantedType) is 'array') and (type in wantedType)
       return type
   else
     message ?= "Expected #{wantedType} but found $TYPE."
@@ -261,7 +261,7 @@ joe.Operation::extend
     # The rules are simple for now:
     # If _typeof left is 'string', ensure right is 'string'.
     i9n.func = joe.Operation::interpretFinal
-    if _typeof i9n.left is 'string' and _typeof right isnt 'string'
+    if _typeof(i9n.left) is 'string' and _typeof(right) isnt 'string'
       $.push func:toStringLast
       return right
     return right
@@ -317,7 +317,7 @@ joe.Index::extend
         return INSTR.__del__ $, obj, @key
       when '?'
         switch @key.toKeyString()
-          when 'type' then $.pop(); return _typeof obj
+          when 'type' then $.pop(); return _typeof(obj)
           when 'id'   then $.pop(); return obj.id ? JUndefined
           else
             return $.throw 'InternalError', "Meta '#{@key}' not supported"
@@ -565,7 +565,7 @@ clazz.extend Boolean,
 INSTR = @INSTR =
   # asynchronous
   __get__: ($, obj, key, expected=no) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         key = INSTR.__key__ $, key
         $.will('read', obj)
@@ -623,12 +623,12 @@ INSTR = @INSTR =
           return bridged
         return JUndefined
       else
-        $.throw 'TypeError', "__get__ not define for #{_typeof obj}"
+        $.throw 'TypeError', "__get__ not define for #{_typeof(obj)}"
 
   # synchronous:
   __set__: ($, obj, key, value) ->
     assert.ok value?, "Can't set native undefined/null on any variable or object key"
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         key = INSTR.__key__ $, key
         $.will('write', obj)
@@ -641,10 +641,10 @@ INSTR = @INSTR =
         return
       # when 'string'
       #   return JUndefined
-      else $.throw 'TypeError', "__set__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__set__ not defined for #{_typeof(obj)}"
 
   __del__: ($, obj, key) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         key = INSTR.__key__ $, key
         $.will('write', obj)
@@ -657,12 +657,12 @@ INSTR = @INSTR =
         return yes # TODO reconsider?
       # when 'string'
       #   return JUndefined
-      else $.throw 'TypeError', "__del__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__del__ not defined for #{_typeof(obj)}"
 
   # an __update__ only happens for scope objects.
   __update__: ($, obj, key, value) ->
     assert.ok value?, "Can't update native undefined/null on any variable"
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         key = INSTR.__key__ $, key
         $.will('write', obj)
@@ -684,39 +684,39 @@ INSTR = @INSTR =
             return INSTR.__update__ $, obj.proto, key, value
         else
           $.throw 'ReferenceError', "#{key} is not defined, cannot update."
-      else $.throw 'TypeError', "__update__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__update__ not defined for #{_typeof(obj)}"
 
   __create__: ($, obj, newData) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         new JObject creator:$.user, data:newData, proto:obj
-      else $.throw 'TypeError', "__create__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__create__ not defined for #{_typeof(obj)}"
 
   __hasOwn__: ($, obj, key) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         $.will('read', obj)
         return obj.data[key]?
-      else $.throw 'TypeError', "__hasOwn__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__hasOwn__ not defined for #{_typeof(obj)}"
 
   __keys__: ($, obj) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         $.will('read', obj)
         return Object.keys obj.data
-      else $.throw 'TypeError', "__keys__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__keys__ not defined for #{_typeof(obj)}"
 
   __iter__: ($, obj) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object'
         $.will('read', obj)
         return new SimpleIterator Object.keys obj.data
       when 'string'
         return new SimpleIterator obj
-      else $.throw 'TypeError', "__iter__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__iter__ not defined for #{_typeof(obj)}"
 
   __bool__: ($, obj) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'object' then yes
       when 'number' then obj isnt 0
       when 'string' then obj.length > 0
@@ -725,7 +725,7 @@ INSTR = @INSTR =
       else no
 
   __key__: ($, obj) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'string', 'number' then obj
       when 'object'
         if obj instanceof joe.Undetermined
@@ -733,10 +733,10 @@ INSTR = @INSTR =
           return obj.word.key
         if obj instanceof joe.Word then return obj.key
         $.throw 'TypeError', "__key__ not defined for #{obj?.constructor?.name}"
-      else $.throw 'TypeError', "__key__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__key__ not defined for #{_typeof(obj)}"
 
   __str__: ($, obj, $$={}, maxDepth=4) ->
-    switch _typeof obj
+    switch _typeof(obj)
       when 'stub' then return "<##{obj.id}>"
       when 'object'
         return "<##{obj.id}>" if $$[obj.id]
@@ -756,7 +756,7 @@ INSTR = @INSTR =
       when 'function' then "[NativeFunction ##{obj.id}]"
       when 'undefined' then 'undefined'
       when 'null' then 'null'
-      else $.throw 'TypeError', "__str__ not defined for #{_typeof obj}"
+      else $.throw 'TypeError', "__str__ not defined for #{_typeof(obj)}"
 
   __add__: ($, left, right) ->
     checkType $, left, ['number', 'string']
@@ -784,8 +784,8 @@ INSTR = @INSTR =
     return left % right
     
   __eq__: ($, left, right) ->
-    leftType = _typeof left
-    rightType = _typeof right
+    leftType = _typeof(left)
+    rightType = _typeof(right)
     return no if leftType isnt rightType
     return left is right
 

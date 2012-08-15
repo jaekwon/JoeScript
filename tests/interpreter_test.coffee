@@ -184,6 +184,12 @@ test '''
 foo = {}
 ''+foo
 ''',                                      -> ok @it.startsWith '[object'
+test ' undefined == undefined ',          -> equal @it, true
+test ' undefined == null ',               -> equal @it, false
+test ' undefined? ',                      -> equal @it, false
+test ' null? ',                           -> equal @it, false
+test ' 0? ',                              -> equal @it, true
+test ' false? ',                          -> equal @it, true
 test '''
 foo = ->
   a = 0
