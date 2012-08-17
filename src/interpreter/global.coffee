@@ -109,27 +109,28 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
           module.error = error
         module!status
       """)
-    hydrate: new JBoundFunc(id:'hydrate', creator:GOD, scope:new JStub(id:'world'), func:"""
-      (obj, seen={}) ->
-        # print "hydrate \#{obj}"
-        try
-          return if seen[obj?id]
-          seen[obj?id] = obj
-        catch error
-          #print "Error in step 1: \#{error}"
-          return
-        for key of obj
-          try
-            value = obj[key]
-            if value?type is 'object'
-              # print "hydrating \#{value?id}"
-              hydrate(value, seen) unless seen[value?id]
-          catch error
-            #print "Error in step 2: \#{error}"
-            return
-        obj
-      """)
   })
+
+  hydrate: new JBoundFunc(id:'hydrate', creator:GOD, scope:new JStub(id:'world'), func:"""
+    (obj, seen={}) ->
+      # print "hydrate \#{obj}"
+      try
+        return if seen[obj?id]
+        seen[obj?id] = obj
+      catch error
+        #print "Error in step 1: \#{error}"
+        return
+      for key of obj
+        try
+          value = obj[key]
+          if value?type is 'object'
+            # print "hydrating \#{value?id}"
+            hydrate(value, seen) unless seen[value?id]
+        catch error
+          #print "Error in step 2: \#{error}"
+          return
+      obj
+    """)
 }
 WORLD.hack_persistence = PERSISTENCE # FIX
 

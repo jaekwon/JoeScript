@@ -9,6 +9,11 @@ task 'build', ->
   run 'coffee -c lib/*.coffee'
   #run 'coffee -c lib/**/*.coffee'
 
+task 'world', ->
+  invoke 'build'
+  run 'coffee src/interpreter/global.coffee', ->
+    console.log "World seeded!"
+
 task 'test', ->
   invoke 'build'
   run 'coffee tests/codestream_test.coffee', ->
