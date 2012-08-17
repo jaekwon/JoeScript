@@ -94,7 +94,7 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
   command: new JObject(id:'command', creator:GOD, data:{
     type: 'editor'
     mode: 'coffeescript'
-    onSubmit: new JBoundFunc(id:'onSubmit', creator:GOD, scope:JNull, func:"""
+    onSubmit: new JBoundFunc(id:'onSubmit', creator:GOD, scope:new JStub(id:'world'), func:"""
       ({modules, data:codeStr}) ->
         modules.push module={code:codeStr, status:'running'}
         print = (data) ->
@@ -109,7 +109,7 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
           module.error = error
         module!status
       """)
-    hydrate: new JBoundFunc(id:'hydrate', creator:GOD, scope:JNull, func:"""
+    hydrate: new JBoundFunc(id:'hydrate', creator:GOD, scope:new JStub(id:'world'), func:"""
       (obj, seen={}) ->
         # print "hydrate \#{obj}"
         try
