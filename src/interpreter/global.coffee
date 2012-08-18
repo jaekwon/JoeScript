@@ -85,6 +85,12 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
     return JUndefined
   )
 
+  hasPrototype: new JBoundFunc(id:'hasPrototype', creator:GOD, scope:JNull, func:"""
+    (obj, proto) ->
+      obj = obj.__proto__ while obj? and obj != proto
+      obj?
+  """)
+
   serialize: fnNamed('serialize', ($, this_, codeStr, {maxDepth}={}) ->
     maxDepth ?= 4
     # ensure that maxDepth isn't greater than some limit,

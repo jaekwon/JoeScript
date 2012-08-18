@@ -42,7 +42,7 @@ JSL = Grammar ({o, i, tokens}) -> [
     o NULL:         " 'null' ", -> JNull
   ]
   i OBJ_ITEM:     " key:(NUMBER|STRING) ':' value:ANY "
-  i ID:           " [a-zA-Z0-9]{1,24} ", (it) -> it.join ''
+  i ID:           " [a-zA-Z0-9_]{1,24} ", (it) -> it.join ''
   i ESCSTR:       " '\\\\' . ", (it) -> {n:'\n', t:'\t', r:'\r'}[it] or it
   i '.':          " /[\\s\\S]/ "
 ]

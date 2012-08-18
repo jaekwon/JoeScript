@@ -455,6 +455,21 @@ joe.Statement::extend
 
 joe.Loop::extend
   interpret: ($, i9n) ->
+    if @cond?
+      i9n.func = joe.Loop::interpretConditionalLoop
+      $.pushValue @cond
+    else
+      i9n.func = joe.Loop::interpretUnconditionalLoop
+      $.pushValue @block
+    return
+  interpretConditionalLoop: ($, i9n, cond) ->
+    if INSTR.__bool__ $, cond
+      $.pushValue @cond
+      $.pushValue @block
+    else
+      $.pop()
+      return
+  interpretUnconditionalLoop: ($, i9n) ->
     $.pushValue @block
     return
 

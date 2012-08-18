@@ -83,3 +83,22 @@ login.onSubmit = ({screen, modules, data}) ->
     screen.push "* wrong password :( *"
   
 @index = {signup,login}
+
+## hasPrototype (vs isInstance)
+foo = {foo:yes}
+bar = {__proto__: foo}
+baz = {__proto__: bar}
+
+hasPrototype = (obj, proto) ->
+  obj = obj.__proto__ while obj? and obj != proto
+  obj?
+
+hasPrototype(foo, foo)
+hasPrototype(foo, bar)
+hasPrototype(foo, baz)
+hasPrototype(bar, foo)
+hasPrototype(bar, bar)
+hasPrototype(bar, baz)
+hasPrototype(baz, foo)
+hasPrototype(baz, bar)
+hasPrototype(baz, baz)

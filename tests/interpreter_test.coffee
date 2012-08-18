@@ -195,6 +195,13 @@ test ' [].__proto__?id ',                 -> equal @it, 'array'
 test '''
 foo = ->
   a = 0
+  a += 1 while a < 100000
+  return 1
+foo()
+''', -> ok true
+test '''
+foo = ->
+  a = 0
   loop
     a++
     return a if a > 100000

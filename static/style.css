@@ -125,11 +125,7 @@ button {
     background: #B4D5FF !important;
     /* standard chrome colors */ }
   .cm-s-sembly.CodeMirror-scroll {
-    margin: 0 !important;
-    margin-top: 1px !important;
-    /* i dunno, i saw the top border disappear on chrome */
-    margin-bottom: 1px !important;
-    /* and then i saw the bottom disappear on chrome ubuntu */ }
+    margin: 0 !important; }
   .cm-s-sembly .CodeMirror-gutter {
     /*background: #0a001f;*/
     background: transparent;
