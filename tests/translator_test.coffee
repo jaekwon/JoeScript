@@ -52,7 +52,7 @@ test """
   var a, b, accum;
   a = 1;
   b = accum = [];
-  while(true) {(if((a > 2)){return }; accum.push((a = (a + 1))))};
+  while(true) {if((a > 2)){return }; accum.push(a = (a + 1))};
   accum_$temp$_
 """
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
@@ -92,7 +92,8 @@ loop
 """, 'var a; while(true) { a = b }'
 test """
 ({foo,bar}) -> foo+bar
-""", """function(arg) {(var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar))}"""
+""", """function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar)}"""
+test " foo = {bar, baz} ", 'var foo; foo = {"bar": bar, "baz": baz}'
 test """
 temp = {foo:1, bar:2}
 {foo,bar} = temp
@@ -137,12 +138,28 @@ test " base?.bar.baz?.blah = foo?.foo = 1 ", """
 """
 test "foo ? bar", 'if(((typeof foo !== "undefined") && (foo !== null))){foo}else{bar}'
 test "foo ?= bar", 'var foo; foo = (((typeof foo !== "undefined") && (foo !== null)) ? foo : bar)'
-test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) {(opts = (((typeof opts !== "undefined") && (opts !== null)) ? opts : {}); return opts)}'
+test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) {opts = (((typeof opts !== "undefined") && (opts !== null)) ? opts : {}); return opts}'
 test "foo = ({foo}={foo:1}) -> opts", """
 var foo;
 foo = function(arg) {
-  (arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {"foo": 1});
+  arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {"foo": 1});
   foo = arg.foo;
-  return opts)
+  return opts
 }
 """
+test """
+switch foo
+  when "1", 2
+    return "one or two"
+  when "three"
+    return "three"
+  else
+    return "default"
+""", 'switch (foo) { case "1": case 2: return "one or two"; case "three": return "three"; default: return "default" }'
+test """
+foo = switch bar
+  when yes
+    throw new Error "statement test 1"
+  else
+    throw new Error "statement test 2"
+""", 'var foo, temp; foo = temp = undefined; switch (bar) { case true: throw new(Error("statement test 1")); default: throw new(Error("statement test 2")) }; temp'

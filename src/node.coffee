@@ -91,6 +91,8 @@ validateDescriptor = (nodeClazz, desc) ->
       valueStr = this.toString()
       if @ownScope?.variables?.length > 0 # TODO move out or delete or something.
         valueStr += yellow (@ownScope.variables.join ' ')
+      if @marked?
+        valueStr += cyan ' marked'
       str = "#{green @constructor.name} #{valueStr}\n"
       @withChildren (child, parent, key, desc, key2) ->
         str += "#{indent _indent+1}#{red '@'+key}#{if key2? then red '['+key2+']' else ''}: " ##{blue inspect desc}\n"
