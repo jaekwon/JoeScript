@@ -70,6 +70,7 @@
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
+uglify = require 'uglify-js'
 
 {
   NODES:joe
@@ -215,9 +216,16 @@ if yes
       else
         lines = @lines
       if @isValue and @lines.length > 1
-        "(#{(js(line) for line in lines).join '; '})"
+        "(function(){#{(js(line) for line in lines).join '; '}})()"
       else
         (js(line) for line in lines).join ';\n'
+    makeValue: ($, makeValue=yes) ->
+      if makeValue
+        return @toJSNode($, {toValue:yes,inject:(value) ->
+          joe.Statement(type:'return', expr:value)
+        })
+      else
+        return @
 
   joe.If::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
@@ -244,7 +252,7 @@ if yes
         target = joe.Undetermined('temp')
         @block = @block.toJSNode($, inject:(value) -> joe.Assign({target, value}))
         @catch = @catch?.toJSNode($, inject:(value) -> joe.Assign({target, value}))
-        return joe.Block [this, target.toJSNode($, {toValue,inject})]
+        return joe.Block([this, target.toJSNode($, {toValue,inject})]).makeValue($, toValue or no)
       else
         return @childrenToJSNode($)
     toJavascript: -> "try {#{js @block}}#{
@@ -269,13 +277,13 @@ if yes
         lines.push this
         # <Variable>
         lines.push target.toJSNode($, {toValue,inject})
-        return joe.Block lines
+        return joe.Block(lines).makeValue($, toValue or no)
       else
         return @childrenToJSNode($)
     toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
   joe.JSForC::extend
-    toJavascript: -> "for(#{js @setup};#{js @cond};#{js @counter}){#{js @block}}"
+    toJavascript: -> "#{js @setup}; for(;#{js @cond};#{js @counter}){#{js @block}}"
 
   joe.JSForK::extend
     toJavascript: -> "for(#{js @key} in #{js @obj}){#{js @block}}"
@@ -375,13 +383,13 @@ if yes
         # <Variable> = undefined
         lines.push joe.Assign target:(target=joe.Undetermined('temp')), value:joe.Singleton.undefined
         # switch(@obj) { case(case.matches) { <Variable> = case.block } for case in @cases }
-        for _case in @cases
-          _case.block = _case.block.toJSNode($, inject:(value) -> joe.Assign({target,value}))
+        @obj = @obj.toJSNode($, toValue:yes)
+        @cases = for _case in @cases then _case.toJSNode($, inject:(value)->joe.Assign({target,value}))
         @default = @default?.toJSNode($, inject:(value) -> joe.Assign({target,value}))
         lines.push this
         # <Variable>
         lines.push target.toJSNode($, {toValue,inject})
-        return joe.Block lines
+        return joe.Block(lines).makeValue($, toValue or no)
       else
         return @childrenToJSNode($)
     toJavascript: ->
@@ -394,11 +402,15 @@ if yes
       """
 
   joe.Case::extend
+    toJSNode: mark ($, {inject}={}) ->
+      @matches = for match in @matches then match.toJSNode($, {toValue:yes})
+      @block = @block.toJSNode($, {inject})
+      return @
     toJavascript: ->
       """#{("case #{js(match)}:\n" for match in @matches).join('')
-      }\n#{  js(@block)};\n"""
+        }#{js(@block)}; break;\n"""
 
-  TO_JS_OPS = {'is':'===', '==':'===', 'isnt':'!==', '!=':'!=='}
+  TO_JS_OPS = {'is':'===', '==':'===', 'isnt':'!==', '!=':'!==', 'or':'||', 'and':'&&', 'not':'!'}
   joe.Operation::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
       switch @op
@@ -440,7 +452,7 @@ if yes
           lines.push joe.Assign target:valueVar, value:@value.toJSNode($, toValue:yes)
         @target.destructLines valueVar, lines
         lines.push valueVar.toJSNode($, {toValue,inject}) if toValue or inject
-        return joe.Block(lines)
+        return joe.Block(lines).makeValue($, toValue or no)
       else if @op?
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
@@ -549,7 +561,7 @@ if yes
       })
       return this
     toJavascript: ->
-      "function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}}"
+      "(function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}})"
 
   # NOTE: not to be produced in toJSNode, which is interpreted by src/interpreter.
   joe.NativeExpression::extend
@@ -664,10 +676,13 @@ if yes
         return cond
 
 @translate = translate = (node,$=undefined) ->
-  # console.log node.serialize() # print before translations...
-  # install plugin
   node.validate()
   install()
   node = node.toJSNode($).installScope().determine()
   node.validate()
   return node.toJavascript()
+  #js_raw = node.toJavascript()
+  #console.log blue js_raw
+  #js_ast = uglify.parser.parse(js_raw)
+  #js_pretty = uglify.uglify.gen_code(js_ast)
+  #return js_pretty

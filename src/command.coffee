@@ -132,8 +132,8 @@ compileScript = (file, input, base) ->
       compileJoin()
     else
       nodes = JoeScript.parse(t.input, env:o)
-      throw new Error "NotImplemented" # TODO
-      # t.output = ...
+      jsx = require 'sembly/src/translators/javascript'
+      t.output = jsx.translate(nodes)
       JoeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base

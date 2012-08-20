@@ -38,4 +38,5 @@ test = (requires, cb) ->
   return
 
 test 'sample', -> equal @it.sample, 'S4MPLE'
-test [{name:'joeson', path:'src/joeson.coffee'}], -> console.log @it
+test 'everything', -> equal @it.complete, yes
+#test [{name:'joeson', path:'src/joeson.coffee'}], -> console.log @it

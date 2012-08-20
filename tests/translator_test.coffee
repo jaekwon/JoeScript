@@ -51,9 +51,14 @@ test """
 """, """
   var a, b, accum;
   a = 1;
-  b = accum = [];
-  while(true) {if((a > 2)){return }; accum.push(a = (a + 1))};
-  accum_$temp$_
+  b = (function(){
+    accum = [];
+    while(true) {
+      if((a > 2)){return };
+      accum.push((a = (a + 1)))
+    };
+    return accum
+  })()
 """
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
 test """
@@ -74,10 +79,10 @@ foo =
     2
   else
     3""", 'var foo; foo = (1 ? 2 : 3)'
-test """(a) -> return a""", 'function(a) { return a }'
-test """(b) -> b""", 'function(b) { return b }'
-test """(a) -> if true then a""", 'function(a) { if(true) { return a } }'
-test """(a) -> if true then a else b""", 'function(a) { if(true) { return a } else { return b } }'
+test """(a) -> return a""", '(function(a) { return a })'
+test """(b) -> b""", '(function(b) { return b })'
+test """(a) -> if true then a""", '(function(a) { if(true) { return a } })'
+test """(a) -> if true then a else b""", '(function(a) { if(true) { return a } else { return b } })'
 test """foo is bar""", '(foo === bar)'
 test """if foo is bar then 'foo is bar'""", 'if((foo === bar)) { \"foo is bar\" }'
 test """
@@ -92,7 +97,7 @@ loop
 """, 'var a; while(true) { a = b }'
 test """
 ({foo,bar}) -> foo+bar
-""", """function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar)}"""
+""", """(function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar)})"""
 test " foo = {bar, baz} ", 'var foo; foo = {"bar": bar, "baz": baz}'
 test """
 temp = {foo:1, bar:2}
@@ -115,7 +120,7 @@ Node = require('sembly/src/node').createNodeClazz('GrammarNode')
 """, -> deepEqual @it, [require('sembly/lib/helpers').pad]
 test """
 x+1 for x, i in [0..10]
-""", 'var i, x, _to, _by; for(i = 0; x = 0; _to = 10; _by = 1;(x <= _to);i = (i + 1); x = (x + _by)){(x + 1)}'
+""", 'var i, x, _to, _by; i = 0; x = 0; _to = 10; _by = 1; for(;(x <= _to);i = (i + 1); x = (x + _by)){(x + 1)}'
 # soak tests
 test " bar? ", '((typeof bar !== "undefined") && (bar !== null))'
 test " foo = bar? ", 'var foo; foo = ((typeof bar !== "undefined") && (bar !== null))'
@@ -138,14 +143,14 @@ test " base?.bar.baz?.blah = foo?.foo = 1 ", """
 """
 test "foo ? bar", 'if(((typeof foo !== "undefined") && (foo !== null))){foo}else{bar}'
 test "foo ?= bar", 'var foo; foo = (((typeof foo !== "undefined") && (foo !== null)) ? foo : bar)'
-test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) {opts = (((typeof opts !== "undefined") && (opts !== null)) ? opts : {}); return opts}'
+test "foo = (opts={}) -> opts", 'var foo; foo = (function(opts) {opts = (((typeof opts !== "undefined") && (opts !== null)) ? opts : {}); return opts})'
 test "foo = ({foo}={foo:1}) -> opts", """
 var foo;
-foo = function(arg) {
+foo = (function(arg) {
   arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {"foo": 1});
   foo = arg.foo;
   return opts
-}
+})
 """
 test """
 switch foo
@@ -155,11 +160,11 @@ switch foo
     return "three"
   else
     return "default"
-""", 'switch (foo) { case "1": case 2: return "one or two"; case "three": return "three"; default: return "default" }'
+""", 'switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default" }'
 test """
 foo = switch bar
   when yes
     throw new Error "statement test 1"
   else
     throw new Error "statement test 2"
-""", 'var foo, temp; foo = temp = undefined; switch (bar) { case true: throw new(Error("statement test 1")); default: throw new(Error("statement test 2")) }; temp'
+""", 'var foo, temp; foo = (function(){temp = undefined; switch (bar) { case true: throw new(Error("statement test 1")); break; default: throw new(Error("statement test 2")) }; return temp})()'
