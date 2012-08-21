@@ -503,6 +503,14 @@ if yes
         else
           throw new Error "Unexpected AssignObj target: #{target} (#{target?.constructor.name})"
       return
+    # Used by `do (param1, param2, ...) -> ...` constructs.
+    # Returns an array of Items, suitable invocation parameters.
+    extractWords: ->
+      words = []
+      for item, i in @items
+        assert.ok item.target instanceof joe.Word, "extractKeys() wants words."
+        words.push item.target
+      return (joe.Item(key:undefined, value:word) for word in words)
 
   joe.Str::extend
     getParts: ->
@@ -573,10 +581,15 @@ if yes
   joe.Invocation::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
       return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      @func = @func.toJSNode($, toValue:yes)
-      @params.map (p) ->
-        p.value = p.value.toJSNode($, toValue:yes)
-      return (inject ? identity)(@)
+      if @func instanceof joe.Word and @func.key is 'do' # do (...) -> ..
+        assert.ok @params.length is 1 and @params[0].value instanceof joe.Func, "Joescript `do` wants one function argument"
+        @func = @params[0].value.toJSNode($, toValue:yes)
+        @params = @func.params.extractWords()
+        return (inject ? identity)(@)
+      else
+        @func = @func.toJSNode($, toValue:yes)
+        @params.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
+        return (inject ? identity)(@)
     toJavascript: ->
       "#{js @func}(#{@params.map (p)->js(p.value)})"
 
@@ -595,6 +608,7 @@ if yes
     toJSNode: mark ($, {toValue,inject}={}) ->
       if @items?
         for item in @items
+          item.key = item.key?.toJSNode($, toValue:yes)
           if item.value?
             item.value = item.value.toJSNode($, toValue:yes)
           else
@@ -602,7 +616,7 @@ if yes
       return (inject ? identity)(@) # nore toJSNode() necessary.
     toJavascript: ->
       return '{}' unless @items?
-      "{#{("\"#{escape key}\": #{js value}" for {key, value} in @items).join ', '}}"
+      "{#{("#{js key}: #{js value}" for {key, value} in @items).join ', '}}"
 
   joe.Arr::extend
     toJavascript: ->
@@ -680,9 +694,8 @@ if yes
   install()
   node = node.toJSNode($).installScope().determine()
   node.validate()
-  return node.toJavascript()
-  #js_raw = node.toJavascript()
-  #console.log blue js_raw
-  #js_ast = uglify.parser.parse(js_raw)
-  #js_pretty = uglify.uglify.gen_code(js_ast)
-  #return js_pretty
+  #return node.toJavascript()
+  js_raw = node.toJavascript()
+  js_ast = uglify.parser.parse(js_raw)
+  js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
+  return js_pretty

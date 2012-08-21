@@ -98,14 +98,14 @@ loop
 test """
 ({foo,bar}) -> foo+bar
 """, """(function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar)})"""
-test " foo = {bar, baz} ", 'var foo; foo = {"bar": bar, "baz": baz}'
+test " foo = {bar, baz} ", 'var foo; foo = {bar: bar, baz: baz}'
 test """
 temp = {foo:1, bar:2}
 {foo,bar} = temp
 foo + bar
 """, """
 var temp, foo, bar;
-temp = {"foo": 1, "bar": 2};
+temp = {foo: 1, bar: 2};
 foo = temp.foo;
 bar = temp.bar;
 (foo + bar)"""
@@ -147,7 +147,7 @@ test "foo = (opts={}) -> opts", 'var foo; foo = (function(opts) {opts = (((typeo
 test "foo = ({foo}={foo:1}) -> opts", """
 var foo;
 foo = (function(arg) {
-  arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {"foo": 1});
+  arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {foo: 1});
   foo = arg.foo;
   return opts
 })
@@ -168,3 +168,19 @@ foo = switch bar
   else
     throw new Error "statement test 2"
 """, 'var foo, temp; foo = (function(){temp = undefined; switch (bar) { case true: throw new(Error("statement test 1")); break; default: throw new(Error("statement test 2")) }; return temp})()'
+test """
+for foo, bar of baz
+  do (foo, bar) ->
+    print foo + bar
+""", 'var _obj, bar; _obj = baz; for(foo in _obj){bar = _obj[foo]; (function(foo,bar) {return print((foo + bar))})(foo,bar)}'
+###
+test """
+for tag in coffeemugg.tags.concat(coffeemugg.self_closing)
+  do (tag) =>
+    this::[tag] = ->
+      this.render_tag(tag, arguments)
+                                                                                                                                                                                                                                                                 
+esc: (txt) ->
+  if @autoescape then @h(txt) else txt
+""", ''
+###

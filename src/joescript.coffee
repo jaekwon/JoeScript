@@ -37,8 +37,6 @@ Undetermined = clazz 'Undetermined', Word, ->
 String::toKeyString = -> @valueOf()
 
 Block = clazz 'Block', Node, ->
-  @defineChildren
-    lines:      {type:[type:EXPR]}
   init: (lines) ->
     assert.ok lines, "lines must be defined"
     @lines = if lines instanceof Array then lines else [lines]
@@ -46,10 +44,6 @@ Block = clazz 'Block', Node, ->
     (''+line for line in @lines).join ';\n'
 
 If = clazz 'If', Node, ->
-  @defineChildren
-    cond:       {type:EXPR, isValue:yes}
-    block:      {type:EXPR, required:yes}
-    else:       {type:EXPR}
   init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
   toString: ->
@@ -61,17 +55,10 @@ If = clazz 'If', Node, ->
 Unless = ({cond, block, _else}) -> If cond:Not(cond), block:block, else:_else
 
 Loop = clazz 'Loop', Node, ->
-  @defineChildren
-    label:      {type:Word}
-    cond:       {type:EXPR, isValue:yes}
-    block:      {type:EXPR, required:yes}
   init: ({@label, @cond, @block}) -> @cond ?= true
   toString: -> "while(#{@cond}){#{@block}}"
 
 For = clazz 'For', Loop, ->
-  @defineChildren
-    keys:       {type:[type:Node]}
-    obj:        {type:EXPR, isValue:yes}
   # types:
   #   in: Array / generator iteration,  e.g.  for @keys[0] in @obj {@block}
   #   of: Object key-value iteration,   e.g.  for @keys[0], @keys[1] of @obj {@block}
@@ -80,51 +67,29 @@ For = clazz 'For', Loop, ->
 
 # Javascript C-style For-loop
 JSForC = clazz 'JSForC', Loop, ->
-  @defineChildren
-    setup:      {type:Node}
-    counter:    {type:Node}
   init: ({@label, @block, @setup, @cond, @counter}) ->
   toString: -> "for (#{@setup or ''};#{@cond or ''};#{@counter or ''}) {#{@block}}"
 
 # Javascript Object Key iteration
 JSForK = clazz 'JSForK', Loop, ->
-  @defineChildren
-    cond:       null
-    key:        {type:Word, required:yes}
-    obj:        {type:EXPR, isValue:yes, required:yes}
   init: ({@label, @block, @key, @obj}) ->
   toString: -> "for (#{@key} in #{@obj}) {#{@block}}"
 
 Switch = clazz 'Switch', Node, ->
-  @defineChildren
-    obj:        {type:EXPR, isValue:yes, required:yes}
-    cases:      {type:[type:'Case']}
-    default:    {type:EXPR, isValue:yes}
   init: ({@obj, @cases, @default}) ->
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
 
 Try = clazz 'Try', Node, ->
-  @defineChildren
-    block:      {type:Node, required:yes}
-    catchVar:   {type:Word}
-    catch:      {type:Node}
-    finally:    {type:Node}
   init: ({@block, @catchVar, @catch, @finally}) ->
   toString: -> "try {#{@block}}#{
                 (@catchVar? or @catch?) and " catch (#{@catchVar or ''}) {#{@catch}}" or ''}#{
                 @finally and "finally {#{@finally}}" or ''}"
 
 Case = clazz 'Case', Node, ->
-  @defineChildren
-    matches:    {type:[type:EXPR], required:yes}
-    block:      {type:Node}
   init: ({@matches, @block}) ->
   toString: -> "when #{@matches.join ','}{#{@block}}"
 
 Operation = clazz 'Operation', Node, ->
-  @defineChildren
-    left:       {type:EXPR, isValue:yes}
-    right:      {type:EXPR, isValue:yes}
   init: ({@left, @op, @right}) ->
   toString: -> "(#{ if @left?  then @left+' '  else ''
                 }#{ @op
@@ -133,15 +98,10 @@ Operation = clazz 'Operation', Node, ->
 Not = (it) -> Operation op:'not', right:it
 
 Statement = clazz 'Statement', Node, ->
-  @defineChildren
-    expr:       {type:EXPR, isValue:yes}
   init: ({@type, @expr}) ->
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
-  @defineChildren
-    func:       {type:EXPR, isValue:yes}
-    params:     {type:[type:'Item',isValue:yes]}
   init: ({@func, @params}) ->
     @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
   soakable$: _soakable 'func'
@@ -149,9 +109,6 @@ Invocation = clazz 'Invocation', Node, ->
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
-  @defineChildren
-    target:     {type:Node, required:yes}
-    value:      {type:EXPR, isValue:yes, required:yes}
   init: ({@target, type, @op, @value}) ->
     assert.ok not (@target instanceof AssignObj and @op?), "You can't specify both a destructing assignment and an operation"
     assert.ok @value?, "need value"
@@ -160,17 +117,11 @@ Assign = clazz 'Assign', Node, ->
   toString: -> "#{@target} #{@op or ''}= (#{@value})"
 
 Slice = clazz 'Slice', Node, ->
-  @defineChildren
-    obj:        {type:EXPR, isValue:yes}
-    range:      {type:'Range', required:yes}
   init: ({@obj, @range}) ->
   soakable$: _soakable 'obj'
   toString: -> "#{@obj}[#{@range}]"
 
 Index = clazz 'Index', Node, ->
-  @defineChildren
-    obj:        {type:EXPR, isValue:yes}
-    key:        {type:EXPR, isValue:yes, required:yes}
   init: ({obj, key, type}) ->
     key = Word(key) if typeof key is 'string' and type is '.'
     type ?= if key instanceof Word then '.' else '['
@@ -190,15 +141,11 @@ Index = clazz 'Index', Node, ->
     "#{@obj}#{@type}#{@key}#{close}"
 
 Soak = clazz 'Soak', Node, ->
-  @defineChildren
-    obj:        {type:EXPR, isValue:yes}
   init: (@obj) ->
   soakable$: _soakable 'obj'
   toString: -> "(#{@obj})?"
 
 Obj = clazz 'Obj', Node, ->
-  @defineChildren
-    items:      {type:[type:Set(['Item','Heredoc'])]}
   # NOTE Items may contain Heredocs.
   # TODO consider filtering them out or organizing the heredocs
   init: (@items) ->
@@ -207,10 +154,10 @@ Obj = clazz 'Obj', Node, ->
 Arr = clazz 'Arr', Obj, ->
   toString: -> "[#{if @items? then @items.join ',' else ''}]"
 
+# For arrays and invocation parameters, the key is left undefined.
+# For objects, the key is always defined, and the value is optional.
+# e.g. {foo} is equivalent to {foo:foo}
 Item = clazz 'Item', Node, ->
-  @defineChildren
-    key:        {type:KEY}
-    value:      {type:EXPR, isValue:yes}
   init: ({@key, @value, @splat}) ->
   toString: ->
     "#{ if @key?              then @key         else ''
@@ -225,8 +172,6 @@ Singleton = clazz 'Singleton', Node, ->
 Singleton[x] = new Singleton(x) for x in ['null', 'undefined', 'Infinity']
 
 Str = clazz 'Str', Node, ->
-  @defineChildren
-    parts:      {type:[type:EXPR, isValue:yes]}
   init: (parts) ->
     @parts = []
     chars = []
@@ -254,9 +199,6 @@ Str = clazz 'Str', Node, ->
       '"' + parts.join('') + '"'
 
 Func = clazz 'Func', Node, ->
-  @defineChildren
-    params:     {type:'AssignList'}
-    block:      {type:Block, required:yes} # must be block
   init: ({@params, @type, @block}) ->
     @block ?= new Block([]) # trans
   toString: ->
@@ -265,8 +207,6 @@ Func = clazz 'Func', Node, ->
     }#{ '{'+@block+'}' }"
 
 AssignObj = clazz 'AssignObj', Node, ->
-  @defineChildren
-    items:      {type:[type:'AssignItem']}
   init: (@items) ->
   targetNames$: get: ->
     names = []
@@ -294,11 +234,9 @@ AssignList = clazz 'AssignList', AssignObj, ->
     }#{ if @items? then @items.join ',' else ''
     }#{ if braces  then ']'             else '' }"
 
+# For AssignLists and function parameters the key is left undefined.
+# For AssignObjs, the key is always defined, and the target is optional.
 AssignItem = clazz 'AssignItem', Node, ->
-  @defineChildren
-    key:      {type:new Set([Word, Index, Number])}
-    target:   {type:Node}
-    default:  {type:EXPR, isValue:yes}
   init: ({@key, @target, @default}) ->
   toString: ->
     "#{ if @key?              then @key         else ''
@@ -308,10 +246,6 @@ AssignItem = clazz 'AssignItem', Node, ->
     }#{ if @default?          then '='+@default else '' }"
 
 Range = clazz 'Range', Node, ->
-  @defineChildren
-    from:     {type:EXPR, isValue:yes}
-    to:       {type:EXPR, isValue:yes}
-    by:       {type:EXPR, isValue:yes}
   init: ({@from, type, @to, @by}) ->
     @exclusive = type is '...'
     @by ?= 1
@@ -330,6 +264,84 @@ Heredoc = clazz 'Heredoc', Node, ->
 Dummy = clazz 'Dummy', Node, ->
   init: (@args) ->
   toString: -> "{#{@args}}"
+
+# NODE TYPE GROUPS
+EXPR = new Set([Node, 'string', 'number', 'boolean'])
+KEY  = new Set([Word, Str, 'string', 'number'])
+
+# NOTE: defineChildren requires proper ordering.
+# Make sure you define the base class children first.
+Block.defineChildren
+  lines:      {type:[type:EXPR]}
+If.defineChildren
+  cond:       {type:EXPR, isValue:yes}
+  block:      {type:EXPR, required:yes}
+  else:       {type:EXPR}
+Loop.defineChildren
+  label:      {type:Word}
+  cond:       {type:EXPR, isValue:yes}
+  block:      {type:EXPR, required:yes}
+For.defineChildren # extends Loop
+  keys:       {type:[type:Node]}
+  obj:        {type:EXPR, isValue:yes}
+JSForC.defineChildren # extends Loop
+  setup:      {type:Node}
+  counter:    {type:Node}
+JSForK.defineChildren # extends Loop
+  cond:       null
+  key:        {type:Word, required:yes}
+  obj:        {type:EXPR, isValue:yes, required:yes}
+Switch.defineChildren
+  obj:        {type:EXPR, isValue:yes, required:yes}
+  cases:      {type:[type:Case]}
+  default:    {type:EXPR, isValue:yes}
+Try.defineChildren
+  block:      {type:Node, required:yes}
+  catchVar:   {type:Word}
+  catch:      {type:Node}
+  finally:    {type:Node}
+Case.defineChildren
+  matches:    {type:[type:EXPR], required:yes}
+  block:      {type:Node}
+Operation.defineChildren
+  left:       {type:EXPR, isValue:yes}
+  right:      {type:EXPR, isValue:yes}
+Statement.defineChildren
+  expr:       {type:EXPR, isValue:yes}
+Invocation.defineChildren
+  func:       {type:EXPR, isValue:yes}
+  params:     {type:[type:Item,isValue:yes]}
+Assign.defineChildren
+  target:     {type:Node, required:yes}
+  value:      {type:EXPR, isValue:yes, required:yes}
+Slice.defineChildren
+  obj:        {type:EXPR, isValue:yes}
+  range:      {type:Range, required:yes}
+Index.defineChildren
+  obj:        {type:EXPR, isValue:yes}
+  key:        {type:EXPR, isValue:yes, required:yes}
+Soak.defineChildren
+  obj:        {type:EXPR, isValue:yes}
+Obj.defineChildren
+  items:      {type:[type:Set([Item,Heredoc])]}
+Item.defineChildren
+  key:        {type:KEY}
+  value:      {type:EXPR, isValue:yes}
+Str.defineChildren
+  parts:      {type:[type:EXPR, isValue:yes]}
+Func.defineChildren
+  params:     {type:AssignList}
+  block:      {type:Block, required:yes} # must be block
+AssignObj.defineChildren
+  items:      {type:[type:AssignItem]}
+AssignItem.defineChildren
+  key:        {type:new Set([Word, Index, 'number'])}
+  target:     {type:Node}
+  default:    {type:EXPR, isValue:yes}
+Range.defineChildren
+  from:       {type:EXPR, isValue:yes}
+  to:         {type:EXPR, isValue:yes}
+  by:         {type:EXPR, isValue:yes}
 
 @NODES = {
   Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
@@ -644,10 +656,6 @@ checkColumn = (__, $) ->
   i ESC2:           " _SLASH . ", ((chr) -> '\\'+chr),   skipLog:yes
 ]
 # ENDGRAMMAR
-
-# NODE TYPE GROUPS
-EXPR = new Set([Node, Boolean, String, Number])
-KEY  = new Set([Word, Number])
 
 # Parse the given code
 @parse = GRAMMAR.parse

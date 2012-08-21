@@ -109,6 +109,7 @@ validateDescriptor = (nodeClazz, desc) ->
     if not obj?
       return if not descriptor.required
       return "missing value"
+    assert.ok typeof descriptor is 'object', "Invalid desciptor #{descriptor} (#{descriptor?.constructor?.name})"
 
     # handle array types
     if descriptor.type instanceof Array
@@ -117,16 +118,16 @@ validateDescriptor = (nodeClazz, desc) ->
       if not obj instanceof Array
         return "Expected #{obj} to be an Array of #{inspect type} but got #{obj?.constructor.name}"
       for item in obj
-        error = validateType item, type
+        error = validateType item, {type}
         return error if error?
       return # ok
 
     # handle a set of types
     else if descriptor.type instanceof Set
       for type in descriptor.type.elements
-        error = validateType obj, type
+        error = validateType obj, {type}
         return if not error?
-      return "Expected one of #{(inspect type for type in descriptor.type.elements).join(', ')} but got #{obj.constructor.name}"
+      return "Expected one of #{(type.name ? type for type in descriptor.type.elements).join(', ')} but got #{obj.constructor.name}"
 
     # otherwise
     if descriptor.type instanceof Function
