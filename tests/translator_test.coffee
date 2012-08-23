@@ -16,18 +16,17 @@ counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = joe.parse code
-  proc = []
-  translated = jsx.translate(node)
+  node = jsx.translate(node)
   if typeof expected is 'function'
     try
-      result = eval(translated)
+      result = eval(node)
       expected.call {it:result}, result
     catch error
-      console.log "Error in evaluating translated javascript: #{yellow translated}.\nError:\n#{red error?.stack ? error}"
+      console.log "Error in evaluating node javascript: #{yellow node}.\nError:\n#{red error?.stack ? error}"
       process.exist(1)
     return
-  if canon(translated) isnt canon(expected)
-    console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon translated, no}" #\n  nodes:\n#{yellow node.serialize()}"
+  if canon(node) isnt canon(expected)
+    console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon node, no}" #\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
 test """
@@ -36,30 +35,19 @@ loop
   return if a > 2
   a += 1
 print a
-""", 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}; print(a)'
+""", 'var a; a = 1; while (true) { if (a > 2) { return; } a = a + 1; } print(a);'
 test """
 a = 1
 loop
   return if a > 2
   a += 1
-""", 'var a; a = 1; while(true) {if((a > 2)){return }; a = (a + 1)}'
+""", 'var a; a = 1; while (true) { if (a > 2) { return; } a = a + 1; }'
 test """
   a = 1
   b = loop
     return if a > 2
     a += 1
-""", """
-  var a, b, accum;
-  a = 1;
-  b = (function(){
-    accum = [];
-    while(true) {
-      if((a > 2)){return };
-      accum.push((a = (a + 1)))
-    };
-    return accum
-  })()
-"""
+""", 'var a, b, accum; a = 1; b = function() { accum = []; while (true) { if (a > 2) { return; } accum.push(a = a + 1); } return accum; }();'
 test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
 test """
 if true

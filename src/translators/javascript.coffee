@@ -696,6 +696,7 @@ if yes
   node.validate()
   #return node.toJavascript()
   js_raw = node.toJavascript()
-  js_ast = uglify.parser.parse(js_raw)
+  js_ast = uglify.parser.parse("(function(){#{js_raw}})")
   js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
-  return js_pretty
+  console.log green js_pretty[14...-4]
+  return js_pretty[14...-4]
