@@ -29,6 +29,7 @@ test = (code, expected) ->
     console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon node, no}" #\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
 
+test "foo::[bar] = baz", 'foo.prototype[bar] = baz;'
 test """
 a = 1
 loop
@@ -109,37 +110,36 @@ Node = require('sembly/src/node').createNodeClazz('GrammarNode')
 """, -> deepEqual @it, [require('sembly/lib/helpers').pad]
 test """
 x+1 for x, i in [0..10]
-""", 'var i, x, _to, _by; i = 0; x = 0; _to = 10; _by = 1; for(;(x <= _to);i = (i + 1); x = (x + _by)){(x + 1)}'
+""", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
 # soak tests
-test " bar? ", '((typeof bar !== "undefined") && (bar !== null))'
-test " foo = bar? ", 'var foo; foo = ((typeof bar !== "undefined") && (bar !== null))'
-test " foo = bar?.baz ", 'var foo; foo = (((typeof bar !== "undefined") && (bar !== null)) ? bar.baz : undefined)'
-test " foo = bar?.baz 1 ", 'var foo; foo = (((typeof bar !== "undefined") && (bar !== null)) ? bar.baz(1) : undefined)'
-test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = ((((ref = bbb.bar) !== null) && (ref !== undefined)) ? ((((ref = ref.baz) !== null) && (ref !== undefined)) ? ref(1) : undefined) : undefined)'
-test " foo = base?.bar.baz 1 ", 'var foo; foo = (((typeof base !== "undefined") && (base !== null)) ? base.bar.baz(1) : undefined)'
-test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = (((typeof base !== "undefined") && (base !== null)) ? ((((ref = base.bar.baz) !== null) && (ref !== undefined)) ? ref.blah(1) : undefined) : undefined)'
+test " bar? ", 'typeof bar !== "undefined" && bar !== null;'
+test " foo = bar? ", 'var foo; foo = typeof bar !== "undefined" && bar !== null;'
+test " foo = bar?.baz ", 'var foo; foo = typeof bar !== "undefined" && bar !== null ? bar.baz : undefined;'
+test " foo = bar?.baz 1 ", 'var foo; foo = typeof bar !== "undefined" && bar !== null ? bar.baz(1) : undefined;'
+test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = (ref = bbb.bar) !== null && ref !== undefined ? (ref = ref.baz) !== null && ref !== undefined ? ref(1) : undefined : undefined;'
+test " foo = base?.bar.baz 1 ", 'var foo; foo = typeof base !== "undefined" && base !== null ? base.bar.baz(1) : undefined;'
+test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = typeof base !== "undefined" && base !== null ? (ref = base.bar.baz) !== null && ref !== undefined ? ref.blah(1) : undefined : undefined;'
 test " base?.bar.baz?.blah = foo?.foo = 1 ", """
   var ref;
-  if(((typeof base !== "undefined") && (base !== null))){
-    if((((ref = base.bar.baz) !== null) && (ref !== undefined))){
-      ref.blah = (((typeof foo !== "undefined") && (foo !== null)) ? (foo.foo = 1) : undefined)
-    }else{
-      undefined
+  if (typeof base !== "undefined" && base !== null) {
+    if ((ref = base.bar.baz) !== null && ref !== undefined) {
+      ref.blah = typeof foo !== "undefined" && foo !== null ? foo.foo = 1 : undefined;
+    } else {
+      undefined;
     }
-  }else{
-    undefined
+  } else {
+    undefined;
   }
 """
-test "foo ? bar", 'if(((typeof foo !== "undefined") && (foo !== null))){foo}else{bar}'
-test "foo ?= bar", 'var foo; foo = (((typeof foo !== "undefined") && (foo !== null)) ? foo : bar)'
-test "foo = (opts={}) -> opts", 'var foo; foo = (function(opts) {opts = (((typeof opts !== "undefined") && (opts !== null)) ? opts : {}); return opts})'
+test "foo ? bar", 'if (typeof foo !== "undefined" && foo !== null) { foo; } else { bar; }'
+test "foo ?= bar", 'var foo; foo = typeof foo !== "undefined" && foo !== null ? foo : bar;'
+test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) { opts = typeof opts !== "undefined" && opts !== null ? opts : {}; return opts; };'
 test "foo = ({foo}={foo:1}) -> opts", """
 var foo;
-foo = (function(arg) {
-  arg = (((typeof arg !== "undefined") && (arg !== null)) ? arg : {foo: 1});
-  foo = arg.foo;
-  return opts
-})
+foo = function(arg) {
+  arg = typeof arg !== "undefined" && arg !== null ? arg : { foo: 1 };
+  foo = arg.foo; return opts;
+};
 """
 test """
 switch foo
@@ -149,27 +149,16 @@ switch foo
     return "three"
   else
     return "default"
-""", 'switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default" }'
+""", 'switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default"; }'
 test """
 foo = switch bar
   when yes
     throw new Error "statement test 1"
   else
     throw new Error "statement test 2"
-""", 'var foo, temp; foo = (function(){temp = undefined; switch (bar) { case true: throw new(Error("statement test 1")); break; default: throw new(Error("statement test 2")) }; return temp})()'
+""", 'var foo, temp; foo = function() { temp = undefined; switch (bar) { case true: throw new (Error("statement test 1")); break; default: throw new (Error("statement test 2")); } return temp; }();'
 test """
 for foo, bar of baz
   do (foo, bar) ->
     print foo + bar
-""", 'var _obj, bar; _obj = baz; for(foo in _obj){bar = _obj[foo]; (function(foo,bar) {return print((foo + bar))})(foo,bar)}'
-###
-test """
-for tag in coffeemugg.tags.concat(coffeemugg.self_closing)
-  do (tag) =>
-    this::[tag] = ->
-      this.render_tag(tag, arguments)
-                                                                                                                                                                                                                                                                 
-esc: (txt) ->
-  if @autoescape then @h(txt) else txt
-""", ''
-###
+""", 'var _obj, bar; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); })(foo, bar); }'

@@ -78,9 +78,9 @@ uglify = require 'uglify-js'
 } = require 'sembly/src/joescript'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 
-js = (obj) ->
+js = (obj, options) ->
   try
-    obj.toJavascript()
+    obj.toJavascript(options)
   catch error
     console.log error
     console.log obj.serialize()
@@ -210,7 +210,7 @@ if yes
         else
           @lines[i] = line.toJSNode($, {toValue,inject})
       @
-    toJavascript: ->
+    toJavascript: ({withCommas}={}) ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
         lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.toKeyString()).join(', ')}"), @lines...]
       else
@@ -218,7 +218,8 @@ if yes
       if @isValue and @lines.length > 1
         "(function(){#{(js(line) for line in lines).join '; '}})()"
       else
-        (js(line) for line in lines).join ';\n'
+        delim = if withCommas then ', ' else ';\n'
+        (js(line) for line in lines).join delim
     makeValue: ($, makeValue=yes) ->
       if makeValue
         return @toJSNode($, {toValue:yes,inject:(value) ->
@@ -283,7 +284,7 @@ if yes
     toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
   joe.JSForC::extend
-    toJavascript: -> "for(#{js @setup, ... }; #{js @cond}; #{js @counter}){#{js @block}}"
+    toJavascript: -> "for(#{js @setup, withCommas:yes}; #{js @cond}; #{js @counter, withCommas:yes}){#{js @block}}"
 
   joe.JSForK::extend
     toJavascript: -> "for(#{js @key} in #{js @obj}){#{js @block}}"
@@ -702,5 +703,5 @@ if yes
     console.log red "#{error.stack ? error}\njs_raw:#{js_raw}"
     return
   js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
-  console.log green js_pretty[14...-4]
+  #console.log green js_pretty[14...-4]
   return js_pretty[14...-4]

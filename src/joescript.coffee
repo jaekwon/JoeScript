@@ -129,7 +129,7 @@ Index = clazz 'Index', Node, ->
       if key?
         obj = Index obj:obj, key:'prototype', type:'.'
       else
-        key = 'prototype'
+        key = Word('prototype')
       type = '.'
     @obj = obj
     @key = key
