@@ -149,9 +149,15 @@ Obj = clazz 'Obj', Node, ->
   # NOTE Items may contain Heredocs.
   # TODO consider filtering them out or organizing the heredocs
   init: (@items) ->
+  validate: ->
+    Node::validate.call @
+    for item in @items then item.validateObjItem()
   toString: -> "{#{if @items? then @items.join ',' else ''}}"
 
 Arr = clazz 'Arr', Obj, ->
+  validate: ->
+    Node::validate.call @
+    for item in @items then item.validateArrItem()
   toString: -> "[#{if @items? then @items.join ',' else ''}]"
 
 # For arrays and invocation parameters, the key is left undefined.
@@ -159,6 +165,8 @@ Arr = clazz 'Arr', Obj, ->
 # e.g. {foo} is equivalent to {foo:foo}
 Item = clazz 'Item', Node, ->
   init: ({@key, @value, @splat}) ->
+  validateObjItem: ->
+    if not @key? then throw new Error "<Item>.key must be defined for an Obj"
   toString: ->
     "#{ if @key?              then @key         else ''
     }#{ if @key? and @value?  then ':'          else ''
@@ -225,10 +233,6 @@ AssignObj = clazz 'AssignObj', Node, ->
 
 AssignList = clazz 'AssignList', AssignObj, ->
   init: (@items) ->
-    # need to consider splats.
-    # TODO
-    for item in @items
-      throw new Error "Implement me" if item.splat
   toString: (braces=yes) ->
     "#{ if braces  then '['             else ''
     }#{ if @items? then @items.join ',' else ''
@@ -237,7 +241,7 @@ AssignList = clazz 'AssignList', AssignObj, ->
 # For AssignLists and function parameters the key is left undefined.
 # For AssignObjs, the key is always defined, and the target is optional.
 AssignItem = clazz 'AssignItem', Node, ->
-  init: ({@key, @target, @default}) ->
+  init: ({@key, @target, @default, @splat}) ->
   toString: ->
     "#{ if @key?              then @key         else ''
     }#{ if @key? and @target? then ':'          else ''

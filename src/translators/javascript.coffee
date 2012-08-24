@@ -60,11 +60,6 @@
   Notice that a return statement was injected into multiple values.
   Sometimes you want to inject an invocation, as when translating Loops.
 
-  NOTE: Consider the impact of always "injecting", which may lead to bloat.
-    It would be nice to have some other mechanisms, like injecting assignments
-    into a temp var, and injecting a statement or invocation only to the temp var
-    in the last line of a block, as necessary... I dunno.
-
 ###
 
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
