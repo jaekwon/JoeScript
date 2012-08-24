@@ -149,24 +149,26 @@ Obj = clazz 'Obj', Node, ->
   # NOTE Items may contain Heredocs.
   # TODO consider filtering them out or organizing the heredocs
   init: (@items) ->
+  toString: -> "{#{if @items? then @items.join ',' else ''}}"
   validate: ->
     Node::validate.call @
-    for item in @items then item.validateObjItem()
-  toString: -> "{#{if @items? then @items.join ',' else ''}}"
+    if @items? then for item in @items when item instanceof Item
+      if not item.key?  then throw new Error "<Item>.key must be defined for an Obj #{item}"
+      if item.splat     then throw new Error "<Item> can't have splat for an Obj"
 
 Arr = clazz 'Arr', Obj, ->
+  toString: -> "[#{if @items? then @items.join ',' else ''}]"
   validate: ->
     Node::validate.call @
-    for item in @items then item.validateArrItem()
-  toString: -> "[#{if @items? then @items.join ',' else ''}]"
+    if @items? then for item in @items when item instanceof Item
+      if item.key?      then throw new Error "<Item>.key must NOT be defined for an Arr"
+    # TODO ensure that only one has a splat
 
 # For arrays and invocation parameters, the key is left undefined.
 # For objects, the key is always defined, and the value is optional.
 # e.g. {foo} is equivalent to {foo:foo}
 Item = clazz 'Item', Node, ->
   init: ({@key, @value, @splat}) ->
-  validateObjItem: ->
-    if not @key? then throw new Error "<Item>.key must be defined for an Obj"
   toString: ->
     "#{ if @key?              then @key         else ''
     }#{ if @key? and @value?  then ':'          else ''
