@@ -283,7 +283,7 @@ if yes
     toJavascript: -> "while(#{js @cond}) {#{js @block}}"
 
   joe.JSForC::extend
-    toJavascript: -> "#{js @setup}; for(;#{js @cond};#{js @counter}){#{js @block}}"
+    toJavascript: -> "for(#{js @setup, ... }; #{js @cond}; #{js @counter}){#{js @block}}"
 
   joe.JSForK::extend
     toJavascript: -> "for(#{js @key} in #{js @obj}){#{js @block}}"
@@ -696,7 +696,11 @@ if yes
   node.validate()
   #return node.toJavascript()
   js_raw = node.toJavascript()
-  js_ast = uglify.parser.parse("(function(){#{js_raw}})")
+  try
+    js_ast = uglify.parser.parse("(function(){#{js_raw}})")
+  catch error
+    console.log red "#{error.stack ? error}\njs_raw:#{js_raw}"
+    return
   js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
   console.log green js_pretty[14...-4]
   return js_pretty[14...-4]

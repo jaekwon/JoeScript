@@ -48,45 +48,46 @@ test """
     return if a > 2
     a += 1
 """, 'var a, b, accum; a = 1; b = function() { accum = []; while (true) { if (a > 2) { return; } accum.push(a = a + 1); } return accum; }();'
-test """if true then 1 + 1 else 2 + 2""", 'if(true) { (1 + 1) } else { (2 + 2) }'
+test """if true then 1 + 1 else 2 + 2""", 'if (true) { 1 + 1; } else { 2 + 2; }'
 test """
 if true
   1 + 1
   b = 2
   2
-""", 'var b; if(true) { (1 + 1); b = 2; 2 }'
-test """1 + 1""", '(1 + 1)'
+""", 'var b; if (true) { 1 + 1; b = 2; 2; }'
+test """1 + 1""", '1 + 1;'
 test """
 if 1
   2
 else
-  3""", 'if(1) { 2 } else { 3 }'
+  3""", 'if (1) { 2; } else { 3; }'
 test """
 foo =
   if 1
     2
   else
-    3""", 'var foo; foo = (1 ? 2 : 3)'
-test """(a) -> return a""", '(function(a) { return a })'
-test """(b) -> b""", '(function(b) { return b })'
-test """(a) -> if true then a""", '(function(a) { if(true) { return a } })'
-test """(a) -> if true then a else b""", '(function(a) { if(true) { return a } else { return b } })'
-test """foo is bar""", '(foo === bar)'
-test """if foo is bar then 'foo is bar'""", 'if((foo === bar)) { \"foo is bar\" }'
+    3""", 'var foo; foo = 1 ? 2 : 3;'
+test """(a) -> return a""", '(function(a) { return a; });'
+test """(b) -> b""", '(function(b) { return b; });'
+test """(a) -> if true then a""", '(function(a) { if(true) { return a; } });'
+test """(a) -> if true then a else b""", '(function(a) { if(true) { return a; } else { return b; } });'
+test """foo is bar""", 'foo === bar;'
+test """if foo is bar then 'foo is bar'""", 'if(foo === bar) { \"foo is bar\"; }'
 test """
-foo = bar
-if res is null
-  break
-  results.push res
-""", 'var foo; foo = bar; if((res === null)) { break; results.push(res) }'
+loop
+  foo = bar
+  if res is null
+    break
+    results.push res
+""", 'var foo; while (true) { foo = bar; if (res === null) { break; results.push(res); } }'
 test """
 loop
   a = b
-""", 'var a; while(true) { a = b }'
+""", 'var a; while(true) { a = b; }'
 test """
 ({foo,bar}) -> foo+bar
-""", """(function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return (foo + bar)})"""
-test " foo = {bar, baz} ", 'var foo; foo = {bar: bar, baz: baz}'
+""", """(function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return foo + bar;});"""
+test " foo = {bar, baz} ", 'var foo; foo = {bar: bar, baz: baz};'
 test """
 temp = {foo:1, bar:2}
 {foo,bar} = temp
@@ -96,7 +97,7 @@ var temp, foo, bar;
 temp = {foo: 1, bar: 2};
 foo = temp.foo;
 bar = temp.bar;
-(foo + bar)"""
+foo + bar;"""
 test """
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
