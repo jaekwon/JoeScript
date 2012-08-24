@@ -23,10 +23,10 @@ test = (requires, cb) ->
   console.log "#{red "test #{counter++}"}: #{inspect requires}"
   if typeof requires is 'string'
     dir = requires
-    requires = [{name:dir, path:'tests/jscompile/'+dir+'/**.coffee'}]
+    requires = [{name:'', path:'tests/jscompile/'+dir+'/**.coffee'}]
   source = demodule requires, {
     compilers:  compilers,
-    main:       {name:'MAIN', module:dir+'/main'},
+    main:       {name:'MAIN', module:'main'},
     globalSetupCode: 'return MAIN;'
   }
   try

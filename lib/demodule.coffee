@@ -2,6 +2,8 @@ require 'sugar'
 assert = require 'assert'
 findit = require 'findit'
 
+compact = (array) -> item for item in array when item
+
 # modules:    An array of {name:MODULE, path:PATH},
 #             MODULE is a string that represents a module name.
 #             E.g. you would require(MODULE) to import a module.
@@ -32,12 +34,13 @@ module.exports = (modules, options) ->
         continue if not suffix
         continue if suffixFilter and suffix isnt suffixFilter
         relpath = filename[dirpath.length...]
+        relpath = relpath[1..] if relpath.startsWith '/'
         if relpath is 'index'
-          modulename = name
+          modulename = name or 'index'
         else if relpath.endsWith '/index'
-          modulename = name+relpath[...-6]
+          modulename = compact([name, relpath[...-6]]).join('/')
         else
-          modulename = name+relpath
+          modulename = compact([name, relpath]).join('/')
         compiler = compilers[suffix]
         continue if not compiler
         toCompile.push {file:filepath, fn:compiler, name:modulename}

@@ -1,16 +1,12 @@
 if window?
   coffeemugg = window.CoffeeMug = {}
   coffee = if CoffeeScript? then CoffeeScript else null
-  logger = {
-    debug: (msg) -> console.log "debug: #{msg}"
-    info:  (msg) -> console.log "info: #{msg}"
-    warn:  (msg) -> console.log "warn: #{msg}"
-    error: (msg) -> console.log "error: #{msg}"
-  }
 else
   coffeemugg = exports
-  logger = require('nogg').logger('coffeemugg')
-  coffee = require 'coffee-script'
+  try
+    coffee = require 'coffee-script'
+  catch
+    coffee = null
 
 coffeemugg.version = '0.0.2'
 

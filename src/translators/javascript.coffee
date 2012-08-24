@@ -79,11 +79,12 @@ uglify = require 'uglify-js'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 
 js = (obj, options) ->
+  return '' if not obj?
   try
     obj.toJavascript(options)
   catch error
     console.log error
-    console.log obj.serialize()
+    console.log "serialize:", obj?.serialize?()
     throw error
 identity = (x) -> x
 mark = identity
@@ -252,9 +253,11 @@ if yes
       if toValue or inject
         target = joe.Undetermined('temp')
         @block = @block.toJSNode($, inject:(value) -> joe.Assign({target, value}))
+        @catchVar = @catchVar ? joe.Undetermined('err')
         @catch = @catch?.toJSNode($, inject:(value) -> joe.Assign({target, value}))
         return joe.Block([this, target.toJSNode($, {toValue,inject})]).makeValue($, toValue or no)
       else
+        @catchVar = @catchVar ? joe.Undetermined('err')
         return @childrenToJSNode($)
     toJavascript: -> "try {#{js @block}}#{
       (@catchVar? or @catch?) and " catch(#{js(@catchVar) or ''}) {#{js @catch}}" or ''}#{
@@ -700,7 +703,7 @@ if yes
   try
     js_ast = uglify.parser.parse("(function(){#{js_raw}})")
   catch error
-    console.log red "#{error.stack ? error}\njs_raw:#{js_raw}"
+    console.log red "Error in uglify.parser.parse(): #{error.stack ? error}\njs_raw:#{js_raw}"
     return
   js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
   #console.log green js_pretty[14...-4]
