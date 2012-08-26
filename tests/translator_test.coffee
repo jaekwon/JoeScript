@@ -48,7 +48,7 @@ test """
   b = loop
     return if a > 2
     a += 1
-""", 'var a, b, accum; a = 1; b = function() { accum = []; while (true) { if (a > 2) { return; } accum.push(a = a + 1); } return accum; }();'
+""", 'var a, b; a = 1; b = function() { var accum; accum = []; while (true) { if (a > 2) { return; } accum.push(a = a + 1); } return accum; }();'
 test """if true then 1 + 1 else 2 + 2""", 'if (true) { 1 + 1; } else { 2 + 2; }'
 test """
 if true
@@ -156,9 +156,14 @@ foo = switch bar
     throw new Error "statement test 1"
   else
     throw new Error "statement test 2"
-""", 'var foo, temp; foo = function() { temp = undefined; switch (bar) { case true: throw new (Error("statement test 1")); break; default: throw new (Error("statement test 2")); } return temp; }();'
+""", 'var foo; foo = function() { var temp; temp = undefined; switch (bar) { case true: throw new (Error("statement test 1")); break; default: throw new (Error("statement test 2")); } return temp; }();'
 test """
 for foo, bar of baz
   do (foo, bar) ->
     print foo + bar
 """, 'var _obj, bar; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); })(foo, bar); }'
+# splats...
+test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
+test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? something.slice(1) : [];'
+test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = (3 <= something.length ? something.slice(1, _i = something.length - 1) : _i = 1, []); baz = something[_i++];'
+test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = (5 <= something.length ? something.slice(2, _i = something.length - 2) : _i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'

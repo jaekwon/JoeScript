@@ -567,7 +567,7 @@ _loopStack = [] # trace stack
     # TODO refactor into translation passes.
     # Merge Choices with just a single choice.
     @walk
-      pre: (node, parent, key, desc, key2) =>
+      pre: (node, parent, desc, key, key2) =>
         if node instanceof Choice and node.choices.length is 1
           # Merge label
           node.choices[0].label ?= node.label

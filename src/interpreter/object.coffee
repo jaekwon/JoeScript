@@ -177,14 +177,14 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     if func instanceof joe.Func
       @func = func
       assert.ok func._origin.code?, "JBoundFunc::__init__ wants func._origin.code"
-      @data.__code__ =  func._origin.code
+      @data.__code__  = func._origin.code
       @data.__start__ = func._origin.start.pos
-      @data.__end__ =   func._origin.end.pos
+      @data.__end__   = func._origin.end.pos
     # Convenient for creating functions procedurally
     else if typeof func is 'string'
-      @data.__code__ =  func
+      @data.__code__  = func
       @data.__start__ = 0
-      @data.__end__ =   func.length
+      @data.__end__   = func.length
     # Will get set later
     else if func is null
       'dontcare'

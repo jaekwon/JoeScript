@@ -66,7 +66,7 @@ assert    = require 'assert'
       return this
     determine: ->
       that = this
-      @withChildren (child, parent, key, desc, index) ->
+      @withChildren (child, parent, desc, key, index) ->
         if child instanceof joe.Undetermined
           child.determine()
           if index?
@@ -83,7 +83,7 @@ assert    = require 'assert'
       if @catchVar? and @catchBlock?
         @catchBlock.installScope(create:yes, parent:this)
         @catchBlock.scope.declareVariable(@catchVar)
-      @withChildren (child, parent, key) ->
+      @withChildren (child, parent, desc, key, index) ->
         child.installScope?(create:no, parent:parent) unless key is 'catchBlock'
       return this
 
@@ -92,7 +92,7 @@ assert    = require 'assert'
       init @, options
       @block.installScope(create:yes, parent:this) if @block?
       @block.scope.declareVariable(name, yes) for name in @params?.targetNames||[]
-      @withChildren (child, parent, key) ->
+      @withChildren (child, parent, desc, key, index) ->
         child.installScope?(create:no, parent:parent) unless key is 'block'
       return this
 
@@ -100,7 +100,7 @@ assert    = require 'assert'
     installScope: (options={}) ->
       init @, options
       @scope.ensureVariable(@target) if isVariable(@target) and not @op?
-      @withChildren (child, parent) ->
+      @withChildren (child, parent, desc, key, index) ->
         child.installScope?(create:no, parent:parent)
       return this
 
