@@ -68,7 +68,7 @@ validateDescriptor = (nodeClazz, desc) ->
     walk: ({pre, post}, parent=undefined, desc=undefined, key=undefined, key2=undefined) ->
       pre @, parent, desc, key, key2 if pre?
       @withChildren (child, parent, desc, key, key2) ->
-      child.walk {pre:pre, post:post}, parent, desc, key, key2 if child instanceof Node
+        child.walk {pre:pre, post:post}, parent, desc, key, key2 if child instanceof Node
       post @, parent, desc, key, key2 if post?
 
     # Validate types recursively for all children

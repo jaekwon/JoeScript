@@ -117,26 +117,19 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
     # must be lifted into a (function(){})() to be usable as a value.
     # This step isn't necessary for the interpreter,
     # since those non-expressions *are* expressions in JoeScript.
-    liftBlocks: ($) ->
-      context = {
-        isValue: yes
-      }
-      @walk
-        $pre: (node, parent, desc, key, index) ->
-          if node instanceof joe.Block and
-          # how do we determine whether block is...
-          # oh right, context....
-          #if desc.isValue
-          yes
-
-    ...
-    walk: ({pre_r, pre, post}, parent=undefined, desc=undefined, key=undefined, key2=undefined) ->
-      assert.ok not (pre_r? and pre?), "At most one of pre_r and pre should be defined"
-      pre @, parent, desc, key, key2 if pre?
+    liftBlocks: ($, {isValue}={}) ->
+      isValue ?= yes
+      # descend into children and work on them first.
       @withChildren (child, parent, desc, key, key2) ->
-      child.walk {pre:pre, post:post}, parent, desc, key, key2 if child instanceof Node
-      post @, parent, desc, key, key2 if post?
-
+        if child instanceof joe.Node
+          child_isValue = yes
+          if parent instanceof joe.Block and key2 is parent.lines.length-1
+            child_isValue = isValue
+          if parent instanceof joe.If and key in ['block', 'elseBlock']
+            child_isValue = isValue
+          else
+            child_isValue = desc.isValue or no
+      # Block should override this method and do something here.
 
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined. Why don't you define it?"
@@ -238,6 +231,7 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
       (for line, i in lines
         if i < lines.length-1 then js(line) else js(line, {isValue})).join delim
     makeValue: ($, makeValue=yes) ->
+      XXX this is deprecated
       if makeValue
         return joe.Invocation
           func: joe.Func
@@ -248,6 +242,8 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
           params: []
       else
         return @
+    liftBlocks: ($, {isValue}={}) ->
+      joe.Node::liftBlocks.call 
 
   joe.If::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
