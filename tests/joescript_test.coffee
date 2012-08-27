@@ -316,6 +316,22 @@ test """
 test """
 foo = (opts={}) -> opts
 """, 'foo = ((opts={})->{opts})'
+test """
+foo
+  .bar()
+  .baz()
+""", 'foo.bar().baz()'
+test """
+foo.
+  bar().
+  baz()
+""", 'foo.bar().baz()'
+test """
+foo.
+  bar().
+  baz()
+  .bak()
+""", 'foo.bar().baz().bak()'
 
 console.log blue "\n-= parse project files =-"
 

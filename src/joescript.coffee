@@ -566,7 +566,8 @@ checkColumn = (__, $) ->
       o SLICE:        " obj:VALUE range:RANGE ", (make Slice)
       o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", (make Index)
       o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", (make Index)
-      o INDEX1:       " obj:VALUE _SOFTLINE? type:'.'  key:WORD ", (make Index)
+      o INDEX1:       " obj:VALUE type:'.' _SOFTLINE?  key:WORD ", (make Index)
+      o INDEX2:       " obj:VALUE _SOFTLINE type:'.'   key:WORD ", (make Index)
       o DELETE1:      " obj:VALUE _SOFTLINE? type:'!' !__ key:WORD ", (make Index) # NEW foo.bar!baz  <=> delete foo.bar.baz
       o META:         " obj:VALUE _SOFTLINE? type:'?' !__ key:WORD ", (make Index) # NEW foo.bar?type <=> tyepof foo.bar
       o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", (make Index)

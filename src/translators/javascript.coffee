@@ -69,6 +69,7 @@ uglify = require 'uglify-js'
   HELPERS:{isVariable,isIndex}
 } = require 'sembly/src/joescript'
 {escape, compact, flatten} = require('sembly/lib/helpers')
+{setOn} = require('sembly/src/node')
 
 js = (obj, options) ->
   return '' if not obj?
@@ -87,8 +88,6 @@ if yes
     result = fn.apply(@, arguments)
     result.marked = yes
     return result
-
-setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key] = val
 
 @install = install = ->
   return if joe.Node::toJSNode? # already defined.
@@ -117,19 +116,21 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
     # must be lifted into a (function(){})() to be usable as a value.
     # This step isn't necessary for the interpreter,
     # since those non-expressions *are* expressions in JoeScript.
-    liftBlocks: ($, {isValue}={}) ->
+    liftBlocks: ($, ptr, {isValue}={}) ->
       isValue ?= yes
       # descend into children and work on them first.
-      @withChildren (child, parent, desc, key, key2) ->
+      @withChildren (child, parent, desc, key, index) ->
         if child instanceof joe.Node
           child_isValue = yes
-          if parent instanceof joe.Block and key2 is parent.lines.length-1
+          if parent instanceof joe.Block and index is parent.lines.length-1
             child_isValue = isValue
           if parent instanceof joe.If and key in ['block', 'elseBlock']
             child_isValue = isValue
           else
             child_isValue = desc.isValue or no
+          child.liftBlocks($, {child,parent,desc,key,index}, {isValue:child_isValue})
       # Block should override this method and do something here.
+      @
 
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined. Why don't you define it?"
@@ -230,20 +231,18 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
       delim = if withCommas then ', ' else ';\n'
       (for line, i in lines
         if i < lines.length-1 then js(line) else js(line, {isValue})).join delim
-    makeValue: ($, makeValue=yes) ->
-      XXX this is deprecated
-      if makeValue
-        return joe.Invocation
+    liftBlocks: ($, ptr, {isValue}={}) ->
+      joe.Node::liftBlocks.call @, $, {isValue}
+      if isValue
+        lifted = joe.Invocation
           func: joe.Func
             type:  '->'
             block: @toJSNode($, {toValue:yes,inject:(value) ->
                 joe.Statement(type:'return', expr:value)
               })
           params: []
-      else
-        return @
-    liftBlocks: ($, {isValue}={}) ->
-      joe.Node::liftBlocks.call 
+        setOn ptr, lifted
+      @
 
   joe.If::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
@@ -270,7 +269,7 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
         @block = @block.toJSNode($, inject:(value) -> joe.Assign({target, value}))
         @catchVar = @catchVar ? joe.Undetermined('err')
         @catch = @catch?.toJSNode($, inject:(value) -> joe.Assign({target, value}))
-        return joe.Block([this, target.toJSNode($, {toValue,inject})]).makeValue($, toValue or no)
+        return joe.Block([this, target.toJSNode($, {toValue,inject})])
       else
         @catchVar = @catchVar ? joe.Undetermined('err')
         return @childrenToJSNode($)
@@ -296,7 +295,7 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
         lines.push this
         # <Variable>
         lines.push target.toJSNode($, {toValue,inject})
-        return joe.Block(lines).makeValue($, toValue or no)
+        return joe.Block(lines)
       else
         return @childrenToJSNode($)
     toJavascript: -> "while(#{js @cond, isValue:yes}) {#{js @block}}"
@@ -408,7 +407,7 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
         lines.push this
         # <Variable>
         lines.push target.toJSNode($, {toValue,inject})
-        return joe.Block(lines).makeValue($, toValue or no)
+        return joe.Block(lines)
       else
         return @childrenToJSNode($)
     toJavascript: ->
@@ -470,7 +469,7 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
           lines.push joe.Assign target:valueVar, value:@value.toJSNode($, toValue:yes)
         @target.destructLines lines, valueVar
         lines.push valueVar.toJSNode($, {toValue,inject}) if toValue or inject
-        return joe.Block(lines).makeValue($, toValue or no)
+        return joe.Block(lines)
       else if @op?
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
@@ -772,8 +771,12 @@ setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key
 @translate = translate = (node,$=undefined) ->
   node.validate()
   install()
-  node = node.toJSNode($).installScope().determine()
-  node.validate()
+  node = node.
+    toJSNode($).
+    liftBlocks($).
+    installScope().
+    determine().
+    validate()
   #return node.toJavascript()
   js_raw = node.toJavascript()
   try

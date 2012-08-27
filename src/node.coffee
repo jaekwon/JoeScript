@@ -9,7 +9,7 @@ assert    = require 'assert'
 
 indent = (c) -> Array(c+1).join('  ')
 
-setOn = (obj, val, key, key2) -> if key2? then obj[key][key2] = val else obj[key] = val
+@setOn = ({parent:obj, key, index}, value) -> if index? then obj[key][index] = value else obj[key] = value
 
 validateDescriptor = (nodeClazz, desc) ->
   if Object::hasOwnProperty(desc, 'type')
@@ -79,6 +79,7 @@ validateDescriptor = (nodeClazz, desc) ->
         throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}, start:#{inspect parent._origin?.start}): #{error}" if error?
         child.validate() if child instanceof Node
       , skipUndefined:no
+      @
 
     serialize: (filter, _indent=0) ->
       if filter is undefined # sensible default filter to avoid infinite recursion
