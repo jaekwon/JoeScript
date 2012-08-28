@@ -56,6 +56,7 @@ Unless = ({cond, block, _else}) -> If cond:Not(cond), block:block, else:_else
 
 Loop = clazz 'Loop', Node, ->
   init: ({@label, @cond, @block}) -> @cond ?= true
+  isJSValue: no
   toString: -> "while(#{@cond}){#{@block}}"
 
 For = clazz 'For', Loop, ->
@@ -77,10 +78,12 @@ JSForK = clazz 'JSForK', Loop, ->
 
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
+  isJSValue: no
   toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
 
 Try = clazz 'Try', Node, ->
   init: ({@block, @catchVar, @catch, @finally}) ->
+  isJSValue: no
   toString: -> "try {#{@block}}#{
                 (@catchVar? or @catch?) and " catch (#{@catchVar or ''}) {#{@catch}}" or ''}#{
                 @finally and "finally {#{@finally}}" or ''}"
@@ -99,6 +102,8 @@ Not = (it) -> Operation op:'not', right:it
 
 Statement = clazz 'Statement', Node, ->
   init: ({@type, @expr}) ->
+  isJSValue: no
+  isReturn$: get: -> @type is 'return'
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
@@ -300,7 +305,7 @@ JSForK.defineChildren # extends Loop
 Switch.defineChildren
   obj:        {type:EXPR, isValue:yes, required:yes}
   cases:      {type:[type:Case]}
-  default:    {type:EXPR, isValue:yes}
+  default:    {type:EXPR}
 Try.defineChildren
   block:      {type:Node, required:yes}
   catchVar:   {type:Word}

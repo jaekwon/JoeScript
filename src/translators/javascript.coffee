@@ -116,11 +116,11 @@ if yes
     walkWithContext: ($, {pre, post}, ptr=undefined, {isValue}={}) ->
       isValue ?= no
       ptr ?= {child:@}
-      pre ptr, {isValue} if pre?
+      stop = pre ptr, {isValue} if pre?
+      return ptr.child if stop is '__stop__'
       ptr.child.withChildren (ptr) ->
         {child, parent, desc, key, index} = ptr
         if child instanceof joe.Node
-          child_isValue = yes
           if parent instanceof joe.Block and index is parent.lines.length-1
             child_isValue = isValue
           if parent instanceof joe.If and key in ['block', 'elseBlock']
@@ -131,14 +131,32 @@ if yes
       post ptr, {isValue} if post?
       return ptr.child
 
+    # A block in javascript that includes a non-js-expression (e.g. switch, try, loops...)
+    # must be lifted into a (function(){})() to be usable as a value.
+    # This step isn't necessary for the interpreter,
+    # since those non-js-expressions *are* expressions in JoeScript.
     liftBlocks: ($) ->
       # Assert that none of the blocks which are values include statements.
-      @walkWithContext $, pre:({child}, {isValue}) ->
+      return @walkWithContext $, pre:(ptr, {isValue}) ->
+        {child} = ptr
         if isValue and child instanceof joe.Block
           block = child
+          # Assert that value blocks do not contain return statements.
+          # TODO move this assertion to a separate step.
           block.walk pre:({child}) ->
-            assert.ok child not instanceof joe.Statement, "Block value had statement: #{block}"
-      return @
+            return '__stop__' if child instanceof joe.Func
+            assert.ok not child.isReturn, "Value (block) cannot contain a return statement:\n#{block}"
+          # replace child with an invocation if block includes a non-js-expression
+          if block.lines.any((line) -> line.isJSValue is no)
+            lifted = joe.Invocation
+              func: joe.Func
+                type:  '->'
+                block: block.toJSNode($, {inject:(value) ->
+                    joe.Statement(type:'return', expr:value)
+                  })
+              params: []
+            setOn ptr, lifted
+        return
 
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined. Why don't you define it?"
@@ -240,28 +258,11 @@ if yes
       (for line, i in lines
         if i < lines.length-1 then js(line) else js(line, {isValue})).join delim
 
-    # A block in javascript that includes a non-expression (e.g. switch, try,...)
-    # must be lifted into a (function(){})() to be usable as a value.
-    # This step isn't necessary for the interpreter,
-    # since those non-expressions *are* expressions in JoeScript.
-    _liftBlocks: ($, ptr, {isValue}={}) ->
-      joe.Node::liftBlocks.call @, $, {isValue}
-      if isValue
-        lifted = joe.Invocation
-          func: joe.Func
-            type:  '->'
-            block: @toJSNode($, {toValue:yes,inject:(value) ->
-                joe.Statement(type:'return', expr:value)
-              })
-          params: []
-        setOn ptr, lifted
-      @
-
   joe.If::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
-      @cond = @cond.toJSNode($, toValue:yes)
+      @cond  = @cond.toJSNode  $, {toValue:yes}
       @block = @block.toJSNode $, {toValue,inject}
-      @else = @else?.toJSNode $, {toValue,inject} if @else?
+      @else  = @else?.toJSNode $, {toValue,inject}
       @
     toJavascript: ({isValue}={}) ->
       if isValue
@@ -279,9 +280,9 @@ if yes
     toJSNode: mark ($, {toValue,inject}={}) ->
       if toValue or inject
         target = joe.Undetermined('temp')
-        @block = @block.toJSNode($, inject:(value) -> joe.Assign({target, value}))
-        @catchVar = @catchVar ? joe.Undetermined('err')
+        @block = @block.toJSNode( $, inject:(value) -> joe.Assign({target, value}))
         @catch = @catch?.toJSNode($, inject:(value) -> joe.Assign({target, value}))
+        @catchVar = @catchVar ? joe.Undetermined('err')
         return joe.Block([this, target.toJSNode($, {toValue,inject})])
       else
         @catchVar = @catchVar ? joe.Undetermined('err')

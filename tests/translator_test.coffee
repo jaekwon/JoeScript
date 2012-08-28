@@ -33,22 +33,22 @@ test "foo::[bar] = baz", 'foo.prototype[bar] = baz;'
 test """
 a = 1
 loop
-  return if a > 2
+  break if a > 2
   a += 1
 print a
-""", 'var a; a = 1; while (true) { if (a > 2) { return; } a = a + 1; } print(a);'
+""", 'var a; a = 1; while (true) { if (a > 2) { break; } a = a + 1; } print(a);'
 test """
 a = 1
 loop
-  return if a > 2
+  break if a > 2
   a += 1
-""", 'var a; a = 1; while (true) { if (a > 2) { return; } a = a + 1; }'
+""", 'var a; a = 1; while (true) { if (a > 2) { break; } a = a + 1; }'
 test """
   a = 1
   b = loop
-    return if a > 2
+    break if a > 2
     a += 1
-""", 'var a, b; a = 1; b = function() { var accum; accum = []; while (true) { if (a > 2) { return; } accum.push(a = a + 1); } return accum; }();'
+""", 'var a, b; a = 1; b = function() { var accum; accum = []; while (true) { if (a > 2) { break; } accum.push(a = a + 1); } return accum; }();'
 test """if true then 1 + 1 else 2 + 2""", 'if (true) { 1 + 1; } else { 2 + 2; }'
 test """
 if true
@@ -167,3 +167,112 @@ test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = someth
 test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? something.slice(1) : [];'
 test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = (3 <= something.length ? something.slice(1, _i = something.length - 1) : _i = 1, []); baz = something[_i++];'
 test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = (5 <= something.length ? something.slice(2, _i = something.length - 2) : _i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'
+# lifted blocks
+test """
+foo = loop
+  bar()
+""", 'var foo; foo = function() { var accum; accum = []; while (true) { accum.push(bar()); } return accum; }();'
+test """
+foo =
+  loop
+    loop
+      1
+""", 'var foo; foo = function() { var accum, accum; accum = []; while (true) { accum = []; while (true) { accum.push(1); } accum.push(accum); } return accum; }();'
+test """
+foo =
+  switch bar
+    when yes
+      2
+    else
+      3
+""", 'var foo; foo = function() { var temp; temp = undefined; switch (bar) { case true: temp = 2; break; default: temp = 3; } return temp; }();'
+test """
+foo =
+  loop
+    bar =
+      loop
+        1
+    bar + bar
+""", 'var foo; foo = function() { var accum, bar; accum = []; while (true) { bar = function() { var accum; accum = []; while (true) { accum.push(1); } return accum; }(); accum.push(bar + bar); } return accum; }();'
+test """
+foo = loop
+  if true
+    break
+  2
+""", 'var foo; foo = function() { var accum; accum = []; while (true) { if (true) { break; } accum.push(2); } return accum; }();'
+test """
+foo =
+  switch bar
+    when yes
+      switch baz
+        when yes
+          bak
+""", """
+var foo;
+foo = function() {
+  var temp, temp;
+  temp = undefined;
+  switch (bar) {
+    case true:
+      temp = undefined;
+      switch (baz) {
+        case true:
+          temp = bak;
+          break;
+        default:
+          undefined;
+      }
+      temp = temp;
+      break;
+    default:
+      undefined;
+  }
+  return temp;
+}();"""
+test """
+foo =
+  switch bar
+    when yes
+      blah = switch baz
+        when yes
+          bak
+        else
+          foo = ->
+            bar = loop
+              1
+""", """
+var foo;
+foo = function() {
+  var temp, blah;
+  temp = undefined;
+  switch (bar) {
+    case true:
+      blah = function() {
+        var temp;
+        temp = undefined;
+        switch (baz) {
+          case true:
+            temp = bak;
+            break;
+          default:
+            foo = function() {
+              var bar;
+              bar = function() {
+                var accum;
+                accum = [];
+                while (true) {
+                  accum.push(1);
+                }
+                return accum;
+              }();
+            };
+        }
+        return temp;
+      }();
+      break;
+    default:
+      undefined;
+  }
+  return temp;
+}();
+"""

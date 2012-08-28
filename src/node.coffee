@@ -72,7 +72,8 @@ validateDescriptor = (nodeClazz, desc) ->
     # 2. Return the new node in a `$pre` hook, instead of a `pre` hook.
     walk: ({pre, post}, ptr=undefined) ->
       ptr ?= {child:@}
-      pre ptr if pre?
+      stop = pre ptr if pre?
+      return ptr.child if stop is '__stop__'
       @withChildren (ptr) ->
         ptr.child.walk {pre:pre, post:post}, ptr if ptr.child instanceof Node
       post ptr if post?
@@ -80,9 +81,10 @@ validateDescriptor = (nodeClazz, desc) ->
     # Validate types recursively for all children
     # TODO write some tests that test validation failure.
     validate: ->
+      root = @
       @withChildren ({child, parent, desc, key, index}) ->
         error = validateType child, desc
-        throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}, start:#{inspect parent._origin?.start}): #{error}" if error?
+        throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}, start:#{inspect parent._origin?.start}): #{error}\n#{root.serialize()}" if error?
         child.validate() if child instanceof Node
       , skipUndefined:no
       @
