@@ -105,21 +105,20 @@ if yes
     # Most of the time you want to do that manually.
     childrenToJSNode: ($) ->
       that = this
-      @withChildren (child, parent, desc, key, index) ->
+      @withChildren ({child, parent, desc, key, index}) ->
         if index?
           that[key][index] = child.toJSNode $, toValue:desc.isValue
         else
           that[key] = child.toJSNode $, toValue:desc.isValue
       @
 
-    # A block in javascript that includes a non-expression (e.g. switch, try,...)
-    # must be lifted into a (function(){})() to be usable as a value.
-    # This step isn't necessary for the interpreter,
-    # since those non-expressions *are* expressions in JoeScript.
-    liftBlocks: ($, ptr, {isValue}={}) ->
-      isValue ?= yes
-      # descend into children and work on them first.
-      @withChildren (child, parent, desc, key, index) ->
+    # 
+    walkWithContext: ($, {pre, post}, ptr=undefined, {isValue}={}) ->
+      isValue ?= no
+      ptr ?= {child:@}
+      pre ptr, {isValue} if pre?
+      ptr.child.withChildren (ptr) ->
+        {child, parent, desc, key, index} = ptr
         if child instanceof joe.Node
           child_isValue = yes
           if parent instanceof joe.Block and index is parent.lines.length-1
@@ -128,9 +127,18 @@ if yes
             child_isValue = isValue
           else
             child_isValue = desc.isValue or no
-          child.liftBlocks($, {child,parent,desc,key,index}, {isValue:child_isValue})
-      # Block should override this method and do something here.
-      @
+          child.walkWithContext($, {pre, post}, {child,parent,desc,key,index}, {isValue:child_isValue})
+      post ptr, {isValue} if post?
+      return ptr.child
+
+    liftBlocks: ($) ->
+      # Assert that none of the blocks which are values include statements.
+      @walkWithContext $, pre:({child}, {isValue}) ->
+        if isValue and child instanceof joe.Block
+          block = child
+          block.walk pre:({child}) ->
+            assert.ok child not instanceof joe.Statement, "Block value had statement: #{block}"
+      return @
 
     toJavascript: ->
       throw new Error "#{@constructor.name}.toJavascript not defined. Why don't you define it?"
@@ -231,7 +239,12 @@ if yes
       delim = if withCommas then ', ' else ';\n'
       (for line, i in lines
         if i < lines.length-1 then js(line) else js(line, {isValue})).join delim
-    liftBlocks: ($, ptr, {isValue}={}) ->
+
+    # A block in javascript that includes a non-expression (e.g. switch, try,...)
+    # must be lifted into a (function(){})() to be usable as a value.
+    # This step isn't necessary for the interpreter,
+    # since those non-expressions *are* expressions in JoeScript.
+    _liftBlocks: ($, ptr, {isValue}={}) ->
       joe.Node::liftBlocks.call @, $, {isValue}
       if isValue
         lifted = joe.Invocation

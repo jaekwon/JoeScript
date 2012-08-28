@@ -567,21 +567,21 @@ _loopStack = [] # trace stack
     # TODO refactor into translation passes.
     # Merge Choices with just a single choice.
     @walk
-      pre: (node, parent, desc, key, key2) =>
+      pre: ({child:node, parent, desc, key, index}) =>
         if node instanceof Choice and node.choices.length is 1
           # Merge label
           node.choices[0].label ?= node.label
           # Merge included rules
           Object.merge (node.choices[0].rules?={}), node.rules if node.rules?
           # Replace with grandchild
-          if key2?
-            parent[key][key2] = node.choices[0]
+          if index?
+            parent[key][index] = node.choices[0]
           else
             parent[key] = node.choices[0]
 
     # Connect all the nodes and collect dereferences into @rules
     @walk
-      pre: (node, parent) =>
+      pre: ({child:node, parent}) =>
         # sanity check
         if node.parent? and node isnt node.rule
           throw Error 'Grammar tree should be a DAG, nodes should not be referenced more than once.'
@@ -594,7 +594,7 @@ _loopStack = [] # trace stack
         # set node.rule, the root node for this rule
         else
           node.rule ||= parent?.rule
-      post: (node, parent) =>
+      post: ({child:node, parent}) =>
         if node is node.rule
           @rules[node.name] = node
           node.id = @numRules++
@@ -603,7 +603,7 @@ _loopStack = [] # trace stack
             console.log "#{red node.id}:\t#{node}"
 
     # Prepare all the nodes, child first.
-    @walk post: (node, parent) -> node.prepare()
+    @walk post: ({child:node, parent}) -> node.prepare()
 
   # MAIN GRAMMAR PARSE FUNCTION
   parse$: (code, {returnContext,env}={}) ->

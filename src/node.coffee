@@ -9,7 +9,13 @@ assert    = require 'assert'
 
 indent = (c) -> Array(c+1).join('  ')
 
-@setOn = ({parent:obj, key, index}, value) -> if index? then obj[key][index] = value else obj[key] = value
+@setOn = (ptr, value) ->
+  {parent, key, index} = ptr
+  if index?
+    ptr.child = parent[key][index] = value
+  else
+    ptr.child = parent[key] = value
+  ptr
 
 validateDescriptor = (nodeClazz, desc) ->
   if Object::hasOwnProperty(desc, 'type')
@@ -32,7 +38,7 @@ validateDescriptor = (nodeClazz, desc) ->
         @prototype.children = descriptors
     
     # Iterate cb function over all child keys
-    # cb:       (child, parent, descriptor, key, key2?) -> ...
+    # cb:       (child, parent, descriptor, key, index?) -> ...
     # options:
     #   skipUndefined:  (default yes) Skip over undefined or null children
     withChildren: (cb, options) ->
@@ -47,34 +53,34 @@ validateDescriptor = (nodeClazz, desc) ->
         else if desc.type instanceof Array
           assert.ok value instanceof Array, "Expected ( #{this} (#{this.constructor.name}) ).#{key} to be an Array but got #{value} (#{value?.constructor.name})"
           for item, i in value when item?
-            cb(item, this, desc.type[0], key, i)
+            cb({child:item, parent:this, desc:desc.type[0], key:key, index:i})
         # value is an object of value := desc.type.value
         else if desc.type instanceof Object and desc.type.value?
           for _key, _value of value when _value?
-            cb(_value, this, desc.type.value, key, _key)
+            cb({child:_value, parent:this, desc:desc.type.value, key:key, index:_key})
         else
           # all other cases
           if value? or not skipUndefined
-            cb(value, this, desc, key)
+            cb({child:value, parent:this, desc, key})
       return
 
     # Depth first walk of entire tree.
-    # parent, desc, key, key2: One-time use values for the root node.
     # pre, post: Hooks.
-    #            (child, parent, desc, key, key2?) -> for each child as described in @::children.
+    #            ({child, parent, desc, key, index?}) -> for each child as described in @::children.
     # To replace the child with some other node you have two options.
     # 1. Do it in the `post` hook. This is the last method, thus tail recursive, thus it just works.
     # 2. Return the new node in a `$pre` hook, instead of a `pre` hook.
-    walk: ({pre, post}, parent=undefined, desc=undefined, key=undefined, key2=undefined) ->
-      pre @, parent, desc, key, key2 if pre?
-      @withChildren (child, parent, desc, key, key2) ->
-        child.walk {pre:pre, post:post}, parent, desc, key, key2 if child instanceof Node
-      post @, parent, desc, key, key2 if post?
+    walk: ({pre, post}, ptr=undefined) ->
+      ptr ?= {child:@}
+      pre ptr if pre?
+      @withChildren (ptr) ->
+        ptr.child.walk {pre:pre, post:post}, ptr if ptr.child instanceof Node
+      post ptr if post?
 
     # Validate types recursively for all children
     # TODO write some tests that test validation failure.
     validate: ->
-      @withChildren (child, parent, desc, key) ->
+      @withChildren ({child, parent, desc, key, index}) ->
         error = validateType child, desc
         throw new Error "Error in validation {parent:#{parent.constructor.name}, key:#{key}, start:#{inspect parent._origin?.start}): #{error}" if error?
         child.validate() if child instanceof Node
@@ -101,8 +107,8 @@ validateDescriptor = (nodeClazz, desc) ->
       if @marked?
         valueStr += cyan ' marked'
       str = "#{green @constructor.name} #{valueStr}\n"
-      @withChildren (child, parent, desc, key, key2) ->
-        str += "#{indent _indent+1}#{red '@'+key}#{if key2? then red '['+key2+']' else ''}: " ##{blue inspect desc}\n"
+      @withChildren ({child, parent, desc, key, index}) ->
+        str += "#{indent _indent+1}#{red '@'+key}#{if index? then red '['+index+']' else ''}: " ##{blue inspect desc}\n"
         if child.serialize?
           str += "#{child.serialize(filter, _indent+1)}\n"
         else #if child.toString?
