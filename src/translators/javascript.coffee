@@ -684,19 +684,32 @@ if yes
   joe.Invocation::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
       return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      if @func instanceof joe.Word and @func.key is 'do' # do (...) -> ..
-        assert.ok @params.length is 1 and @params[0].value instanceof joe.Func, "Joescript `do` wants one function argument"
-        assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
-        @func = @params[0].value.toJSNode($, toValue:yes)
-        @params = @func.params.extractWords()
-        return (inject ? identity)(@)
-      else
-        @func = @func.toJSNode($, toValue:yes)
-        @binding = @binding?.toJSNode($, toValue:yes)
-        @params.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
-        return (inject ? identity)(@)
+      switch @func
+        when 'do'
+          assert.ok @params.length is 1 and @params[0].value instanceof joe.Func, "Joescript `do` wants one function argument"
+          assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
+          @func = @params[0].value.toJSNode($, toValue:yes)
+          @params = @func.params.extractWords()
+          return (inject ? identity)(@)
+        when 'in'
+          assert.ok @params.length is 2, "Joescript `in` wants two function arguments"
+          assert.ok @binding is undefined, "Joescript `in` cannot have a binding"
+          @func = joe.Word('__indexOf')
+          @binding = @params.pop().value.toJSNode($, toValue:yes)
+          return (inject ? identity)(joe.Operation(left:@, op:'>=', right:0))
+        when 'instanceof'
+          assert.ok @params.length is 2, "Joescript `instanceof` wants two function arguments"
+          assert.ok @binding is undefined, "Joescript `instanceof` cannot have a binding"
+          return (inject ? identity)(@)
+        else
+          @func = @func.toJSNode($, toValue:yes)
+          @binding = @binding?.toJSNode($, toValue:yes)
+          @params.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
+          return (inject ? identity)(@)
     toJavascript: ->
-      if @binding?
+      if @func is 'instanceof'
+        "(#{js @params[0].value}) instanceof (#{js @params[1].value})"
+      else if @binding?
         "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
       else
         "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"

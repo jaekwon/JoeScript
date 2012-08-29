@@ -9,5 +9,6 @@ static/sembly.min.js
 src/**/*.js
 src/*.js
 lib/*.js
-test/**/*.js
-test/*.js
+tests/**/*.js
+tests/jscompile/**/*.js
+tests/*.js

@@ -112,3 +112,9 @@ assert    = require 'assert'
         word = @prefix+'_$'+randid(4)+'$_'
         if not @scope.isDeclared(word) and not @scope.willDeclare(word)
           return @word=joe.Word(word)
+
+  joe.JSForK::extend
+    installScope: (options={}) ->
+      joe.Node::installScope options
+      @scope.ensureVariable(@key)
+      return @

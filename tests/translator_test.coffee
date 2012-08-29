@@ -108,9 +108,7 @@ Node = require('sembly/src/node').createNodeClazz('GrammarNode')
 {pad, escape} = require 'sembly/lib/helpers'
 [pad]
 """, -> deepEqual @it, [require('sembly/lib/helpers').pad]
-test """
-x+1 for x, i in [0..10]
-""", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
+test " x+1 for x, i in [0..10] ", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
 # soak tests
 test " bar? ", 'typeof bar !== "undefined" && bar !== null;'
 test " foo = bar? ", 'var foo; foo = typeof bar !== "undefined" && bar !== null;'
