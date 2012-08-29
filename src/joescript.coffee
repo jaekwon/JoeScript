@@ -107,10 +107,14 @@ Statement = clazz 'Statement', Node, ->
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
-  init: ({@func, @params}) ->
+  init: ({@func, @params, @binding}) ->
     @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
   soakable$: _soakable 'func'
-  toString: -> "#{@func}(#{@params ? ''})"
+  toString: ->
+    if @binding?
+      "#{@func}.call(#{@binding};#{@params ? ''})"
+    else
+      "#{@func}(#{@params ? ''})"
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
@@ -322,6 +326,7 @@ Statement.defineChildren
 Invocation.defineChildren
   func:       {type:EXPR, isValue:yes}
   params:     {type:[type:Item,isValue:yes]}
+  binding:    {type:EXPR, isValue:yes}
 Assign.defineChildren
   target:     {type:Node, required:yes}
   value:      {type:EXPR, isValue:yes, required:yes}

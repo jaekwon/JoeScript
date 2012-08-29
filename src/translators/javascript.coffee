@@ -556,7 +556,8 @@ if yes
               op: '<='
               right: joe.Index(obj:source, key:joe.Word('length'))
             block: joe.Invocation
-              func: joe.Index(obj:source, key:joe.Word('slice'))
+              func: joe.Word('__slice') # TODO reserved word?
+              binding: source
               params: compact [
                 joe.Item(value:numHeads),
                 if numTails
@@ -685,15 +686,20 @@ if yes
       return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
       if @func instanceof joe.Word and @func.key is 'do' # do (...) -> ..
         assert.ok @params.length is 1 and @params[0].value instanceof joe.Func, "Joescript `do` wants one function argument"
+        assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
         @func = @params[0].value.toJSNode($, toValue:yes)
         @params = @func.params.extractWords()
         return (inject ? identity)(@)
       else
         @func = @func.toJSNode($, toValue:yes)
+        @binding = @binding?.toJSNode($, toValue:yes)
         @params.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
         return (inject ? identity)(@)
     toJavascript: ->
-      "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"
+      if @binding?
+        "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
+      else
+        "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"
 
   joe.Index::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
@@ -731,6 +737,8 @@ if yes
       return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
       return joe.Invocation(
         func: joe.Index(obj:@obj, key:'slice', type:'.')
+        #func: joe.Word('__slice')
+        #binding: @obj
         params: [
           joe.Item(value:@range.from ? joe.Singleton.undefined),
           (if @range.to?
@@ -791,6 +799,34 @@ if yes
       else
         return cond
 
+HELPERS =
+  __bind: """
+    function(fn, me){
+      return function(){ return fn.apply(me, arguments); };
+    }
+  """.replace(/\s+/g, ' ')
+  __indexOf: """
+    [].indexOf || function(item) {
+      for (var i = 0, l = this.length; i < l; i++) {
+        if (i in this && this[i] === item) return i;
+      }
+      return -1;
+    }
+  """.replace(/\s+/g, ' ')
+  __hasProp: '{}.hasOwnProperty'
+  __slice: '[].slice'
+
+addHelpers = (js) ->
+  helpers = ''
+  for k, v of HELPERS
+    if js.indexOf(k) >= 0
+      helpers += ',' if helpers
+      helpers += "#{k}=#{v}"
+  if helpers
+    return "// helpers\n#{helpers};// end helpers\n\n#{js}"
+  else
+    return js
+
 @translate = translate = (node,$=undefined) ->
   node.validate()
   install()
@@ -802,6 +838,7 @@ if yes
     validate()
   #return node.toJavascript()
   js_raw = node.toJavascript()
+  js_raw = addHelpers js_raw unless $?.includeHelpers is no
   try
     js_ast = uglify.parser.parse("(function(){#{js_raw}})")
   catch error

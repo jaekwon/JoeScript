@@ -357,12 +357,22 @@ joe.Invocation::extend
     unless bfunc instanceof JBoundFunc or bfunc instanceof Function
       return $.throw 'TypeError', "#{@func} is not callable"
     i9n.invokedFunction = bfunc
-    i9n.func = joe.Invocation::interpretParams
+    if i9n.indexObj?
+      i9n.binding = i9n.indexObj
+      i9n.func = joe.Invocation::interpretParams
+    else if @binding?
+      i9n.func = joe.Invocation::interpretBinding
+      $.pushValue(@binding)
+    else
+      i9n.func = joe.Invocation::interpretParams
     if bfunc instanceof JBoundFunc and bfunc.scope instanceof JStub
       # dereference if bfunc.scope is JStub
       $.push this:bfunc, func:storeLast, key:'data', index:'scope'
       return INSTR.__get__ $, bfunc, 'scope', yes
     return
+  interpretParams: ($, i9n, binding) ->
+    i9n.binding = binding
+    i9n.func = joe.Invocation::interpretParams
   interpretParams: ($, i9n) ->
     # interpret the parameters
     i9n.paramValues = []
@@ -378,14 +388,14 @@ joe.Invocation::extend
       i9n.oldScope = oldScope = $.scope
       {func:{block,params}, scope} = i9n.invokedFunction
       paramValues = i9n.paramValues
-      if i9n.indexObj?
+      if i9n.binding?
         if scope is JNull
-          $.scope = $.new JObject creator:$.user, data:{this:i9n.indexObj}
+          $.scope = $.new JObject creator:$.user, data:{this:i9n.binding}
         # else if scope is JUndefined
         #   This is bad:
-        #   $.scope = $.new JObject creator:$.user, data:{this:i9n.indexObj}
+        #   $.scope = $.new JObject creator:$.user, data:{this:i9n.binding}
         else
-          $.scope = INSTR.__create__ $, scope, {this:i9n.indexObj}
+          $.scope = INSTR.__create__ $, scope, {this:i9n.binding}
       else
         if scope is JNull
           $.scope = $.new JObject creator:$.user
