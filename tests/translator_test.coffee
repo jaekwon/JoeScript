@@ -167,6 +167,10 @@ test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = someth
 test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? something.slice(1) : [];'
 test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = (3 <= something.length ? something.slice(1, _i = something.length - 1) : _i = 1, []); baz = something[_i++];'
 test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = (5 <= something.length ? something.slice(2, _i = something.length - 2) : _i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'
+test " [foo, bar..., {baz}] = something ", 'var foo, bar, _i, _ref, baz; foo = something[0]; bar = (3 <= something.length ? something.slice(1, _i = something.length - 1) : _i = 1, []); _ref = something[_i++]; baz = _ref.baz;'
+test " (args...) -> args ", '(function() { var args; args = 1 <= arguments.length ? arguments.slice(0) : []; return args; });'
+test " (foo, [bar, baz..., bak]) -> baz ", '(function(foo, arg) { var bar, baz, _i, bak; bar = arg[0]; baz = (3 <= arg.length ? arg.slice(1, _i = arg.length - 1) : _i = 1, []); bak = arg[(_i = _i + 1) - 1]; return baz; });'
+test " (foo, bar..., baz) -> bar ", '(function() { var foo, bar, _i, baz; foo = arguments[0]; bar = (3 <= arguments.length ? arguments.slice(1, _i = arguments.length - 1) : _i = 1, []); baz = arguments[(_i = _i + 1) - 1]; return bar; });'
 # lifted blocks
 test """
 foo = loop

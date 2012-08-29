@@ -526,7 +526,7 @@ if yes
           lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
           lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
         else if target instanceof joe.AssignObj
-          temp = joe.Undetermined '_assign'
+          temp = joe.Undetermined '_ref'
           lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
           lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
           target.destructLines lines, temp
@@ -590,7 +590,7 @@ if yes
         lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
         lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
       else if target instanceof joe.AssignObj
-        temp = joe.Undetermined '_assign'
+        temp = joe.Undetermined '_ref'
         lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
         lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
         target.destructLines lines, temp
@@ -635,27 +635,36 @@ if yes
       ## TODO bind to this for '=>' @type binding
       ## destructuring parameters
       if @params?
-        lines = []
-        for param, i in @params.items
-          {target, default:_default} = param
-          param.default = undefined # javascript doesn't support default param values.
-          if not isVariable target
-            if target instanceof joe.AssignObj
-              arg = joe.Undetermined('arg')
-              @params.items[i] = joe.AssignItem target:arg
-              lines.push joe.Assign target:arg, op:'?', value:_default if _default?
-              target.destructLines lines, arg
-            else if target instanceof joe.Index
-              assert.ok target.isThisProp, "Unexpected parameter target #{target}"
-              arg = joe.Word(''+target.key)
-              @params.items[i] = joe.AssignItem target:arg
-              lines.push joe.Assign target:arg, op:'?', value:_default if _default?
-              lines.push joe.Assign target:target, value:arg
+        # If none of the top-level parameters contain a splat,
+        # try to preserve the argument structure in the resulting javascript.
+        if not @params.items.any((item) -> item.splat)
+          lines = []
+          for param, i in @params.items
+            {target, default:_default} = param
+            param.default = undefined # javascript doesn't support default param values.
+            if not isVariable target
+              if target instanceof joe.AssignObj
+                arg = joe.Undetermined('arg')
+                @params.items[i] = joe.AssignItem target:arg
+                lines.push joe.Assign target:arg, op:'?', value:_default if _default?
+                target.destructLines lines, arg
+              else if target instanceof joe.Index
+                assert.ok target.isThisProp, "Unexpected parameter target #{target}"
+                arg = joe.Word(''+target.key)
+                @params.items[i] = joe.AssignItem target:arg
+                lines.push joe.Assign target:arg, op:'?', value:_default if _default?
+                lines.push joe.Assign target:target, value:arg
+              else
+                throw new Error "Unexpected parameter target #{target}"
             else
-              throw new Error "Unexpected parameter target #{target}"
-          else
-            lines.push joe.Assign target:target, op:'?', value:_default if _default?
-        @block.lines[...0] = lines
+              lines.push joe.Assign target:target, op:'?', value:_default if _default?
+          @block.lines[...0] = lines
+        # If top-level parameters contain a splat, destructure from `arguments`.
+        else
+          lines = []
+          @params.destructLines lines, joe.Word('arguments')
+          @params = undefined
+          @block.lines[...0] = lines
       ## make last line return
       @block = @block?.toJSNode($, {inject:(value)->
         joe.Statement(type:'return', expr:value)
