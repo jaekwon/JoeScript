@@ -631,6 +631,9 @@ if yes
         
     # toJavascript: -> should have been converted to strings, nodes, and + operations.
 
+  joe.Regex::extend
+    toJavascript: -> "/#{@pattern}/#{@flags}"
+
   joe.Func::extend
     toJSNode: mark ($) ->
       ## TODO bind to this for '=>' @type binding

@@ -217,6 +217,10 @@ Str = clazz 'Str', Node, ->
           x.replace /"/g, "\\\""
       '"' + parts.join('') + '"'
 
+Regex = clazz 'Regex', Node, ->
+  init: ({pattern, @flags}) -> @pattern = pattern.join ''
+  toString: -> "/#{@pattern}/#{@flags}"
+
 Func = clazz 'Func', Node, ->
   init: ({@params, @type, @block}) ->
     @block ?= new Block([]) # trans
@@ -363,7 +367,7 @@ Range.defineChildren
   Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
   Statement, Invocation, Assign, Slice, Index, Soak, Obj,
   Singleton,
-  Arr, Item, Str, Func, Range, NativeExpression, Heredoc, Dummy,
+  Arr, Item, Str, Regex, Func, Range, NativeExpression, Heredoc, Dummy,
   AssignList, AssignObj, AssignItem,
   Undetermined, JSForC, JSForK
 }
@@ -606,7 +610,7 @@ checkColumn = (__, $) ->
       i _ESCSTR:    " _SLASH . ", ((it) -> {n:'\n', t:'\t', r:'\r'}[it] or it)
       i _INTERP:    " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]
-    o REGEX:        " _FSLASH !__ &:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", (make Str) # TODO
+    o REGEX:        " _FSLASH !__ pattern:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", (make Regex) # TODO
     o NATIVE:       " _BTICK (!_BTICK .)* _BTICK ", (make NativeExpression)
   ]
 
