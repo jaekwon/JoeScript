@@ -115,6 +115,6 @@ assert    = require 'assert'
 
   joe.JSForK::extend
     installScope: (options={}) ->
-      joe.Node::installScope options
+      joe.Node::installScope.call @, options
       @scope.ensureVariable(@key)
       return @

@@ -159,7 +159,7 @@ test """
 for foo, bar of baz
   do (foo, bar) ->
     print foo + bar
-""", 'var _obj, bar; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); })(foo, bar); }'
+""", 'var _obj, bar, foo; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); })(foo, bar); }'
 # splats...
 test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
 test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? __slice.call(something, 1) : [];'
