@@ -48,7 +48,7 @@ test """
   b = loop
     break if a > 2
     a += 1
-""", 'var a, b; a = 1; b = function() { var accum; accum = []; while (true) { if (a > 2) { break; } accum.push(a = a + 1); } return accum; }();'
+""", 'var a, b; a = 1; b = function() { var _accum; _accum = []; while (true) { if (a > 2) { break; } _accum.push(a = a + 1); } return _accum; }();'
 test """if true then 1 + 1 else 2 + 2""", 'if (true) { 1 + 1; } else { 2 + 2; }'
 test """
 if true
@@ -87,7 +87,7 @@ loop
 """, 'var a; while(true) { a = b; }'
 test """
 ({foo,bar}) -> foo+bar
-""", """(function(arg) {var foo, bar; foo = arg.foo; bar = arg.bar; return foo + bar;});"""
+""", """(function(_arg) {var foo, bar; foo = _arg.foo; bar = _arg.bar; return foo + bar;});"""
 test " foo = {bar, baz} ", 'var foo; foo = {bar: bar, baz: baz};'
 test """
 temp = {foo:1, bar:2}
@@ -114,14 +114,14 @@ test " bar? ", 'typeof bar !== "undefined" && bar !== null;'
 test " foo = bar? ", 'var foo; foo = typeof bar !== "undefined" && bar !== null;'
 test " foo = bar?.baz ", 'var foo; foo = typeof bar !== "undefined" && bar !== null ? bar.baz : undefined;'
 test " foo = bar?.baz 1 ", 'var foo; foo = typeof bar !== "undefined" && bar !== null ? bar.baz(1) : undefined;'
-test " foo = bbb.bar?.baz? 1 ", 'var foo, ref, ref; foo = (ref = bbb.bar) !== null && ref !== undefined ? (ref = ref.baz) !== null && ref !== undefined ? ref(1) : undefined : undefined;'
+test " foo = bbb.bar?.baz? 1 ", 'var foo, _ref, _ref; foo = (_ref = bbb.bar) !== null && _ref !== undefined ? (_ref = _ref.baz) !== null && _ref !== undefined ? _ref(1) : undefined : undefined;'
 test " foo = base?.bar.baz 1 ", 'var foo; foo = typeof base !== "undefined" && base !== null ? base.bar.baz(1) : undefined;'
-test " foo = base?.bar.baz?.blah 1 ", 'var foo, ref; foo = typeof base !== "undefined" && base !== null ? (ref = base.bar.baz) !== null && ref !== undefined ? ref.blah(1) : undefined : undefined;'
+test " foo = base?.bar.baz?.blah 1 ", 'var foo, _ref; foo = typeof base !== "undefined" && base !== null ? (_ref = base.bar.baz) !== null && _ref !== undefined ? _ref.blah(1) : undefined : undefined;'
 test " base?.bar.baz?.blah = foo?.foo = 1 ", """
-  var ref;
+  var _ref;
   if (typeof base !== "undefined" && base !== null) {
-    if ((ref = base.bar.baz) !== null && ref !== undefined) {
-      ref.blah = typeof foo !== "undefined" && foo !== null ? foo.foo = 1 : undefined;
+    if ((_ref = base.bar.baz) !== null && _ref !== undefined) {
+      _ref.blah = typeof foo !== "undefined" && foo !== null ? foo.foo = 1 : undefined;
     } else {
       undefined;
     }
@@ -134,9 +134,9 @@ test "foo ?= bar", 'var foo; foo = typeof foo !== "undefined" && foo !== null ? 
 test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) { opts = typeof opts !== "undefined" && opts !== null ? opts : {}; return opts; };'
 test "foo = ({foo}={foo:1}) -> opts", """
 var foo;
-foo = function(arg) {
-  arg = typeof arg !== "undefined" && arg !== null ? arg : { foo: 1 };
-  foo = arg.foo; return opts;
+foo = function(_arg) {
+  _arg = typeof _arg !== "undefined" && _arg !== null ? _arg : { foo: 1 };
+  foo = _arg.foo; return opts;
 };
 """
 test """
@@ -154,37 +154,23 @@ foo = switch bar
     throw new Error "statement test 1"
   else
     throw new Error "statement test 2"
-""", 'var foo; foo = function() { var temp; temp = undefined; switch (bar) { case true: throw new (Error("statement test 1")); break; default: throw new (Error("statement test 2")); } return temp; }();'
+""", 'var foo; foo = function() { var _temp; _temp = undefined; switch (bar) { case true: throw new (Error("statement test 1")); break; default: throw new (Error("statement test 2")); } return _temp; }();'
 test """
 for foo, bar of baz
   do (foo, bar) ->
     print foo + bar
 """, 'var _obj, bar, foo; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); })(foo, bar); }'
-# splats...
-test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
-test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? __slice.call(something, 1) : [];'
-test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = (3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : _i = 1, []); baz = something[_i++];'
-test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = (5 <= something.length ? __slice.call(something, 2, _i = something.length - 2) : _i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'
-test " [foo, bar..., {baz}] = something ", 'var foo, bar, _i, _ref, baz; foo = something[0]; bar = (3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : _i = 1, []); _ref = something[_i++]; baz = _ref.baz;'
-test " (args...) -> args ", '(function() { var args; args = 1 <= arguments.length ? __slice.call(arguments, 0) : []; return args; });'
-test " (foo, [bar, baz..., bak]) -> baz ", '(function(foo, arg) { var bar, baz, _i, bak; bar = arg[0]; baz = (3 <= arg.length ? __slice.call(arg, 1, _i = arg.length - 1) : _i = 1, []); bak = arg[(_i = _i + 1) - 1]; return baz; });'
-test " (foo, bar..., baz) -> bar ", '(function() { var foo, bar, _i, baz; foo = arguments[0]; bar = (3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : _i = 1, []); baz = arguments[(_i = _i + 1) - 1]; return bar; });'
-test " foo = [baz...] ", 'var foo; foo = __slice.call(baz);'
-test " foo = [bar, baz..., bak] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak]);'
-test " foo = [bar, baz..., bak, duck] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak, duck]);'
-test " func(baz...) ", ''
-test " func(bar, baz..., bak) ", ''
 # lifted blocks
 test """
 foo = loop
   bar()
-""", 'var foo; foo = function() { var accum; accum = []; while (true) { accum.push(bar()); } return accum; }();'
+""", 'var foo; foo = function() { var _accum; _accum = []; while (true) { _accum.push(bar()); } return _accum; }();'
 test """
 foo =
   loop
     loop
       1
-""", 'var foo; foo = function() { var accum, accum; accum = []; while (true) { accum = []; while (true) { accum.push(1); } accum.push(accum); } return accum; }();'
+""", 'var foo; foo = function() { var _accum, _accum; _accum = []; while (true) { _accum = []; while (true) { _accum.push(1); } _accum.push(_accum); } return _accum; }();'
 test """
 foo =
   switch bar
@@ -192,7 +178,7 @@ foo =
       2
     else
       3
-""", 'var foo; foo = function() { var temp; temp = undefined; switch (bar) { case true: temp = 2; break; default: temp = 3; } return temp; }();'
+""", 'var foo; foo = function() { var _temp; _temp = undefined; switch (bar) { case true: _temp = 2; break; default: _temp = 3; } return _temp; }();'
 test """
 foo =
   loop
@@ -200,13 +186,13 @@ foo =
       loop
         1
     bar + bar
-""", 'var foo; foo = function() { var accum, bar; accum = []; while (true) { bar = function() { var accum; accum = []; while (true) { accum.push(1); } return accum; }(); accum.push(bar + bar); } return accum; }();'
+""", 'var foo; foo = function() { var _accum, bar; _accum = []; while (true) { bar = function() { var _accum; _accum = []; while (true) { _accum.push(1); } return _accum; }(); _accum.push(bar + bar); } return _accum; }();'
 test """
 foo = loop
   if true
     break
   2
-""", 'var foo; foo = function() { var accum; accum = []; while (true) { if (true) { break; } accum.push(2); } return accum; }();'
+""", 'var foo; foo = function() { var _accum; _accum = []; while (true) { if (true) { break; } _accum.push(2); } return _accum; }();'
 test """
 foo =
   switch bar
@@ -217,24 +203,24 @@ foo =
 """, """
 var foo;
 foo = function() {
-  var temp, temp;
-  temp = undefined;
+  var _temp, _temp;
+  _temp = undefined;
   switch (bar) {
     case true:
-      temp = undefined;
+      _temp = undefined;
       switch (baz) {
         case true:
-          temp = bak;
+          _temp = bak;
           break;
         default:
           undefined;
       }
-      temp = temp;
+      _temp = _temp;
       break;
     default:
       undefined;
   }
-  return temp;
+  return _temp;
 }();"""
 test """
 foo =
@@ -250,36 +236,53 @@ foo =
 """, """
 var foo;
 foo = function() {
-  var temp, blah;
-  temp = undefined;
+  var _temp, blah;
+  _temp = undefined;
   switch (bar) {
     case true:
       blah = function() {
-        var temp;
-        temp = undefined;
+        var _temp;
+        _temp = undefined;
         switch (baz) {
           case true:
-            temp = bak;
+            _temp = bak;
             break;
           default:
             foo = function() {
               var bar;
               bar = function() {
-                var accum;
-                accum = [];
+                var _accum;
+                _accum = [];
                 while (true) {
-                  accum.push(1);
+                  _accum.push(1);
                 }
-                return accum;
+                return _accum;
               }();
             };
         }
-        return temp;
+        return _temp;
       }();
       break;
     default:
       undefined;
   }
-  return temp;
+  return _temp;
 }();
 """
+# splats...
+test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
+test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? __slice.call(something, 1) : [];'
+test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = (3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : _i = 1, []); baz = something[_i++];'
+test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = (5 <= something.length ? __slice.call(something, 2, _i = something.length - 2) : _i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'
+test " [foo, bar..., {baz}] = something ", 'var foo, bar, _i, _ref, baz; foo = something[0]; bar = (3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : _i = 1, []); _ref = something[_i++]; baz = _ref.baz;'
+test " (args...) -> args ", '(function() { var args; args = 1 <= arguments.length ? __slice.call(arguments, 0) : []; return args; });'
+test " (foo, [bar, baz..., bak]) -> baz ", '(function(foo, _arg) { var bar, baz, _i, bak; bar = _arg[0]; baz = (3 <= _arg.length ? __slice.call(_arg, 1, _i = _arg.length - 1) : _i = 1, []); bak = _arg[(_i = _i + 1) - 1]; return baz; });'
+test " (foo, bar..., baz) -> bar ", '(function() { var foo, bar, _i, baz; foo = arguments[0]; bar = (3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : _i = 1, []); baz = arguments[(_i = _i + 1) - 1]; return bar; });'
+test " foo = [baz...] ", 'var foo; foo = __slice.call(baz);'
+test " foo = [bar, baz..., bak] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak]);'
+test " foo = [bar, baz..., bak, duck] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak, duck]);'
+test " foo(baz...) ", 'foo.apply(null, __slice.call(baz));'
+test " foo.bar(baz...) ", 'foo.bar.apply(foo, __slice.call(baz));'
+test " foo.bar.blah(baz...) ", 'var _ref; (_ref = foo.bar).blah.apply(_ref, __slice.call(baz));'
+test " funcGen()(baz...) ", 'funcGen().apply(null, __slice.call(baz));'
+test " func(bar, baz..., bak) ", 'func.apply(null, [ bar ].concat(__slice.call(baz), [ bak ]));'

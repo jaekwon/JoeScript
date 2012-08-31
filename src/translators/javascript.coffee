@@ -71,6 +71,7 @@ uglify = require 'uglify-js'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 {setOn} = require('sembly/src/node')
 
+j = joe
 js = (obj, options) ->
   return '' if not obj?
   try
@@ -79,6 +80,7 @@ js = (obj, options) ->
     console.log error
     console.log "serialize:", obj?.serialize?()
     throw error
+val = ($, obj) -> obj.toJSNode($, toValue:yes)
 identity = (x) -> x
 mark = identity
 # for debugging... (also see src/node.coffee/serialize())
@@ -166,7 +168,7 @@ if yes
     withSoak: (fn) ->
       cond = joe.Operation(
         left: joe.Operation(
-          left: joe.Assign(target:ref=joe.Undetermined('ref'),value:this),
+          left: joe.Assign(target:ref=joe.Undetermined('_ref'),value:this),
           op:   '!='
           right:joe.Singleton.null
         ),
@@ -279,13 +281,13 @@ if yes
   joe.Try::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
       if toValue or inject
-        target = joe.Undetermined('temp')
+        target = joe.Undetermined('_temp')
         @block = @block.toJSNode( $, inject:(value) -> joe.Assign({target, value}))
         @catch = @catch?.toJSNode($, inject:(value) -> joe.Assign({target, value}))
-        @catchVar = @catchVar ? joe.Undetermined('err')
+        @catchVar = @catchVar ? joe.Undetermined('_err')
         return joe.Block([this, target.toJSNode($, {toValue,inject})])
       else
-        @catchVar = @catchVar ? joe.Undetermined('err')
+        @catchVar = @catchVar ? joe.Undetermined('_err')
         return @childrenToJSNode($)
     toJavascript: -> "try {#{js @block, isValue:yes}}#{
       (@catchVar? or @catch?) and " catch(#{js(@catchVar) or ''}) {#{js @catch}}" or ''}#{
@@ -296,7 +298,7 @@ if yes
       if toValue or inject
         lines = []
         # <Variable> = []
-        lines.push joe.Assign target:(target=joe.Undetermined('accum')), value:joe.Arr()
+        lines.push joe.Assign target:(target=joe.Undetermined('_accum')), value:joe.Arr()
         # @label:
         # while(@cond) {
         #   <Variable>.push(@block)
@@ -413,7 +415,7 @@ if yes
         # @obj @cases @default
         lines = []
         # <Variable> = undefined
-        lines.push joe.Assign target:(target=joe.Undetermined('temp')), value:joe.Singleton.undefined
+        lines.push joe.Assign target:(target=joe.Undetermined('_temp')), value:joe.Singleton.undefined
         # switch(@obj) { case(case.matches) { <Variable> = case.block } for case in @cases }
         @obj = @obj.toJSNode($, toValue:yes)
         @cases = for _case in @cases then _case.toJSNode($, inject:(value)->joe.Assign({target,value}))
@@ -479,7 +481,7 @@ if yes
         if isVariable @value
           valueVar = @value
         else
-          valueVar = joe.Undetermined('temp')
+          valueVar = joe.Undetermined('_temp')
           lines.push joe.Assign target:valueVar, value:@value.toJSNode($, toValue:yes)
         @target.destructLines lines, valueVar
         lines.push valueVar.toJSNode($, {toValue,inject}) if toValue or inject
@@ -499,7 +501,7 @@ if yes
           # baseVar.baz = baseVar + @value
           lines = []
           baseObj = @target.obj
-          baseVar = joe.Undetermined('baseObj')
+          baseVar = joe.Undetermined('_ref')
           lines.push joe.Assign(target:baseVar, value:baseObj)
           baseIndex = joe.Index(obj:baseVar, key:@target.key, type:@target.type)
           opValue = joe.Operation(left:baseIndex, op:@op, right:@value)
@@ -526,7 +528,7 @@ if yes
           lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
           lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
         else if target instanceof joe.AssignObj
-          temp = joe.Undetermined '_ref'
+          temp = joe.Undetermined('_ref')
           lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
           lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
           target.destructLines lines, temp
@@ -591,7 +593,7 @@ if yes
         lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
         lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
       else if target instanceof joe.AssignObj
-        temp = joe.Undetermined '_ref'
+        temp = joe.Undetermined('_ref')
         lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
         lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
         target.destructLines lines, temp
@@ -648,7 +650,7 @@ if yes
             param.default = undefined # javascript doesn't support default param values.
             if not isVariable target
               if target instanceof joe.AssignObj
-                arg = joe.Undetermined('arg')
+                arg = joe.Undetermined('_arg')
                 @params.items[i] = joe.AssignItem target:arg
                 lines.push joe.Assign target:arg, op:'?', value:_default if _default?
                 target.destructLines lines, arg
@@ -687,36 +689,56 @@ if yes
   joe.Invocation::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
       return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
+      return inject(this).toJSNode($, {toValue}) if inject?
       switch @func
         when 'do'
           assert.ok @params.length is 1 and @params[0].value instanceof joe.Func, "Joescript `do` wants one function argument"
           assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
           @func = @params[0].value.toJSNode($, toValue:yes)
           @params = @func.params.extractWords()
-          return (inject ? identity)(@)
+          return @
         when 'in'
           assert.ok @params.length is 2, "Joescript `in` wants two function arguments"
           assert.ok @binding is undefined, "Joescript `in` cannot have a binding"
           @func = joe.Word('__indexOf')
           @binding = @params.pop().value.toJSNode($, toValue:yes)
-          return (inject ? identity)(joe.Operation(left:@, op:'>=', right:0))
+          return joe.Operation(left:@, op:'>=', right:0)
         when 'instanceof'
           assert.ok @params.length is 2, "Joescript `instanceof` wants two function arguments"
           assert.ok @binding is undefined, "Joescript `instanceof` cannot have a binding"
-          return (inject ? identity)(@)
+          return @childrenToJSNode($)
         else
-          @func = @func.toJSNode($, toValue:yes)
-          @binding = @binding?.toJSNode($, toValue:yes)
-          @params?.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
-          return (inject ? identity)(@)
+          hasSplat = @params?.any (item) -> item.splat
+          if hasSplat
+            assert.ok not @apply, "Joescript apply-invocation should not have splats."
+            @apply = yes
+            if isIndex(@func)
+              # foo.bar(splat...) -> foo.bar.apply(foo, splat)
+              if isVariable(@func.obj)
+                @binding ?= @func.obj
+              # foo.bar.baz(splat...) -> (_ref = foo.bar).baz(_ref, splat)
+              else
+                @func.obj = joe.Assign(target:ref=joe.Undetermined('_ref'),value:@func.obj.toJSNode($, toValue:yes))
+                @binding ?= ref
+              @params = [joe.Item(value:joe.Arr(@params).toJSNode($, toValue:yes))]
+            # (func)(splat...) -> (func).apply(null, splat)
+            else
+              @binding ?= joe.Singleton.null
+              @params = [joe.Item(value:joe.Arr(@params).toJSNode($, {toValue:yes}))]
+          else
+            @func = @func.toJSNode($, toValue:yes)
+            @binding = @binding?.toJSNode($, toValue:yes)
+            @params?.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
+          return @
     toJavascript: ->
       if @func is 'instanceof'
         "(#{js @params[0].value}) instanceof (#{js @params[1].value})"
       else if @binding?
+        method = if @apply then 'apply' else 'call'
         if @params?
-          "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
+          "#{js @func, isValue:yes}.#{method}(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
         else
-          "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes})"
+          "#{js @func, isValue:yes}.#{method}(#{js @binding, isValue:yes})"
       else
         if @params?
           "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"
