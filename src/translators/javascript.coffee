@@ -707,15 +707,21 @@ if yes
         else
           @func = @func.toJSNode($, toValue:yes)
           @binding = @binding?.toJSNode($, toValue:yes)
-          @params.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
+          @params?.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
           return (inject ? identity)(@)
     toJavascript: ->
       if @func is 'instanceof'
         "(#{js @params[0].value}) instanceof (#{js @params[1].value})"
       else if @binding?
-        "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
+        if @params?
+          "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
+        else
+          "#{js @func, isValue:yes}.call(#{js @binding, isValue:yes})"
       else
-        "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"
+        if @params?
+          "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"
+        else
+          "#{js @func, isValue:yes}()"
 
   joe.Index::extend
     toJSNode: mark ($, {toValue,inject}={}) ->
@@ -743,6 +749,31 @@ if yes
       "{#{("#{js key}: #{js value, isValue:yes}" for {key, value} in @items).join ', '}}"
 
   joe.Arr::extend
+    toJSNode: mark ($, {toValue,inject}={}) ->
+      return inject(this).toJSNode($) if inject?
+      return @ if not @items?
+      hasSplat = @items.any (item) -> item.splat
+      return @childrenToJSNode($) unless hasSplat
+      partitions = []
+      cursor = []
+      for item in @items
+        if item.splat
+          if cursor.length > 0
+            partitions.push joe.Arr(cursor.map (x)->joe.Item(value:x))
+            cursor = []
+          assert.ok item.key is undefined, "Key not supported for Arr items"
+          partitions.push joe.Invocation func:joe.Word('__slice'), binding:item.value
+        else
+          cursor.push item.value
+      if cursor.length > 0
+        partitions.push joe.Arr(cursor.map (x)->joe.Item(value:x))
+        cursor = undefined
+      return partitions[0].toJSNode({toValue:yes}) if partitions.length is 1
+      return joe.Invocation(
+        func:   joe.Index(obj:partitions[0], key:joe.Word('concat'))
+        params: partitions[1...].map (x) -> joe.Item(value:x)
+      ).toJSNode({toValue:yes})
+      
     toJavascript: ->
       return '[]' unless @items?
       # TODO need to handle splats...

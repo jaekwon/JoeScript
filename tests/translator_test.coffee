@@ -169,6 +169,11 @@ test " [foo, bar..., {baz}] = something ", 'var foo, bar, _i, _ref, baz; foo = s
 test " (args...) -> args ", '(function() { var args; args = 1 <= arguments.length ? __slice.call(arguments, 0) : []; return args; });'
 test " (foo, [bar, baz..., bak]) -> baz ", '(function(foo, arg) { var bar, baz, _i, bak; bar = arg[0]; baz = (3 <= arg.length ? __slice.call(arg, 1, _i = arg.length - 1) : _i = 1, []); bak = arg[(_i = _i + 1) - 1]; return baz; });'
 test " (foo, bar..., baz) -> bar ", '(function() { var foo, bar, _i, baz; foo = arguments[0]; bar = (3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : _i = 1, []); baz = arguments[(_i = _i + 1) - 1]; return bar; });'
+test " foo = [baz...] ", 'var foo; foo = __slice.call(baz);'
+test " foo = [bar, baz..., bak] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak]);'
+test " foo = [bar, baz..., bak, duck] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak, duck]);'
+test " func(baz...) ", ''
+test " func(bar, baz..., bak) ", ''
 # lifted blocks
 test """
 foo = loop
