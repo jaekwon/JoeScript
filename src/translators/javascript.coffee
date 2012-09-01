@@ -30,7 +30,7 @@
   The .toJSNode may mutate the node, or return a new node entirely. This means
   callers of .toJSNode must take care to use the result, and ignore the original node.
 
-  The 'toValue' argument tells .toJSNode that the result must be a valid Javascript value.
+  The 'toVal' argument tells .toJSNode that the result must be a valid Javascript value.
   For instance, a Loop is not a valid value in Javascript, so a translation must take
   place to convert it into a Block with [].push of intermediate results.
 
@@ -65,22 +65,25 @@ assert = require 'assert'
 uglify = require 'uglify-js'
 
 {
-  NODES:joe
+  NODES:j
   HELPERS:{isVariable,isIndex}
 } = require 'sembly/src/joescript'
 {escape, compact, flatten} = require('sembly/lib/helpers')
 {setOn} = require('sembly/src/node')
 
-j = joe
-js = (obj, options) ->
-  return '' if not obj?
+js = (node, options) ->
+  return '' if not node?
   try
-    obj.toJavascript(options)
+    node.toJavascript(options)
   catch error
     console.log error
-    console.log "serialize:", obj?.serialize?()
+    console.log "serialize:", node?.serialize?()
     throw error
-val = ($, obj) -> obj.toJSNode($, toValue:yes)
+val = (node, required=yes) ->
+  if required
+    node.toJSNode toVal:yes
+  else
+    node?.toJSNode toVal:yes
 identity = (x) -> x
 mark = identity
 # for debugging... (also see src/node.coffee/serialize())
@@ -92,44 +95,44 @@ if yes
     return result
 
 @install = install = ->
-  return if joe.Node::toJSNode? # already defined.
+  return if j.Node::toJSNode? # already defined.
   require('sembly/src/translators/scope').install() # dependency
 
-  joe.Node::extend
+  j.Node::extend
 
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      if inject and this not instanceof joe.Statement
-        return inject(this).toJSNode($)
+    toJSNode: mark ({toVal,inject}={}) ->
+      if inject and this not instanceof j.Statement
+        return inject(this).toJSNode()
       else
-        return @childrenToJSNode($)
+        return @childrenToJSNode()
 
     # Convenience method, if you want to automatically .toJSNode children.
     # Most of the time you want to do that manually.
-    childrenToJSNode: ($) ->
+    childrenToJSNode: ->
       that = this
       @withChildren ({child, parent, desc, key, index}) ->
         if index?
-          that[key][index] = child.toJSNode $, toValue:desc.isValue
+          that[key][index] = child.toJSNode toVal:desc.isValue
         else
-          that[key] = child.toJSNode $, toValue:desc.isValue
+          that[key] = child.toJSNode toVal:desc.isValue
       @
 
     # 
-    walkWithContext: ($, {pre, post}, ptr=undefined, {isValue}={}) ->
+    walkWithContext: ({pre, post}, ptr=undefined, {isValue}={}) ->
       isValue ?= no
       ptr ?= {child:@}
       stop = pre ptr, {isValue} if pre?
       return ptr.child if stop is '__stop__'
       ptr.child.withChildren (ptr) ->
         {child, parent, desc, key, index} = ptr
-        if child instanceof joe.Node
-          if parent instanceof joe.Block and index is parent.lines.length-1
+        if child instanceof j.Node
+          if parent instanceof j.Block and index is parent.lines.length-1
             child_isValue = isValue
-          if parent instanceof joe.If and key in ['block', 'elseBlock']
+          if parent instanceof j.If and key in ['block', 'elseBlock']
             child_isValue = isValue
           else
             child_isValue = desc.isValue or no
-          child.walkWithContext($, {pre, post}, {child,parent,desc,key,index}, {isValue:child_isValue})
+          child.walkWithContext({pre, post}, {child,parent,desc,key,index}, {isValue:child_isValue})
       post ptr, {isValue} if post?
       return ptr.child
 
@@ -137,24 +140,24 @@ if yes
     # must be lifted into a (function(){})() to be usable as a value.
     # This step isn't necessary for the interpreter,
     # since those non-js-expressions *are* expressions in JoeScript.
-    liftBlocks: ($) ->
+    liftBlocks: ->
       # Assert that none of the blocks which are values include statements.
-      return @walkWithContext $, pre:(ptr, {isValue}) ->
+      return @walkWithContext pre:(ptr, {isValue}) ->
         {child} = ptr
-        if isValue and child instanceof joe.Block
+        if isValue and child instanceof j.Block
           block = child
           # Assert that value blocks do not contain return statements.
           # TODO move this assertion to a separate step.
           block.walk pre:({child}) ->
-            return '__stop__' if child instanceof joe.Func
+            return '__stop__' if child instanceof j.Func
             assert.ok not child.isReturn, "Value (block) cannot contain a return statement:\n#{block}"
           # replace child with an invocation if block includes a non-js-expression
           if block.lines.any((line) -> line.isJSValue is no)
-            lifted = joe.Invocation
-              func: joe.Func
+            lifted = j.Invocation
+              func: j.Func
                 type:  '->'
-                block: block.toJSNode($, {inject:(value) ->
-                    joe.Statement(type:'return', expr:value)
+                block: block.toJSNode({inject:(value) ->
+                    j.Statement(type:'return', expr:value)
                   })
               params: []
             setOn ptr, lifted
@@ -166,22 +169,22 @@ if yes
     # Calls fn with a variable that holds a ref to this node value,
     # fn should return {block,else} which gets set on the resulting If node.
     withSoak: (fn) ->
-      cond = joe.Operation(
-        left: joe.Operation(
-          left: joe.Assign(target:ref=joe.Undetermined('_ref'),value:this),
+      cond = j.Operation(
+        left: j.Operation(
+          left: j.Assign(target:ref=j.Undetermined('_ref'),value:this),
           op:   '!='
-          right:joe.Singleton.null
+          right:j.Singleton.null
         ),
         op: '&&'
-        right: joe.Operation(
+        right: j.Operation(
           left: ref
           op:   '!='
-          right:joe.Singleton.undefined
+          right:j.Singleton.undefined
         )
       )
       if fn?
         {block,else:else_}= fn(ref)
-        return joe.If(
+        return j.If(
           cond:  cond,
           block: block,
           else:  else_
@@ -196,7 +199,7 @@ if yes
       soak = undefined
       cursor = this
       loop
-        if cursor.soakable instanceof joe.Soak
+        if cursor.soakable instanceof j.Soak
           soakContainer = cursor
           soak = cursor.soakable
         cursor = cursor.soakable
@@ -209,30 +212,30 @@ if yes
           soakContainer.soakable = ref
           # soak node again from the top.
           # this is an O(n^2) operation, which could be optimized.
-          return block:@unsoak(), else:joe.Singleton.undefined
+          return block:@unsoak(), else:j.Singleton.undefined
       else
         return @
 
-  joe.Word::extend
+  j.Word::extend
     toJavascript: ->
       ''+this
     withSoak: (fn) ->
-      cond = joe.Operation(
-        left:joe.Operation(
-          left: joe.Index(obj:@, type:'?', key:joe.Word('type'))
+      cond = j.Operation(
+        left:j.Operation(
+          left: j.Index(obj:@, type:'?', key:j.Word('type'))
           op:   '!='
           right:"undefined"
         ),
         op: '&&'
-        right:joe.Operation(
+        right:j.Operation(
           left: @
           op:   '!='
-          right:joe.Singleton.null
+          right:j.Singleton.null
         )
       )
       if fn?
         {block,else:else_}= fn(@)
-        return joe.If(
+        return j.If(
           cond:  cond,
           block: block,
           else:  else_
@@ -240,31 +243,31 @@ if yes
       else
         return cond
 
-  joe.Undetermined::extend
+  j.Undetermined::extend
     toJavascript: -> throw new Error "Shouldn't happen..."
 
-  joe.Block::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
+  j.Block::extend
+    toJSNode: mark ({toVal,inject}={}) ->
       for line, i in @lines
         if i < @lines.length-1
-          @lines[i] = line.toJSNode($)
+          @lines[i] = line.toJSNode()
         else
-          @lines[i] = line.toJSNode($, {toValue,inject})
+          @lines[i] = line.toJSNode({toVal,inject})
       @
     toJavascript: ({isValue, withCommas}={}) ->
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
-        lines = [joe.NativeExpression("var #{toDeclare.map((x)->x.toKeyString()).join(', ')}"), @lines...]
+        lines = [j.NativeExpression("var #{toDeclare.map((x)->x.toKeyString()).join(', ')}"), @lines...]
       else
         lines = @lines
       delim = if withCommas then ', ' else ';\n'
       (for line, i in lines
         if i < lines.length-1 then js(line) else js(line, {isValue})).join delim
 
-  joe.If::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      @cond  = @cond.toJSNode  $, {toValue:yes}
-      @block = @block.toJSNode $, {toValue,inject}
-      @else  = @else?.toJSNode $, {toValue,inject}
+  j.If::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      @cond  = val(@cond)
+      @block = @block.toJSNode {toVal,inject}
+      @else  = @else?.toJSNode {toVal,inject}
       @
     toJavascript: ({isValue}={}) ->
       if isValue
@@ -278,154 +281,154 @@ if yes
         else
           "if(#{js @cond, isValue:yes}){#{js @block}}"
 
-  joe.Try::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      if toValue or inject
-        target = joe.Undetermined('_temp')
-        @block = @block.toJSNode( $, inject:(value) -> joe.Assign({target, value}))
-        @catch = @catch?.toJSNode($, inject:(value) -> joe.Assign({target, value}))
-        @catchVar = @catchVar ? joe.Undetermined('_err')
-        return joe.Block([this, target.toJSNode($, {toValue,inject})])
+  j.Try::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      if toVal or inject
+        target = j.Undetermined('_temp')
+        @block = @block.toJSNode( inject:(value) -> j.Assign({target, value}))
+        @catch = @catch?.toJSNode(inject:(value) -> j.Assign({target, value}))
+        @catchVar = @catchVar ? j.Undetermined('_err')
+        return j.Block([this, target.toJSNode({toVal,inject})])
       else
-        @catchVar = @catchVar ? joe.Undetermined('_err')
-        return @childrenToJSNode($)
+        @catchVar = @catchVar ? j.Undetermined('_err')
+        return @childrenToJSNode()
     toJavascript: -> "try {#{js @block, isValue:yes}}#{
       (@catchVar? or @catch?) and " catch(#{js(@catchVar) or ''}) {#{js @catch}}" or ''}#{
       @finally and "finally {#{js @finally}}" or ''}"
 
-  joe.Loop::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      if toValue or inject
+  j.Loop::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      if toVal or inject
         lines = []
         # <Variable> = []
-        lines.push joe.Assign target:(target=joe.Undetermined('_accum')), value:joe.Arr()
+        lines.push j.Assign target:(target=j.Undetermined('_accum')), value:j.Arr()
         # @label:
         # while(@cond) {
         #   <Variable>.push(@block)
         # }
-        @block = @block.toJSNode($, {inject:(value)->
-          joe.Invocation
-            func:   joe.Index(obj:target, key:joe.Word('push'))
-            params: [joe.Item {value}]
+        @block = @block.toJSNode({inject:(value)->
+          j.Invocation
+            func:   j.Index(obj:target, key:j.Word('push'))
+            params: [j.Item {value}]
         })
         lines.push this
         # <Variable>
-        lines.push target.toJSNode($, {toValue,inject})
-        return joe.Block(lines)
+        lines.push target.toJSNode({toVal,inject})
+        return j.Block(lines)
       else
-        return @childrenToJSNode($)
+        return @childrenToJSNode()
     toJavascript: -> "while(#{js @cond, isValue:yes}) {#{js @block}}"
 
-  joe.JSForC::extend
+  j.JSForC::extend
     toJavascript: -> "for(#{js @setup, withCommas:yes}; #{js @cond, isValue:yes}; #{js @counter, withCommas:yes}){#{js @block}}"
 
-  joe.JSForK::extend
+  j.JSForK::extend
     toJavascript: -> "for(#{js @key} in #{js @obj, isValue:yes}){#{js @block}}"
 
-  joe.For::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      if toValue or inject
+  j.For::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      if toVal or inject
         # call Loop.toJSNode to accumuate.
-        accum = @super.toJSNode.call(@, $, {toValue,inject})
+        accum = @super.toJSNode.call(@, {toVal,inject})
         # finally call this function again.
-        return accum.toJSNode($)
+        return accum.toJSNode()
 
       switch @type
         when 'in' # Array iteration
-          if @obj instanceof joe.Range
-            setup = joe.Block compact [
+          if @obj instanceof j.Range
+            setup = j.Block compact [
               # for (@keys[1] = 0,
-              joe.Assign(target:_i=@keys[1], value:0) if @keys[1]?
+              j.Assign(target:_i=@keys[1], value:0) if @keys[1]?
               #   @keys[0] = @obj.from,
-              joe.Assign(target:_val=@keys[0], value:@obj.from ? 0)
+              j.Assign(target:_val=@keys[0], value:@obj.from ? 0)
               #   _to = @obj.to ? undefined
-              joe.Assign(target:_to=joe.Undetermined('_to'), value:(@obj.to ? joe.Singleton.undefined))
+              j.Assign(target:_to=j.Undetermined('_to'), value:(@obj.to ? j.Singleton.undefined))
               #   _by = @obj.by ? 1;
-              joe.Assign(target:_by=joe.Undetermined('_by'), value:(@obj.by ? 1))
+              j.Assign(target:_by=j.Undetermined('_by'), value:(@obj.by ? 1))
             ]
-            cond = joe.Operation left:@keys[0], op:(if @obj.exclusive then '<' else '<='), right:_to
-            counter = joe.Block compact [
-              joe.Assign(target:_i, type:'+=', value:1) if @keys[1]?
-              joe.Assign(target:_val, type:'+=', value:_by)
+            cond = j.Operation left:@keys[0], op:(if @obj.exclusive then '<' else '<='), right:_to
+            counter = j.Block compact [
+              j.Assign(target:_i, type:'+=', value:1) if @keys[1]?
+              j.Assign(target:_val, type:'+=', value:_by)
             ]
             block =
               if @cond?
-                joe.If(cond:@cond, block:@block)
+                j.If(cond:@cond, block:@block)
               else
                 @block
           else
-            setup = joe.Block compact [
+            setup = j.Block compact [
               # _obj = <?>
-              joe.Assign(target:_obj=joe.Undetermined('_obj'), value:@obj),
+              j.Assign(target:_obj=j.Undetermined('_obj'), value:@obj),
               if @keys.length > 1
                 # for (@keys[1] = _i = 0; ...
-                joe.Assign(target:@keys[1], value:joe.Assign(target:_i=joe.Undetermined('_i'), value:0))
+                j.Assign(target:@keys[1], value:j.Assign(target:_i=j.Undetermined('_i'), value:0))
               else
                 # for (_i = 0; ...
-                joe.Assign(target:_i=joe.Undetermined('_i'), value:0)
+                j.Assign(target:_i=j.Undetermined('_i'), value:0)
               ,
               # _len = <?>
-              joe.Assign(target:_len=joe.Undetermined('_len'), value:joe.Index(obj:_obj, key:joe.Word('length'), type:'.')),
+              j.Assign(target:_len=j.Undetermined('_len'), value:j.Index(obj:_obj, key:j.Word('length'), type:'.')),
             ]
             # _i < _len; ...
-            cond = joe.Operation left:_i, op:'<', right:_len
+            cond = j.Operation left:_i, op:'<', right:_len
             counter =
               if @keys.length > 1
                 # @keys[1] = _i++)
-                joe.Assign(target:@keys[1], value:joe.Operation(left:_i, op:'++'))
+                j.Assign(target:@keys[1], value:j.Operation(left:_i, op:'++'))
               else
                 # _i++)
-                joe.Operation(left:_i, op:'++')
-            block = joe.Block [
+                j.Operation(left:_i, op:'++')
+            block = j.Block [
               # @keys[0] = _obj[_i]
-              joe.Assign(target:@keys[0], value:joe.Index(obj:_obj, key:_i, type:'[')),
+              j.Assign(target:@keys[0], value:j.Index(obj:_obj, key:_i, type:'[')),
               if @cond?
                 # if (@cond) { @block }
-                joe.If(cond:@cond, block:@block)
+                j.If(cond:@cond, block:@block)
               else
                 @block
             ]
-          node = joe.JSForC label:@label, block:block, setup:setup, cond:cond, counter:counter
-          return node.childrenToJSNode($)
+          node = j.JSForC label:@label, block:block, setup:setup, cond:cond, counter:counter
+          return node.childrenToJSNode()
 
         when 'of' # Object iteration
-          return joe.Block([
-            joe.Assign(target:_obj=joe.Undetermined('_obj'), value:@obj),
-            joe.JSForK(label:@label, key:@keys[0], obj:_obj, block:joe.Block(compact [
+          return j.Block([
+            j.Assign(target:_obj=j.Undetermined('_obj'), value:@obj),
+            j.JSForK(label:@label, key:@keys[0], obj:_obj, block:j.Block(compact [
                 if @keys[1]
-                  joe.Assign(target:@keys[1], value:joe.Index(obj:_obj, type:'[', key:@keys[0]))
+                  j.Assign(target:@keys[1], value:j.Index(obj:_obj, type:'[', key:@keys[0]))
                 else
                   undefined
                 if @cond?
                   # if (@cond) { @block }
-                  joe.If(cond:@cond, block:@block)
+                  j.If(cond:@cond, block:@block)
                 else
                   @block
               ])
             )
-          ]).childrenToJSNode($)
+          ]).childrenToJSNode()
           
         else throw new Error "Unexpected For type #{@type}"
       # end switch
       assert.ok no, 'should not happen'
 
-  joe.Switch::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      if toValue or inject
+  j.Switch::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      if toVal or inject
         # @obj @cases @default
         lines = []
         # <Variable> = undefined
-        lines.push joe.Assign target:(target=joe.Undetermined('_temp')), value:joe.Singleton.undefined
+        lines.push j.Assign target:(target=j.Undetermined('_temp')), value:j.Singleton.undefined
         # switch(@obj) { case(case.matches) { <Variable> = case.block } for case in @cases }
-        @obj = @obj.toJSNode($, toValue:yes)
-        @cases = for _case in @cases then _case.toJSNode($, inject:(value)->joe.Assign({target,value}))
-        @default = @default?.toJSNode($, inject:(value) -> joe.Assign({target,value}))
+        @obj = val(@obj)
+        @cases = for _case in @cases then _case.toJSNode(inject:(value)->j.Assign({target,value}))
+        @default = @default?.toJSNode(inject:(value) -> j.Assign({target,value}))
         lines.push this
         # <Variable>
-        lines.push target.toJSNode($, {toValue,inject})
-        return joe.Block(lines)
+        lines.push target.toJSNode({toVal,inject})
+        return j.Block(lines)
       else
-        return @childrenToJSNode($)
+        return @childrenToJSNode()
     toJavascript: ->
       """
         switch (#{js(@obj, isValue:yes)}) {
@@ -435,63 +438,63 @@ if yes
         }
       """
 
-  joe.Case::extend
-    toJSNode: mark ($, {inject}={}) ->
-      @matches = for match in @matches then match.toJSNode($, {toValue:yes})
-      @block = @block.toJSNode($, {inject})
+  j.Case::extend
+    toJSNode: mark ({inject}={}) ->
+      @matches = for match in @matches then val(match)
+      @block = @block.toJSNode({inject})
       return @
     toJavascript: ->
       """#{("case #{js(match)}:\n" for match in @matches).join('')
         }#{js(@block)}; break;\n"""
 
   TO_JS_OPS = {'is':'===', '==':'===', 'isnt':'!==', '!=':'!==', 'or':'||', 'and':'&&', 'not':'!'}
-  joe.Operation::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
+  j.Operation::extend
+    toJSNode: mark ({toVal,inject}={}) ->
       switch @op
         when '?'
           return (inject ? identity) @left.withSoak((ref) =>
             block: ref,
             else: @right
-          ).toJSNode($, {toValue,inject})
+          ).toJSNode({toVal,inject})
         when '++','--'
           if @left?
-            if toValue
-              return joe.Operation(left:joe.Assign(target:@left, op:'+', value:1).toJSNode($, {toValue:yes}), op:'-', right:1) if @op is '++'
-              return joe.Operation(left:joe.Assign(target:@left, op:'-', value:1).toJSNode($, {toValue:yes}), op:'+', right:1)
+            if toVal
+              return j.Operation(left:val(j.Assign(target:@left, op:'+', value:1)), op:'-', right:1) if @op is '++'
+              return j.Operation(left:val(j.Assign(target:@left, op:'-', value:1)), op:'+', right:1)
             else
-              return joe.Assign(target:@left, op:'+', value:1).toJSNode($, {toValue:yes}) if @op is '++'
-              return joe.Assign(target:@left, op:'-', value:1).toJSNode($, {toValue:yes})
+              return val(j.Assign(target:@left, op:'+', value:1)) if @op is '++'
+              return val(j.Assign(target:@left, op:'-', value:1))
           else
-            return joe.Assign(target:@right, op:'+', value:1).toJSNode($, {toValue:yes}) if @op is '++'
-            return joe.Assign(target:@right, op:'-', value:1).toJSNode($, {toValue:yes})
-        else return (inject ? identity) @childrenToJSNode($)
+            return val(j.Assign(target:@right, op:'+', value:1)) if @op is '++'
+            return val(j.Assign(target:@right, op:'-', value:1))
+        else return (inject ? identity) @childrenToJSNode()
     toJavascript: -> "(#{ if @left?  then js(@left, isValue:yes)+' '  else ''
                       }#{ TO_JS_OPS[@op] ? @op
                       }#{ if @right? then ' '+js(@right, isValue:yes) else '' })"
 
-  joe.Statement::extend
+  j.Statement::extend
     toJavascript: -> "#{@type} #{if @expr? then js(@expr, isValue:yes) else ''}"
 
-  joe.Assign::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      assert.ok not (@target instanceof joe.AssignObj and @op?), "Destructuring assignment with op?"
-      if @target instanceof joe.AssignObj
+  j.Assign::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      return unsoaked.toJSNode({toVal,inject}) unless (unsoaked=@unsoak()) is this
+      assert.ok not (@target instanceof j.AssignObj and @op?), "Destructuring assignment with op?"
+      if @target instanceof j.AssignObj
         lines = []
         if isVariable @value
           valueVar = @value
         else
-          valueVar = joe.Undetermined('_temp')
-          lines.push joe.Assign target:valueVar, value:@value.toJSNode($, toValue:yes)
+          valueVar = j.Undetermined('_temp')
+          lines.push j.Assign target:valueVar, value:val(@value)
         @target.destructLines lines, valueVar
-        lines.push valueVar.toJSNode($, {toValue,inject}) if toValue or inject
-        return joe.Block(lines)
+        lines.push valueVar.toJSNode({toVal,inject}) if toVal or inject
+        return j.Block(lines)
       else if @op?
         if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
           # Simple like `x += 1` or `foo.bar += 1`.
           # But, anything more complex like `foo.bar.baz += 1` or
           # `(foo = {bar:1}; foo).bar += 1` requires a translation to avoid side effects.
-          @value = joe.Operation(left:@target, op:@op, right:@value).toJSNode($, toValue:yes)
+          @value = val(j.Operation(left:@target, op:@op, right:@value))
           @op = undefined
           return (inject ? identity)(@) # nore toJSNode() necessary.
         else
@@ -501,21 +504,21 @@ if yes
           # baseVar.baz = baseVar + @value
           lines = []
           baseObj = @target.obj
-          baseVar = joe.Undetermined('_ref')
-          lines.push joe.Assign(target:baseVar, value:baseObj)
-          baseIndex = joe.Index(obj:baseVar, key:@target.key, type:@target.type)
-          opValue = joe.Operation(left:baseIndex, op:@op, right:@value)
-          lines.push joe.Assign(target:baseIndex, value:opValue)
-          return joe.Block(lines).toJSNode($, {toValue,inject})
+          baseVar = j.Undetermined('_ref')
+          lines.push j.Assign(target:baseVar, value:baseObj)
+          baseIndex = j.Index(obj:baseVar, key:@target.key, type:@target.type)
+          opValue = j.Operation(left:baseIndex, op:@op, right:@value)
+          lines.push j.Assign(target:baseIndex, value:opValue)
+          return j.Block(lines).toJSNode({toVal,inject})
       else
-        return @childrenToJSNode($)
+        return @childrenToJSNode()
     toJavascript: ({isValue}={}) ->
       if isValue
         "(#{js @target} #{@op or ''}= #{js @value, isValue:yes})"
       else
         "#{js @target} #{@op or ''}= #{js @value, isValue:yes}"
 
-  joe.AssignObj::extend
+  j.AssignObj::extend
     # lines:    The array into which assignment nodes will be pushed
     # source:   The source for destructuring assignment
     # CONTRACT: Input source and output lines are javascript.
@@ -524,19 +527,19 @@ if yes
         target   = item.target ? item.key
         key      = item.key
         default_ = item.default
-        if target instanceof joe.Word or target instanceof joe.Index
-          lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
-          lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
-        else if target instanceof joe.AssignObj
-          temp = joe.Undetermined('_ref')
-          lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
-          lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
+        if target instanceof j.Word or target instanceof j.Index
+          lines.push j.Assign target:target, value:j.Index(obj:source, key:key)
+          lines.push j.Assign target:target, value:default_, type:'?=' if default_?
+        else if target instanceof j.AssignObj
+          temp = j.Undetermined('_ref')
+          lines.push j.Assign target:temp, value:j.Index(obj:source, key:key)
+          lines.push j.Assign target:temp, value:default_, type:'?=' if default_?
           target.destructLines lines, temp
         else
           throw new Error "Unexpected AssignObj target: #{target} (#{target?.constructor.name})"
       return
 
-  joe.AssignList::extend
+  j.AssignList::extend
     # lines:    The array into which assignment nodes will be pushed
     # source:   The source for destructuring assignment
     # CONTRACT: Input source and output lines are javascript.
@@ -548,54 +551,54 @@ if yes
         for i in [0...splatIndex]
           item = @items[i]
           [target, key, default_] = [item.target, i, item.default]
-          joe.AssignList::destructItem lines, source, target, key, default_
+          j.AssignList::destructItem lines, source, target, key, default_
         splatItem = @items[splatIndex]
-        lines.push joe.Assign
+        lines.push j.Assign
           target: splatItem.target
-          value: joe.If(
-            cond: joe.Operation
+          value: j.If(
+            cond: j.Operation
               left: @items.length
               op: '<='
-              right: joe.Index(obj:source, key:joe.Word('length'))
-            block: joe.Invocation
-              func: joe.Word('__slice') # TODO reserved word?
+              right: j.Index(obj:source, key:j.Word('length'))
+            block: j.Invocation
+              func: j.Word('__slice') # TODO reserved word?
               binding: source
               params: compact [
-                joe.Item(value:numHeads),
+                j.Item(value:numHeads),
                 if numTails
-                  joe.Item(value:joe.Assign
-                    target: _i=joe.Undetermined('_i')
-                    value: joe.Operation
-                      left: joe.Index(obj:source, key:joe.Word('length'))
+                  j.Item(value:j.Assign
+                    target: _i=j.Undetermined('_i')
+                    value: j.Operation
+                      left: j.Index(obj:source, key:j.Word('length'))
                       op: '-'
                       right: numTails
                   )
               ]
             else:
               if numTails
-                joe.Block [
-                  joe.Assign(target:_i, value:numHeads),
-                  joe.Arr()
+                j.Block [
+                  j.Assign(target:_i, value:numHeads),
+                  j.Arr()
                 ]
-              else joe.Arr()
+              else j.Arr()
           )
         for i in [splatIndex+1...@items.length]
           item = @items[i]
-          [target, key, default_] = [item.target, joe.Operation(left:_i, op:'++'), item.default]
-          joe.AssignList::destructItem lines, source, target, key, default_
+          [target, key, default_] = [item.target, j.Operation(left:_i, op:'++'), item.default]
+          j.AssignList::destructItem lines, source, target, key, default_
       else
         for item, i in @items
           [target, key, default_] = [item.target, i, item.default]
-          joe.AssignList::destructItem lines, source, target, key, default_
+          j.AssignList::destructItem lines, source, target, key, default_
       return
     destructItem: (lines, source, target, key, default_) ->
-      if target instanceof joe.Word or target instanceof joe.Index
-        lines.push joe.Assign target:target, value:joe.Index(obj:source, key:key)
-        lines.push joe.Assign target:target, value:default_, type:'?=' if default_?
-      else if target instanceof joe.AssignObj
-        temp = joe.Undetermined('_ref')
-        lines.push joe.Assign target:temp, value:joe.Index(obj:source, key:key)
-        lines.push joe.Assign target:temp, value:default_, type:'?=' if default_?
+      if target instanceof j.Word or target instanceof j.Index
+        lines.push j.Assign target:target, value:j.Index(obj:source, key:key)
+        lines.push j.Assign target:target, value:default_, type:'?=' if default_?
+      else if target instanceof j.AssignObj
+        temp = j.Undetermined('_ref')
+        lines.push j.Assign target:temp, value:j.Index(obj:source, key:key)
+        lines.push j.Assign target:temp, value:default_, type:'?=' if default_?
         target.destructLines lines, temp
       else
         throw new Error "Unexpected AssignObj target: #{target} (#{target?.constructor.name})"
@@ -604,23 +607,23 @@ if yes
     extractWords: ->
       words = []
       for item, i in @items
-        assert.ok item.target instanceof joe.Word, "extractKeys() wants words."
+        assert.ok item.target instanceof j.Word, "extractKeys() wants words."
         words.push item.target
-      return (joe.Item(key:undefined, value:word) for word in words)
+      return (j.Item(key:undefined, value:word) for word in words)
 
-  joe.Str::extend
+  j.Str::extend
     getParts: ->
       return [this] if typeof @parts is 'string'
       nodes = []
       for part in @parts
-        if part instanceof joe.Node
+        if part instanceof j.Node
           nodes.push '' if nodes.length is 0 # must start with a string.
           nodes.push part
         else
           nodes.push ''+part
       return nodes
       
-    toJSNode: mark ($) ->
+    toJSNode: mark ->
       node = undefined
       # construct a '+' operation with the @parts.
       for part in @getParts() when (node is undefined) or part
@@ -628,16 +631,16 @@ if yes
           node = part
           continue
         else
-          node = joe.Operation left:node, op:'+', right:part
-      return node?.toJSNode($) or ''
+          node = j.Operation left:node, op:'+', right:part
+      return node?.toJSNode() or ''
         
     # toJavascript: -> should have been converted to strings, nodes, and + operations.
 
-  joe.Regex::extend
+  j.Regex::extend
     toJavascript: -> "/#{@pattern}/#{@flags}"
 
-  joe.Func::extend
-    toJSNode: mark ($) ->
+  j.Func::extend
+    toJSNode: mark ->
       ## TODO bind to this for '=>' @type binding
       ## destructuring parameters
       if @params?
@@ -649,64 +652,64 @@ if yes
             {target, default:_default} = param
             param.default = undefined # javascript doesn't support default param values.
             if not isVariable target
-              if target instanceof joe.AssignObj
-                arg = joe.Undetermined('_arg')
-                @params.items[i] = joe.AssignItem target:arg
-                lines.push joe.Assign target:arg, op:'?', value:_default if _default?
+              if target instanceof j.AssignObj
+                arg = j.Undetermined('_arg')
+                @params.items[i] = j.AssignItem target:arg
+                lines.push j.Assign target:arg, op:'?', value:_default if _default?
                 target.destructLines lines, arg
-              else if target instanceof joe.Index
+              else if target instanceof j.Index
                 assert.ok target.isThisProp, "Unexpected parameter target #{target}"
-                arg = joe.Word(''+target.key)
-                @params.items[i] = joe.AssignItem target:arg
-                lines.push joe.Assign target:arg, op:'?', value:_default if _default?
-                lines.push joe.Assign target:target, value:arg
+                arg = j.Word(''+target.key)
+                @params.items[i] = j.AssignItem target:arg
+                lines.push j.Assign target:arg, op:'?', value:_default if _default?
+                lines.push j.Assign target:target, value:arg
               else
                 throw new Error "Unexpected parameter target #{target}"
             else
-              lines.push joe.Assign target:target, op:'?', value:_default if _default?
+              lines.push j.Assign target:target, op:'?', value:_default if _default?
           @block.lines[...0] = lines
         # If top-level parameters contain a splat, destructure from `arguments`.
         else
           lines = []
-          @params.destructLines lines, joe.Word('arguments')
+          @params.destructLines lines, j.Word('arguments')
           @params = undefined
           @block.lines[...0] = lines
       ## make last line return
-      @block = @block?.toJSNode($, {inject:(value)->
-        joe.Statement(type:'return', expr:value)
+      @block = @block?.toJSNode({inject:(value)->
+        j.Statement(type:'return', expr:value)
       })
       return this
     toJavascript: ->
       "(function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}})"
 
   # NOTE: not to be produced in toJSNode, which is interpreted by src/interpreter.
-  joe.NativeExpression::extend
+  j.NativeExpression::extend
     toJavascript: -> @exprStr
 
-  joe.Singleton::extend
+  j.Singleton::extend
     toJavascript: -> @name
 
-  joe.Invocation::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      return inject(this).toJSNode($, {toValue}) if inject?
+  j.Invocation::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      return unsoaked.toJSNode({toVal,inject}) unless (unsoaked=@unsoak()) is this
+      return inject(this).toJSNode({toVal}) if inject?
       switch @func
         when 'do'
-          assert.ok @params.length is 1 and @params[0].value instanceof joe.Func, "Joescript `do` wants one function argument"
+          assert.ok @params.length is 1 and @params[0].value instanceof j.Func, "Joescript `do` wants one function argument"
           assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
-          @func = @params[0].value.toJSNode($, toValue:yes)
+          @func = val(@params[0].value)
           @params = @func.params.extractWords()
           return @
         when 'in'
           assert.ok @params.length is 2, "Joescript `in` wants two function arguments"
           assert.ok @binding is undefined, "Joescript `in` cannot have a binding"
-          @func = joe.Word('__indexOf')
-          @binding = @params.pop().value.toJSNode($, toValue:yes)
-          return joe.Operation(left:@, op:'>=', right:0)
+          @func = j.Word('__indexOf')
+          @binding = val(@params.pop().value)
+          return j.Operation(left:@, op:'>=', right:0)
         when 'instanceof'
           assert.ok @params.length is 2, "Joescript `instanceof` wants two function arguments"
           assert.ok @binding is undefined, "Joescript `instanceof` cannot have a binding"
-          return @childrenToJSNode($)
+          return @childrenToJSNode()
         else
           hasSplat = @params?.any (item) -> item.splat
           if hasSplat
@@ -718,17 +721,17 @@ if yes
                 @binding ?= @func.obj
               # foo.bar.baz(splat...) -> (_ref = foo.bar).baz(_ref, splat)
               else
-                @func.obj = joe.Assign(target:ref=joe.Undetermined('_ref'),value:@func.obj.toJSNode($, toValue:yes))
+                @func.obj = j.Assign(target:ref=j.Undetermined('_ref'),value:val(@func.obj))
                 @binding ?= ref
-              @params = [joe.Item(value:joe.Arr(@params).toJSNode($, toValue:yes))]
+              @params = [j.Item(value:val(j.Arr(@params)))]
             # (func)(splat...) -> (func).apply(null, splat)
             else
-              @binding ?= joe.Singleton.null
-              @params = [joe.Item(value:joe.Arr(@params).toJSNode($, {toValue:yes}))]
+              @binding ?= j.Singleton.null
+              @params = [j.Item(value:val(j.Arr(@params)))]
           else
-            @func = @func.toJSNode($, toValue:yes)
-            @binding = @binding?.toJSNode($, toValue:yes)
-            @params?.map (p) -> p.value = p.value.toJSNode($, toValue:yes)
+            @func = val(@func)
+            @binding = val(@binding, no)
+            @params?.map (p) -> p.value = val(p.value)
           return @
     toJavascript: ->
       if @func is 'instanceof'
@@ -745,10 +748,10 @@ if yes
         else
           "#{js @func, isValue:yes}()"
 
-  joe.Index::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      return @super.toJSNode.call(@, $, {toValue,inject})
+  j.Index::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      return unsoaked.toJSNode({toVal,inject}) unless (unsoaked=@unsoak()) is this
+      return @super.toJSNode.call(@, {toVal,inject})
     toJavascript: ->
       if @type is '?'
         if @key.toKeyString() is 'type'
@@ -756,13 +759,13 @@ if yes
       close = if @type is '[' then ']' else ''
       "#{js @obj, isValue:yes}#{@type}#{js @key}#{close}"
 
-  joe.Obj::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
+  j.Obj::extend
+    toJSNode: mark ({toVal,inject}={}) ->
       if @items?
         for item in @items
-          item.key = item.key?.toJSNode($, toValue:yes)
+          item.key = val(item.key, no)
           if item.value?
-            item.value = item.value.toJSNode($, toValue:yes)
+            item.value = val(item.value)
           else
             item.value = item.key
       return (inject ? identity)(@) # nore toJSNode() necessary.
@@ -770,65 +773,65 @@ if yes
       return '{}' unless @items?
       "{#{("#{js key}: #{js value, isValue:yes}" for {key, value} in @items).join ', '}}"
 
-  joe.Arr::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      return inject(this).toJSNode($) if inject?
+  j.Arr::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      return inject(this).toJSNode() if inject?
       return @ if not @items?
       hasSplat = @items.any (item) -> item.splat
-      return @childrenToJSNode($) unless hasSplat
+      return @childrenToJSNode() unless hasSplat
       partitions = []
       cursor = []
       for item in @items
         if item.splat
           if cursor.length > 0
-            partitions.push joe.Arr(cursor.map (x)->joe.Item(value:x))
+            partitions.push j.Arr(cursor.map (x)->j.Item(value:x))
             cursor = []
           assert.ok item.key is undefined, "Key not supported for Arr items"
-          partitions.push joe.Invocation func:joe.Word('__slice'), binding:item.value
+          partitions.push j.Invocation func:j.Word('__slice'), binding:item.value
         else
           cursor.push item.value
       if cursor.length > 0
-        partitions.push joe.Arr(cursor.map (x)->joe.Item(value:x))
+        partitions.push j.Arr(cursor.map (x)->j.Item(value:x))
         cursor = undefined
-      return partitions[0].toJSNode({toValue:yes}) if partitions.length is 1
-      return joe.Invocation(
-        func:   joe.Index(obj:partitions[0], key:joe.Word('concat'))
-        params: partitions[1...].map (x) -> joe.Item(value:x)
-      ).toJSNode({toValue:yes})
+      return val(partitions[0]) if partitions.length is 1
+      return val(j.Invocation(
+        func:   j.Index(obj:partitions[0], key:j.Word('concat'))
+        params: partitions[1...].map (x) -> j.Item(value:x)
+      ))
       
     toJavascript: ->
       return '[]' unless @items?
       # TODO need to handle splats...
       "[#{(js value, isValue:yes for {key, value} in @items).join ', '}]"
 
-  joe.Slice::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      return joe.Invocation(
-        func: joe.Index(obj:@obj, key:'slice', type:'.')
-        #func: joe.Word('__slice')
+  j.Slice::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      return unsoaked.toJSNode({toVal,inject}) unless (unsoaked=@unsoak()) is this
+      return j.Invocation(
+        func: j.Index(obj:@obj, key:'slice', type:'.')
+        #func: j.Word('__slice')
         #binding: @obj
         params: [
-          joe.Item(value:@range.from ? joe.Singleton.undefined),
+          j.Item(value:@range.from ? j.Singleton.undefined),
           (if @range.to?
             if @range.exclusive
-              joe.Item(value:@range.to)
+              j.Item(value:@range.to)
             else
-              joe.Item(value:joe.Operation(left:1, op:'+', right:@range.to))
+              j.Item(value:j.Operation(left:1, op:'+', right:@range.to))
           else
-            joe.Item(value:joe.Singleton.undefined)),
-          joe.Item(value:@range.by   ? joe.Singleton.undefined) # TODO not supported in js.
+            j.Item(value:j.Singleton.undefined)),
+          j.Item(value:@range.by   ? j.Singleton.undefined) # TODO not supported in js.
         ]
-      ).toJSNode($, {toValue,inject})
+      ).toJSNode({toVal,inject})
 
-  joe.Soak::extend
-    toJSNode: mark ($, {toValue,inject}={}) ->
-      return unsoaked.toJSNode($, {toValue,inject}) unless (unsoaked=@unsoak()) is this
-      return @obj.withSoak().toJSNode($, {toValue,inject})
+  j.Soak::extend
+    toJSNode: mark ({toVal,inject}={}) ->
+      return unsoaked.toJSNode({toVal,inject}) unless (unsoaked=@unsoak()) is this
+      return @obj.withSoak().toJSNode({toVal,inject})
     toJavascript: ->
       throw new Error "Should not happen, soak is not Javascript."
 
-  joe.Heredoc::extend
+  j.Heredoc::extend
     toJavascript: ->
       text = @text
       length = text.length
@@ -838,35 +841,37 @@ if yes
         length = text.length
       return "/*#{text}*/"
 
-  clazz.extend String,
-    toJavascript: -> '"' + escape(@) + '"'
-
-  clazz.extend Object, # Number, String, and Boolean
-    toJSNode: mark ($, {inject}={}) -> inject?(@valueOf()).toJSNode($) ? @valueOf()
-    toJavascript: -> ''+@
+  for cls in [Number, String, Boolean] then clazz.extend cls,
+    toJSNode: mark ({inject}={}) -> inject?(@valueOf()).toJSNode() ? @valueOf()
+    toVal: -> @valueOf()
+    toJavascript: -> ''+@ # see clazz.extend String below.
     withSoak: (fn) ->
-      cond = joe.Operation(
-        left:joe.Operation(
-          left: joe.Index(obj:@valueOf(), type:'?', key:joe.Word('type'))
+      cond = j.Operation(
+        left:j.Operation(
+          left: j.Index(obj:@valueOf(), type:'?', key:j.Word('type'))
           op:   '!='
           right:"undefined"
         ),
         op: '&&'
-        right:joe.Operation(
+        right:j.Operation(
           left: @valueOf()
           op:   '!='
-          right:joe.Singleton.null
+          right:j.Singleton.null
         )
       )
       if fn?
         {block,else:else_}= fn(@valueOf())
-        return joe.If(
+        return j.If(
           cond:  cond,
           block: block,
           else:  else_
         )
       else
         return cond
+
+  clazz.extend String,
+    toJavascript: -> '"' + escape(@) + '"'
+
 
 HELPERS =
   __bind: """
@@ -896,18 +901,18 @@ addHelpers = (js) ->
   else
     return js
 
-@translate = translate = (node,$=undefined) ->
+@translate = translate = (node, opts=undefined) ->
   node.validate()
   install()
   node = node.
-    toJSNode($).
-    liftBlocks($).
+    toJSNode().
+    liftBlocks().
     installScope().
     determine().
     validate()
   #return node.toJavascript()
   js_raw = node.toJavascript()
-  js_raw = addHelpers js_raw unless $?.includeHelpers is no
+  js_raw = addHelpers js_raw unless opts?.includeHelpers is no
   try
     js_ast = uglify.parser.parse("(function(){#{js_raw}})")
   catch error
