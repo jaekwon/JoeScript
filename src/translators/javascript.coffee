@@ -136,6 +136,16 @@ if yes
       post ptr, {isValue} if post?
       return ptr.child
 
+    # Replace Words with Undetermined or other words.
+    # map: word string -> <Word> | <Undetermined>
+    replaceWords: (map) ->
+      ptr = {child:@}
+      stop = pre ptr if pre?
+      return ptr.child if stop is '__stop__'
+      @withChildren (ptr) ->
+        ptr.child.walk {pre:pre, post:post}, ptr if ptr.child instanceof Node
+      post ptr if post?
+
     # A block in javascript that includes a non-js-expression (e.g. switch, try, loops...)
     # must be lifted into a (function(){})() to be usable as a value.
     # This step isn't necessary for the interpreter,
@@ -153,6 +163,9 @@ if yes
             assert.ok not child.isReturn, "Value (block) cannot contain a return statement:\n#{block}"
           # replace child with an invocation if block includes a non-js-expression
           if block.lines.any((line) -> line.isJSValue is no)
+            # replace all 'argument' words into Undetermined shared with the outer scope.
+            # TODO...
+            # lift block
             lifted = j.Invocation
               func: j.Func
                 type:  '->'
@@ -217,8 +230,7 @@ if yes
         return @
 
   j.Word::extend
-    toJavascript: ->
-      ''+this
+    toJavascript: -> @key
     withSoak: (fn) ->
       cond = j.Operation(
         left:j.Operation(
@@ -244,7 +256,9 @@ if yes
         return cond
 
   j.Undetermined::extend
-    toJavascript: -> throw new Error "Shouldn't happen..."
+    toJavascript: ->
+      throw new Error "Shouldn't happen..." if not @key?
+      @key
 
   j.Block::extend
     toJSNode: mark ({toVal,inject}={}) ->
@@ -680,7 +694,7 @@ if yes
       })
       return this
     toJavascript: ->
-      "(function#{ if @params? then '('+@params.toString(no)+')' else '()'} {#{if @block? then js @block else ''}})"
+      "(function(#{@params?.items.map((p)->js(p.target)).join(',') ? ''}) {#{if @block? then js @block else ''}})"
 
   # NOTE: not to be produced in toJSNode, which is interpreted by src/interpreter.
   j.NativeExpression::extend

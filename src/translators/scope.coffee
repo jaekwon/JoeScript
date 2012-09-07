@@ -67,14 +67,7 @@ assert    = require 'assert'
     determine: ->
       that = this
       @withChildren ({child, parent, desc, key, index}) ->
-        if child instanceof joe.Undetermined
-          child.determine()
-          if index?
-            that[key][index] = child.word
-          else
-            that[key] = child.word
-        else if child instanceof joe.Node
-          child.determine()
+        child.determine() if child instanceof joe.Node
       @
 
   joe.Try::extend
@@ -106,12 +99,12 @@ assert    = require 'assert'
 
   joe.Undetermined::extend
     determine: ->
-      return if @word? # already determined.
+      return if @key? # already determined.
       assert.ok @scope?, "Scope must be available to determine an Undetermined"
       loop
-        word = @prefix+'_$'+randid(4)+'$_'
-        if not @scope.isDeclared(word) and not @scope.willDeclare(word)
-          return @word=joe.Word(word)
+        key = @prefix+'_$'+randid(4)+'$_'
+        if not @scope.isDeclared(key) and not @scope.willDeclare(key)
+          return @key=key
 
   joe.JSForK::extend
     installScope: (options={}) ->

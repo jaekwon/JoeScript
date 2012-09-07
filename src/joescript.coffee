@@ -26,13 +26,13 @@ Word = clazz 'Word', Node, ->
   toKeyString: -> @key
 
 # An undetermined variable.
-# src/translator/scope is responsible for setting @word.
+# src/translator/scope is responsible for setting @key.
 Undetermined = clazz 'Undetermined', Word, ->
-  init: (@prefix) -> @word = undefined
+  init: (@prefix) -> @key = undefined
   toString: -> "[Undetermined prefix:#{@prefix}]"
   toKeyString: ->
-    assert.ok @word instanceof Word, "Variable name not yet determined!"
-    return @word.key
+    assert.ok @key?, "Variable name not yet determined!"
+    return @key
 
 String::toKeyString = -> @valueOf()
 
@@ -342,7 +342,7 @@ Index.defineChildren
   key:        {type:EXPR, isValue:yes, required:yes}
 Soak.defineChildren
   obj:        {type:EXPR, isValue:yes}
-Obj.defineChildren
+Obj.defineChildren # and Arr
   items:      {type:[type:Set([Item,Heredoc])]}
 Item.defineChildren
   key:        {type:KEY}
