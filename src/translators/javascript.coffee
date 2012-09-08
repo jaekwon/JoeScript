@@ -136,15 +136,20 @@ if yes
       post ptr, {isValue} if post?
       return ptr.child
 
-    # Replace Words with Undetermined or other words.
-    # map: word string -> <Word> | <Undetermined>
-    replaceWords: (map) ->
-      ptr = {child:@}
-      stop = pre ptr if pre?
-      return ptr.child if stop is '__stop__'
+    # Replace Word with another Word
+    # returns: yes of any replacement occurred.
+    replaceWord: (word, replace, ptr=undefined) ->
+      if this instanceof j.Word
+        if this is word or @key? and @key is word.key
+          setOn ptr, replace if ptr?
+          return yes
+        return no
+      replaced = no
       @withChildren (ptr) ->
-        ptr.child.walk {pre:pre, post:post}, ptr if ptr.child instanceof Node
-      post ptr if post?
+        if ptr.child instanceof j.Node
+          return replaced or= ptr.child.replaceWord word, replace, ptr
+        return no
+      return replaced
 
     # A block in javascript that includes a non-js-expression (e.g. switch, try, loops...)
     # must be lifted into a (function(){})() to be usable as a value.
@@ -164,7 +169,7 @@ if yes
           # replace child with an invocation if block includes a non-js-expression
           if block.lines.any((line) -> line.isJSValue is no)
             # replace all 'argument' words into Undetermined shared with the outer scope.
-            # TODO...
+            replaced = block.replaceWord j.Word('arguments'), _arguments=j.Undetermined('_arguments')
             # lift block
             lifted = j.Invocation
               func: j.Func
@@ -173,6 +178,8 @@ if yes
                     j.Statement(type:'return', expr:value)
                   })
               params: []
+            # if arguments was replaced we need to assign _arguments = arguments.
+            lifted = j.Block([j.Assign(target:_arguments,value:j.Word('arguments')), lifted]) if replaced
             setOn ptr, lifted
         return
 
@@ -269,13 +276,15 @@ if yes
           @lines[i] = line.toJSNode({toVal,inject})
       @
     toJavascript: ({isValue, withCommas}={}) ->
+      withCommas ?= isValue
       if @ownScope? and (toDeclare=@ownScope.nonparameterVariables)?.length > 0
         lines = [j.NativeExpression("var #{toDeclare.map((x)->x.toKeyString()).join(', ')}"), @lines...]
       else
         lines = @lines
       delim = if withCommas then ', ' else ';\n'
-      (for line, i in lines
+      jsStr = (for line, i in lines
         if i < lines.length-1 then js(line) else js(line, {isValue})).join delim
+      if isValue then "(#{jsStr})" else jsStr
 
   j.If::extend
     toJSNode: mark ({toVal,inject}={}) ->

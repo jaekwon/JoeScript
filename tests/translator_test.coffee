@@ -269,15 +269,17 @@ foo = function() {
   return _temp;
 }();
 """
+test ' foo = loop then arguments ', 'var foo, _arguments; foo = (_arguments = arguments, function() { var _accum; _accum = []; while (true) { _accum.push(_arguments); } return _accum; }());'
+test ' foo = loop then blah ', 'var foo; foo = function() { var _accum; _accum = []; while (true) { _accum.push(blah); } return _accum; }();'
 # splats...
 test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
 test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? __slice.call(something, 1) : [];'
-test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = (3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : _i = 1, []); baz = something[_i++];'
-test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = (5 <= something.length ? __slice.call(something, 2, _i = something.length - 2) : _i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'
-test " [foo, bar..., {baz}] = something ", 'var foo, bar, _i, _ref, baz; foo = something[0]; bar = (3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : _i = 1, []); _ref = something[_i++]; baz = _ref.baz;'
+test " [foo, bar..., baz] = something ", 'var foo, bar, _i, baz; foo = something[0]; bar = 3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : (_i = 1, []); baz = something[_i++];'
+test " [foo1, foo2, bar..., baz1, baz2] = something ", 'var foo1, foo2, bar, _i, baz1, baz2; foo1 = something[0]; foo2 = something[1]; bar = 5 <= something.length ? __slice.call(something, 2, _i = something.length - 2) : (_i = 2, []); baz1 = something[_i++]; baz2 = something[_i++];'
+test " [foo, bar..., {baz}] = something ", 'var foo, bar, _i, _ref, baz; foo = something[0]; bar = 3 <= something.length ? __slice.call(something, 1, _i = something.length - 1) : (_i = 1, []); _ref = something[_i++]; baz = _ref.baz;'
 test " (args...) -> args ", '(function() { var args; args = 1 <= arguments.length ? __slice.call(arguments, 0) : []; return args; });'
-test " (foo, [bar, baz..., bak]) -> baz ", '(function(foo, _arg) { var bar, baz, _i, bak; bar = _arg[0]; baz = (3 <= _arg.length ? __slice.call(_arg, 1, _i = _arg.length - 1) : _i = 1, []); bak = _arg[(_i = _i + 1) - 1]; return baz; });'
-test " (foo, bar..., baz) -> bar ", '(function() { var foo, bar, _i, baz; foo = arguments[0]; bar = (3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : _i = 1, []); baz = arguments[(_i = _i + 1) - 1]; return bar; });'
+test " (foo, [bar, baz..., bak]) -> baz ", '(function(foo, _arg) { var bar, baz, _i, bak; bar = _arg[0]; baz = 3 <= _arg.length ? __slice.call(_arg, 1, _i = _arg.length - 1) : (_i = 1, []); bak = _arg[(_i = _i + 1) - 1]; return baz; });'
+test " (foo, bar..., baz) -> bar ", '(function() { var foo, bar, _i, baz; foo = arguments[0]; bar = 3 <= arguments.length ? __slice.call(arguments, 1, _i = arguments.length - 1) : (_i = 1, []); baz = arguments[(_i = _i + 1) - 1]; return bar; });'
 test " foo = [baz...] ", 'var foo; foo = __slice.call(baz);'
 test " foo = [bar, baz..., bak] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak]);'
 test " foo = [bar, baz..., bak, duck] ", 'var foo; foo = [bar].concat(__slice.call(baz), [bak, duck]);'
