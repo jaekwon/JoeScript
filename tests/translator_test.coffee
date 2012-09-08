@@ -271,6 +271,25 @@ foo = function() {
 """
 test ' foo = loop then arguments ', 'var foo, _arguments; foo = (_arguments = arguments, function() { var _accum; _accum = []; while (true) { _accum.push(_arguments); } return _accum; }());'
 test ' foo = loop then blah ', 'var foo; foo = function() { var _accum; _accum = []; while (true) { _accum.push(blah); } return _accum; }();'
+test ' foo = loop then -> arguments ', 'var foo; foo = function() { var _accum; _accum = []; while (true) { (function() { return arguments; }); } return _accum; }();'
+test ' foo = loop then loop then arguments ', '''
+var foo, _arguments;
+foo = (
+  _arguments = arguments,
+  function() {
+    var _accum, _accum;
+    _accum = [];
+    while (true) {
+      _accum = [];
+      while (true) {
+        _accum.push(_arguments);
+      }
+      _accum.push(_accum);
+    }
+    return _accum;
+  }()
+);
+'''
 # splats...
 test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
 test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? __slice.call(something, 1) : [];'

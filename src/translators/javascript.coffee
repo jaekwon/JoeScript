@@ -146,7 +146,7 @@ if yes
         return no
       replaced = no
       @withChildren (ptr) ->
-        if ptr.child instanceof j.Node
+        if ptr.child instanceof j.Node and ptr.child not instanceof j.Func
           return replaced or= ptr.child.replaceWord word, replace, ptr
         return no
       return replaced
