@@ -369,7 +369,7 @@ HTMLPlugin = (context) ->
         for prop, val of obj
           open = parse_prop.call @, prop, val, selector, open
       else
-        throw new Error "Don't know what to do with #{obj}"
+        throw Error "Don't know what to do with #{obj}"
       @_indent = @_indent[2..] if @options.format
       @text "#{@_newline}#{@_indent}}" if open
 
@@ -384,7 +384,7 @@ HTMLPlugin = (context) ->
           for k, v of arg
             parse_selector.call @, k, v
         else
-          throw new Error "@css takes objects or arrays of objects"
+          throw Error "@css takes objects or arrays of objects"
 
   return context
 
@@ -395,7 +395,7 @@ HTMLPlugin = (context) ->
 g_context = undefined
 coffeemugg.render = (template, options, args...) ->
   if options?.plugins?
-    throw new Error "To install plugins to the global renderer, you must call coffeemugg.install_plugin."
+    throw Error "To install plugins to the global renderer, you must call coffeemugg.install_plugin."
   g_context ?= CMContext()
   g_context.options = options if options?
   return g_context.render(template, args...).toString()

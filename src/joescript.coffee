@@ -603,11 +603,30 @@ checkColumn = (__, $) ->
     o THIS:         " '@' ", (-> Word('this'))
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [
-      o             " _TQUOTE  (!_TQUOTE  &:(_ESCSTR | _INTERP | .))* _TQUOTE  ", (make Str)
-      o             " _TDQUOTE (!_TDQUOTE &:(_ESCSTR | _INTERP | .))* _TDQUOTE ", (make Str)
-      o             " _DQUOTE  (!_DQUOTE  &:(_ESCSTR | _INTERP | .))* _DQUOTE  ", (make Str)
-      o             " _QUOTE   (!_QUOTE   &:(_ESCSTR | .))* _QUOTE             ", (make Str)
-      i _ESCSTR:    " _SLASH . ", ((it) -> {n:'\n', t:'\t', r:'\r'}[it] or it)
+      o             " _TQUOTE  (!_TQUOTE  &:(_ESC_HEX | _ESC_CHAR | _INTERP | .))* _TQUOTE  ", (make Str)
+      o             " _TDQUOTE (!_TDQUOTE &:(_ESC_HEX | _ESC_CHAR | _INTERP | .))* _TDQUOTE ", (make Str)
+      o             " _DQUOTE  (!_DQUOTE  &:(_ESC_HEX | _ESC_CHAR | _INTERP | .))* _DQUOTE  ", (make Str)
+      o             " _QUOTE   (!_QUOTE   &:(_ESC_HEX | _ESC_CHAR | .))* _QUOTE             ", (make Str)
+      i _ESCAPED:   " _SLASH ", ->
+    function read_escaped_char(in_string) {
+        var ch = next(true, in_string);
+        switch (ch) {
+          case "n" : return "\n";
+          case "r" : return "\r";
+          case "t" : return "\t";
+          case "b" : return "\b";
+          case "v" : return "\u000b";
+          case "f" : return "\f";
+          case "0" : return "\0";
+          case "x" : return String.fromCharCode(hex_bytes(2));
+          case "u" : return String.fromCharCode(hex_bytes(4));
+          case "\n": return "";
+          default  : return ch;
+        }
+    };
+
+      i _ESC_HEX:   " /\\\\x[0-9a-zA-Z]{2}/", ((code) -> String(code))
+      i _ESC_CHAR:  " _SLASH . ", ((it) -> {n:'\n', t:'\t', r:'\r'}[it] or it)
       i _INTERP:    " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]
     o REGEX:        " _FSLASH !__ pattern:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", (make Regex) # TODO

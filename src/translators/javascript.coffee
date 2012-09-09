@@ -315,7 +315,7 @@ if yes
       else
         @catchVar = @catchVar ? j.Undetermined('_err')
         return @childrenToJSNode()
-    toJavascript: -> "try {#{js @block, isValue:yes}}#{
+    toJavascript: -> "try {#{js @block}}#{
       (@catchVar? or @catch?) and " catch(#{js(@catchVar) or ''}) {#{js @catch}}" or ''}#{
       @finally and "finally {#{js @finally}}" or ''}"
 
@@ -939,7 +939,9 @@ addHelpers = (js) ->
   try
     js_ast = uglify.parser.parse("(function(){#{js_raw}})")
   catch error
-    console.log red "Error in uglify.parser.parse(): #{error.stack ? error}\njs_raw:#{js_raw}"
+    # prepend js_raw with line numbers with colors.
+    js_raw_lineno = ("#{blue i} #{red line}" for line, i in js_raw.split('\n')).join('\n')
+    console.log "Error in uglify.parser.parse():\n#{error.stack ? error}\n\n#{js_raw_lineno}"
     throw error
   js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
   #console.log green js_pretty[14...-4]
