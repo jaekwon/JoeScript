@@ -501,45 +501,49 @@ checkColumn = (__, $) ->
         ]
 
         # OPERATIONS
-        o OP_OPTIMIZATION:          " OP40 _ !/[&\\|\\^=\\!\\<\\>\\+\\-\\*\\/\\%]|(and|or|is|isnt|not|in|instanceof)[^a-zA-Z\\$_0-9]/ " #(OP00_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP) "
+        o OP_OPTIMIZATION:          " OP40 _ !/[&\\|\\^=\\!\\<\\>\\+\\-\\*\\/\\%]|(and|or|is|isnt|not|in|instanceof)[^a-zA-Z\\$_0-9]/ " #(OP00_OP|OP02_OP|OP05_OP|OP10_OP|OP20_OP|OP30_OP) "
         o OP00: [
-          i OP00_OP:                " '&&' | '||' | '&' | '|' | '^' | _AND | _OR "
-          o                         " left:OP00 _ op:OP00_OP _SOFTLINE? right:OP05 ", (make Operation)
-          o OP05: [
-            i OP05_OP:              " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
-            o                       " left:OP05 _ op:OP05_OP _SOFTLINE? right:OP10 ", (make Operation)
-            o OP10: [
-              i OP10_OP:            " '+' | '-' "
-              o                     " left:OP10 _ op:OP10_OP _SOFTLINE? right:OP20 ", (make Operation)
-              o OP20: [
-                i OP20_OP:          " '*' | '/' | '%' "
-                o                   " left:OP20 _ op:OP20_OP _SOFTLINE? right:OP30 ", (make Operation)
-                o OP30: [
-                  i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
-                  o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", (({left, _not, op, right}) ->
-                                                                                        invo = new Invocation(func:op, params:[Item(value:left), Item(value:right)])
-                                                                                        if _not
-                                                                                          return new Not invo
-                                                                                        else
-                                                                                          return invo)
-                  o OP40: [
-                    i OP40_OP:      " _NOT | '!' | '~' "
-                    o               " _ op:OP40_OP right:OP40 ", (make Operation)
-                    o OP45: [
-                      i OP45_OP:    " '?' "
-                      o             " left:OP45 _ op:OP45_OP _SOFTLINE? right:OP50 ", (make Operation)
-                      o OP50: [
-                        i OP50_OP:  " '--' | '++' "
-                        o           " left:OPATOM op:OP50_OP ", (make Operation)
-                        o           " _ op:OP50_OP right:OPATOM ", (make Operation)
-                        o OPATOM:   " FUNC | OBJ_IMPL | ASSIGN | INVOC_IMPL | COMPLEX | _ VALUE "
-                      ] # end OP50
-                    ] # end OP45
-                  ] # end OP40
-                ] # end OP30
-              ] # end OP20
-            ] # end OP10
-          ] # end OP05
+          i OP00_OP:                  " '<<<' | '<<' | '>>' "
+          o                           " left:OP00 _ op:OP00_OP _SOFTLINE? right:OP02 ", (make Operation)
+          o OP02: [
+            i OP02_OP:                " '&&' | '||' | '&' | '|' | '^' | _AND | _OR "
+            o                         " left:OP02 _ op:OP02_OP _SOFTLINE? right:OP05 ", (make Operation)
+            o OP05: [
+              i OP05_OP:              " '==' | '!=' | '<=' | '<' | '>=' | '>' | _IS | _ISNT "
+              o                       " left:OP05 _ op:OP05_OP _SOFTLINE? right:OP10 ", (make Operation)
+              o OP10: [
+                i OP10_OP:            " '+' | '-' "
+                o                     " left:OP10 _ op:OP10_OP _SOFTLINE? right:OP20 ", (make Operation)
+                o OP20: [
+                  i OP20_OP:          " '*' | '/' | '%' "
+                  o                   " left:OP20 _ op:OP20_OP _SOFTLINE? right:OP30 ", (make Operation)
+                  o OP30: [
+                    i OP30_OP:        " _not:_NOT? op:(_IN|_INSTANCEOF) "
+                    o                 " left:OP30 _  @:OP30_OP _SOFTLINE? right:OP40 ", (({left, _not, op, right}) ->
+                                                                                          invo = new Invocation(func:op, params:[Item(value:left), Item(value:right)])
+                                                                                          if _not
+                                                                                            return new Not invo
+                                                                                          else
+                                                                                            return invo)
+                    o OP40: [
+                      i OP40_OP:      " _NOT | '!' | '~' "
+                      o               " _ op:OP40_OP right:OP40 ", (make Operation)
+                      o OP45: [
+                        i OP45_OP:    " '?' "
+                        o             " left:OP45 _ op:OP45_OP _SOFTLINE? right:OP50 ", (make Operation)
+                        o OP50: [
+                          i OP50_OP:  " '--' | '++' "
+                          o           " left:OPATOM op:OP50_OP ", (make Operation)
+                          o           " _ op:OP50_OP right:OPATOM ", (make Operation)
+                          o OPATOM:   " FUNC | OBJ_IMPL | ASSIGN | INVOC_IMPL | COMPLEX | _ VALUE "
+                        ] # end OP50
+                      ] # end OP45
+                    ] # end OP40
+                  ] # end OP30
+                ] # end OP20
+              ] # end OP10
+            ] # end OP05
+          ] # end OP02
         ] # end OP00
       ] # end EXPR
     ] # end LINEEXPR
@@ -603,30 +607,23 @@ checkColumn = (__, $) ->
     o THIS:         " '@' ", (-> Word('this'))
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [
-      o             " _TQUOTE  (!_TQUOTE  &:(_ESC_HEX | _ESC_CHAR | _INTERP | .))* _TQUOTE  ", (make Str)
-      o             " _TDQUOTE (!_TDQUOTE &:(_ESC_HEX | _ESC_CHAR | _INTERP | .))* _TDQUOTE ", (make Str)
-      o             " _DQUOTE  (!_DQUOTE  &:(_ESC_HEX | _ESC_CHAR | _INTERP | .))* _DQUOTE  ", (make Str)
-      o             " _QUOTE   (!_QUOTE   &:(_ESC_HEX | _ESC_CHAR | .))* _QUOTE             ", (make Str)
-      i _ESCAPED:   " _SLASH ", ->
-    function read_escaped_char(in_string) {
-        var ch = next(true, in_string);
-        switch (ch) {
-          case "n" : return "\n";
-          case "r" : return "\r";
-          case "t" : return "\t";
-          case "b" : return "\b";
-          case "v" : return "\u000b";
-          case "f" : return "\f";
-          case "0" : return "\0";
-          case "x" : return String.fromCharCode(hex_bytes(2));
-          case "u" : return String.fromCharCode(hex_bytes(4));
-          case "\n": return "";
-          default  : return ch;
-        }
-    };
-
-      i _ESC_HEX:   " /\\\\x[0-9a-zA-Z]{2}/", ((code) -> String(code))
-      i _ESC_CHAR:  " _SLASH . ", ((it) -> {n:'\n', t:'\t', r:'\r'}[it] or it)
+      o             " _TQUOTE  (!_TQUOTE  &:(_ESC | _INTERP | .))* _TQUOTE  ", (make Str)
+      o             " _TDQUOTE (!_TDQUOTE &:(_ESC | _INTERP | .))* _TDQUOTE ", (make Str)
+      o             " _DQUOTE  (!_DQUOTE  &:(_ESC | _INTERP | .))* _DQUOTE  ", (make Str)
+      o             " _QUOTE   (!_QUOTE   &:(_ESC | .))* _QUOTE             ", (make Str)
+      i _ESC:       " _SLASH ", (dontcare, $) ->
+                      switch ch=$.code.next()
+                        when 'n' then '\n'
+                        when 'r' then '\r'
+                        when 't' then '\t'
+                        when 'b' then '\b'
+                        when 'v' then '\u000b'
+                        when 'f' then '\f'
+                        when '0' then '\0'
+                        when 'x' then String.fromCharCode $.code.hex 2
+                        when 'u' then String.fromCharCode $.code.hex 4
+                        when '\n' then ''
+                        else ch
       i _INTERP:    " '\#{' _RESETINDENT BLOCK ___ '}' "
     ]
     o REGEX:        " _FSLASH !__ pattern:(!_FSLASH !_TERM (ESC2 | .))* _FSLASH flags:/[a-zA-Z]*/ ", (make Regex) # TODO

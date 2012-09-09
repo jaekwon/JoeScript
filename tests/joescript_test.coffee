@@ -32,6 +32,7 @@ test  "!!a", "(! (! a))"
 test  "a * b * c", "((a*b)*c)"
 test  "a * b++ / c + d", "(((a*(b++))/c)+d)"
 test  " a * b++ / c + d ", "(((a*(b++))/c)+d)"
+test  " a << b || c ", '(a << (b || c))'
 test  "return foo", 'return(foo);'
 test  "foo if bar if baz", "if(baz){if(bar){foo}}"
 test  """

@@ -326,6 +326,9 @@ _loopStack = [] # trace stack
       return parent if condition parent
       parent = parent.parent
 
+@Yes = Yes = clazz 'Yes', GNode, ->
+  parse$: @$wrap ($) -> yes
+
 @Choice = Choice = clazz 'Choice', GNode, ->
   @defineChildren
     rules:      {type:{key:undefined,value:{type:GNode}}}
@@ -817,5 +820,5 @@ St = -> Str arguments...
 ]
 
 @NODES = {
-  GNode, Choice, Rank, Sequence, Lookahead, Existential, Pattern, Not, Ref, Regex, Grammar
+  GNode, Yes, Choice, Rank, Sequence, Lookahead, Existential, Pattern, Not, Ref, Regex, Grammar
 }

@@ -55,6 +55,19 @@ assert = require 'assert'
       end = @pos + afterChars
     return @text[start...end]
 
+  # Get next byte(s)
+  next: (len=1) ->
+    assert.ok len > 0, "<CodeStream>.next wants len > 0"
+    @text[@pos...@pos+=len]
+
+  # Get next hex byte(s) as number
+  hex: (len=1) ->
+    nextBytes = @next(len)
+    num = 0
+    num = (num << 4) | parseInt(byte, 16) for byte in nextBytes
+    throw Error("Invalid hex-character pattern in string") if isNaN(num)
+    return num
+
   # Match a string or a regex
   # Regex returns null if match failed,
   # otherwise returns match[0] which may be ''

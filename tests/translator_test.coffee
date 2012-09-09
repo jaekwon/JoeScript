@@ -308,4 +308,4 @@ test " foo.bar.blah(baz...) ", 'var _ref; (_ref = foo.bar).blah.apply(_ref, __sl
 test " funcGen()(baz...) ", 'funcGen().apply(null, __slice.call(baz));'
 test " func(bar, baz..., bak) ", 'func.apply(null, [ bar ].concat(__slice.call(baz), [ bak ]));'
 # escapes...
-test """ "\\x1b[31m" """, ''
+test """ "\\x1b[31mblah" """, ''
