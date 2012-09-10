@@ -594,6 +594,17 @@ checkColumn = (__, $) ->
     ]
     # rest
     o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", ((it) -> Number it)
+    o SPECIAL:      " WORD ", ((word) ->
+                      switch word.key
+                        when 'yes', 'true', 'on'
+                          return yes
+                        when 'no', 'false', 'off'
+                          return no
+                        when 'undefined'
+                          return Singleton.undefined
+                        when 'null'
+                          return Singleton.null
+                      return null)
     o SYMBOL:       " !_KEYWORD WORD "
     o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'?', key:Word('type'))
     # starts with symbol
@@ -663,22 +674,12 @@ checkColumn = (__, $) ->
   i _CHECK_COL:     " _ ", checkColumn, skipCache:yes
 
   # TOKENS:
-  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", ((key) ->
-                      switch key
-                        when 'yes', 'true', 'si'
-                          return yes
-                        when 'no', 'false'
-                          return no
-                        when 'undefined'
-                          return Singleton.undefined
-                        when 'null'
-                          return Singleton.null
-                      return Word(key)
-                    )
+  i WORD:           " _ /[a-zA-Z\\$_][a-zA-Z\\$_0-9]*/ ", ((key) -> Word key)
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue', 'typeof', 'instanceof',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'by',
-                      'not', 'and', 'or', 'try', 'catch', 'finally', 'do')
+                      'not', 'and', 'or', 'try', 'catch', 'finally', 'do',
+                      'yes', 'true', 'on', 'no', 'false', 'off', 'undefined', 'null')
   i _COMPLEX_KEYWORD: tokens('if', 'unless', 'for', 'loop', 'while', 'switch', 'try')
   i _BTICK:         " '`'         "
   i _QUOTE:         " '\\''       "

@@ -55,8 +55,27 @@
 # Gets the last item of an array(-like) object.
 @last = (array, back) -> array[array.length - (back or 0) - 1]
 
-# Escape a string into javascript string code.
-@escape = (str) -> (''+str).replace(/\\/g, '\\\\').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/"/g, "\\\"")
+@toAscii = toAscii = (str) ->
+  return str.replace /[\u001b\u0080-\uffff]/g, (ch) ->
+    code = ch.charCodeAt(0).toString(16)
+    code = "0" + code while code.length < 4
+    "\\u"+code
+
+@escape = (str, asciiOnly=yes) ->
+  str = str.replace /[\\\b\f\n\r\t\x22\u2028\u2029\0]/g, (s) ->
+    switch s
+      when "\\" then "\\\\"
+      when "\b" then "\\b"
+      when "\f" then "\\f"
+      when "\n" then "\\n"
+      when "\r" then "\\r"
+      when "\u2028" then "\\u2028"
+      when "\u2029" then "\\u2029"
+      when '"'  then "\\\""
+      when "\0" then "\\0"
+      else s
+  str = toAscii str if asciiOnly
+  return str
 
 # Escape HTML special characters. Result must be valid HTML text
 @htmlEscape = (txt) ->
