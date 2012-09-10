@@ -203,7 +203,7 @@ tests =
 cm = require 'coffeemugg'
 
 @run = ->
-  print = (txt) -> console.log txt
+  print = (txt) -> process.stdout.write(txt)
   colors = {red: "\x1b[31m", redder: "\x1b[91m", green: "\x1b[32m", normal: "\x1b[0m"}
   printc = (color, str) -> print colors[color] + str + colors.normal
 
