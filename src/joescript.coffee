@@ -224,7 +224,7 @@ Str = clazz 'Str', Node, ->
       # Maybe dedent
       if minIndent isnt Infinity and minIndent > 0
         for str, i in @parts when typeof str is 'string'
-          @parts[i] = str.replace ///(^|\n)(#{' '}{#{minIndent}})///g, '$1'
+          @parts[i] = str.replace RegExp("(^|\\n)( {#{minIndent}})", 'g'), '$1'
       # Filter blank strings.
       @parts = (part for part in @parts when not (typeof part is 'string' and not part))
   isStatic: get: -> @parts.every (part) -> typeof part is 'string'
