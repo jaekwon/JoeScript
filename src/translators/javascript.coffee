@@ -646,7 +646,8 @@ if yes
           nodes.push ''+part
       return nodes
       
-    toJSNode: mark ->
+    toJSNode: mark ({toVal,inject}={}) ->
+      return inject(this).toJSNode({toVal}) if inject?
       node = undefined
       # construct a '+' operation with the @parts.
       for part in @getParts() when (node is undefined) or part
@@ -655,7 +656,7 @@ if yes
           continue
         else
           node = j.Operation left:node, op:'+', right:part
-      return node?.toJSNode() or ''
+      return node?.toJSNode({toVal}) or ''
         
     # toJavascript: -> should have been converted to strings, nodes, and + operations.
 
@@ -663,7 +664,8 @@ if yes
     toJavascript: -> "/#{@pattern}/#{@flags}"
 
   j.Func::extend
-    toJSNode: mark ->
+    toJSNode: mark ({toVal,inject}={}) ->
+      return inject(this).toJSNode({toVal}) if inject?
       ## TODO bind to this for '=>' @type binding
       ## destructuring parameters
       if @params?
@@ -751,7 +753,7 @@ if yes
             else
               @binding ?= j.Singleton.null
               @params = [j.Item(value:val(j.Arr(@params)))]
-          else
+          else # not hasSplat
             @func = val(@func)
             @binding = val(@binding, no)
             @params?.map (p) -> p.value = val(p.value)

@@ -14,7 +14,7 @@ isKey = (thing) -> typeof thing is 'string' or thing instanceof Word or thing in
 isVariable = (thing) -> thing instanceof Word or thing instanceof Undetermined
 isIndex = (thing) -> thing instanceof Index
 isSoakable = (thing) -> thing instanceof Slice or thing instanceof Index or thing instanceof Invocation or thing instanceof Soak
-@HELPERS = {extend, isKey, isVariable, isSoakable, isIndex}
+@HELPERS = {extend, isKey, isVariable, isIndex, isSoakable}
 
 _soakable = (name) ->
   get: -> @[name] if isSoakable @[name]
@@ -191,7 +191,7 @@ Singleton = clazz 'Singleton', Node, ->
 Singleton[x] = new Singleton(x) for x in ['null', 'undefined', 'Infinity']
 
 Str = clazz 'Str', Node, ->
-  init: (parts) ->
+  init: (parts, {dedent}={}) ->
     @parts = []
     chars = []
     for item in parts
@@ -205,6 +205,28 @@ Str = clazz 'Str', Node, ->
       else throw new Error "Dunno how to handle part of Str: #{item} (#{item.constructor.name})"
     if chars.length > 0
       @parts.push chars.join('')
+    if dedent
+      # We need to do this here, so indents in interpolations don't affect calc.
+      # '''
+      #   abc
+      #     xyz
+      # ''' --> 'abc\n  xyz'
+      minIndent = Infinity
+      # Trim and find minimum indent level.
+      for str, i in @parts when typeof str is 'string'
+        str = @parts[i] = str.replace(/^\n +/, '') if i is 0
+        str = @parts[i] = str.replace(/\n +$/, '') if i is @parts.length-1
+        str.each /(?:^|\n)( +)/, (m) ->
+          minIndent = Math.min(
+            minIndent,
+            if m[0] is '\n' then m.length-1 else m.length
+          )
+      # Maybe dedent
+      if minIndent isnt Infinity and minIndent > 0
+        for str, i in @parts when typeof str is 'string'
+          @parts[i] = str.replace ///(^|\n)(#{' '}{#{minIndent}})///g, '$1'
+      # Filter blank strings.
+      @parts = (part for part in @parts when not (typeof part is 'string' and not part))
   isStatic: get: -> @parts.every (part) -> typeof part is 'string'
   toString: ->
     if typeof @parts is 'string'
@@ -618,8 +640,8 @@ checkColumn = (__, $) ->
     o THIS:         " '@' ", (-> Word('this'))
     o PAREN:        " '(' _RESETINDENT BLOCK ___ ')' "
     o STRING: [
-      o             " _TQUOTE  (!_TQUOTE  &:(_ESC | _INTERP | .))* _TQUOTE  ", (make Str)
-      o             " _TDQUOTE (!_TDQUOTE &:(_ESC | _INTERP | .))* _TDQUOTE ", (make Str)
+      o             " _TQUOTE  (!_TQUOTE  &:(_ESC | _INTERP | .))* _TQUOTE  ", (make Str, dedent:yes)
+      o             " _TDQUOTE (!_TDQUOTE &:(_ESC | _INTERP | .))* _TDQUOTE ", (make Str, dedent:yes)
       o             " _DQUOTE  (!_DQUOTE  &:(_ESC | _INTERP | .))* _DQUOTE  ", (make Str)
       o             " _QUOTE   (!_QUOTE   &:(_ESC | .))* _QUOTE             ", (make Str)
       i _ESC:       " _SLASH ", (dontcare, $) ->

@@ -756,7 +756,7 @@ OLine = clazz 'OLine', Line, ->
       regexAll.include name, rule
     OLine regexAll
   # Helper for clazz construction in callbacks
-  make: (clazz) -> (it, $) -> new clazz it, $
+  make: (clazz, options=undefined) -> (it, $) -> new clazz it, options
 
 C  = -> Choice (x for x in arguments)
 E  = -> Existential arguments...

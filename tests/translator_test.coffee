@@ -271,7 +271,7 @@ foo = function() {
 """
 test ' foo = loop then arguments ', 'var foo, _arguments; foo = (_arguments = arguments, function() { var _accum; _accum = []; while (true) { _accum.push(_arguments); } return _accum; }());'
 test ' foo = loop then blah ', 'var foo; foo = function() { var _accum; _accum = []; while (true) { _accum.push(blah); } return _accum; }();'
-test ' foo = loop then -> arguments ', 'var foo; foo = function() { var _accum; _accum = []; while (true) { (function() { return arguments; }); } return _accum; }();'
+test ' foo = loop then -> arguments ', 'var foo; foo = function() { var _accum; _accum = []; while (true) { _accum.push(function() { return arguments; }); } return _accum; }();'
 test ' foo = loop then loop then arguments ', '''
 var foo, _arguments;
 foo = (
