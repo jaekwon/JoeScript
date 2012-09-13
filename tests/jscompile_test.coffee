@@ -33,11 +33,12 @@ test = (requires, cb) ->
     result = eval(source)
     cb.call {it:result}, result
   catch error
-    console.log "Error in evaluating translated javascript: #{yellow source}.\nError:\n#{red error?.stack ? error}"
+    #console.log "Error in evaluating translated javascript: #{yellow source}.\nError:\n#{red error?.stack ? error}"
+    console.log "Error in evaluating translated javascript: #{red error?.stack ? error}"
     process.exit(1)
   return
 
 test 'sample', -> equal @it.sample, 'S4MPLE'
 test 'everything', -> equal @it.complete, yes
-test 'coffeemugg', -> equal @it.result, 'this is a test'
+test 'coffeemugg', -> equal @it.result, 0 # 0 errors
 #test [{name:'joeson', path:'src/joeson.coffee'}], -> console.log @it

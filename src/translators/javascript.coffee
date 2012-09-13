@@ -945,6 +945,6 @@ addHelpers = (js) ->
     js_raw_lineno = ("#{blue i} #{red line}" for line, i in js_raw.split('\n')).join('\n')
     console.log "Error in uglify.parser.parse():\n#{error.stack ? error}\n\n#{js_raw_lineno}"
     throw error
-  js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes)
+  js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes, indent_level:2)
   #console.log green js_pretty[14...-4]
   return js_pretty[14...-4]
