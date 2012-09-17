@@ -64,13 +64,13 @@ app.listen argv.p ? 8080
 {
   JKernel, JThread, INSTR
   NODES:{JObject, JArray, JUser, JUndefined, JNull, JNaN, JBoundFunc, JStub}
-  GLOBALS:{CACHE, GOD, WORLD, ANON, KERNEL}
+  GLOBALS:{CACHE, GOD, ANON, USERS, WORLD, PERSISTENCE, KERNEL}
   HELPERS:{isInteger,isObject,setLast}
 } = require 'sembly/src/interpreter'
 require 'sembly/src/interpreter/perspective' # Perspective plugin
 
-# HACK: load db persisted stuff of WORLD
-WORLD.reload -> console.log "World loaded"
+# HACK: load all users.
+USERS.reload -> console.log "Users loaded!"
 
 # Helper to create a session transparently when there isn't one.
 # Create session if necessary and ship screen over to client
@@ -114,7 +114,7 @@ io.sockets.on 'connection', (socket) ->
     info "Received submit data:#{data}, onSubmit:#{onSubmit}"
 
     KERNEL.run user:ANON, code:'onSubmit(event)', scope:WORLD.create(ANON, {
-      onSubmit: (new JStub(id:onSubmit, persistence:WORLD.hack_persistence))
+      onSubmit: (new JStub(id:onSubmit, persistence:PERSISTENCE))
       event:    (new JObject(creator:ANON, data:{
         modules:  session.modules
         screen:   session.screen

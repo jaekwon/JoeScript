@@ -59,11 +59,12 @@ module.exports = (modules, options) ->
     throw new Error "Duplicate module #{name}" if _modules[name]
     _files[file] = _modules[name] = yes
 
-  #console.log toCompile
+  # console.log toCompile
   derequired = ''
   for {file,name,fn} in toCompile
     source = require('fs').readFileSync file, 'utf8'
     compiled = fn(source)
+    # console.log "#{compiled.length}\t #{file} (#{name})"
     derequired += """
       require['#{name}'] = function() {
         return new function() {

@@ -9,11 +9,6 @@ task 'build', ->
   run 'coffee -c lib/*.coffee'
   #run 'coffee -c lib/**/*.coffee'
 
-task 'world', ->
-  run 'cake build', ->
-    run 'coffee src/interpreter/global.coffee', ->
-      console.log "World seeded!"
-
 task 'test', ->
   run 'cake build', ->
     run 'coffee tests/codestream_test.coffee', ->
@@ -47,6 +42,8 @@ task 'browser', 'rebuild the merged script for inclusion in the browser', ->
       {name:'sugar',           path:'node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development.js'},
       {name:'async',           path:'node_modules/async/lib/async.js'},
       {name:'nogg',            path:'node_modules/nogg/lib/nogg.js'}
+      {name:'uglify-js',       path:'node_modules/uglify-js/uglify-js.js'}
+      {name:'uglify-js/lib',   path:'node_modules/uglify-js/lib/**.js'}
     ], {
       compilers:  {},
       main:       {name:'Sembly', module:'sembly/src/client'},

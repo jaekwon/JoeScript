@@ -15,29 +15,29 @@ fnNamed = (name, fn) ->
   CACHE[name] = fn
   fn.id = name
   fn
+encache = (obj) ->
+  CACHE[obj.id] = obj
+  obj
 
 if window?
-  PERSISTENCE = undefined
+  PERSISTENCE = @PERSISTENCE = undefined
 else
   {JPersistence} = p = require 'sembly/src/interpreter/persistence'
-  PERSISTENCE = new JPersistence()
+  PERSISTENCE = @PERSISTENCE = new JPersistence()
 
-GOD     = @GOD    = CACHE['god']    = new JObject id:'god',   creator:null, data:name:'God'
-ANON    = @ANON   = CACHE['anon']   = new JObject id:'anon',  creator:GOD, data:name:'Anonymous'
-USERS   = @USERS  = CACHE['users']  = new JObject id:'users', creator:GOD, data:
+GOD     = @GOD    = encache JObject id:'god',   creator:null, data:{name:'God'}
+ANON    = @ANON   = encache JObject id:'anon',  creator:GOD,  data:{name:'Anonymous'}
+USERS   = @USERS  = encache JObject id:'users', creator:GOD,  data:{
   god:    GOD
   anon:   ANON
-OBJECT  = @OBJECT = CACHE['object'] = new JObject(id:'object', creator:GOD, proto:null, data:{
+}
+OBJECT  = @OBJECT = encache JObject id:'object', creator:GOD, proto:null, data:{
   toString: fnNamed('object_toString', ($, obj) -> obj.toString())
-})
-ARRAY   = @ARRAY  = CACHE['array']  = new JObject(id:'array', creator:GOD, data:{
+}
+ARRAY   = @ARRAY  = encache JObject id:'array', creator:GOD, data:{
   push: fnNamed('array_push', ($, arr, value) ->
     Array.prototype.push.call arr.data, value
-    # actually, transaction below isn't necessary because set/length isn't necessary.
-    # TODO BEGIN XACTION
     arr.emit {thread:$, type:'set', key:arr.data.length-1, value}
-    # @emit {thread:$, type:'set', key:'length', value:@data.length}
-    # TODO END XACTION
     return JUndefined
   )
   pop: fnNamed('array_pop', ($, arr) ->
@@ -45,7 +45,7 @@ ARRAY   = @ARRAY  = CACHE['array']  = new JObject(id:'array', creator:GOD, data:
     arr.emit {thread:$, type:'set', key:'length', value:arr.data.length}
     return value ? JUndefined
   )
-  shift: fnNamed('array_shift', ($, arr) -> # popping from the left
+  shift: fnNamed('array_shift', ($, arr) ->
     value = Array.prototype.shift.call arr.data
     arr.emit {thread:$, type:'shift'}
     return value ? JUndefined
@@ -55,18 +55,13 @@ ARRAY   = @ARRAY  = CACHE['array']  = new JObject(id:'array', creator:GOD, data:
     arr.emit {thread:$, type:'unshift', value}
     return arr.data.length ? JUndefined
   )
-})
-
-WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
-  world:  new JStub(id:'world', persistence:PERSISTENCE)
+}
+WORLD   = @WORLD = encache JObject id:'world', creator:GOD, data: {
+  world:  JStub(id:'world', persistence:PERSISTENCE)
   this:   USERS
   users:  USERS
   Object: OBJECT
   Array:  ARRAY
-
-  login:  fnNamed('login', ($) ->
-    return "TODO: This should be a form object with a callback."
-  )
 
   eval:   fnNamed('eval', ($, this_, codeStr) ->
     # Parse the codeStr and associate functions with the output Item
@@ -85,7 +80,7 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
     return JUndefined
   )
 
-  hasPrototype: new JBoundFunc(id:'hasPrototype', creator:GOD, scope:JNull, func:"""
+  hasPrototype: encache JBoundFunc(id:'hasPrototype', creator:GOD, scope:JNull, func:"""
     (obj, proto) ->
       obj = obj.__proto__ while obj? and obj != proto
       obj?
@@ -97,10 +92,14 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
     # otherwise the system will hang.
   )
 
-  command: new JObject(id:'command', creator:GOD, data:{
+  login: fnNamed('login', ($) ->
+    return "TODO: This should be a form object with a callback."
+  )
+
+  command: encache JObject(id:'command', creator:GOD, data:{
     type: 'editor'
     mode: 'coffeescript'
-    onSubmit: new JBoundFunc(id:'onSubmit', creator:GOD, scope:new JStub(id:'world'), func:"""
+    onSubmit: encache JBoundFunc(id:'onSubmit', creator:GOD, scope:new JStub(id:'world'), func:"""
       ({modules, data:codeStr}) ->
         modules.push module={code:codeStr, status:'running'}
         print = (data) ->
@@ -117,7 +116,7 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
       """)
   })
 
-  hydrate: new JBoundFunc(id:'hydrate', creator:GOD, scope:new JStub(id:'world'), func:"""
+  hydrate: encache JBoundFunc(id:'hydrate', creator:GOD, scope:new JStub(id:'world'), func:"""
     (obj, seen={}) ->
       # print "hydrate \#{obj}"
       try
@@ -138,33 +137,13 @@ WORLD   = @WORLD = CACHE['world'] = new JObject id:'world', creator:GOD, data: {
       obj
     """)
 }
-WORLD.hack_persistence = PERSISTENCE # FIX
 
 {JKernel} = require 'sembly/src/interpreter/kernel'
 KERNEL = @KERNEL = new JKernel cache:CACHE
 KERNEL.emitter.on 'shutdown', -> PERSISTENCE?.client.quit()
 
-# Not all world items are initialized manually.
-# Some (like command) live in the database, so
-# if you need them, you want to call this method first.
-# TODO refactor, make reload available to all objects.
-WORLD.reload = (cb) ->
-  delete CACHE['world']
+USERS.reload = (cb) ->
   delete CACHE['users']
-  PERSISTENCE.loadJObject 'world', CACHE, (err, world) ->
-    WORLD.data = world.data if world?
-    PERSISTENCE.loadJObject 'users', CACHE, (err, users) ->
-      USERS.data = users.data if users?
-      cb(err, world)
-
-# run this file to set up redis
-if require.main is module
-  PERSISTENCE?.attachTo WORLD
-  KERNEL.run({user:GOD, scope:WORLD, code: "yes", callback: (err) ->
-    return console.log "FAIL!\n#{err.stack ? err}" if err?
-    WORLD.emit thread:@, type:'new'
-    @enqueue callback: (err) ->
-      return console.log "FAIL!\n#{err.stack ? err}" if err?
-      PERSISTENCE.client.quit() # TODO
-      console.log "done!"
-  })
+  PERSISTENCE.loadJObject 'users', CACHE, (err, users) ->
+    USERS.data = users.data if users?
+    cb(err, USERS)

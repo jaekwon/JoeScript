@@ -12,7 +12,7 @@
       "nogg": "0.0.8",
       "socket.io": "0.9.6",
       "redis": "0.7.2",
-      "uglify-js": "1.3.2",
+      "uglify-js": "git://github.com/jaekwon/UglifyJS.git",
       "browserify": "git://github.com/jaekwon/node-browserify.git",
       "optimist": "0.3.4",
       "findit": "0.1.2"
