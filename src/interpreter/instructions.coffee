@@ -370,7 +370,7 @@ joe.Invocation::extend
       $.push this:bfunc, func:storeLast, key:'data', index:'scope'
       return INSTR.__get__ $, bfunc, 'scope', yes
     return
-  interpretParams: ($, i9n, binding) ->
+  interpretBinding: ($, i9n, binding) ->
     i9n.binding = binding
     i9n.func = joe.Invocation::interpretParams
   interpretParams: ($, i9n) ->
