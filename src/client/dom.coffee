@@ -142,103 +142,50 @@ JObject::extend
   # See documentation above.
   dom_on: ($V, el, event) ->
     # console.log el, "#{@}.dom_on #{event.type}"
-    # HACK. TODO. 'input' is deprecated.
-    if @data.type is 'input'
-      switch event.type
-        when 'set'
-          {key, value} = event
-          assert.ok key is 'text', "Unexpected event 'set' for input with key: #{key}"
-          #console.log event
-          el.val(event.value).trigger('keyup')
-        else
-          throw new Error "Unexpected event type #{event.type} for input"
-    else
-      items = el.data('items')
-      switch event.type
-        when 'set'
-          {key, value} = event
-          if existingEl=items[key]
-            #debug "JObject::dom_on found existing item el for #{key}"
-            # If existingEl's parent & key & value is the same, don't do anything.
-            # TODO reconsider. too expensive?
-            if existingEl.parent()[0] is el[0] and existingEl.data('key') is key and
-              existingEl.data('value') is value
-                'pass'
-            else
-              itemEl = @dom_drawItem $V, key, value
-              existingEl.after itemEl
-              existingEl.detach()
-              items[key] = itemEl
+    items = el.data('items')
+    switch event.type
+      when 'set'
+        {key, value} = event
+        if existingEl=items[key]
+          #debug "JObject::dom_on found existing item el for #{key}"
+          # If existingEl's parent & key & value is the same, don't do anything.
+          # TODO reconsider. too expensive?
+          if existingEl.parent()[0] is el[0] and existingEl.data('key') is key and
+            existingEl.data('value') is value
+              'pass'
           else
-            #debug "JObject::dom_on appending new item el for #{key}"
             itemEl = @dom_drawItem $V, key, value
-            el.append itemEl
-            items[key] = itemEl
-        when 'delete'
-          {key} = event
-          # TODO cannot just removeListener here.
-          # value.removeListener $V
-          if existingEl=items[key]
+            existingEl.after itemEl
             existingEl.detach()
-            delete items[key]
-            # TODO re-attach to a link, if one exists. (tree grafting)
+            items[key] = itemEl
         else
-          throw new Error "Unexpected event type #{event.type}"
+          #debug "JObject::dom_on appending new item el for #{key}"
+          itemEl = @dom_drawItem $V, key, value
+          el.append itemEl
+          items[key] = itemEl
+      when 'delete'
+        {key} = event
+        # TODO cannot just removeListener here.
+        # value.removeListener $V
+        if existingEl=items[key]
+          existingEl.detach()
+          delete items[key]
+          # TODO re-attach to a link, if one exists. (tree grafting)
+      else
+        throw new Error "Unexpected event type #{event.type}"
 
   # Draw the element for the first time.
   dom_draw: ($V) -> # $V is JView
-    switch @data.type
-      when 'input'
-        # draw an input field
-        $V.newEl id:@id, cls:'input', tag:'input', data:@data, attr:{type:'text'}, (el) =>
-          # HACK consider putting elsewhere.
-          # When refactoring out, make sure addListener happens recursively.
-          debug "Adding JView listener to ##{@id}"
-          @addListener $V
-          # HACK end
-          el.val @data.text if @data.text?
-
-      when 'editor'
-        $V.newEl id:@id, cls:'editor', tag:'div', cls:'editor', data:@data, (el) =>
-          {Editor} = require 'sembly/src/client/editor'
-          mode = @data.mode ? 'coffeescript'
-          editor = new Editor mode:mode, el:el, onSubmit: (text) =>
-            if @data.onSubmit?
-              $V.socket.emit 'submit', data:text, onSubmit:@data.onSubmit.id
-          el.data('editor', editor)
-          process.nextTick ->
-            # ipad hack
-            # getting the touch keyboard to show up when tapping for the first time
-            if navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)/i)
-              $('#screen').append($('<input id="ipadhack" type="text"></input>'))
-              $('#ipadhack').focus().hide()
-            else
-              editor.focus()
-          # add submit button
-          if @data.onSubmit?
-            el.append submit=$('<button>submit</submit>')
-            submit.click -> editor.submit(); no
-
-      else # POJO
-        #debug "JObject::dom_draw for #{@}"
-        items = {}
-        $V.newEl id:@id, tag:'div', cls:@domClass, data:{items}, (el) =>
-          # HACK consider putting elsewhere.
-          # When refactoring out, make sure addListener happens recursively.
-          debug "Adding JView listener to ##{@id}"
-          @addListener $V
-          # HACK end
-          if @data.__class__ # HACK
-            el.addClass @data.__class__
-          for key, value of @data when key not in ['__class__', 'onSubmit']
-            el.append items[key]=@dom_drawItem $V, key, value
-          # add submit button
-          if @data.onSubmit?
-            el.append submit=$('<button>submit</submit>')
-            submit.click =>
-              data = collectInput(el)
-              $V.socket.emit 'submit', data:data, onSubmit:@data.onSubmit.id
-              no
+      #debug "JObject::dom_draw for #{@}"
+      items = {}
+      $V.newEl id:@id, tag:'div', cls:@domClass, data:{items}, (el) =>
+        # HACK consider putting elsewhere.
+        # When refactoring out, make sure addListener happens recursively.
+        debug "Adding JView listener to ##{@id}"
+        @addListener $V
+        # HACK end
+        for key, value of @data
+          el.append items[key]=@dom_drawItem $V, key, value
 
   # Draw key/value pairs for a POJO
   dom_drawItem: ($V, key, value) ->

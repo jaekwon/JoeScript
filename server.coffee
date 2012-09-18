@@ -84,7 +84,7 @@ withSession = (socket, fn) ->
       # Setup default view and socket-specific session
       session = {}
       session.modules = modules = new JArray creator:ANON
-      session.screen =  screen =  new JArray creator:ANON, data:{__class__:'hideKeys'}
+      session.screen =  screen =  new JArray creator:ANON
       session.perspective = screen.newPerspective(socket)
 
       # Save session

@@ -92,30 +92,6 @@ WORLD   = @WORLD = encache JObject id:'world', creator:GOD, data: {
     # otherwise the system will hang.
   )
 
-  login: fnNamed('login', ($) ->
-    return "TODO: This should be a form object with a callback."
-  )
-
-  command: encache JObject(id:'command', creator:GOD, data:{
-    type: 'editor'
-    mode: 'coffeescript'
-    onSubmit: encache JBoundFunc(id:'onSubmit', creator:GOD, scope:new JStub(id:'world'), func:"""
-      ({modules, data:codeStr}) ->
-        modules.push module={code:codeStr, status:'running'}
-        print = (data) ->
-          if not (output=module.output)?
-            output = []
-            output.__class__ = 'hideKeys'
-            module.output = output # __class__ hack doesn't work with updates.
-          output.push data
-        try
-          module.result = eval(codeStr)
-        catch error
-          module.error = error
-        module!status
-      """)
-  })
-
   hydrate: encache JBoundFunc(id:'hydrate', creator:GOD, scope:new JStub(id:'world'), func:"""
     (obj, seen={}) ->
       # print "hydrate \#{obj}"
