@@ -49,20 +49,21 @@ STATE_WAIT = 'STATE_WAIT'
 # error:    Last thrown error
 JThread = @JThread = clazz 'JThread', ->
 
-  # kernel: JKernel to which this thread belongs
-  # code:   The code node of next program to run
-  # user:   The user associated with this thread
-  # scope:  Immediate local lexical scope object
-  init: ({@kernel, code, @user, @scope, callback}) ->
+  # kernel:  JKernel to which this thread belongs
+  # code:    The code node of next program to run
+  # user:    The user associated with this thread
+  # scope:   Immediate local lexical scope object
+  # timeout: Timeout in milliseconds, force error
+  init: ({@kernel, code, @user, @scope, timeout, callback}) ->
     assert.ok @kernel instanceof JKernel,  "JThread wants kernel"
-    assert.ok code instanceof joe.Node, "JThread wants Joescript node"
+    assert.ok code    instanceof joe.Node, "JThread wants Joescript node"
     assert.ok @user   instanceof JObject,  "JThread wants user"
     @scope ?= new JObject creator:@user
     assert.ok @scope  instanceof JObject,  "JThread scope not JObject"
     @id = randid()
     @queue = []
     @waitKeys = []
-    @start {code, callback}
+    @start {code, timeout, callback}
 
   # Main run loop iteration.
   runStep: ->
@@ -138,7 +139,7 @@ JThread = @JThread = clazz 'JThread', ->
   #     and throw a native string (INTERRUPT_XYZ) to interrupt runloop.
   #   Else
   #     this shouldn't happen.
-  throw: (name, message) ->
+  throw: (name, message, catchable=yes) ->
     callStack = @callStack()
     callStackStrs = (''+x for x in callStack)
     @error = new JObject(creator:@user, data:{
@@ -150,8 +151,9 @@ JThread = @JThread = clazz 'JThread', ->
     @error.message = message
     @error.stack = callStackStrs # for convenience
     assert.ok @state in [STATE_WAIT, STATE_RUNNING], "Thread was unexpectedly in #{@state} during a JThread.throw. Runtime error: #{name}/#{message}"
-    if (origState=@state) is STATE_WAIT
-      @state = STATE_ERROR
+    origState = @state
+    @state = STATE_ERROR
+    if origState is STATE_WAIT
       while waitKey=@waitKeys.pop()
         (waitList=@kernel.waitLists[waitKey]).remove @
         delete @kernel.waitLists[waitKey] if waitList.length is 0
@@ -166,7 +168,7 @@ JThread = @JThread = clazz 'JThread', ->
           return
         else
           throw INTERRUPT_ERROR
-      else if i9n.this instanceof joe.Try
+      else if catchable and i9n.this instanceof joe.Try
         i9n.func = joe.Try::interpretCatch
         @last = @error
         @error = null
@@ -229,10 +231,12 @@ JThread = @JThread = clazz 'JThread', ->
       @queue.push {code, callback}
 
   # Set the thread to start the next process.
-  start: ({code, callback}) ->
+  start: ({code, timeout, callback}) ->
+    assert.ok timeout > 0, "Timeout must be positive if given. got #{timeout}" if timeout?
     @i9ns = []
     @last = JUndefined
     @error = null
+    @expiration = (new Date()).getTime() + timeout if timeout?
     @state = STATE_RUNNING
     if code
       node = _parseCode code
@@ -305,6 +309,7 @@ JThread = @JThread = clazz 'JThread', ->
     @cache ?= {}      # TODO should be weak etc.
     @index = 0
     @ticker = 0
+    @time = (new Date()).getTime()
     @waitLists = {}   # waitKey -> [thread1,thread2,...]
     @emitter = new (require('events').EventEmitter)()
     @errorCallback ?= @defaultErrorCallback
@@ -314,9 +319,10 @@ JThread = @JThread = clazz 'JThread', ->
 
   # Start processing another thread
   # user:     The same user object as returned by login.
+  # timeout:  Timeout in milliseconds, after which thread should error.
   # callback: Called with thread after it exits.
   # CONTRACT: Caller shouldn't have to worry about catching errors from run. See @errorCallback
-  run: ({user, code, scope, callback}) ->
+  run: ({user, code, scope, timeout, callback}) ->
     assert.ok user?, "User must be provided."
     assert.ok user instanceof JObject, "User not instanceof JObject, got #{user?.constructor.name}"
     try
@@ -326,14 +332,17 @@ JThread = @JThread = clazz 'JThread', ->
         code:node
         user:user
         scope:scope
+        timeout:timeout
         callback:callback
       @runloop.push thread
       @runRunloop() if @runloop.length is 1
+      return thread
     catch error
       if node?
         @errorCallback "Error in user code start:\n#{error.stack ? error}\nfor node:\n#{node.serialize()}"
       else
         @errorCallback "Error parsing code:\n#{error.stack}\nfor code text:\n#{code}"
+      return
 
   # Main entrance function for kernel runloop.
   # Processes a number of ticks and stops for process.nextTick.
@@ -341,12 +350,17 @@ JThread = @JThread = clazz 'JThread', ->
   # schedule to run again via process.nextTick, allowing
   # server to accept requests.
   runRunloop$: ->
-    info "JKernel::runRunloop. @#{@index} (of #{@runloop.length})" if log
+    @time = (new Date()).getTime()
+    info "JKernel::runRunloop. @#{@index} (of #{@runloop.length}) @ time #{@time}" if log
     # A thread polled from the runloop can have any @state.
     # After it gets polled, the state gets handled, and the thread
     # may get removed from the runloop.
     thread = @runloop[@index]
     try
+      # First check to see that thread hasn't expired.
+      if thread.expiration <= @time
+        thread.throw 'TimeoutError', 'Thread timed out', no
+        throw new Error "Whoa. Thread.throw should have thrown INTERRUPT_ERROR"
       # This reduces nextTick overhead, which is more significant when server is running (vs just testing)
       # kinda like a linux "tick", values is adjustable.
       for i in [0..100]

@@ -15,6 +15,7 @@ $(document).ready ->
         write: (line) ->
           domLog.append toHTML line
           $('#footer').scrollDown()
+          null
       level: 'debug'
 
   domLog.before('(<a id="log_toggle">log</a>)')

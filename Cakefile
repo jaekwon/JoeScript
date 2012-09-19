@@ -19,7 +19,8 @@ task 'test', ->
               #run 'coffee tests/jsl_test.coffee', ->
                 run 'coffee tests/persistence_test.coffee', ->
                   run 'coffee tests/jscompile_test.coffee', ->
-                    console.log "All tests OK"
+                    run 'coffee tests/client_test.coffee', ->
+                      console.log "All tests OK"
 
 task 'browser', 'rebuild the merged script for inclusion in the browser', ->
   run 'cake build', ->
@@ -46,7 +47,7 @@ task 'browser', 'rebuild the merged script for inclusion in the browser', ->
       {name:'uglify-js/lib',   path:'node_modules/uglify-js/lib/**.js'}
     ], {
       compilers:  {},
-      main:       {name:'Sembly', module:'sembly/src/client'},
+      main:       {name:'Sembly', module:'sembly/src'},
       moduleSetupCode: 'var process = require("_process");',
       globalSetupCode: """
         if (typeof define === 'function' && define.amd) {
