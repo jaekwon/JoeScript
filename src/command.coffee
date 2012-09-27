@@ -250,7 +250,7 @@ removeSource = (source, base, removeJs) ->
   sourceCode.splice index, 1
   if removeJs and not opts.join
     jsPath = outputPath source, base
-    path.exists jsPath, (exists) ->
+    fs.exists jsPath, (exists) ->
       if exists
         fs.unlink jsPath, (err) ->
           throw err if err and err.code isnt 'ENOENT'
@@ -277,7 +277,7 @@ writeJs = (source, js, base) ->
         printLine err.message
       else if opts.compile and opts.watch
         timeLog "compiled #{source}"
-  path.exists jsDir, (exists) ->
+  fs.exists jsDir, (exists) ->
     if exists then compile() else exec "mkdir -p #{jsDir}", compile
 
 # Convenience for cleaner setTimeouts.

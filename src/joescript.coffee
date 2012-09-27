@@ -719,3 +719,7 @@ checkColumn = (__, $) ->
 
 # Parse the given code
 @parse = GRAMMAR.parse
+
+# Run code
+@run = ->
+  console.log "run:", arguments
