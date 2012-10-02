@@ -15,25 +15,25 @@ JSL = Grammar ({o, i, tokens}) -> [
     o OBJ: [
       o             " '<' (type:[F] '|')? '#' id:ID '>' ", ({type,id}, $) ->
                       # Check client cache for existing JObject instance.
-                      if $.env.cache
-                        cached = $.env.cache[id]
+                      if $.opts.cache
+                        cached = $.opts.cache[id]
                         return cached if cached?
                       return JStub {id,type}
       o             " '{' type:[OAU] '|#' id:ID ('@' creatorId:ID)? ' ' items:OBJ_ITEM*',' '}' ", ({type,id,creatorId,items}, $) ->
                       # NOTE: Even though the full object was given,
                       # it's possible that object is already present in client cache.
                       # This is because currently there is no server tracking of the client cache state.
-                      if $.env.cache
-                        cached = $.env.cache[id]
+                      if $.opts.cache
+                        cached = $.opts.cache[id]
                         return cached if cached?
-                      creator = $.env.cache[creatorId] ? new JStub {id:creatorId,type:'U'} if creatorId
+                      creator = $.opts.cache[creatorId] ? new JStub {id:creatorId,type:'U'} if creatorId
                       switch type
                         when 'O' then obj = new JObject {id,creator}
                         when 'A' then obj = new JArray  {id,creator}
                         else return cb("Unexpected type of object w/ id #{id}: #{type}")
                       obj.data[key] = value for {key, value} in items
-                      $.env.cache?[id] = obj if id?
-                      $.env.newCallback?(obj)
+                      $.opts.cache?[id] = obj if id?
+                      $.opts.newCallback?(obj)
                       return obj
     ]
     o BOOLEAN:      " 'true' | 'false' ", (it) -> it is 'true'

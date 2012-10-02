@@ -81,8 +81,7 @@ testGrammar = (rule, indent=0, name=undefined) ->
     for name, value of rule.args[0]
       testGrammar value, indent, name
   else if typeof rule is 'string'
-    {result, code} = PARSED_GRAMMAR.parse rule, env:{debug:no}, returnContext:yes #, env:{global:NODES}
-    #{result, code} = GRAMMAR.parse rule, env:{debug:no}, returnContext:yes
+    {result, code} = PARSED_GRAMMAR.parse rule, {debug:no, returnContext:yes}
     console.log "#{Array(indent*2+1).join ' '
                 }#{if name? then red(pad({left:(10-indent*2)}, name+':')) else ''
                 }#{if result? then yellow result else red result} #{white code.peek afterChars:10}"

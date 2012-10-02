@@ -13,11 +13,11 @@ test  = (code, expected) ->
   # hack to make tests easier to write.
   code = code.replace(/\\/g, '\\\\').replace(/\r/g, '\\r')
   try
-    context = GRAMMAR.parse code, env:{debug:no}, returnContext:yes
+    context = GRAMMAR.parse code, {debug:no, returnContext:yes}
     assert.equal (''+context.result).replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
   catch error
     try
-      GRAMMAR.parse code, env:{debug:yes}, returnContext:yes
+      GRAMMAR.parse code, {debug:yes, returnContext:yes}
     catch error
       # pass
     console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"

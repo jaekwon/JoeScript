@@ -121,19 +121,17 @@ compilePath = (source, topLevel, base) ->
 # `__dirname` and `module.filename` to be correct relative to the script's path.
 compileScript = (file, input, base) ->
   o = opts
-  options = compileOptions file
+  o.wrapInClosure = o.bare
   try
-    t = task = {file, input, options}
+    t = task = {file, input, opts}
     JoeScript.emit 'compile', task
-    if o.nodes or o.debug then printLine JoeScript.parse(t.input, env:o).serialize()
-    else if o.run         then JoeScript.run t.input, t.options
+    if o.nodes or o.debug then printLine JoeScript.parse(t.input, opts).serialize()
+    else if o.run         then JoeScript.run task
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
     else
-      nodes = JoeScript.parse(t.input, env:o)
-      jsx = require 'sembly/src/translators/javascript'
-      t.output = jsx.translate(nodes)
+      t.output = JoeScript.translateJavascript(t.input, opts)
       JoeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base
@@ -309,10 +307,6 @@ parseOptions = ->
   sources       = o.arguments
   sourceCode[i] = null for source, i in sources
   return
-
-# The compile-time options to pass to the JoeScript compiler.
-compileOptions = (filename) ->
-  {filename, bare: opts.bare, header: opts.compile}
 
 # Start up a new Node.js instance with the arguments in `--nodejs` passed to
 # the `node` binary, preserving the other options.

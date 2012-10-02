@@ -16,7 +16,7 @@ counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = joe.parse code
-  node = jsx.translate(node, {includeHelpers:no})
+  node = jsx.translate(node, {includeHelpers:no, wrapInClosure:no})
   if typeof expected is 'function'
     try
       result = eval(node)
@@ -140,14 +140,15 @@ foo = function(_arg) {
 };
 """
 test """
-switch foo
-  when "1", 2
-    return "one or two"
-  when "three"
-    return "three"
-  else
-    return "default"
-""", 'switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default"; }'
+do ->
+  switch foo
+    when "1", 2
+      return "one or two"
+    when "three"
+      return "three"
+    else
+      return "default"
+""", '(function() { var _temp; _temp = undefined; switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default"; } return _temp; })();'
 test """
 foo = switch bar
   when yes

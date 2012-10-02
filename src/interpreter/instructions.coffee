@@ -93,10 +93,9 @@ checkType = ($, val, wantedType, message) ->
     message ?= "Expected #{wantedType} but found $TYPE."
     return $.throw 'TypeError', message.replace(/\$TYPE/g, type)
 
-# dependencies
-require('sembly/src/translators/scope').install()
-require('sembly/src/translators/javascript').install()
-
+# dependencies (prototype injection)
+require('sembly/src/translators/scope')
+require('sembly/src/translators/javascript')
 
 joe.Node::extend
   interpret: ($) ->

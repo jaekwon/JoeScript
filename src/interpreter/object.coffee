@@ -32,10 +32,10 @@ assert = require 'assert'
 } = require 'sembly/src/joescript'
 Node = require('sembly/src/node').createNodeClazz('ObjectNode')
 
-# dependencies
-require('sembly/src/translators/scope').install()
-require('sembly/src/translators/javascript').install()
-require('sembly/src/translators/etc').install()
+# dependencies (prototype injection)
+require('sembly/src/translators/scope')
+require('sembly/src/translators/javascript')
+require('sembly/src/translators/etc')
 
 # HELPERS FOR INTERPRETATION
 isInteger = (n) -> n%1 is 0

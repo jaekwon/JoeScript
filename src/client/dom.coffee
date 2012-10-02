@@ -57,7 +57,7 @@ JView = @JView = clazz 'JView', ->
       for key, value of eventJSON
         unless key in ['type', 'key', 'sourceId']
           try
-            eventJSON[key] = valueObj = JSL.parse value, env:{cache:CACHE} #, newCallback:(newObj) -> newObj.addListener screenView}
+            eventJSON[key] = valueObj = JSL.parse value, {cache:CACHE} #, newCallback:(newObj) -> newObj.addListener screenView}
           catch err
             fatal "Error in parsing event item '#{key}':#{value} :\n#{err.stack ? err}"
             # XXX not sure what should go here.

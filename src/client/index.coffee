@@ -67,7 +67,7 @@ $(document).ready ->
     console.log "received screen:", screenStr
 
     try
-      screen = JSL.parse screenStr, env:{cache:CACHE}
+      screen = JSL.parse screenStr, {cache:CACHE}
     catch err
       fatal "Error in parsing screenStr '#{screenStr}':\n#{err.stack ? err}"
       return

@@ -1,3 +1,10 @@
+#
+# CONTRACT:
+#   Calling installScope on a node with scope already installed
+#   should be a safe operation that re-installs the scope.
+#   After node translations like node.toJSNode(), you need to re-install.
+#
+
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
@@ -41,73 +48,65 @@ assert    = require 'assert'
   nonparameterVariables$: get: ->
     @variables.subtract @parameters
 
-# Node::installScope: (plugin)
-# Installs lexical scopes on nodes and collect variables and parameters.
-#
-# CONTRACT:
-#   Calling installScope on a node with scope already installed
-#   should be a safe operation that re-installs the scope.
-#   After node translations like node.toJSNode(), you need to re-install.
-@install = ->
-  return if joe.Node::installScope? # already defined.
+_init = (node, options) ->
+  # Dependency validation
+  if options.create or not options.parent?
+    node.scope = node.ownScope = new LScope options.parent?.scope
+  else
+    node.scope = options.parent.scope
 
-  init = (node, options) ->
-    # Dependency validation
-    if options.create or not options.parent?
-      node.scope = node.ownScope = new LScope options.parent?.scope
-    else
-      node.scope = options.parent.scope
+joe.Node::extend
+  installScope: (options={}) ->
+    _init @, options
+    @withChildren ({child, parent}) ->
+      child.installScope?(create:no, parent:parent)
+    return this
+  determine: ->
+    that = this
+    @withChildren ({child, parent, desc, key, index}) ->
+      child.determine() if child instanceof joe.Node
+    @
 
-  joe.Node::extend
-    installScope: (options={}) ->
-      init @, options
-      @withChildren ({child, parent}) ->
-        child.installScope?(create:no, parent:parent)
-      return this
-    determine: ->
-      that = this
-      @withChildren ({child, parent, desc, key, index}) ->
-        child.determine() if child instanceof joe.Node
-      @
+joe.Try::extend
+  installScope: (options={}) ->
+    _init @, options
+    if @catchVar? and @catchBlock?
+      @catchBlock.installScope(create:yes, parent:this)
+      @catchBlock.scope.declareVariable(@catchVar)
+    @withChildren ({child, parent, desc, key, index}) ->
+      child.installScope?(create:no, parent:parent) unless key is 'catchBlock'
+    return this
 
-  joe.Try::extend
-    installScope: (options={}) ->
-      init @, options
-      if @catchVar? and @catchBlock?
-        @catchBlock.installScope(create:yes, parent:this)
-        @catchBlock.scope.declareVariable(@catchVar)
-      @withChildren ({child, parent, desc, key, index}) ->
-        child.installScope?(create:no, parent:parent) unless key is 'catchBlock'
-      return this
+joe.Func::extend
+  installScope: (options={}) ->
+    _init @, options
+    @block.installScope(create:yes, parent:this) if @block?
+    @block.scope.declareVariable(name, yes) for name in @params?.targetNames||[]
+    @withChildren ({child, parent, desc, key, index}) ->
+      child.installScope?(create:no, parent:parent) unless key is 'block'
+    return this
 
-  joe.Func::extend
-    installScope: (options={}) ->
-      init @, options
-      @block.installScope(create:yes, parent:this) if @block?
-      @block.scope.declareVariable(name, yes) for name in @params?.targetNames||[]
-      @withChildren ({child, parent, desc, key, index}) ->
-        child.installScope?(create:no, parent:parent) unless key is 'block'
-      return this
+joe.Assign::extend
+  installScope: (options={}) ->
+    _init @, options
+    @scope.ensureVariable(@target) if isVariable(@target) and not @op?
+    @withChildren ({child, parent, desc, key, index}) ->
+      child.installScope?(create:no, parent:parent)
+    return this
 
-  joe.Assign::extend
-    installScope: (options={}) ->
-      init @, options
-      @scope.ensureVariable(@target) if isVariable(@target) and not @op?
-      @withChildren ({child, parent, desc, key, index}) ->
-        child.installScope?(create:no, parent:parent)
-      return this
+joe.Undetermined::extend
+  determine: ->
+    return if @key? # already determined.
+    assert.ok @scope?, "Scope must be available to determine an Undetermined"
+    loop
+      key = @prefix+'_$'+randid(4)+'$_'
+      if not @scope.isDeclared(key) and not @scope.willDeclare(key)
+        return @key=key
 
-  joe.Undetermined::extend
-    determine: ->
-      return if @key? # already determined.
-      assert.ok @scope?, "Scope must be available to determine an Undetermined"
-      loop
-        key = @prefix+'_$'+randid(4)+'$_'
-        if not @scope.isDeclared(key) and not @scope.willDeclare(key)
-          return @key=key
-
-  joe.JSForK::extend
-    installScope: (options={}) ->
-      joe.Node::installScope.call @, options
-      @scope.ensureVariable(@key)
-      return @
+joe.JSForK::extend
+  installScope: (options={}) ->
+    _init @, options
+    @withChildren ({child, parent}) ->
+      child.installScope?(create:no, parent:parent)
+    @scope.ensureVariable(@key)
+    return @

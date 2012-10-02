@@ -74,8 +74,8 @@ _loopStack = [] # trace stack
 
   # code:       CodeStream instance
   # grammar:    Grammar instance
-  # env:        Parse-time env, accessible from grammar callback functions
-  init: ({@code, @grammar, @env}={}) ->
+  # opts:       Parse-time options, accessible from grammar callback functions
+  init: ({@code, @grammar, @opts}={}) ->
     @stack = new Array(1024)
     @stackLength = 0
     # { pos:{ (node.id):{id,result,pos,endPos,stage,...(same object as in stack)}... } }
@@ -116,7 +116,6 @@ _loopStack = [] # trace stack
     posFrames = @frames[pos]
     for wipe, i in frame.wipemask when wipe
       stash[i] = posFrames[i] if makeStash
-      #console.log "wipe", i, ">", wipe, ">", posFrames[i]
       posFrames[i] = undefined
       stashCount++
     stash?.count = stashCount
@@ -609,21 +608,26 @@ _loopStack = [] # trace stack
     @walk post: ({child:node, parent}) -> node.prepare()
 
   # MAIN GRAMMAR PARSE FUNCTION
-  parse$: (code, {returnContext,env}={}) ->
-    returnContext ?= no
+  parse$: (code, opts = {}) ->
+    opts.returnContext ?= no
     assert.ok code, "Parser wants code"
     code = CodeStream code if code not instanceof CodeStream
-    $ = ParseContext code:code, grammar:this, env:env
+    $ = ParseContext {code, grammar:this, opts}
 
-    # janky
-    if env?.debug
+    # temporarily enable stack tracing
+    if opts?.debug
       oldTrace = Object.clone trace
       trace.stack = yes
+
+    # parse
     $.result = @rank.parse $
     $.result?.code = code
-    if env?.debug
+
+    # undo temprary stack tracing
+    if opts?.debug
       trace = oldTrace
 
+    # if parse is incomplete, compute error message
     if $.code.pos isnt $.code.text.length
 
       # find the maximum parsed entity
@@ -646,7 +650,8 @@ _loopStack = [] # trace stack
         }#{ $.code.pos = maxAttempt; white $.code.peek afterLines:2}\n"
       throw parseError
 
-    if returnContext
+    # return the resulting parsed nodes, or the whole context if specified.
+    if opts.returnContext
       return $
     else
       return $.result
@@ -659,7 +664,7 @@ Line = clazz 'Line', ->
   # rule:       A rule-like object
   # parentRule: The actual parent Rule instance
   # attrs:      {cb,...}, extends the result
-  # env:        Parse time env
+  # opts:       Parse time options
   getRule: (name, rule, parentRule, attrs) ->
     if typeof rule is 'string'
       try

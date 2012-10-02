@@ -43,6 +43,8 @@ Block = clazz 'Block', Node, ->
   toString: ->
     (''+line for line in @lines).join ';\n'
 
+DoBlock = (lines) -> Invocation func:'do', params:[Item(value:Func(block:Block(lines)))]
+
 If = clazz 'If', Node, ->
   init: ({@cond, @block, @else}) ->
     @block = Block @block if @block not instanceof Block
@@ -386,7 +388,7 @@ Range.defineChildren
   by:         {type:EXPR, isValue:yes}
 
 @NODES = {
-  Node, Word, Block, If, Loop, For, Switch, Try, Case, Operation,
+  Node, Word, Block, DoBlock, If, Loop, For, Switch, Try, Case, Operation,
   Statement, Invocation, Assign, Slice, Index, Soak, Obj,
   Singleton,
   Arr, Item, Str, Regex, Func, Range, NativeExpression, Heredoc, Dummy,
@@ -718,8 +720,10 @@ checkColumn = (__, $) ->
 # ENDGRAMMAR
 
 # Parse the given code
+# Usage: parse(inputString, opts)
 @parse = GRAMMAR.parse
 
 # Run code
-@run = ->
-  console.log "run:", arguments
+@run = ({file, input, opts}) ->
+  parsed = GRAMMAR.parse input, opts
+  # compile code to javascript

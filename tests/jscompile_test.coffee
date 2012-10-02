@@ -30,6 +30,9 @@ test = (requires, cb) ->
     globalSetupCode: 'return MAIN;'
   }
   try
+    sourceAST = require('uglify-js').parser.parse(source)
+    source =    require('uglify-js').uglify.gen_code(sourceAST, beautify:yes, indent_level:2)
+    console.log blue source
     result = eval(source)
     cb.call {it:result}, result
   catch error
