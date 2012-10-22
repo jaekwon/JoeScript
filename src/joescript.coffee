@@ -43,7 +43,10 @@ Block = clazz 'Block', Node, ->
   toString: ->
     (''+line for line in @lines).join ';\n'
 
-DoBlock = (lines) -> Invocation func:'do', params:[Item(value:Func(block:Block(lines)))]
+DoBlock = (lines) ->
+  Invocation
+    func:     'do'
+    params:   [Item(value:Func(block:Block(lines)))]
 
 If = clazz 'If', Node, ->
   init: ({@cond, @block, @else}) ->
@@ -721,9 +724,17 @@ checkColumn = (__, $) ->
 
 # Parse the given code
 # Usage: parse(inputString, opts)
-@parse = GRAMMAR.parse
+@parse = ({file, input, opts}) ->
+  parsed = GRAMMAR.parse input, opts
+  return parsed
 
-# Run code
+# Parse and run code
 @run = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  # compile code to javascript
+  throw new Error "not yet implemented"
+  
+# Parse and translate code to javascript.
+@translateJavascript = ({file, input, opts}) ->
+  parsed = GRAMMAR.parse input, opts
+  jsx = require 'sembly/src/translators/javascript'
+  return jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})

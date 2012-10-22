@@ -13,13 +13,14 @@ compact = (array) -> item for item in array when item
 # compilers:  (Optional) An object of {SUFFIX:COMPILER},
 #             SUFFIX is the file suffix that the compiler recognizes. e.g. 'coffee'
 #             COMPILER is a function, takes a source code string and returns the compiled javascript.
-module.exports = (modules, options) ->
-  compilers = options?.compilers ? {}
+module.exports = (modules, options = {}) ->
+  compilers       = options.compilers ? {}
   compilers['js'] ?= (code) -> code
-  rootDir = options?.rootDir ? ''
-  main = options?.main
-  globalSetupCode = options?.globalSetupCode ? ''
-  moduleSetupCode = options?.moduleSetupCode ? ''
+  rootDir         = options.rootDir       ? ''
+  main            = options.main
+  beforePackage   = options.beforePackage ? ''
+  afterPackage    = options.afterPackage  ? ''
+  beforeModule    = options.beforeModule  ? ''
   assert.ok main?.module? and main?.name?, "options.main should be {name:VAR_NAME, module:MODULE_NAME}"
 
   toCompile = [] # array of {file:FILENAME, fn:COMPILER, name:MODULENAME}
@@ -59,20 +60,18 @@ module.exports = (modules, options) ->
     throw new Error "Duplicate module #{name}" if _modules[name]
     _files[file] = _modules[name] = yes
 
-  # console.log toCompile
   derequired = ''
   for {file,name,fn} in toCompile
     source = require('fs').readFileSync file, 'utf8'
     compiled = fn(source)
-    # console.log "#{compiled.length}\t #{file} (#{name})"
     derequired += """
       require['#{name}'] = function() {
         return new function() {
           var exports = require['#{name}'] = this;
           var module = {exports:exports};
-          #{ moduleSetupCode }
+          #{beforeModule}
           var __filename = "#{file}";
-          #{ compiled }
+          #{compiled}
           return (require['#{name}'] = module.exports);
         };
       };
@@ -81,8 +80,11 @@ module.exports = (modules, options) ->
 
   return """
     (function(root) {
+      #{beforePackage}
+
       var #{main.name} = function() {
         var nonce = {nonce:'nonce'};
+
         function require(path){
           var module = require[path];
           if (!module) {
@@ -95,11 +97,11 @@ module.exports = (modules, options) ->
             return module;
           }
         }
-        #{ derequired }
+        #{derequired}
         return require('#{main.module}');
       }();
 
-      #{ globalSetupCode }
+      #{afterPackage}
 
     }(this));
   """

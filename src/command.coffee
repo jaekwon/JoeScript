@@ -125,13 +125,13 @@ compileScript = (file, input, base) ->
   try
     t = task = {file, input, opts}
     JoeScript.emit 'compile', task
-    if o.nodes or o.debug then printLine JoeScript.parse(t.input, opts).serialize()
+    if o.nodes or o.debug then printLine JoeScript.parse(task).serialize()
     else if o.run         then JoeScript.run task
     else if o.join and t.file isnt o.join
       sourceCode[sources.indexOf(t.file)] = t.input
       compileJoin()
     else
-      t.output = JoeScript.translateJavascript(t.input, opts)
+      t.output = JoeScript.translateJavascript task
       JoeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base

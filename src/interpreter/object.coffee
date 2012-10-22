@@ -199,7 +199,7 @@ JBoundFunc = @JBoundFunc = clazz 'JBoundFunc', JObject, ->
     assert.ok @data.__code__, "JBoundFunc::$func expects @data.__code__"
     assert.ok @data.__start__?, "JBoundFunc::$func expects @data.__start__"
     # TODO cache of code --> parsed nodes.
-    node = parse @data.__code__
+    node = parse {input:@data.__code__}
     node = node.toJSNode(toVal:yes).installScope().determine()
     assert.ok node instanceof joe.Block, "Expected Block at root node, but got #{node?.constructor?.name}"
     node = node.collectFunctions()

@@ -721,6 +721,7 @@ j.Invocation::extend
         assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
         @func = val(@params[0].value)
         @params = @func.params?.extractWords()
+        @binding = j.Word('this')
         return @
       when 'in'
         assert.ok @params.length is 2, "Joescript `in` wants two function arguments"
@@ -894,7 +895,7 @@ for cls in [Number, String, Boolean] then clazz.extend cls,
 clazz.extend String,
   toJavascript: -> '"' + escape(@) + '"'
 
-HELPERS =
+@JS_HELPERS = JS_HELPERS =
   __bind: """
     function(fn, me){
       return function(){ return fn.apply(me, arguments); };
@@ -911,14 +912,15 @@ HELPERS =
   __hasProp: '{}.hasOwnProperty'
   __slice: '[].slice'
 
-addHelpers = (js) ->
+@allHelpers = allHelpers = -> ("#{k}=#{v}" for k, v of JS_HELPERS).join ';\n'
+
+@addHelpers = addHelpers = (js) ->
   helpers = ''
-  for k, v of HELPERS
+  for k, v of JS_HELPERS
     if js.indexOf(k) >= 0
-      helpers += ',' if helpers
-      helpers += "#{k}=#{v}"
+      helpers += "#{k}=#{v};\n"
   if helpers
-    return "// helpers\n#{helpers};// end helpers\n\n#{js}"
+    return "#{helpers}#{js}"
   else
     return js
 
@@ -938,7 +940,7 @@ addHelpers = (js) ->
     determine().
     validate()
   js_raw = node.toJavascript()
-  js_raw = addHelpers js_raw            unless opts.includeHelpers is no
+  js_raw = addHelpers js_raw unless opts.includeHelpers is no
   try
     js_ast = uglify.parser.parse js_raw
   catch error

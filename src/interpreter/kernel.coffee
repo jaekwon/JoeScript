@@ -20,7 +20,7 @@ require 'sembly/src/interpreter/instructions'
 _parseCode = (code) ->
   return code if code instanceof joe.Node
   info "received code:\n#{code}" if log
-  node = require('sembly/src/joescript').parse code
+  node = require('sembly/src/joescript').parse {input:code}
   info "unparsed node:\n" + node.serialize() if log
   node = node.toJSNode(toVal:yes).installScope().determine()
   info "parsed node:\n" + node.serialize() if log

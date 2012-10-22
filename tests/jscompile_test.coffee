@@ -11,8 +11,8 @@ console.log blue "\n-= javascript compiler test =-"
 
 compilers =
   coffee: (source) ->
-    node = joe.parse ''+source
-    translated = jsx.translate(node)
+    node = joe.parse {input:''+source}
+    translated = jsx.translate(node, includeHelpers:no)
     return translated
 
 # This test looks for directories in test/jscompile/ and bundles all the
@@ -25,9 +25,10 @@ test = (requires, cb) ->
     dir = requires
     requires = [{name:'', path:'tests/jscompile/'+dir+'/**.coffee'}]
   source = demodule requires, {
-    compilers:  compilers,
-    main:       {name:'MAIN', module:'main'},
-    globalSetupCode: 'return MAIN;'
+    compilers:      compilers,
+    main:           {name:'MAIN', module:'main'},
+    beforePackage:  require('sembly/src/translators/javascript').allHelpers(),
+    afterPackage:   'return MAIN;'
   }
   try
     sourceAST = require('uglify-js').parser.parse(source)

@@ -15,7 +15,7 @@ canon = (str, stripWS=yes) ->
 counter = 0
 test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
-  node = joe.parse code
+  node = joe.parse {input:code}
   node = jsx.translate(node, {includeHelpers:no, wrapInClosure:no})
   if typeof expected is 'function'
     try

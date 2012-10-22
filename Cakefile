@@ -22,34 +22,33 @@ task 'test', ->
                     run 'coffee tests/client_test.coffee', ->
                       console.log "All tests OK"
 
-task 'browser', 'rebuild the merged script for inclusion in the browser', ->
+task 'browser', 'Package compiled files for inclusion in the browser', ->
   run 'cake build', ->
     code = """
       nonce = {nonce:'nonce'};
     """
-    code = require('./lib/demodule')([
-      {name:'sembly/src',      path:'src/**.js'},
-      {name:'sembly/lib',      path:'lib/**.js'},
-      {name:'_process',        path:'node_modules/browserify/builtins/__browserify_process.js'},
-      {name:'assert',          path:'node_modules/browserify/builtins/assert.js'},
-      {name:'util',            path:'node_modules/browserify/builtins/util.js'},
-      {name:'events',          path:'node_modules/browserify/builtins/events.js'},
-      {name:'buffer',          path:'node_modules/browserify/builtins/buffer.js'},
-      {name:'buffer_ieee754',  path:'node_modules/browserify/builtins/buffer_ieee754.js'},
-      #{name:'path',            path:'node_modules/browserify/builtins/path'},
-      {name:'fs',              path:'node_modules/browserify/builtins/fs.js'},
-      {name:'cardamom',        path:'node_modules/cardamom/lib/cardamom.js'},
-      {name:'cardamom/src',    path:'node_modules/cardamom/lib/**.js'},
-      {name:'sugar',           path:'node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development.js'},
-      {name:'async',           path:'node_modules/async/lib/async.js'},
+    code = require('sembly/lib/demodule')([
+      {name:'sembly/src',      path:'src/**.js'}
+      {name:'sembly/lib',      path:'lib/**.js'}
+      {name:'_process',        path:'node_modules/browserify/builtins/__browserify_process.js'}
+      {name:'assert',          path:'node_modules/browserify/builtins/assert.js'}
+      {name:'util',            path:'node_modules/browserify/builtins/util.js'}
+      {name:'events',          path:'node_modules/browserify/builtins/events.js'}
+      {name:'buffer',          path:'node_modules/browserify/builtins/buffer.js'}
+      {name:'buffer_ieee754',  path:'node_modules/browserify/builtins/buffer_ieee754.js'}
+      #{name:'path',            path:'node_modules/browserify/builtins/path'}
+      {name:'fs',              path:'node_modules/browserify/builtins/fs.js'}
+      {name:'cardamom',        path:'node_modules/cardamom/lib/cardamom.js'}
+      {name:'cardamom/src',    path:'node_modules/cardamom/lib/**.js'}
+      {name:'sugar',           path:'node_modules/sugar/release/1.2.5/development/sugar-1.2.5-core.development.js'}
+      {name:'async',           path:'node_modules/async/lib/async.js'}
       {name:'nogg',            path:'node_modules/nogg/lib/nogg.js'}
       {name:'uglify-js',       path:'node_modules/uglify-js/uglify-js.js'}
       {name:'uglify-js/lib',   path:'node_modules/uglify-js/lib/**.js'}
     ], {
-      compilers:  {},
-      main:       {name:'Sembly', module:'sembly/src'},
-      moduleSetupCode: 'var process = require("_process");',
-      globalSetupCode: """
+      main:           {name:'Sembly', module:'sembly/src'}
+      beforeModule:   'var process = require("_process");'
+      afterPackage:   """
         if (typeof define === 'function' && define.amd) {
           define(function() { return Main; });
         } else { 
