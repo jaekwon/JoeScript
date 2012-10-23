@@ -731,7 +731,9 @@ checkColumn = (__, $) ->
 # Parse and run code
 @run = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  throw new Error "not yet implemented"
+  jsx = require 'sembly/src/translators/javascript'
+  js =  jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
+  eval(js)
   
 # Parse and translate code to javascript.
 @translateJavascript = ({file, input, opts}) ->
