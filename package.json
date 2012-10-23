@@ -7,7 +7,7 @@
   "dependencies": {
       "async": "0.1.22",
       "sugar": "1.2.5",
-      "cardamom": "0.0.9b",
+      "cardamom": "0.0.9c",
       "connect": "2.3.3",
       "nogg": "0.0.8",
       "uglify-js": "git://github.com/jaekwon/UglifyJS.git",

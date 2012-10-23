@@ -10,23 +10,24 @@ task 'build', ->
   #run 'coffee -c lib/**/*.coffee'
 
 task 'install', 'install JoeScript into /usr/local (or --prefix)', (options) ->
-  base = options.prefix or '/usr/local'
-  lib  = "#{base}/lib/joescript"
-  bin  = "#{base}/bin"
-  node = "~/.node_libraries/joescript"
-  console.log   "Installing JoeScript to #{lib}"
-  console.log   "Linking to #{node}"
-  console.log   "Linking 'joe' to #{bin}/joe"
-  exec([
-    "mkdir -p #{lib} #{bin}"
-    "cp -rf bin lib LICENSE README.md package.json src #{lib}"
-    "ln -sfn #{lib}/bin/joe #{bin}/joe"
-    #"ln -sfn #{lib}/bin/cake #{bin}/cake"
-    #"mkdir -p ~/.node_libraries"
-    #"ln -sfn #{lib}/lib/joescript #{node}"
-  ].join(' && '), (err, stdout, stderr) ->
-    if err then console.log stderr.trim() else log 'done', green
-  )
+  run 'cake build', ->
+    base = options.prefix or '/usr/local'
+    lib  = "#{base}/lib/joescript"
+    bin  = "#{base}/bin"
+    node = "~/.node_libraries/joescript"
+    console.log   "Installing JoeScript to #{lib}"
+    console.log   "Linking to #{node}"
+    console.log   "Linking 'joe' to #{bin}/joe"
+    exec([
+      "mkdir -p #{lib} #{bin}"
+      "cp -rf bin lib LICENSE README.md package.json src #{lib}"
+      "ln -sfn #{lib}/bin/joe #{bin}/joe"
+      #"ln -sfn #{lib}/bin/cake #{bin}/cake"
+      #"mkdir -p ~/.node_libraries"
+      #"ln -sfn #{lib}/lib/joescript #{node}"
+    ].join(' && '), (err, stdout, stderr) ->
+      if err then console.log stderr.trim() else log 'done'
+    )
 
 task 'test', ->
   run 'cake build', ->
