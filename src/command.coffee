@@ -1,10 +1,4 @@
 # TODO: s/coffee/joe/g
-# The `coffee` utility. Handles command-line compilation of JoeScript
-# into various forms: saved into `.js` files or printed to stdout, piped to
-# [JavaScript Lint](http://javascriptlint.com/) or recompiled every time the source is
-# saved, printed as a token stream or as the syntax tree, or launch an
-# interactive REPL.
-
 # External dependencies.
 fs             = require 'fs'
 path           = require 'path'
@@ -38,13 +32,10 @@ SWITCHES = [
   ['-e', '--eval',            'pass a string from the command line as input']
   ['-h', '--help',            'display this help message']
   #['-i', '--interactive',     'run an interactive JoeScript REPL']
-  ['-j', '--join [FILE]',     'concatenate the source JoeScript before compiling']
-  ['-l', '--lint',            'pipe the compiled JavaScript through JavaScript Lint']
   ['-n', '--nodes',           'print out the parse tree that the parser produces']
   [      '--nodejs [ARGS]',   'pass options directly to the "node" binary']
   ['-o', '--output [DIR]',    'set the output directory for compiled JavaScript']
   ['-p', '--print',           'print out the compiled JavaScript']
-  ['-r', '--require [FILE*]', 'require a library before executing your script']
   ['-s', '--stdio',           'listen for and compile scripts over stdio']
   ['-v', '--version',         'display the version number']
   ['-w', '--watch',           'watch scripts for changes and rerun commands']
@@ -54,8 +45,6 @@ SWITCHES = [
 opts         = {}
 sources      = []
 sourceCode   = []
-notSources   = {}
-watchers     = {}
 optionParser = null
 
 # Run `coffee` by parsing passed options and determining what action to take.
@@ -66,7 +55,6 @@ exports.run = ->
   return forkNode()                      if opts.nodejs
   return usage()                         if opts.help
   return version()                       if opts.version
-  loadRequires()                         if opts.require
   #return require './repl'                if opts.interactive
   if opts.watch and !fs.watch
     return printWarn "The --watch feature depends on Node v0.6.0+. You are running #{process.version}."
@@ -112,9 +100,7 @@ compilePath = (source, topLevel, base) ->
         return if err?.code is 'ENOENT'
         compileScript(source, code.toString(), base)
     else
-      notSources[source] = yes
-      removeSource source, base
-
+      throw new Error "Not source: #{source}"
 
 # Compile a single source script, containing the given code, according to the
 # requested options. If evaluating the script directly sets `__filename`,
@@ -127,15 +113,11 @@ compileScript = (file, input, base) ->
     JoeScript.emit 'compile', task
     if o.nodes or o.debug then printLine JoeScript.parse(task).serialize()
     else if o.run         then JoeScript.run task
-    else if o.join and t.file isnt o.join
-      sourceCode[sources.indexOf(t.file)] = t.input
-      compileJoin()
     else
       t.output = JoeScript.translateJavascript task
       JoeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base
-      else if o.lint      then lint t.file, t.output
   catch err
     JoeScript.emit 'failure', err, task
     return if JoeScript.listeners('failure').length
@@ -152,107 +134,6 @@ compileStdio = ->
     code += buffer.toString() if buffer
   stdin.on 'end', ->
     compileScript null, code
-
-# If all of the source files are done being read, concatenate and compile
-# them together.
-joinTimeout = null
-compileJoin = ->
-  return unless opts.join
-  unless sourceCode.some((code) -> code is null)
-    clearTimeout joinTimeout
-    joinTimeout = wait 100, ->
-      compileScript opts.join, sourceCode.join('\n'), opts.join
-
-# Load files that are to-be-required before compilation occurs.
-loadRequires = ->
-  realFilename = module.filename
-  module.filename = '.'
-  require req for req in opts.require
-  module.filename = realFilename
-
-# Watch a source JoeScript file using `fs.watch`, recompiling it every
-# time the file is updated. May be used in combination with other options,
-# such as `--lint` or `--print`.
-watch = (source, base) ->
-
-  prevStats = null
-  compileTimeout = null
-
-  watchErr = (e) ->
-    if e.code is 'ENOENT'
-      return if sources.indexOf(source) is -1
-      try
-        rewatch()
-        compile()
-      catch e
-        removeSource source, base, yes
-        compileJoin()
-    else throw e
-
-  compile = ->
-    clearTimeout compileTimeout
-    compileTimeout = wait 25, ->
-      fs.stat source, (err, stats) ->
-        return watchErr err if err
-        return rewatch() if prevStats and stats.size is prevStats.size and
-          stats.mtime.getTime() is prevStats.mtime.getTime()
-        prevStats = stats
-        fs.readFile source, (err, code) ->
-          return watchErr err if err
-          compileScript(source, code.toString(), base)
-          rewatch()
-
-  try
-    watcher = fs.watch source, compile
-  catch e
-    watchErr e
-
-  rewatch = ->
-    watcher?.close()
-    watcher = fs.watch source, compile
-
-
-# Watch a directory of files for new additions.
-watchDir = (source, base) ->
-  readdirTimeout = null
-  try
-    watcher = fs.watch source, ->
-      clearTimeout readdirTimeout
-      readdirTimeout = wait 25, ->
-        fs.readdir source, (err, files) ->
-          if err
-            throw err unless err.code is 'ENOENT'
-            watcher.close()
-            return unwatchDir source, base
-          for file in files when not hidden(file) and not notSources[file]
-            file = path.join source, file
-            continue if sources.some (s) -> s.indexOf(file) >= 0
-            sources.push file
-            sourceCode.push null
-            compilePath file, no, base
-  catch e
-    throw e unless e.code is 'ENOENT'
-
-unwatchDir = (source, base) ->
-  prevSources = sources[..]
-  toRemove = (file for file in sources when file.indexOf(source) >= 0)
-  removeSource file, base, yes for file in toRemove
-  return unless sources.some (s, i) -> prevSources[i] isnt s
-  compileJoin()
-
-# Remove a file from our source list, and source code cache. Optionally remove
-# the compiled JS version as well.
-removeSource = (source, base, removeJs) ->
-  index = sources.indexOf source
-  sources.splice index, 1
-  sourceCode.splice index, 1
-  if removeJs and not opts.join
-    jsPath = outputPath source, base
-    fs.exists jsPath, (exists) ->
-      if exists
-        fs.unlink jsPath, (err) ->
-          throw err if err and err.code isnt 'ENOENT'
-          timeLog "removed #{source}"
 
 # Get the corresponding output JavaScript path for a source file.
 outputPath = (source, base) ->
@@ -285,24 +166,13 @@ wait = (milliseconds, func) -> setTimeout func, milliseconds
 timeLog = (message) ->
   console.log "#{(new Date).toLocaleTimeString()} - #{message}"
 
-# Pipe compiled JS through JSLint (requires a working `jsl` command), printing
-# any errors or warnings that arise.
-lint = (file, js) ->
-  printIt = (buffer) -> printLine file + ':\t' + buffer.toString().trim()
-  conf = __dirname + '/../../extras/jsl.conf'
-  jsl = spawn 'jsl', ['-nologo', '-stdin', '-conf', conf]
-  jsl.stdout.on 'data', printIt
-  jsl.stderr.on 'data', printIt
-  jsl.stdin.write js
-  jsl.stdin.end()
-
 # Use the [OptionParser module](optparse.html) to extract all options from
 # `process.argv` that are specified in `SWITCHES`.
 parseOptions = ->
   optionParser  = new optparse.OptionParser SWITCHES, BANNER
   o = opts      = optionParser.parse process.argv[2..]
   o.compile     or=  !!o.output
-  o.run         = not (o.compile or o.print or o.lint)
+  o.run         = not (o.compile or o.print)
   o.print       = !!  (o.print or (o.eval or o.stdio and o.compile))
   sources       = o.arguments
   sourceCode[i] = null for source, i in sources
@@ -327,4 +197,3 @@ usage = ->
 # Print the `--version` message and exit.
 version = ->
   printLine "JoeScript version #{JoeScript.VERSION}"
-

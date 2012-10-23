@@ -4,9 +4,11 @@
   collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
+fs        = require 'fs'
 {Grammar} = require 'joescript/src/joeson'
 Node = require('joescript/src/node').createNodeClazz('CodeNode')
 
+@VERSION = "0.0"
 
 # Helpers, exported to HELPERS
 extend = (dest, source) -> dest.push x for x in source
@@ -731,12 +733,23 @@ checkColumn = (__, $) ->
 # Parse and run code
 @run = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  jsx = require 'joescript/src/translators/javascript'
-  js =  jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
-  eval(js)
+  jsx    = require 'joescript/src/translators/javascript'
+  code   = jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
+  main   = require.main
+  main.filename = process.argv[1] = if file then fs.realpathSync(file) else '.'
+  main.moduleCache and= {}
+  main.paths = require('module')._nodeModulePaths require('path').dirname fs.realpathSync file
+  main._compile code, main.filename
   
 # Parse and translate code to javascript.
-@translateJavascript = ({file, input, opts}) ->
+@compile = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
   jsx = require 'joescript/src/translators/javascript'
   return jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
+
+# Make node's 'require()' understand joe files
+if require.extensions
+  require.extensions['.joe'] = (module, filename) =>
+    source  = fs.readFileSync filename, 'utf8'
+    content = @compile {input:source, file:filename}
+    module._compile content, filename
