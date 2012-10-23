@@ -3,9 +3,9 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = assert = require 'assert'
-joe = require 'sembly/src/joescript'
-jsx = require 'sembly/src/translators/javascript'
-demodule = require 'sembly/lib/demodule'
+joe = require 'joescript/src/joescript'
+jsx = require 'joescript/src/translators/javascript'
+demodule = require 'joescript/lib/demodule'
 
 console.log blue "\n-= javascript compiler test =-"
 
@@ -27,7 +27,7 @@ test = (requires, cb) ->
   source = demodule requires, {
     compilers:      compilers,
     main:           {name:'MAIN', module:'main'},
-    beforePackage:  require('sembly/src/translators/javascript').allHelpers(),
+    beforePackage:  require('joescript/src/translators/javascript').allHelpers(),
     afterPackage:   'return MAIN;'
   }
   try

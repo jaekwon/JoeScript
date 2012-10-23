@@ -34,21 +34,17 @@ task 'test', ->
       run 'coffee tests/joeson_test.coffee', ->
         run 'coffee tests/joescript_test.coffee', ->
           run 'coffee tests/translator_test.coffee', ->
-            run 'coffee tests/interpreter_test.coffee', ->
-              #run 'coffee tests/jsl_test.coffee', ->
-                run 'coffee tests/persistence_test.coffee', ->
-                  run 'coffee tests/jscompile_test.coffee', ->
-                    run 'coffee tests/client_test.coffee', ->
-                      console.log "All tests OK"
+            run 'coffee tests/jscompile_test.coffee', ->
+              console.log "All tests OK"
 
 task 'browser', 'Package compiled files for inclusion in the browser', ->
   run 'cake build', ->
     code = """
       nonce = {nonce:'nonce'};
     """
-    code = require('sembly/lib/demodule')([
-      {name:'sembly/src',      path:'src/**.js'}
-      {name:'sembly/lib',      path:'lib/**.js'}
+    code = require('joescript/lib/demodule')([
+      {name:'joescript/src',      path:'src/**.js'}
+      {name:'joescript/lib',      path:'lib/**.js'}
       {name:'_process',        path:'node_modules/browserify/builtins/__browserify_process.js'}
       {name:'assert',          path:'node_modules/browserify/builtins/assert.js'}
       {name:'util',            path:'node_modules/browserify/builtins/util.js'}
@@ -65,7 +61,7 @@ task 'browser', 'Package compiled files for inclusion in the browser', ->
       {name:'uglify-js',       path:'node_modules/uglify-js/uglify-js.js'}
       {name:'uglify-js/lib',   path:'node_modules/uglify-js/lib/**.js'}
     ], {
-      main:           {name:'Sembly', module:'sembly/src'}
+      main:           {name:'Sembly', module:'joescript/src'}
       beforeModule:   'var process = require("_process");'
       afterPackage:   """
         if (typeof define === 'function' && define.amd) {
@@ -75,18 +71,10 @@ task 'browser', 'Package compiled files for inclusion in the browser', ->
         }
       """
     })
-    fs.writeFileSync 'static/sembly.js', code, 'utf8'
+    fs.writeFileSync 'static/joescript.js', code, 'utf8'
     {parser, uglify} = require 'uglify-js'
     minCode = uglify.gen_code (uglify.ast_squeeze uglify.ast_mangle parser.parse code), ascii_only:yes # issue on chrome on ubuntu
-    fs.writeFileSync 'static/sembly.min.js', minCode, 'utf8'
-
-task 'server', 'run the server', ->
-  run 'cake browser', ->
-    run 'coffee server.coffee'
-
-task 'server:prod', 'run the server in production mode', ->
-  run 'cake browser', ->
-    run 'sudo coffee server.coffee -p 80'
+    fs.writeFileSync 'static/joescript.min.js', minCode, 'utf8'
 
 run = (args...) ->
   for a in args

@@ -3,8 +3,8 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = assert = require 'assert'
-joe = require 'sembly/src/joescript'
-jsx = require 'sembly/src/translators/javascript'
+joe = require 'joescript/src/joescript'
+jsx = require 'joescript/src/translators/javascript'
 
 console.log blue "\n-= translator test =-"
 
@@ -103,11 +103,11 @@ test """
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{CodeStream} = require 'sembly/src/codestream'
-Node = require('sembly/src/node').createNodeClazz('GrammarNode')
-{pad, escape} = require 'sembly/lib/helpers'
+{CodeStream} = require 'joescript/src/codestream'
+Node = require('joescript/src/node').createNodeClazz('GrammarNode')
+{pad, escape} = require 'joescript/lib/helpers'
 [pad]
-""", -> deepEqual @it, [require('sembly/lib/helpers').pad]
+""", -> deepEqual @it, [require('joescript/lib/helpers').pad]
 test " x+1 for x, i in [0..10] ", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
 # soak tests
 test " bar? ", 'typeof bar !== "undefined" && bar !== null;'
@@ -148,7 +148,7 @@ do ->
       return "three"
     else
       return "default"
-""", '(function() { var _temp; _temp = undefined; switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default"; } return _temp; })();'
+""", '(function() { var _temp; _temp = undefined; switch (foo) { case "1": case 2: return "one or two"; break; case "three": return "three"; break; default: return "default"; } return _temp; }).call(this);'
 test """
 foo = switch bar
   when yes
@@ -160,7 +160,7 @@ test """
 for foo, bar of baz
   do (foo, bar) ->
     print foo + bar
-""", 'var _obj, bar, foo; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); })(foo, bar); }'
+""", 'var _obj, bar, foo; _obj = baz; for (foo in _obj) { bar = _obj[foo]; (function(foo, bar) { return print(foo + bar); }).call(this, foo, bar); }'
 # lifted blocks
 test """
 foo = loop

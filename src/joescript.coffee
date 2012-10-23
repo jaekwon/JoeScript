@@ -4,8 +4,8 @@
   collections:{Set}} = require('cardamom')
 {inspect} = require 'util'
 assert    = require 'assert'
-{Grammar} = require 'sembly/src/joeson'
-Node = require('sembly/src/node').createNodeClazz('CodeNode')
+{Grammar} = require 'joescript/src/joeson'
+Node = require('joescript/src/node').createNodeClazz('CodeNode')
 
 
 # Helpers, exported to HELPERS
@@ -731,12 +731,12 @@ checkColumn = (__, $) ->
 # Parse and run code
 @run = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  jsx = require 'sembly/src/translators/javascript'
+  jsx = require 'joescript/src/translators/javascript'
   js =  jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
   eval(js)
   
 # Parse and translate code to javascript.
 @translateJavascript = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  jsx = require 'sembly/src/translators/javascript'
+  jsx = require 'joescript/src/translators/javascript'
   return jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})

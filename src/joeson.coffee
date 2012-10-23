@@ -25,9 +25,9 @@ just admit that the current implementation is imperfect, and limit grammar usage
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{CodeStream} = require 'sembly/src/codestream'
-Node = require('sembly/src/node').createNodeClazz('GrammarNode')
-{pad, escape} = require 'sembly/lib/helpers'
+{CodeStream} = require 'joescript/src/codestream'
+Node = require('joescript/src/node').createNodeClazz('GrammarNode')
+{pad, escape} = require 'joescript/lib/helpers'
 
 if no
   counter = 0
@@ -803,7 +803,7 @@ St = -> Str arguments...
               o S(St('('), L("inlineLabel",E(S(R('WORD'), St(': ')))), L("expr",R("EXPR")), St(')'), E(S(R('_'), St('->'), R('_'), L("code",R("CODE"))))), ({expr, code}) ->
                 assert.ok not code?, "code in joeson deprecated"
                 return expr
-              i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> require('sembly/src/joescript').parse(it.join '')
+              i "CODE": o S(St("{"), P(S(N(St("}")), C(R("ESC1"), R(".")))), St("}")), (it) -> require('joescript/src/joescript').parse(it.join '')
               o S(St("'"), P(S(N(St("'")), C(R("ESC1"), R(".")))), St("'")), (it) -> new Str       it.join ''
               o S(St("/"), P(S(N(St("/")), C(R("ESC2"), R(".")))), St("/")), (it) -> new Regex     it.join ''
               o S(St("["), P(S(N(St("]")), C(R("ESC2"), R(".")))), St("]")), (it) -> new Regex "[#{it.join ''}]"

@@ -4,7 +4,7 @@
 
   This is responsible for translating a JoeScript AST into valid Javascript AST.
   Actually, the result needs to be a subset of Javascript so as to be interpretable
-  from the sembly/src/interpreter. (this may change in the future).
+  from the joescript/src/interpreter. (this may change in the future).
 
   Here are the properties of RJavascript. (Restricted Javascript).
 
@@ -67,10 +67,10 @@ uglify = require 'uglify-js'
 {
   NODES:j
   HELPERS:{isVariable,isIndex}
-} = require 'sembly/src/joescript'
-{escape, compact, flatten} = require('sembly/lib/helpers')
-{setOn} = require('sembly/src/node')
-require('sembly/src/translators/scope') # dependency
+} = require 'joescript/src/joescript'
+{escape, compact, flatten} = require('joescript/lib/helpers')
+{setOn} = require('joescript/src/node')
+require('joescript/src/translators/scope') # dependency
 
 js = (node, options) ->
   return '' if not node?

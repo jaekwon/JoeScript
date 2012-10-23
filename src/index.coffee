@@ -3,9 +3,9 @@ assert = require 'assert'
 
 # Require modules
 @require     = require
-{NODES:joe}  = require 'sembly/src/joescript'
-@interpreter = interpreter = require 'sembly/src/interpreter'
-{toHTML}     = require 'sembly/src/parsers/ansi'
+{NODES:joe}  = require 'joescript/src/joescript'
+@interpreter = interpreter = require 'joescript/src/interpreter'
+{toHTML}     = require 'joescript/src/parsers/ansi'
 
 # Configure logging
 if window?
@@ -25,14 +25,14 @@ if window?
 # Returns an AST node, to be passed into 'run'
 @parse = (code) ->
   return code if code instanceof joe.Node
-  node = require('sembly/src/joescript').parse code
+  node = require('joescript/src/joescript').parse code
   node = node.toJSNode(toVal:yes).installScope().determine()
   node.validate()
   return node
 
 @run = (node, scope, timeout, callback) ->
-  assert.ok node instanceof joe.Node, "sembly/src/index/run wants a Joescript node for 'node'"
-  {KERNEL, WORLD, ANON} = require 'sembly/src/interpreter/global'
+  assert.ok node instanceof joe.Node, "joescript/src/index/run wants a Joescript node for 'node'"
+  {KERNEL, WORLD, ANON} = require 'joescript/src/interpreter/global'
   if scope not instanceof interpreter.JObject
     # convert scope to JObject.
     assert.ok scope.__proto__ is Object.prototype, "Currently only simple objects are supported for scope."

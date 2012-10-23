@@ -129,7 +129,7 @@ tests =
     template: ->
       @coffeescript ->
         f a, b...
-    expected: '<script>(function(){var __slice=[].slice;\n          return f.apply(null, [ a ].concat(__slice.call(b)));\n        }).call(this);</script>'
+    expected: '<script>(function(){var __slice=[].slice;\n                  return f.apply(null, [ a ].concat(__slice.call(b)));\n                }).call(this);</script>'
     # This gets retained somehow?
     options: {format: no}
 
@@ -137,7 +137,7 @@ tests =
     template: ->
       @div onmouseover: ->
         f "&&a", b...
-    expected: '<div onmouseover="(function(){var __slice=[].slice;\n            return f.apply(null, [ &quot;&amp;&amp;a&quot; ].concat(__slice.call(b)));\n          }).call(this);"></div>'
+    expected: '<div onmouseover="(function(){var __slice=[].slice;\n                    return f.apply(null, [ &quot;&amp;&amp;a&quot; ].concat(__slice.call(b)));\n                  }).call(this);"></div>'
 
   'CoffeeScript string':
     template: ->

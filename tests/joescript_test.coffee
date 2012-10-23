@@ -1,6 +1,6 @@
 require './setup'
 
-{GRAMMAR, NODES} = require 'sembly/src/joescript'
+{GRAMMAR, NODES} = require 'joescript/src/joescript'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'

@@ -4,9 +4,9 @@ assert    = require 'assert'
 
 {
   NODES:joe
-} = require 'sembly/src/joescript'
+} = require 'joescript/src/joescript'
 
-{randid}  = require 'sembly/lib/helpers'
+{randid}  = require 'joescript/lib/helpers'
 
 joe.Node::extend
   # Walks the tree and finds Funcs,
