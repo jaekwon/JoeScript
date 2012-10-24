@@ -109,6 +109,11 @@ Node = require('joescript/src/node').createNodeClazz('GrammarNode')
 [pad]
 """, -> deepEqual @it, [require('joescript/lib/helpers').pad]
 test " x+1 for x, i in [0..10] ", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
+# new keyword
+test " new Number ", "new Number;"
+test " new Number 1 ", "new Number(1);"
+test " new Number(1) ", "new Number(1);"
+test " new Number(1, 2) ", "new Number(1, 2);"
 # soak tests
 test " bar? ", 'typeof bar !== "undefined" && bar !== null;'
 test " foo = bar? ", 'var foo; foo = typeof bar !== "undefined" && bar !== null;'
@@ -155,7 +160,7 @@ foo = switch bar
     throw new Error "statement test 1"
   else
     throw new Error "statement test 2"
-""", 'var foo; foo = function() { var _temp; _temp = undefined; switch (bar) { case true: throw new (Error("statement test 1")); break; default: throw new (Error("statement test 2")); } return _temp; }();'
+""", 'var foo; foo = function() { var _temp; _temp = undefined; switch (bar) { case true: throw new Error("statement test 1"); break; default: throw new Error("statement test 2"); } return _temp; }();'
 test """
 for foo, bar of baz
   do (foo, bar) ->

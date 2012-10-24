@@ -115,7 +115,6 @@ Statement = clazz 'Statement', Node, ->
 
 Invocation = clazz 'Invocation', Node, ->
   init: ({@func, @params, @binding}) ->
-    @type = if ''+@func is 'new' then 'new' # TODO doesnt do anything
   soakable$: _soakable 'func'
   toString: ->
     if @binding?
@@ -510,7 +509,7 @@ checkColumn = (__, $) ->
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
-        o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do') (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
+        o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do' | 'new') (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
 
         # COMPLEX
         # NOTE: These can't be the 'left' of an Operation.
@@ -707,7 +706,7 @@ checkColumn = (__, $) ->
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue', 'typeof', 'instanceof',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'by',
-                      'not', 'and', 'or', 'try', 'catch', 'finally', 'do',
+                      'not', 'and', 'or', 'try', 'catch', 'finally', 'do', 'new'
                       'yes', 'true', 'on', 'no', 'false', 'off', 'undefined', 'null')
   i _COMPLEX_KEYWORD: tokens('if', 'unless', 'for', 'loop', 'while', 'switch', 'try')
   i _BTICK:         " '`'         "
