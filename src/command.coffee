@@ -114,7 +114,7 @@ compileScript = (file, input, base) ->
     if o.nodes or o.debug then printLine JoeScript.parse(task).serialize()
     else if o.run         then JoeScript.run task
     else
-      t.output = JoeScript.translateJavascript task
+      t.output = JoeScript.compile task
       JoeScript.emit 'success', task
       if o.print          then printLine t.output.trim()
       else if o.compile   then writeJs t.file, t.output, base
