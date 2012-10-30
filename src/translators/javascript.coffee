@@ -787,11 +787,22 @@ j.Index::extend
     return unsoaked.toJSNode({toVal,inject}) unless (unsoaked=@unsoak()) is this
     return @super.toJSNode.call(@, {toVal,inject})
   toJavascript: ->
-    if @type is '?'
-      if @key.toKeyString() is 'type'
-        return "typeof #{js @obj}"
-    close = if @type is '[' then ']' else ''
-    "#{jsv @obj}#{@type}#{js @key}#{close}"
+    switch @type
+      when '?'
+        if @key.toKeyString() is 'type'
+          return "typeof #{js @obj}"
+        else
+          throw new Error "Unknown meta type #{@key}."
+      when '!'
+        return "delete #{js @obj}.#{js @key}"
+      when '!['
+        "delete #{jsv @obj}[#{js @key}]"
+      when '['
+        "#{jsv @obj}[#{js @key}]"
+      when '.'
+        "#{jsv @obj}.#{js @key}"
+      else
+        throw new Error "Unknown index type (#{@type})."
 
 j.Obj::extend
   toJSNode: mark ({toVal,inject}={}) ->

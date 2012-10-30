@@ -68,12 +68,14 @@ foo =
     2
   else
     3""", 'var foo; foo = 1 ? 2 : 3;'
-test """(a) -> return a""", '(function(a) { return a; });'
-test """(b) -> b""", '(function(b) { return b; });'
-test """(a) -> if true then a""", '(function(a) { if(true) { return a; } });'
-test """(a) -> if true then a else b""", '(function(a) { if(true) { return a; } else { return b; } });'
-test """foo is bar""", 'foo === bar;'
-test """if foo is bar then 'foo is bar'""", 'if(foo === bar) { \"foo is bar\"; }'
+test " (a) -> return a ", '(function(a) { return a; });'
+test " (b) -> b ", '(function(b) { return b; });'
+test " (a) -> if true then a ", '(function(a) { if(true) { return a; } });'
+test " (a) -> if true then a else b ", '(function(a) { if(true) { return a; } else { return b; } });'
+test " foo is bar ", 'foo === bar;'
+test " if foo is bar then 'foo is bar' ", 'if(foo === bar) { \"foo is bar\"; }'
+test " foo!bar ", ' delete foo.bar; '
+# test " foo!bar!baz ", ' delete foo.bar; ' TODO: test error messages too.
 test """
 loop
   foo = bar
