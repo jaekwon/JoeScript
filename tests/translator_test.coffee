@@ -141,6 +141,8 @@ test " base?.bar.baz?.blah = foo?.foo = 1 ", """
     undefined;
   }
 """
+test " func req.session?.auth ", ' var _ref; func((_ref = req.session) !== null && _ref !== undefined ? _ref.auth : undefined); '
+# ...
 test "foo ? bar", 'if (typeof foo !== "undefined" && foo !== null) { foo; } else { bar; }'
 test "foo ?= bar", 'var foo; foo = typeof foo !== "undefined" && foo !== null ? foo : bar;'
 test "foo = (opts={}) -> opts", 'var foo; foo = function(opts) { opts = typeof opts !== "undefined" && opts !== null ? opts : {}; return opts; };'

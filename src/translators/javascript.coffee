@@ -80,6 +80,10 @@ js = (node, options) ->
     console.log error
     console.log "serialize:", node?.serialize?()
     throw error
+jsv = (node, options) ->
+  options ?= {}
+  options.isValue = yes
+  js node, options
 val = (node, required=yes) ->
   if required
     node.toJSNode toVal:yes
@@ -292,14 +296,14 @@ j.If::extend
   toJavascript: ({isValue}={}) ->
     if isValue
       if @else?
-        "(#{js @cond, isValue:yes} ? #{js @block, isValue:yes, withCommas:yes} : #{js @else, isValue:yes, withCommas:yes})"
+        "(#{jsv @cond} ? #{jsv @block, withCommas:yes} : #{jsv @else, withCommas:yes})"
       else
-        "(#{js @cond, isValue:yes} ? #{js @block, isValue:yes, withCommas:yes} : undefined)"
+        "(#{jsv @cond} ? #{jsv @block, withCommas:yes} : undefined)"
     else
       if @else?
-        "if(#{js @cond, isValue:yes}){#{js @block}}else{#{js @else}}"
+        "if(#{jsv @cond}){#{js @block}}else{#{js @else}}"
       else
-        "if(#{js @cond, isValue:yes}){#{js @block}}"
+        "if(#{jsv @cond}){#{js @block}}"
 
 j.Try::extend
   toJSNode: mark ({toVal,inject}={}) ->
@@ -337,13 +341,13 @@ j.Loop::extend
       return j.Block(lines)
     else
       return @childrenToJSNode()
-  toJavascript: -> "while(#{js @cond, isValue:yes}) {#{js @block}}"
+  toJavascript: -> "while(#{jsv @cond}) {#{js @block}}"
 
 j.JSForC::extend
-  toJavascript: -> "for(#{js @setup, withCommas:yes}; #{js @cond, isValue:yes}; #{js @counter, withCommas:yes}){#{js @block}}"
+  toJavascript: -> "for(#{js @setup, withCommas:yes}; #{jsv @cond}; #{js @counter, withCommas:yes}){#{js @block}}"
 
 j.JSForK::extend
-  toJavascript: -> "for(#{js @key} in #{js @obj, isValue:yes}){#{js @block}}"
+  toJavascript: -> "for(#{js @key} in #{jsv @obj}){#{js @block}}"
 
 j.For::extend
   toJSNode: mark ({toVal,inject}={}) ->
@@ -451,7 +455,7 @@ j.Switch::extend
       return @childrenToJSNode()
   toJavascript: ->
     """
-      switch (#{js(@obj, isValue:yes)}) {
+      switch (#{jsv(@obj)}) {
         #{(js(_case) for _case in @cases||[]).join('')}
         default:
           #{if @default? then js(@default) else 'undefined'}
@@ -488,12 +492,12 @@ j.Operation::extend
           return val(j.Assign(target:@right, op:'+', value:1)) if @op is '++'
           return val(j.Assign(target:@right, op:'-', value:1))
       else return (inject ? identity) @childrenToJSNode()
-  toJavascript: -> "(#{ if @left?  then js(@left, isValue:yes)+' '  else ''
+  toJavascript: -> "(#{ if @left?  then jsv(@left)+' '  else ''
                     }#{ TO_JS_OPS[@op] ? @op
-                    }#{ if @right? then ' '+js(@right, isValue:yes) else '' })"
+                    }#{ if @right? then ' '+jsv(@right) else '' })"
 
 j.Statement::extend
-  toJavascript: -> "#{@type} #{if @expr? then js(@expr, isValue:yes) else ''}"
+  toJavascript: -> "#{@type} #{if @expr? then jsv(@expr) else ''}"
 
 j.Assign::extend
   toJSNode: mark ({toVal,inject}={}) ->
@@ -534,9 +538,9 @@ j.Assign::extend
       return @childrenToJSNode()
   toJavascript: ({isValue}={}) ->
     if isValue
-      "(#{js @target} #{@op or ''}= #{js @value, isValue:yes})"
+      "(#{js @target} #{@op or ''}= #{jsv @value})"
     else
-      "#{js @target} #{@op or ''}= #{js @value, isValue:yes}"
+      "#{js @target} #{@op or ''}= #{jsv @value}"
 
 j.AssignObj::extend
   # lines:    The array into which assignment nodes will be pushed
@@ -758,24 +762,25 @@ j.Invocation::extend
         else # not hasSplat
           @func = val(@func)
           @binding = val(@binding, no)
-          @params?.map (p) -> p.value = val(p.value)
+          @params?.map (p) ->
+            p.value = val(p.value)
         return @
   toJavascript: ->
     if @func is 'instanceof'
-      "(#{js @params[0].value}) instanceof (#{js @params[1].value})"
+      "(#{jsv @params[0].value}) instanceof (#{jsv @params[1].value})"
     else if @func is 'new'
-      "(new #{js @params[0].value})"
+      "(new #{jsv @params[0].value})"
     else if @binding?
       method = if @apply then 'apply' else 'call'
       if @params?
-        "#{js @func, isValue:yes}.#{method}(#{js @binding, isValue:yes}, #{@params.map (p)->js(p.value)})"
+        "#{jsv @func}.#{method}(#{jsv @binding}, #{@params.map (p)->jsv(p.value)})"
       else
-        "#{js @func, isValue:yes}.#{method}(#{js @binding, isValue:yes})"
+        "#{jsv @func}.#{method}(#{jsv @binding})"
     else
       if @params?
-        "#{js @func, isValue:yes}(#{@params.map (p)->js(p.value)})"
+        "#{jsv @func}(#{@params.map (p)->jsv(p.value)})"
       else
-        "#{js @func, isValue:yes}()"
+        "#{jsv @func}()"
 
 j.Index::extend
   toJSNode: mark ({toVal,inject}={}) ->
@@ -786,7 +791,7 @@ j.Index::extend
       if @key.toKeyString() is 'type'
         return "typeof #{js @obj}"
     close = if @type is '[' then ']' else ''
-    "#{js @obj, isValue:yes}#{@type}#{js @key}#{close}"
+    "#{jsv @obj}#{@type}#{js @key}#{close}"
 
 j.Obj::extend
   toJSNode: mark ({toVal,inject}={}) ->
@@ -800,7 +805,7 @@ j.Obj::extend
     return (inject ? identity)(@) # nore toJSNode() necessary.
   toJavascript: ->
     return '{}' unless @items?
-    "{#{("#{js key}: #{js value, isValue:yes}" for {key, value} in @items).join ', '}}"
+    "{#{("#{js key}: #{jsv value}" for {key, value} in @items).join ', '}}"
 
 j.Arr::extend
   toJSNode: mark ({toVal,inject}={}) ->
@@ -831,7 +836,7 @@ j.Arr::extend
   toJavascript: ->
     return '[]' unless @items?
     # TODO need to handle splats...
-    "[#{(js value, isValue:yes for {key, value} in @items).join ', '}]"
+    "[#{(jsv(value) for {key, value} in @items).join ', '}]"
 
 j.Slice::extend
   toJSNode: mark ({toVal,inject}={}) ->
