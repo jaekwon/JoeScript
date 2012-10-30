@@ -590,7 +590,7 @@ checkColumn = (__, $) ->
   # > significantly slower.
   i ASSIGNABLE:           " ASSIGN_LIST | ASSIGN_OBJ | VALUE "
   i PARAM_LIST:           " _ '(' &:ASSIGN_LIST_ITEM*_COMMA _ ')' ", (make AssignList)
-  i ASSIGN_LIST:          " _ '[' &:ASSIGN_LIST_ITEM*_COMMA _ ']' ", (make AssignList)
+  i ASSIGN_LIST:          " _ '[' _SOFTLINE? _MARK_COL &:ASSIGN_LIST_ITEM*(_COMMA|_SOFTLINE) ___ ']' ", (make AssignList)
   i ASSIGN_LIST_ITEM:     " _ target:(
                               | SYMBOL
                               | PROPERTY
@@ -599,7 +599,7 @@ checkColumn = (__, $) ->
                             )
                             splat:'...'?
                             default:(_ '=' LINEEXPR)? ", (make AssignItem)
-  i ASSIGN_OBJ:           " _ '{' &:ASSIGN_OBJ_ITEM*_COMMA _ '}'", (make AssignObj)
+  i ASSIGN_OBJ:           " _ '{' _SOFTLINE? _MARK_COL &:ASSIGN_OBJ_ITEM*(_COMMA|_SOFTLINE) ___ '}'", (make AssignObj)
   i ASSIGN_OBJ_ITEM:      " _ key:(SYMBOL|PROPERTY|NUMBER)
                             target:(_ ':' _ (SYMBOL|PROPERTY|ASSIGN_OBJ|ASSIGN_LIST))?
                             default:(_ '=' LINEEXPR)?", (make AssignItem)

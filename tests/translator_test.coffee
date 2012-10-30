@@ -88,6 +88,13 @@ loop
 test """
 ({foo,bar}) -> foo+bar
 """, """(function(_arg) {var foo, bar; foo = _arg.foo; bar = _arg.bar; return foo + bar;});"""
+test """
+{foo
+} = bar """, 'var foo; foo = bar.foo;'
+test """
+{
+  foo:{bar, baz}
+} = bar """, 'var _ref, bar, baz; _ref = bar.foo; bar = _ref.bar; baz = _ref.baz;'
 test " foo = {bar, baz} ", 'var foo; foo = {bar: bar, baz: baz};'
 test """
 temp = {foo:1, bar:2}
