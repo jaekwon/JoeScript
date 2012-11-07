@@ -307,6 +307,7 @@ foo = (
   }()
 );
 '''
+test ' foo = func (x for x in xx) ', ' var foo; foo = func(function() { var _accum, x, _obj, _i, _len; _accum = []; for (_obj = xx, _i = 0, _len = _obj.length; _i < _len; _i = _i + 1) { x = _obj[_i]; _accum.push(x); } return _accum; }()); '
 # splats...
 test " [foo, bar] = something ", 'var foo, bar; foo = something[0]; bar = something[1];'
 test " [foo, bar...] = something ", 'var foo, bar; foo = something[0]; bar = 2 <= something.length ? __slice.call(something, 1) : [];'

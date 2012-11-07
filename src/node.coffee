@@ -103,9 +103,9 @@ validateDescriptor = (nodeClazz, desc) ->
           return not seen
       return '-- filtered --' if filter? and not filter @
       throw new Error "_indent (#{_indent}) too high, stack overflow?" if _indent > 1024
-      valueStr = this.toString()
+      valueStr = this.toString().replace('\n','\\n')[..10]
       if @ownScope?.variables?.length > 0 # TODO move out or delete or something.
-        valueStr += yellow (@ownScope.variables.join ' ')
+        valueStr += ' '+yellow (@ownScope.variables.join ' ')
       if @marked?
         valueStr += cyan ' marked'
       str = "#{green @constructor.name} #{valueStr}\n"

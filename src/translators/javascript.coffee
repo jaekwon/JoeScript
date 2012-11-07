@@ -152,6 +152,20 @@ j.Node::extend
       return no
     return replaced
 
+  # Nested blocks
+  compressBlocks: ->
+    return @walkWithContext post:(ptr, {isValue}) ->
+      {child} = ptr
+      if child instanceof j.Block
+        compressed = []
+        for line in child.lines
+          if line instanceof j.Block
+            assert.ok not line.ownScope, "Block within block shouldn't have own scope." # TODO reconsider
+            compressed[compressed.length...] = line.lines
+          else
+            compressed.push line
+        child.lines = compressed
+
   # A block in javascript that includes a non-js-expression (e.g. switch, try, loops...)
   # must be lifted into a (function(){})() to be usable as a value.
   # This step isn't necessary for the interpreter,
@@ -957,6 +971,7 @@ clazz.extend String,
     node = j.DoBlock node.lines
   node = node.
     toJSNode().
+    compressBlocks().
     liftBlocks().
     installScope().
     determine().
@@ -968,7 +983,7 @@ clazz.extend String,
   catch error
     # prepend js_raw with line numbers with colors.
     js_raw_lineno = ("#{blue i} #{red line}" for line, i in js_raw.split('\n')).join('\n')
-    console.log "Error in uglify.parser.parse():\n#{error.stack ? error}\n\n#{js_raw_lineno}"
+    console.log "Error in uglify.parser.parse():\n#{error.stack ? error}\n\n#{js_raw_lineno}\n\n#{node.serialize()}"
     throw error
   js_pretty = uglify.uglify.gen_code(js_ast, beautify:yes, indent_level:2)
   return js_pretty
