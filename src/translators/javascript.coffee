@@ -67,10 +67,10 @@ uglify = require 'uglify-js'
 {
   NODES:j
   HELPERS:{isVariable,isIndex}
-} = require 'joescript/src/joescript'
-{escape, compact, flatten} = require('joescript/lib/helpers')
-{setOn} = require('joescript/src/node')
-require('joescript/src/translators/scope') # dependency
+} = require '../joescript'
+{escape, compact, flatten} = require('../../lib/helpers')
+{setOn} = require('../node')
+require('../translators/scope') # dependency
 
 js = (node, options) ->
   return '' if not node?

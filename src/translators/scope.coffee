@@ -12,9 +12,9 @@ assert    = require 'assert'
 {
   NODES:joe
   HELPERS:{isKey,isVariable}
-} = require 'joescript/src/joescript'
+} = require '../joescript'
 
-{randid}  = require 'joescript/lib/helpers'
+{randid}  = require '../../lib/helpers'
 
 # A heirarchical lexical scope structure.
 @LScope = LScope = clazz 'LScope', ->

@@ -2,9 +2,9 @@
 # External dependencies.
 fs             = require 'fs'
 path           = require 'path'
-helpers        = require 'joescript/lib/helpers'
-optparse       = require 'joescript/lib/optparse'
-JoeScript      = require 'joescript/src/joescript'
+helpers        = require '../lib/helpers'
+optparse       = require '../lib/optparse'
+JoeScript      = require './joescript'
 {inspect}      = require 'util'
 {spawn, exec}  = require 'child_process'
 {EventEmitter} = require 'events'

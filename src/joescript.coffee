@@ -5,8 +5,8 @@
 {inspect} = require 'util'
 assert    = require 'assert'
 fs        = require 'fs'
-{Grammar} = require 'joescript/src/joeson'
-Node = require('joescript/src/node').createNodeClazz('CodeNode')
+{Grammar} = require './joeson'
+Node = require('./node').createNodeClazz('CodeNode')
 
 @VERSION = "0.0"
 
@@ -732,8 +732,8 @@ checkColumn = (__, $) ->
 # Parse and run code
 @run = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  jsx    = require 'joescript/src/translators/javascript'
-  code   = jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
+  jsx    = require './translators/javascript'
+  code   = jsx.translate(parsed, {includeHelpers:yes, wrapInClosure:no})
   main   = require.main
   main.filename = process.argv[1] = if file then fs.realpathSync(file) else '.'
   main.moduleCache and= {}
@@ -743,7 +743,7 @@ checkColumn = (__, $) ->
 # Parse and translate code to javascript.
 @compile = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
-  jsx = require 'joescript/src/translators/javascript'
+  jsx = require './translators/javascript'
   return jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
 
 # Make node's 'require()' understand joe files

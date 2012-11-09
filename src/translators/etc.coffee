@@ -4,9 +4,9 @@ assert    = require 'assert'
 
 {
   NODES:joe
-} = require 'joescript/src/joescript'
+} = require '../joescript'
 
-{randid}  = require 'joescript/lib/helpers'
+{randid}  = require '../../lib/helpers'
 
 joe.Node::extend
   # Walks the tree and finds Funcs,

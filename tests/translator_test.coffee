@@ -3,8 +3,8 @@ require './setup'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 {equal, deepEqual, ok} = assert = require 'assert'
-joe = require 'joescript/src/joescript'
-jsx = require 'joescript/src/translators/javascript'
+joe = require '../src/joescript'
+jsx = require '../src/translators/javascript'
 
 console.log blue "\n-= translator test =-"
 
@@ -17,14 +17,6 @@ test = (code, expected) ->
   console.log "#{red "test #{counter++}:"}\n#{normal code}"
   node = joe.parse {input:code}
   node = jsx.translate(node, {includeHelpers:no, wrapInClosure:no})
-  if typeof expected is 'function'
-    try
-      result = eval(node)
-      expected.call {it:result}, result
-    catch error
-      console.log "Error in evaluating node javascript: #{yellow node}.\nError:\n#{red error?.stack ? error}"
-      process.exist(1)
-    return
   if canon(node) isnt canon(expected)
     console.log "ERROR:\n  expected:\n#{green canon expected, no}\n  result:\n#{red canon node, no}" #\n  nodes:\n#{yellow node.serialize()}"
     process.exit(1)
@@ -108,15 +100,6 @@ temp = {foo: 1, bar: 2};
 foo = temp.foo;
 bar = temp.bar;
 foo + bar;"""
-test """
-{clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
-{inspect} = require 'util'
-assert = require 'assert'
-{CodeStream} = require 'joescript/src/codestream'
-Node = require('joescript/src/node').createNodeClazz('GrammarNode')
-{pad, escape} = require 'joescript/lib/helpers'
-[pad]
-""", -> deepEqual @it, [require('joescript/lib/helpers').pad]
 test " x+1 for x, i in [0..10] ", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
 # new keyword
 test " new Number ", "new Number;"

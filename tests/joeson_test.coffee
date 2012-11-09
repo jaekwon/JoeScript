@@ -8,11 +8,11 @@ require './setup'
 # NOTE: keep this grammar in sync with src/joeson.coffee
 # Once we have a compiler, we'll just move this into src/joeson.coffee.
 
-{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require 'joescript/src/joeson'
+{NODES, GRAMMAR, MACROS, Grammar, Choice, Sequence, Lookahead, Existential, Pattern, Not, Ref, Str, Regex} = require '../src/joeson'
 {clazz, colors:{red, blue, cyan, magenta, green, normal, black, white, yellow}} = require('cardamom')
 {inspect} = require 'util'
 assert = require 'assert'
-{pad, escape} = require 'joescript/lib/helpers'
+{pad, escape} = require '../lib/helpers'
 
 {o, i, t} = MACROS
 QUOTE = "'\\''"
@@ -47,7 +47,7 @@ RAW_GRAMMAR = [
               o "'(' inlineLabel:(WORD ': ')? expr:EXPR ')' ( _ '->' _ code:CODE )?", ({expr, code}) ->
                 assert.ok not code?, "code in joeson deprecated"
                 return expr
-              i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('joescript/src/joescript').parse(it.join '')
+              i CODE: "#{LCURL} (!#{RCURL} (ESC1 | .))* #{RCURL}", (it) -> require('../src/joescript').parse(it.join '')
               o "#{QUOTE} (!#{QUOTE} (ESC1 | .))* #{QUOTE}", (it) -> new Str       it.join ''
               o "#{FSLSH} (!#{FSLSH} (ESC2 | .))* #{FSLSH}", (it) -> new Regex     it.join ''
               o "#{LBRAK} (!#{RBRAK} (ESC2 | .))* #{RBRAK}", (it) -> new Regex "[#{it.join ''}]"
