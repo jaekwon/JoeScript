@@ -1,7 +1,7 @@
 {
   "name": "joescript",
   "description": "The most awesome langauge that nobody uses!",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "author": "Jae Kwon <jkwon.work@gmail.com>",
   "repository": {"type": "git", "url": "git://github.com/jaekwon/JoeScript.git"},
   "dependencies": {
