@@ -744,7 +744,7 @@ checkColumn = (__, $) ->
 @compile = ({file, input, opts}) ->
   parsed = GRAMMAR.parse input, opts
   jsx = require './translators/javascript'
-  return jsx.translate(parsed, {includeHelpers:no, wrapInClosure:no})
+  return jsx.translate(parsed, {includeHelpers:yes, wrapInClosure:no})
 
 # Make node's 'require()' understand joe files
 if require.extensions
