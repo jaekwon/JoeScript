@@ -101,6 +101,7 @@ foo = temp.foo;
 bar = temp.bar;
 foo + bar;"""
 test " x+1 for x, i in [0..10] ", 'var i, x, _to, _by; for (i = 0, x = 0, _to = 10, _by = 1; x <= _to; i = i + 1, x = x + _by) { x + 1; }'
+test " 'ASD' in ['ASD', 'QWE'] ", '__indexOf.call([ "ASD", "QWE" ], "ASD") >= 0;'
 # new keyword
 test " new Number ", "new Number;"
 test " new Number 1 ", "new Number(1);"

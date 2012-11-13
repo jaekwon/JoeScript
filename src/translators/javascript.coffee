@@ -745,8 +745,8 @@ j.Invocation::extend
         assert.ok @params.length is 2, "Joescript `in` wants two function arguments"
         assert.ok @binding is undefined, "Joescript `in` cannot have a binding"
         @func = j.Word('__indexOf')
-        @binding = val(@params.pop().value)
-        return j.Operation(left:@, op:'>=', right:0)
+        @binding = @params.pop().value
+        return j.Operation(left:val(@), op:'>=', right:0)
       when 'instanceof'
         assert.ok @params.length is 2, "Joescript `instanceof` wants two function arguments"
         assert.ok @binding is undefined, "Joescript `instanceof` cannot have a binding"
