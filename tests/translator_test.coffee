@@ -317,4 +317,6 @@ test " @?foo = bar ", ' var foo; this.foo = foo = bar; '
 test " bar.baz?foo = bar ", ' var foo; bar.baz.foo = foo = bar; '
 test " bar.baz?foo += bar ", ' var foo; bar.baz.foo = foo = foo + bar; '
 # test " bar.baz?foo?blah += bar ", TODO: test error message
-test " bar.baz?foo?blah += bar ", ''
+test " foo := -> ", ' var foo, _temp; foo = (_temp = function() {}, _temp._name = "foo", _temp); '
+test " bar = foo := -> ", ' var bar, foo, _temp; bar = foo = (_temp = function() {}, _temp._name = "foo", _temp); '
+test " @?foo := -> ", ' var foo, _temp; this.foo = foo = (_temp = function() {}, _temp._name = "foo", _temp); '

@@ -256,7 +256,7 @@ j.Word::extend
   withSoak: (fn) ->
     cond = j.Operation(
       left:j.Operation(
-        left: j.Index(obj:@, type:'#', key:j.Word('type'))
+        left: j.Index(obj:@, type:'$', key:j.Word('type'))
         op:   '!='
         right:"undefined"
       ),
@@ -527,7 +527,7 @@ j.Assign::extend
       @target.destructLines lines, valueVar
       lines.push valueVar.toJSNode({toVal,inject}) if toVal or inject
       return j.Block(lines)
-    else if @target instanceof j.Index and @target.type is '?'
+    else if isIndex(@target) and @target.type is '?'
       # @?bar = RHS         ==>   @bar = bar = RHS
       # bar.baz?bak = RHS   ==>   bar.baz.bak = bak = RHS
       # bar.baz?bak += RHS  ==>   bar.baz.bak = bak += RHS
@@ -537,7 +537,25 @@ j.Assign::extend
       @target.type = '.'
       return @toJSNode({toVal, inject})
     else if @op?
-      if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
+      if @op is ':'
+        # Assigns the target key name to value's name meta.
+        if isVariable(@target)
+          name = @target.toKeyString()
+        else
+          assert.ok isIndex(@target), "LHS of := assignment must be a word or index"
+          if @target.type is '['
+            name = @target.key
+          else
+            name = @target.key.toKeyString()
+        temp = j.Undetermined('_temp')
+        @value = j.Block([
+          j.Assign(target:temp, value:@value),
+          j.Assign(target:j.Index(obj:temp, type:'$', key:'name'), value:name),
+          temp
+        ])
+        @op = undefined
+        return @toJSNode({toVal, inject})
+      else if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
         # Simple like `x += 1` or `foo.bar += 1`.
         # But, anything more complex like `foo.bar.baz += 1` or
         # `(foo = {bar:1}; foo).bar += 1` requires a translation to avoid side effects.
@@ -811,9 +829,11 @@ j.Index::extend
     return @super.toJSNode.call(@, {toVal,inject})
   toJavascript: ->
     switch @type
-      when '#'
+      when '$'
         if @key.toKeyString() is 'type'
           return "typeof #{js @obj}"
+        else if @key.toKeyString() is 'name'
+          return "(#{js @obj})._name"
         else
           throw new Error "Unknown meta type #{@key}."
       when '!'

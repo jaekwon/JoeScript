@@ -297,11 +297,11 @@ foo[bar] = 2
 """, 'foo[bar] = (2)'
 test """
 foo = typeof bar.baz + "something"
-""", 'foo = ((bar.baz?type + "something"))'
+""", 'foo = ((bar.baz$type + "something"))'
 test """
 if typeof @parts is 'string'
   1
-""", 'if((this.parts?type is "string")){1}'
+""", 'if((this.parts$type is "string")){1}'
 test """
 {
   foo: bar:1

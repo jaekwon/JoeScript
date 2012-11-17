@@ -508,7 +508,7 @@ checkColumn = (__, $) ->
           o                         " _ key:(WORD|STRING|NUMBER) _ ':' _SOFTLINE? value:EXPR ", (make Item)
           o                         " HEREDOC "
         ]
-        o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
+        o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|':='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
         o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do' | 'new') (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
 
         # COMPLEX
@@ -617,7 +617,7 @@ checkColumn = (__, $) ->
       o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", (make Index)
       o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", (make Index)
       o INDEX1:       " obj:VALUE type:'.' _SOFTLINE?  key:WORD ", (make Index)
-      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'!'|'#'|'?') !__  key:WORD ", (make Index)
+      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'!'|'$'|'?') !__  key:WORD ", (make Index)
       o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:(!__ WORD)? ", (make Index)
       o INVOC_EXPL:   " !NUMBER func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
       o SOAK:         " VALUE '?' ", (make Soak)
@@ -636,7 +636,7 @@ checkColumn = (__, $) ->
                           return Singleton.null
                       return null)
     o SYMBOL:       " !_KEYWORD WORD "
-    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'#', key:Word('type'))
+    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'$', key:Word('type'))
     # starts with symbol
     o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", (make Arr)
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)
