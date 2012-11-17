@@ -148,7 +148,27 @@ j.Node::extend
     replaced = no
     @withChildren (ptr) ->
       if ptr.child instanceof j.Node and ptr.child not instanceof j.Func
-        return replaced or= ptr.child.replaceWord word, replace, ptr
+        replaced = ptr.child.replaceWord(word, replace, ptr) or replaced
+        return replaced
+      return no
+    return replaced
+
+  # Replace 'this' with given replacement
+  # returns: yes of any replacement occurred.
+  replaceThis: (replace, ptr=undefined) ->
+    if this instanceof j.Word
+      if @key is 'this'
+        setOn ptr, replace if ptr?
+        return yes
+      return no
+    replaced = no
+    @withChildren (ptr) ->
+      if ptr.child instanceof j.Node and
+        (ptr.child not instanceof j.Func or ptr.child.type is '=>') and
+        (ptr.child not instanceof j.Invocation or ptr.child.func isnt 'do')
+          ptr.child.type = '->' if ptr.child instanceof j.Func and ptr.child.type is '=>'
+          replaced = ptr.child.replaceThis(replace, ptr) or replaced
+          return replaced
       return no
     return replaced
 
@@ -160,7 +180,7 @@ j.Node::extend
         compressed = []
         for line in child.lines
           if line instanceof j.Block
-            assert.ok not line.ownScope, "Block within block shouldn't have own scope." # TODO reconsider
+            assert.ok not line.ownScope, "Block within block shouldn't have own scope." # right?
             compressed[compressed.length...] = line.lines
           else
             compressed.push line
@@ -708,8 +728,16 @@ j.Regex::extend
 j.Func::extend
   toJSNode: mark ({toVal,inject}={}) ->
     return inject(this).toJSNode({toVal}) if inject?
-    ## TODO bind to this for '=>' @type binding
-    ## destructuring parameters
+    ## Bind to this for '=>' @type functions
+    if @type is '=>'
+      # Instead of dynamically binding, we're just going to replace all references to 'this' with '_this'.
+      @type = '->'
+      @block.replaceThis _this=j.Undetermined('_this')
+      return j.Block [
+        j.Assign(target:_this, value:j.Word('this')),
+        @toJSNode({toVal,inject})
+      ]
+    ## Destructuring parameters
     if @params?
       # If none of the top-level parameters contain a splat,
       # try to preserve the argument structure in the resulting javascript.
@@ -741,7 +769,7 @@ j.Func::extend
         @params.destructLines lines, j.Word('arguments')
         @params = undefined
         @block.lines[...0] = lines
-    ## make last line return
+    ## Make last line return
     @block = @block?.toJSNode({inject:(value)->
       j.Statement(type:'return', expr:value)
     })
@@ -764,8 +792,9 @@ j.Invocation::extend
       when 'do'
         assert.ok @params.length is 1 and @params[0].value instanceof j.Func, "Joescript `do` wants one function argument"
         assert.ok @binding is undefined, "Joescript `do` cannot have a binding"
-        @func = val(@params[0].value)
-        @params = @func.params?.extractWords()
+        func = @params[0].value
+        @func = val(func)
+        @params = func.params?.extractWords()
         @binding = j.Word('this')
         return @
       when 'in'
