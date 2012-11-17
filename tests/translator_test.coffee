@@ -311,3 +311,10 @@ test " funcGen()(baz...) ", 'funcGen().apply(null, __slice.call(baz));'
 test " func(bar, baz..., bak) ", 'func.apply(null, [ bar ].concat(__slice.call(baz), [ bak ]));'
 # escapes...
 test """ "\\x1b[36mblah" """, """ "\x1b[36mblah"; """
+
+# other...
+test " @?foo = bar ", ' var foo; this.foo = foo = bar; '
+test " bar.baz?foo = bar ", ' var foo; bar.baz.foo = foo = bar; '
+test " bar.baz?foo += bar ", ' var foo; bar.baz.foo = foo = foo + bar; '
+# test " bar.baz?foo?blah += bar ", TODO: test error message
+test " bar.baz?foo?blah += bar ", ''

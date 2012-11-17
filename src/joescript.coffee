@@ -605,18 +605,20 @@ checkColumn = (__, $) ->
                             default:(_ '=' LINEEXPR)?", (make AssignItem)
 
   i VALUE: [
-    o " (? VALUE REST) &:LRVALUE "
-    i REST: " ( [\\[\\!\\(\\?] | _SOFTLINE? [\\.\\!\\?:] ) "
+    # The following two lines are a slight optimization,
+    # It means, only try to parse LRVALUE if the stuff in REST are found.
+    # REMOVED because it's just confusing, and it doesn't optimize much.
+    #o " (? VALUE REST) &:LRVALUE "
+    #i REST: " ( [\\[\\!\\(\\?] | _SOFTLINE? [\\.\\!\\?:] ) "
+
     # left recursive value
-    i LRVALUE: [
+    o LRVALUE: [
       o SLICE:        " obj:VALUE range:RANGE ", (make Slice)
       o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", (make Index)
       o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", (make Index)
       o INDEX1:       " obj:VALUE type:'.' _SOFTLINE?  key:WORD ", (make Index)
-      o INDEX2:       " obj:VALUE _SOFTLINE type:'.'   key:WORD ", (make Index)
-      o DELETE1:      " obj:VALUE _SOFTLINE? type:'!' !__ key:WORD ", (make Index) # NEW foo.bar!baz  <=> delete foo.bar.baz
-      o META:         " obj:VALUE _SOFTLINE? type:'?' !__ key:WORD ", (make Index) # NEW foo.bar?type <=> tyepof foo.bar
-      o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:WORD? ", (make Index)
+      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'!'|'#'|'?') !__  key:WORD ", (make Index)
+      o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:(!__ WORD)? ", (make Index)
       o INVOC_EXPL:   " !NUMBER func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
       o SOAK:         " VALUE '?' ", (make Soak)
     ]
@@ -634,7 +636,7 @@ checkColumn = (__, $) ->
                           return Singleton.null
                       return null)
     o SYMBOL:       " !_KEYWORD WORD "
-    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'?', key:Word('type'))
+    o TYPEOF:       " _TYPEOF _ VALUE ", ((value) -> new Index obj:value, type:'#', key:Word('type'))
     # starts with symbol
     o ARR_EXPL:     " '[' _SOFTLINE? ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ (',' ___)? ']' ", (make Arr)
     i ARR_EXPL_ITEM: " value:LINEEXPR splat:'...'? ", (make Item)

@@ -256,7 +256,7 @@ j.Word::extend
   withSoak: (fn) ->
     cond = j.Operation(
       left:j.Operation(
-        left: j.Index(obj:@, type:'?', key:j.Word('type'))
+        left: j.Index(obj:@, type:'#', key:j.Word('type'))
         op:   '!='
         right:"undefined"
       ),
@@ -527,6 +527,15 @@ j.Assign::extend
       @target.destructLines lines, valueVar
       lines.push valueVar.toJSNode({toVal,inject}) if toVal or inject
       return j.Block(lines)
+    else if @target instanceof j.Index and @target.type is '?'
+      # @?bar = RHS         ==>   @bar = bar = RHS
+      # bar.baz?bak = RHS   ==>   bar.baz.bak = bak = RHS
+      # bar.baz?bak += RHS  ==>   bar.baz.bak = bak += RHS
+      # bar?baz?bak = RHS   ==>   error
+      @value = j.Assign target:@target.key, value:@value, op:@op
+      @op = undefined
+      @target.type = '.'
+      return @toJSNode({toVal, inject})
     else if @op?
       if isVariable(@target) or isIndex(@target) and isVariable(@target.obj)
         # Simple like `x += 1` or `foo.bar += 1`.
@@ -534,7 +543,7 @@ j.Assign::extend
         # `(foo = {bar:1}; foo).bar += 1` requires a translation to avoid side effects.
         @value = val(j.Operation(left:@target, op:@op, right:@value))
         @op = undefined
-        return (inject ? identity)(@) # nore toJSNode() necessary.
+        return (inject ? identity)(@) # no toJSNode() necessary.
       else
         # something.complex.baz += @value
         #   .. becomes ..
@@ -802,7 +811,7 @@ j.Index::extend
     return @super.toJSNode.call(@, {toVal,inject})
   toJavascript: ->
     switch @type
-      when '?'
+      when '#'
         if @key.toKeyString() is 'type'
           return "typeof #{js @obj}"
         else
@@ -815,6 +824,8 @@ j.Index::extend
         "#{jsv @obj}[#{js @key}]"
       when '.'
         "#{jsv @obj}.#{js @key}"
+      when '?'
+        throw new Error "'?' type indices are only valid on the LHS of an assignment, and only on the rightmost key"
       else
         throw new Error "Unknown index type (#{@type})."
 
