@@ -499,7 +499,7 @@ checkColumn = (__, $) ->
       o POSTFOR:                    " block:LINEEXPR _FOR own:_OWN? __ keys:ASSIGNABLE*_COMMA{1,2} type:(_IN|_OF) obj:EXPR (_WHEN cond:EXPR)? ", (make For)
       o POSTWHILE:                  " block:LINEEXPR _WHILE cond:EXPR ", (make Loop)
       # rest
-      o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE) expr:EXPR? ", (make Statement)
+      o STMT:                       " type:(_RETURN|_THROW|_BREAK|_CONTINUE|_DELETE) expr:EXPR? ", (make Statement)
       o EXPR: [
         o FUNC:                     " params:PARAM_LIST? _ type:('->'|'=>') block:BLOCK? ", (make Func)
         # RIGHT_RECURSIVE
