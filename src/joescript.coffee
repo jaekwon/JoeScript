@@ -622,7 +622,7 @@ checkColumn = (__, $) ->
       o SOAK:         " VALUE '?' ", (make Soak)
     ]
     # rest
-    o NUMBER:       " /-?[0-9]+(\\.[0-9]+)?/ ", ((it) -> Number it)
+    o NUMBER:       " /-?(0x[0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?)/ ", ((it) -> Number it)
     o SPECIAL:      " WORD ", ((word) ->
                       switch word.key
                         when 'yes', 'true', 'on'
