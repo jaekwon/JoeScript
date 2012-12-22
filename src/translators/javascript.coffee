@@ -865,10 +865,6 @@ j.Index::extend
           return "(#{js @obj})._name"
         else
           throw new Error "Unknown meta type #{@key}."
-      when '!'
-        return "delete #{js @obj}.#{js @key}"
-      when '!['
-        "delete #{jsv @obj}[#{js @key}]"
       when '['
         "#{jsv @obj}[#{js @key}]"
       when '.'

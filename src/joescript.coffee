@@ -609,15 +609,14 @@ checkColumn = (__, $) ->
     # It means, only try to parse LRVALUE if the stuff in REST are found.
     # REMOVED because it's just confusing, and it doesn't optimize much.
     #o " (? VALUE REST) &:LRVALUE "
-    #i REST: " ( [\\[\\!\\(\\?] | _SOFTLINE? [\\.\\!\\?:] ) "
+    #i REST: " ( [\\[\\(\\?] | _SOFTLINE? [\\.\\?:] ) "
 
     # left recursive value
     o LRVALUE: [
       o SLICE:        " obj:VALUE range:RANGE ", (make Slice)
       o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", (make Index)
-      o DELETE0:      " obj:VALUE type:'!['  key:LINEEXPR _ ']' ", (make Index)
       o INDEX1:       " obj:VALUE type:'.' _SOFTLINE?  key:WORD ", (make Index)
-      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'!'|'$'|'?') !__  key:WORD ", (make Index)
+      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'$'|'?') !__  key:WORD ", (make Index)
       o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:(!__ WORD)? ", (make Index)
       o INVOC_EXPL:   " !NUMBER func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
       o SOAK:         " VALUE '?' ", (make Soak)
@@ -708,7 +707,7 @@ checkColumn = (__, $) ->
   i _KEYWORD:       tokens('if', 'unless', 'else', 'for', 'own', 'in', 'of',
                       'loop', 'while', 'break', 'continue', 'typeof', 'instanceof',
                       'switch', 'when', 'return', 'throw', 'then', 'is', 'isnt', 'by',
-                      'not', 'and', 'or', 'try', 'catch', 'finally', 'do', 'new'
+                      'not', 'and', 'or', 'try', 'catch', 'finally', 'do', 'new', 'delete',
                       'yes', 'true', 'on', 'no', 'false', 'off', 'undefined', 'null')
   i _COMPLEX_KEYWORD: tokens('if', 'unless', 'for', 'loop', 'while', 'switch', 'try')
   i _BTICK:         " '`'         "

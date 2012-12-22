@@ -1,4 +1,3 @@
-# TODO: s/coffee/joe/g
 # External dependencies.
 fs             = require 'fs'
 path           = require 'path'
@@ -17,14 +16,14 @@ printWarn = (line) -> process.stderr.write line + '\n'
 
 hidden = (file) -> /^\.|~$/.test file
 
-# The help banner that is printed when `coffee` is called without arguments.
+# The help banner that is printed when `joe` is called without arguments.
 BANNER = '''
-  Usage: coffee [options] path/to/script.coffee -- [args]
+  Usage: joe [options] path/to/script.joe -- [args]
 
-  If called without options, `coffee` will run your script.
+  If called without options, `joe` will run your script.
 '''
 
-# The list of all the valid option flags that `coffee` knows how to handle.
+# The list of all the valid option flags that `joe` knows how to handle.
 SWITCHES = [
   ['-b', '--bare',            'compile without a top-level function wrapper']
   ['-c', '--compile',         'compile to JavaScript and save as .js files']
@@ -47,7 +46,7 @@ sources      = []
 sourceCode   = []
 optionParser = null
 
-# Run `coffee` by parsing passed options and determining what action to take.
+# Run `joe` by parsing passed options and determining what action to take.
 # Many flags cause us to divert before compiling anything. Flags passed after
 # `--` will be passed verbatim to your script as arguments in `process.argv`
 exports.run = ->
@@ -63,20 +62,20 @@ exports.run = ->
   #return require './repl'                unless sources.length
   literals = if opts.run then sources.splice 1 else []
   process.argv = process.argv[0..1].concat literals
-  process.argv[0] = 'coffee'
+  process.argv[0] = 'joe'
   process.execPath = require.main.filename
   for source in sources
     compilePath source, yes, path.normalize source
 
 # Compile a path, which could be a script or a directory. If a directory
-# is passed, recursively compile all '.coffee' extension source files in it
+# is passed, recursively compile all '.joe' extension source files in it
 # and all subdirectories.
 compilePath = (source, topLevel, base) ->
   fs.stat source, (err, stats) ->
     throw err if err and err.code isnt 'ENOENT'
     if err?.code is 'ENOENT'
-      if topLevel and source[-7..] isnt '.coffee'
-        source = sources[sources.indexOf(source)] = "#{source}.coffee"
+      if topLevel and source[-4..] isnt '.joe'
+        source = sources[sources.indexOf(source)] = "#{source}.joe"
         return compilePath source, topLevel, base
       if topLevel
         console.error "File not found: #{source}"
@@ -93,7 +92,7 @@ compilePath = (source, topLevel, base) ->
         sourceCode[index..index] = files.map -> null
         files.forEach (file) ->
           compilePath (path.join source, file), no, base
-    else if topLevel or path.extname(source) is '.coffee'
+    else if topLevel or path.extname(source) is '.joe'
       watch source, base if opts.watch
       fs.readFile source, (err, code) ->
         throw err if err and err.code isnt 'ENOENT'
