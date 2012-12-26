@@ -27,7 +27,8 @@ just admit that the current implementation is imperfect, and limit grammar usage
 assert = require 'assert'
 {CodeStream} = require './codestream'
 Node = require('./node').createNodeClazz('GrammarNode')
-{pad, escape} = require '../lib/helpers'
+{pad, escape:_escape} = require '../lib/helpers'
+escape = (text, options) -> _escape ''+text, options
 
 if no
   counter = 0
@@ -146,6 +147,7 @@ _loopStack = [] # trace stack
   @$stack = (fn) -> ($) ->
     $.stackPush this
     timeStart? @name
+    pos = $.code.pos
     result = fn.call this, $
     timeEnd? @name
     $.stackPop this

@@ -43,7 +43,7 @@ Block = clazz 'Block', Node, ->
     assert.ok lines, "lines must be defined"
     @lines = if lines instanceof Array then lines else [lines]
   toString: ->
-    (''+line for line in @lines).join ';\n'
+    '{'+(''+line for line in @lines).join(';\n')+'}'
 
 DoBlock = (lines) ->
   Invocation
@@ -55,49 +55,49 @@ If = clazz 'If', Node, ->
     @block = Block @block if @block not instanceof Block
   toString: ->
     if @else?
-      "if(#{@cond}){#{@block}}else{#{@else}}"
+      "if(#{@cond})#{@block}else#{@else}"
     else
-      "if(#{@cond}){#{@block}}"
+      "if(#{@cond})#{@block}"
 
 Unless = ({cond, block, _else}) -> If cond:Not(cond), block:block, else:_else
 
 Loop = clazz 'Loop', Node, ->
   init: ({@label, @cond, @block}) -> @cond ?= true
   isJSValue: no
-  toString: -> "while(#{@cond}){#{@block}}"
+  toString: -> "while(#{@cond})#{@block}"
 
 For = clazz 'For', Loop, ->
   # types:
   #   in: Array / generator iteration,  e.g.  for @keys[0] in @obj {@block}
   #   of: Object key-value iteration,   e.g.  for @keys[0], @keys[1] of @obj {@block}
   init: ({@label, @block, @own, @keys, @type, @obj, @cond}) ->
-  toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}{#{@block}}"
+  toString: -> "for #{@own? and 'own ' or ''}#{@keys.join ','} #{@type} #{@obj} #{@cond? and "when #{@cond} " or ''}#{@block}"
 
 # Javascript C-style For-loop
 JSForC = clazz 'JSForC', Loop, ->
   init: ({@label, @block, @setup, @cond, @counter}) ->
-  toString: -> "for (#{@setup or ''};#{@cond or ''};#{@counter or ''}) {#{@block}}"
+  toString: -> "for (#{@setup or ''};#{@cond or ''};#{@counter or ''}) #{@block}"
 
 # Javascript Object Key iteration
 JSForK = clazz 'JSForK', Loop, ->
   init: ({@label, @block, @key, @obj}) ->
-  toString: -> "for (#{@key} in #{@obj}) {#{@block}}"
+  toString: -> "for (#{@key} in #{@obj}) #{@block}"
 
 Switch = clazz 'Switch', Node, ->
   init: ({@obj, @cases, @default}) ->
   isJSValue: no
-  toString: -> "switch(#{@obj}){#{@cases.join('//')}//else{#{@default}}}"
+  toString: -> "switch(#{@obj}){#{@cases.join('//')}//else#{@default}}"
 
 Try = clazz 'Try', Node, ->
   init: ({@block, @catchVar, @catch, @finally}) ->
   isJSValue: no
-  toString: -> "try {#{@block}}#{
-                (@catchVar? or @catch?) and " catch (#{@catchVar or ''}) {#{@catch}}" or ''}#{
-                @finally and "finally {#{@finally}}" or ''}"
+  toString: -> "try #{@block}#{
+                (@catchVar? or @catch?) and " catch (#{@catchVar or ''}) #{@catch}" or ''}#{
+                @finally and "finally #{@finally}" or ''}"
 
 Case = clazz 'Case', Node, ->
   init: ({@matches, @block}) ->
-  toString: -> "when #{@matches.join ','}{#{@block}}"
+  toString: -> "when #{@matches.join ','}#{@block}"
 
 Operation = clazz 'Operation', Node, ->
   init: ({@left, @op, @right}) ->
@@ -239,7 +239,9 @@ Str = clazz 'Str', Node, ->
       '"' + @parts.replace(/"/g, "\\\"") + '"'
     else
       parts = @parts.map (x) ->
-        if x instanceof Node
+        if x instanceof Block
+          '#'+x
+        else if x instanceof Node
           '#{'+x+'}'
         else
           x.replace /"/g, "\\\""
@@ -255,7 +257,7 @@ Func = clazz 'Func', Node, ->
   toString: ->
     "#{ if @params? then '('+@params.toString(no)+')' else '()'
     }#{ @type
-    }#{ '{'+@block+'}' }"
+    }#{ @block }"
 
 AssignObj = clazz 'AssignObj', Node, ->
   init: (@items) ->
@@ -406,6 +408,7 @@ trace =
 setup = (__, $) ->
   $.stack[0].indent = ''
 
+# get indent and container
 _iC = ($, skip=0) ->
   for i in [$.stackLength-1-skip..0] by -1
     if $.stack[i].softline? or $.stack[i].indent?

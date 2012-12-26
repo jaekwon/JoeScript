@@ -14,13 +14,16 @@ test  = (code, expected) ->
   code = code.replace(/\\/g, '\\\\').replace(/\r/g, '\\r')
   try
     context = GRAMMAR.parse code, {debug:no, returnContext:yes}
-    assert.equal (''+context.result).replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
+    parseResult  = ''+context.result
+    if parseResult[0] is '{' and parseResult[parseResult.length-1] is '}'
+      parseResult = parseResult[1...-1]
+    assert.equal parseResult.replace(/[\n ]+/g, ''), expected.replace(/[\n ]+/g, '')
   catch error
     try
       GRAMMAR.parse code, {debug:yes, returnContext:yes}
     catch error
       # pass
-    console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow context?.result}"
+    console.log "Failed to parse code:\n#{red code}\nExpected:\n#{expected}\nResult:\n#{yellow parseResult}"
     console.log error.stack
     process.exit(1)
 
@@ -88,14 +91,14 @@ test  "[1, 2, 3]", "[1,2,3]"
 test  "[1, 2, 3, [4, 5]]", "[1,2,3,[4,5]]"
 test  "foo?.bar['baz']::", "(foo)?.bar[\"baz\"].prototype"
 test  "@foo == @bar.baz", "(this.foo==this.bar.baz)"
-test  "x for x in [1,2,3]", "for x in [1,2,3]{x}"
+test  "x for x in [1,2,3]", "for x in [1,2,3] x"
 test  """
       for x in [1,2,3]
         x+1
       """, "for x in [1,2,3]{(x+1)}"
 test  "for x in [1,2,3] then x + 1", "for x in [1,2,3]{(x+1)}"
-test  "for x in [1,2,3] then x + 1 for y in [1,2,3]", "for x in [1,2,3]{for y in [1,2,3]{(x+1)}}"
-test  "for x in [1,2,3] then x + 1 for y in [1,2,3] if true", "for x in [1,2,3]{if(true){for y in [1,2,3]{(x+1)}}}"
+test  "for x in [1,2,3] then x + 1 for y in [1,2,3]", "for x in [1,2,3]{for y in [1,2,3] (x+1) }"
+test  "for x in [1,2,3] then x + 1 for y in [1,2,3] if true", "for x in [1,2,3]{if(true){for y in [1,2,3] (x+1) }}"
 test  """
       x = 1
       switch x
@@ -118,7 +121,7 @@ test  "a = \"My Name is \#{user.name}\"", "a=(\"My Name is \#{user.name}\")"
 test  "a = \"My Name is \#{\"Mr. \#{user.name}\"}\"", "a=(\"My Name is \#{\"Mr. \#{user.name}\"}\")"
 test  "line instanceof Object and 'true'", '(instanceof(line,Object) and "true")'
 test  "lines.length-1", '(lines.length - 1)'
-test  "foo( func x for x in items )", 'foo(for x in items {func(x)})'
+test  "foo( func x for x in items )", 'foo(for x in items func(x))'
 test  """
 foo: FOO
 bar: BAR
@@ -246,7 +249,7 @@ test """
   get: -> (foo)
   set: ->
 }
-""", '{get:()->{foo},set:()->{}}'
+""", '{get:()->{{foo}},set:()->{}}'
 test """
 {
   get: ->
