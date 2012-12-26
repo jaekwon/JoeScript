@@ -64,11 +64,11 @@ if no
 
 _loopStack = [] # trace stack
 
-# Frames stack up during parsing
-@Frame = Frame = clazz 'Frame', ->
-  init: ({@result, @pos, @endPos, @id, @loopStage, @wipemask, @param}) ->
-  cacheSet: (@result, @endPos) ->
-  toString: -> "[F|result:#{@result} #{yellow @id}@#{blue @pos}...#{blue @endPos ? ''} lS:#{@loopStage or '_'} m:#{@wipemask?}]"
+newFrame = (pos, id) -> {result:undefined, pos:pos, endPos:undefined, id:id, loopStage:undefined, wipemask:undefined, param:undefined}
+
+cacheSet = (frame, result, endPos) ->
+  frame.result = result
+  frame.endPos = endPos
 
 # aka '$' in parse functions
 @ParseContext = ParseContext = clazz 'ParseContext', ->
@@ -105,7 +105,7 @@ _loopStack = [] # trace stack
     pos = @code.pos
     posFrames = @frames[pos]
     if not (frame=posFrames[id])?
-      return posFrames[id] = new Frame(pos:pos, id:id)
+      return posFrames[id] = newFrame pos, id
     else return frame
 
   wipeWith: (frame, makeStash=yes) ->
@@ -176,13 +176,13 @@ _loopStack = [] # trace stack
           return frame.result
 
         frame.loopStage = 1
-        frame.cacheSet null
+        cacheSet frame, null
         result = fn.call this, $
 
         switch frame.loopStage
           when 1 # non-recursive (done)
             frame.loopStage = 0
-            frame.cacheSet result, $.code.pos
+            cacheSet frame, result, $.code.pos
             $.log "#{cyan "`-set:"} #{escape result} #{black typeof result}" if trace.stack
             return result
 
@@ -190,7 +190,7 @@ _loopStack = [] # trace stack
             if result is null
               $.log "#{yellow "`--- loop null ---"} " if trace.stack
               frame.loopStage = 0
-              #frame.cacheSet null # already null
+              #cacheSet frame, null # already null
               return result
             else
               frame.loopStage = 3
@@ -215,7 +215,7 @@ _loopStack = [] # trace stack
                 bestStash = $.wipeWith frame, yes
                 bestResult = result
                 bestEndPos = $.code.pos
-                frame.cacheSet bestResult, bestEndPos
+                cacheSet frame, bestResult, bestEndPos
                 $.log "#{yellow "|`--- loop iteration ---"} #{frame}" if trace.stack
                 $.code.pos = startPos
                 result = fn.call this, $
