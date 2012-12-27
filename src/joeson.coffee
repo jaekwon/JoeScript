@@ -328,7 +328,7 @@ cacheSet = (frame, result, endPos) ->
       parent = parent.parent
 
 @Yes = Yes = clazz 'Yes', GNode, ->
-  parse$: @$wrap ($) -> yes
+  parse: @$wrap ($) -> yes
 
 @Choice = Choice = clazz 'Choice', GNode, ->
   @defineChildren
@@ -337,7 +337,7 @@ cacheSet = (frame, result, endPos) ->
   init: (@choices=[]) ->
   prepare: ->
     @capture = @choices.every (choice) -> choice.capture
-  parse$: @$wrap ($) ->
+  parse: @$wrap ($) ->
     for choice in @choices
       pos = $.code.pos
       result = choice.parse $
@@ -391,7 +391,7 @@ cacheSet = (frame, result, endPos) ->
       else
         'object'
     )
-  parse$:       @$wrap ($) ->
+  parse: @$wrap ($) ->
     switch @type
       when 'array'
         results = []
@@ -438,7 +438,7 @@ cacheSet = (frame, result, endPos) ->
     expr:       {type:GNode}
   capture: no
   init: ({@expr}) ->
-  parse$: @$wrap ($) ->
+  parse: @$wrap ($) ->
     pos = $.code.pos
     result = @expr.parse $
     $.code.pos = pos
@@ -460,7 +460,7 @@ cacheSet = (frame, result, endPos) ->
     # they don't become available right away. wtf?
     @labels   = labels
     @captures = captures
-  parse$: @$wrap ($) ->
+  parse: @$wrap ($) ->
     pos = $.code.pos
     result = @it.parse $
     $.code.pos = pos if result is null
@@ -474,7 +474,7 @@ cacheSet = (frame, result, endPos) ->
     join:       {type:GNode}
   init: ({@value, @join, @min, @max}) ->
     @capture = @value.capture
-  parse$: @$wrap ($) ->
+  parse: @$wrap ($) ->
     matches = []
     pos = $.code.pos
     resV = @value.parse $
@@ -513,7 +513,7 @@ cacheSet = (frame, result, endPos) ->
     it:         {type:GNode}
   capture: no
   init: (@it) ->
-  parse$: @$wrap ($) ->
+  parse: @$wrap ($) ->
     pos = $.code.pos
     res = @it.parse $
     $.code.pos = pos
@@ -532,7 +532,7 @@ cacheSet = (frame, result, endPos) ->
       if @label is '@' then @grammar.rules[@ref].labels
       else if @label   then [@label]
       else                  []
-  parse$: @$wrap ($) ->
+  parse: @$wrap ($) ->
     node = @grammar.rules[@ref]
     throw Error "Unknown reference #{@ref}" if not node?
     $.stackPeek().param = @param
@@ -542,7 +542,7 @@ cacheSet = (frame, result, endPos) ->
 @Str = Str = clazz 'Str', GNode, ->
   capture: no
   init: (@str) ->
-  parse$: @$wrap ($) -> $.code.match string:@str
+  parse: @$wrap ($) -> $.code.match string:@str
   contentString: -> green("'#{escape @str}'")
 
 @Regex = Regex = clazz 'Regex', GNode, ->
@@ -550,7 +550,7 @@ cacheSet = (frame, result, endPos) ->
     if typeof @reStr isnt 'string'
       throw Error "Regex node expected a string but got: #{@reStr}"
     @re = RegExp '('+@reStr+')', 'g' # TODO document why http://blog.stevenlevithan.com/archives/fixing-javascript-regexp
-  parse$: @$wrap ($) -> $.code.match regex:@re
+  parse: @$wrap ($) -> $.code.match regex:@re
   contentString: -> magenta(''+@re)
 
 # Main external access.

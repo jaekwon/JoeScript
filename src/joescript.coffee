@@ -608,12 +608,6 @@ checkColumn = (__, $) ->
                             default:(_ '=' LINEEXPR)?", (make AssignItem)
 
   i VALUE: [
-    # The following two lines are a slight optimization,
-    # It means, only try to parse LRVALUE if the stuff in REST are found.
-    # REMOVED because it's just confusing, and it doesn't optimize much.
-    #o " (? VALUE REST) &:LRVALUE "
-    #i REST: " ( [\\[\\(\\?] | _SOFTLINE? [\\.\\?:] ) "
-
     # left recursive value
     o LRVALUE: [
       o SLICE:        " obj:VALUE range:RANGE ", (make Slice)
