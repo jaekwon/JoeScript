@@ -308,6 +308,9 @@ test " foo.bar(baz...) ", 'foo.bar.apply(foo, __slice.call(baz));'
 test " foo.bar.blah(baz...) ", 'var _ref; (_ref = foo.bar).blah.apply(_ref, __slice.call(baz));'
 test " funcGen()(baz...) ", 'funcGen().apply(null, __slice.call(baz));'
 test " func(bar, baz..., bak) ", 'func.apply(null, [ bar ].concat(__slice.call(baz), [ bak ]));'
+# function parameters
+test " ({@foo=1}) -> 1 ", ' (function(_arg) { var _ref; this.foo = _arg.foo; this.foo = (_ref = this.foo) !== null && _ref !== undefined ? _ref : 1; return 1; }); '
+test " ({@foo=1}) -> ", ' (function(_arg) { var _ref; this.foo = _arg.foo; this.foo = (_ref = this.foo) !== null && _ref !== undefined ? _ref : 1; return undefined; }); '
 # escapes...
 test """ "\\x1b[36mblah" """, """ "\x1b[36mblah"; """
 

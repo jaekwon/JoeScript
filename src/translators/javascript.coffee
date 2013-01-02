@@ -609,8 +609,11 @@ j.AssignObj::extend
   # CONTRACT: Input source and output lines are javascript.
   destructLines: (lines, source) ->
     for item in @items
+      # {foo}     --> The item.key is 'foo'
+      # {foo:bar} --> The item.key is 'foo' and item.target is 'bar'
+      # {@foo}    --> The item.key is '@foo'
       target   = item.target ? item.key
-      key      = item.key
+      key      = if item.key instanceof j.Index then item.key.key else item.key
       default_ = item.default
       if target instanceof j.Word or target instanceof j.Index
         lines.push j.Assign target:target, value:j.Index(obj:source, key:key)
@@ -739,6 +742,9 @@ j.Func::extend
       ]
     ## Destructuring parameters
     if @params?
+      ## If the original block is empty, return 'undefined'
+      if @block.lines.length is 0
+        @block.lines.push j.Word('undefined')
       # If none of the top-level parameters contain a splat,
       # try to preserve the argument structure in the resulting javascript.
       if not @params.items.any((item) -> item.splat)
@@ -747,11 +753,13 @@ j.Func::extend
           {target, default:_default} = param
           param.default = undefined # javascript doesn't support default param values.
           if not isVariable target
+            # {foo, bar,...} = ...
             if target instanceof j.AssignObj
               arg = j.Undetermined('_arg')
               @params.items[i] = j.AssignItem target:arg
               lines.push j.Assign target:arg, op:'?', value:_default if _default?
               target.destructLines lines, arg
+            # @foo = ...
             else if target instanceof j.Index
               assert.ok target.isThisProp, "Unexpected parameter target #{target}"
               arg = j.Word(''+target.key)

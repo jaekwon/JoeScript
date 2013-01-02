@@ -28,8 +28,8 @@ test  = (code, expected) ->
     process.exit(1)
 
 # test numbers
-test  '255', '255'
-test  '-0xff', '-255'
+test '255', '255'
+test '-0xff', '-255'
 # test other
 test """
 foo bar: 'BAR'
