@@ -635,8 +635,9 @@ cacheSet = (frame, result, endPos) ->
       # find the maximum parsed entity
       maxAttempt = $.code.pos
       maxSuccess = $.code.pos
-      for posFrames, pos in $.frames[$.code.pos...]
-        continue if pos < maxAttempt
+      # TODO for x, i in something from index to index by skip
+      for pos in [$.code.pos...$.frames.length-1]
+        posFrames = $.frames[pos]
         for frame, id in posFrames
           if frame
             maxAttempt = pos
