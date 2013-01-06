@@ -30,6 +30,9 @@ test  = (code, expected) ->
 # test numbers
 test '255', '255'
 test '-0xff', '-255'
+# test new
+test 'func(new foo, bar)', 'func(new foo(), bar)'
+test 'func(new foo baz, new bar)', 'func(new foo(baz, new bar()))'
 # test other
 test """
 foo bar: 'BAR'

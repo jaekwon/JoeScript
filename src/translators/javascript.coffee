@@ -815,10 +815,6 @@ j.Invocation::extend
         assert.ok @params.length is 2, "Joescript `instanceof` wants two function arguments"
         assert.ok @binding is undefined, "Joescript `instanceof` cannot have a binding"
         return @childrenToJSNode()
-      when 'new'
-        assert.ok @params.length is 1, "Joescript `new` wants one construction argument (which may be an invocation with more arguments)"
-        assert.ok @binding is undefined, "Joescript `new` cannot have a binding"
-        return @childrenToJSNode()
       else
         hasSplat = @params?.any (item) -> item.splat
         if hasSplat
@@ -846,14 +842,17 @@ j.Invocation::extend
   toJavascript: ->
     if @func is 'instanceof'
       "(#{jsv @params[0].value}) instanceof (#{jsv @params[1].value})"
-    else if @func is 'new'
-      "(new #{jsv @params[0].value})"
     else if @binding?
       method = if @apply then 'apply' else 'call'
       if @params?
         "#{jsv @func}.#{method}(#{jsv @binding}, #{@params.map (p)->jsv(p.value)})"
       else
         "#{jsv @func}.#{method}(#{jsv @binding})"
+    else if @isNewCall
+      if @params?
+        "(new #{jsv @func}(#{@params.map (p)->jsv(p.value)}))"
+      else
+        "(new #{jsv @func}())"
     else
       if @params?
         "#{jsv @func}(#{@params.map (p)->jsv(p.value)})"

@@ -114,13 +114,14 @@ Statement = clazz 'Statement', Node, ->
   toString: -> "#{@type}(#{@expr ? ''});"
 
 Invocation = clazz 'Invocation', Node, ->
-  init: ({@func, @params, @binding}) ->
+  init: ({@func, @params, @binding, @isNewCall}) ->
+    assert.ok not (@isNewCall and @binding?), "Invocation cannot be both 'new' and 'binding'"
   soakable$: _soakable 'func'
   toString: ->
     if @binding?
       "#{@func}.call(#{@binding};#{@params ? ''})"
     else
-      "#{@func}(#{@params ? ''})"
+      "#{if @isNewCall then 'new ' else ''}#{@func}(#{@params ? ''})"
 
 Assign = clazz 'Assign', Node, ->
   # type: =, +=, -=. *=, /=, ?=, ||= ...
@@ -512,7 +513,14 @@ checkColumn = (__, $) ->
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|':='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
-        o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do' | 'new') (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
+        o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do') (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
+        o NEW:                      " _ 'new' EXPR ", ((expr) ->
+                                      if expr instanceof Invocation
+                                        expr.isNewCall = yes
+                                        return expr
+                                      else
+                                        return new Invocation func:expr, isNewCall:yes
+                                    )
 
         # COMPLEX
         # NOTE: These can't be the 'left' of an Operation.
