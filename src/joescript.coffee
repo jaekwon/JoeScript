@@ -513,7 +513,7 @@ checkColumn = (__, $) ->
           o                         " HEREDOC "
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|':='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
-        o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do') (__|_INDENT (? OBJ_IMPL_ITEM) ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
+        o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do') (__|_INDENT (? OBJ_IMPL_ITEM) ) !( [-+] __ ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
         o NEW:                      " _ 'new' EXPR ", ((expr) ->
                                       if expr instanceof Invocation
                                         expr.isNewCall = yes
@@ -565,7 +565,7 @@ checkColumn = (__, $) ->
                                                                                           else
                                                                                             return invo)
                     o OP40: [
-                      i OP40_OP:      " _NOT | '!' | '~' "
+                      i OP40_OP:      " _NOT | '!' | '~' | '-' "
                       o               " _ op:OP40_OP right:OP40 ", (make Operation)
                       o OP45: [
                         i OP45_OP:    " '?' "
@@ -627,7 +627,7 @@ checkColumn = (__, $) ->
       o SOAK:         " VALUE '?' ", (make Soak)
     ]
     # rest
-    o NUMBER:       " /-?(0x[0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?)/ ", ((it) -> Number it)
+    o NUMBER:       " /(0x[0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?)/ ", ((it) -> Number it) # negative numbers are recognized via OP40
     o SPECIAL:      " WORD ", ((word) ->
                       switch word.key
                         when 'yes', 'true', 'on'

@@ -324,3 +324,8 @@ test " bar = foo := -> ", ' var bar, foo, _temp; bar = foo = (_temp = function()
 test " @?foo := -> ", ' var foo, _temp; this.foo = foo = (_temp = function() {}, _temp._name = "foo", _temp); '
 test " @?foo := => @ ", ' var foo, _temp, _this; this.foo = foo = (_temp = (_this = this, function() { return _this; }), _temp._name = "foo", _temp); '
 test " @?foo := => @func => @func -> @ ", ' var foo, _temp, _this; this.foo = foo = (_temp = (_this = this, function() { return _this.func(function() { return _this.func(function() { return this; }); }); }), _temp._name = "foo", _temp); '
+
+# numbers...
+test " - foo ", ' -foo; '
+test " foo - bar ", ' foo - bar;'
+test " foo -bar ", ' foo( -bar );'
