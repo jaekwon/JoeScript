@@ -621,12 +621,13 @@ checkColumn = (__, $) ->
       o SLICE:        " obj:VALUE range:RANGE ", (make Slice)
       o INDEX0:       " obj:VALUE type:'['   key:LINEEXPR _ ']' ", (make Index)
       o INDEX1:       " obj:VALUE type:'.' _SOFTLINE?  key:WORD ", (make Index)
-      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'$'|'?') !__  key:WORD ", (make Index)
+      o INDEX2:       " obj:VALUE _SOFTLINE? type:('.'|'$') !__  key:WORD ", (make Index)
       o PROTO:        " obj:VALUE _SOFTLINE? type:'::' key:(!__ WORD)? ", (make Index)
       o INVOC_EXPL:   " !NUMBER func:VALUE '(' ___ params:ARR_EXPL_ITEM*(_COMMA|_SOFTLINE) ___ ')' ", (make Invocation)
       o SOAK:         " VALUE '?' ", (make Soak)
     ]
     # rest
+    o INDEX3:       " '(' _ obj:VALUE '.' _ ')' !__ key:WORD ", ({obj, key}) -> new Index {obj,key,type:'(.)'}
     o NUMBER:       " /(0x[0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?)/ ", ((it) -> Number it) # negative numbers are recognized via OP40
     o SPECIAL:      " WORD ", ((word) ->
                       switch word.key

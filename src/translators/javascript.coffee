@@ -547,11 +547,11 @@ j.Assign::extend
       @target.destructLines lines, valueVar
       lines.push valueVar.toJSNode({toVal,inject}) if toVal or inject
       return j.Block(lines)
-    else if isIndex(@target) and @target.type is '?'
-      # @?bar = RHS         ==>   @bar = bar = RHS
-      # bar.baz?bak = RHS   ==>   bar.baz.bak = bak = RHS
-      # bar.baz?bak += RHS  ==>   bar.baz.bak = bak += RHS
-      # bar?baz?bak = RHS   ==>   error
+    else if isIndex(@target) and @target.type is '(.)'
+      # (@.)bar = RHS         ==>   @bar = bar = RHS
+      # (bar.baz.)bak = RHS   ==>   bar.baz.bak = bak = RHS
+      # (bar.baz.)bak += RHS  ==>   bar.baz.bak = bak += RHS
+      # ((bar.)baz.)bak = RHS ==>   error, for now.
       @value = j.Assign target:@target.key, value:@value, op:@op
       @op = undefined
       @target.type = '.'
@@ -876,8 +876,8 @@ j.Index::extend
         "#{jsv @obj}[#{js @key}]"
       when '.'
         "#{jsv @obj}.#{js @key}"
-      when '?'
-        throw new Error "'?' type indices are only valid on the LHS of an assignment, and only on the rightmost key"
+      when '(.)'
+        throw new Error "'(.)' type indices are only valid on the LHS of an assignment, and only on the rightmost key"
       else
         throw new Error "Unknown index type (#{@type})."
 
@@ -970,7 +970,7 @@ for cls in [Number, String, Boolean] then clazz.extend cls,
   withSoak: (fn) ->
     cond = j.Operation(
       left:j.Operation(
-        left: j.Index(obj:@valueOf(), type:'?', key:j.Word('type'))
+        left: j.Index(obj:@valueOf(), type:'$', key:j.Word('type'))
         op:   '!='
         right:"undefined"
       ),

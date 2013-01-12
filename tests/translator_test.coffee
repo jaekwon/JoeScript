@@ -315,15 +315,15 @@ test " ({@foo=1}) -> ", ' (function(_arg) { var _ref; this.foo = _arg.foo; this.
 test """ "\\x1b[36mblah" """, """ "\x1b[36mblah"; """
 
 # other...
-test " @?foo = bar ", ' var foo; this.foo = foo = bar; '
-test " bar.baz?foo = bar ", ' var foo; bar.baz.foo = foo = bar; '
-test " bar.baz?foo += bar ", ' var foo; bar.baz.foo = foo = foo + bar; '
-# test " bar.baz?foo?blah += bar ", TODO: test error message
+test " (@.)foo = bar ", ' var foo; this.foo = foo = bar; '
+test " (bar.baz.)foo = bar ", ' var foo; bar.baz.foo = foo = bar; '
+test " (bar.baz.)foo += bar ", ' var foo; bar.baz.foo = foo = foo + bar; '
+# test " ((bar.baz.)foo.)blah += bar ", TODO: test error message
 test " foo := -> ", ' var foo, _temp; foo = (_temp = function() {}, _temp._name = "foo", _temp); '
 test " bar = foo := -> ", ' var bar, foo, _temp; bar = foo = (_temp = function() {}, _temp._name = "foo", _temp); '
-test " @?foo := -> ", ' var foo, _temp; this.foo = foo = (_temp = function() {}, _temp._name = "foo", _temp); '
-test " @?foo := => @ ", ' var foo, _temp, _this; this.foo = foo = (_temp = (_this = this, function() { return _this; }), _temp._name = "foo", _temp); '
-test " @?foo := => @func => @func -> @ ", ' var foo, _temp, _this; this.foo = foo = (_temp = (_this = this, function() { return _this.func(function() { return _this.func(function() { return this; }); }); }), _temp._name = "foo", _temp); '
+test " (@.)foo := -> ", ' var foo, _temp; this.foo = foo = (_temp = function() {}, _temp._name = "foo", _temp); '
+test " (@.)foo := => @ ", ' var foo, _temp, _this; this.foo = foo = (_temp = (_this = this, function() { return _this; }), _temp._name = "foo", _temp); '
+test " (@.)foo := => @func => @func -> @ ", ' var foo, _temp, _this; this.foo = foo = (_temp = (_this = this, function() { return _this.func(function() { return _this.func(function() { return this; }); }); }), _temp._name = "foo", _temp); '
 
 # numbers...
 test " - foo ", ' -foo; '
