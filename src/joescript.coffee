@@ -514,7 +514,7 @@ checkColumn = (__, $) ->
         ]
         o ASSIGN:                   " _ target:ASSIGNABLE _ type:('='|':='|'+='|'-='|'*='|'/='|'?='|'||='|'or='|'and=') value:BLOCKEXPR ", (make Assign)
         o INVOC_IMPL:               " _ !NUMBER func:(VALUE | 'do') (__|_INDENT (? OBJ_IMPL_ITEM) ) !( [-+] __ ) params:ARR_IMPL_ITEM+(_COMMA|_HAD_COMMA _SOFTDENT) ", (make Invocation)
-        o NEW:                      " _ 'new' EXPR ", ((expr) ->
+        o NEW:                      " _ 'new' __ EXPR ", ((expr) ->
                                       if expr instanceof Invocation
                                         expr.isNewCall = yes
                                         return expr

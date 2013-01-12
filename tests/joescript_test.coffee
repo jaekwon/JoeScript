@@ -34,6 +34,9 @@ test '-foo', '(- foo)'
 # test new
 test 'func(new foo, bar)', 'func(new foo(), bar)'
 test 'func(new foo baz, new bar)', 'func(new foo(baz, new bar()))'
+test 'newFoo', 'newFoo'
+# test (foo.)bar assignments
+test '(@.)foo = 1', 'this(.)foo = (1)'
 # test other
 test """
 foo bar: 'BAR'
